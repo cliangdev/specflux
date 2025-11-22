@@ -586,63 +586,66 @@ This section sets up your development environment with Claude Code skills, agent
 - [x] **Create orchestrator/CLAUDE.md**
   Backend-specific context (services, routes, database patterns)
 
+- [x] **Create frontend/CLAUDE.md**
+  Frontend-specific context (React patterns, API client usage, TailwindCSS)
+
 **Benefit:** Claude Code will understand your codebase, follow your patterns, and work 10x faster. You'll spend less time explaining and more time building.
 
 **Time investment:** ~30 minutes
 **Time saved:** Hours every day
 
 #### UI Foundation
-- [ ] Setup Tauri + React project structure
-- [ ] Configure TailwindCSS for styling
+- [x] Setup Tauri + React project structure
+- [x] Configure TailwindCSS for styling
 - [x] **Setup API Client (Auto-Generated)**
   - [x] Install generated TypeScript client from backend
   - [x] Configure base URL for API
   - [ ] Setup error handling interceptors
   - [ ] Add request/response logging (dev mode)
-- [ ] **Create main layout with navigation**
-  - [ ] Top bar (logo, project selector, notifications, user profile)
-  - [ ] Left sidebar (5 nav items: Board, Tasks, Epics, Files, Settings)
+- [x] **Create main layout with navigation**
+  - [x] Top bar (logo, project selector, notifications, user profile)
+  - [x] Left sidebar (5 nav items: Board, Tasks, Epics, Files, Settings)
   - [ ] Responsive layout (collapsible sidebar)
-  - [ ] Active state highlighting
-- [ ] **Create navigation components**
-  - [ ] Sidebar component
-  - [ ] TopBar component
-  - [ ] ProjectSelector dropdown
-  - [ ] NotificationBell component
-- [ ] Setup React Router
-  - [ ] /board - Board view (default)
-  - [ ] /tasks - Tasks list view
-  - [ ] /epics - Epics view
-  - [ ] /files - Files browser
-  - [ ] /settings - Settings
+  - [x] Active state highlighting
+- [x] **Create navigation components**
+  - [x] Sidebar component
+  - [x] TopBar component
+  - [x] ProjectSelector dropdown
+  - [x] NotificationBell component
+- [x] Setup React Router
+  - [x] /board - Board view (default)
+  - [x] /tasks - Tasks list view
+  - [x] /epics - Epics view
+  - [x] /files - Files browser
+  - [x] /settings - Settings
 
 #### REST API Endpoints
 
 **Authentication:** All endpoints require `X-User-Id` header (desktop app) or `Authorization: Bearer <token>` (future web app)
 
 **Backend Tasks:**
-- [ ] **Implement authentication middleware**
-  - [ ] Extract user_id from `X-User-Id` header
-  - [ ] Validate user exists in database
-  - [ ] Set `req.user` for all endpoints
-  - [ ] Return 401 if unauthorized
-- [ ] **Auto-set user context in endpoints**
-  - [ ] created_by_user_id from req.user
-  - [ ] assigned_to_user_id defaults to req.user
-  - [ ] reviewer_user_id from req.user
+- [x] **Implement authentication middleware**
+  - [x] Extract user_id from `X-User-Id` header
+  - [x] Validate user exists in database
+  - [x] Set `req.user` for all endpoints
+  - [x] Return 401 if unauthorized
+- [x] **Auto-set user context in endpoints**
+  - [x] created_by_user_id from req.user
+  - [x] assigned_to_user_id defaults to req.user
+  - [x] reviewer_user_id from req.user
 
 **Users (2 endpoints):**
-- [ ] `GET    /users/me` - Get current user
-- [ ] `PUT    /users/me` - Update user profile
+- [x] `GET    /users/me` - Get current user
+- [x] `PUT    /users/me` - Update user profile
 
 **Projects (7 endpoints):**
-- [ ] `POST   /projects` - Create new project
-- [ ] `GET    /projects` - List all projects
-- [ ] `GET    /projects/:id` - Get project details
-- [ ] `GET    /projects/:id/config` - Get project config
-- [ ] `PUT    /projects/:id/config` - Update project config
-- [ ] `GET    /projects/:id/dashboard` - Dashboard data (active tasks, pending review, repos, notifications)
-- [ ] `GET    /projects/:id/stats` - Project statistics
+- [x] `POST   /projects` - Create new project
+- [x] `GET    /projects` - List all projects
+- [x] `GET    /projects/:id` - Get project details
+- [x] `GET    /projects/:id/config` - Get project config
+- [x] `PUT    /projects/:id/config` - Update project config
+- [x] `GET    /projects/:id/dashboard` - Dashboard data (active tasks, pending review, repos, notifications)
+- [x] `GET    /projects/:id/stats` - Project statistics
 
 **Project Members (4 endpoints - Future):**
 - [ ] `GET    /projects/:id/members` - List project members
@@ -651,52 +654,53 @@ This section sets up your development environment with Claude Code skills, agent
 - [ ] `DELETE /projects/:id/members/:userId` - Remove member
 
 **Epics (7 endpoints):**
-- [ ] `GET    /projects/:id/epics` - List all epics
-- [ ] `POST   /projects/:id/epics` - Create epic
-- [ ] `GET    /epics/:id` - Get epic details
-- [ ] `PUT    /epics/:id` - Update epic
-- [ ] `DELETE /epics/:id` - Delete epic
-- [ ] `GET    /epics/:id/tasks` - Get tasks in epic
-- [ ] `GET    /epics/:id/progress` - Get epic progress stats
+- [x] `GET    /projects/:id/epics` - List all epics
+- [x] `POST   /projects/:id/epics` - Create epic
+- [x] `GET    /epics/:id` - Get epic details
+- [x] `PUT    /epics/:id` - Update epic
+- [x] `DELETE /epics/:id` - Delete epic
+- [x] `GET    /epics/:id/tasks` - Get tasks in epic
+- [x] `GET    /epics/:id/progress` - Get epic progress stats
 
 **Tasks (17 endpoints):**
-- [ ] `GET    /projects/:id/tasks` - List tasks (with filters)
-- [ ] `POST   /projects/:id/tasks` - Create task
-- [ ] `GET    /tasks/:id` - Get task details
-- [ ] `PUT    /tasks/:id` - Update task
-- [ ] `PUT    /tasks/:id/assign` - Assign task to user
-- [ ] `DELETE /tasks/:id` - Delete task
-- [ ] `POST   /tasks/:id/dependencies` - Add dependency
-- [ ] `GET    /tasks/:id/dependencies` - Get dependencies
-- [ ] `POST   /tasks/:id/start` - Start agent
-- [ ] `POST   /tasks/:id/pause` - Pause agent
-- [ ] `POST   /tasks/:id/resume` - Resume agent
-- [ ] `POST   /tasks/:id/stop` - Stop agent
-- [ ] `GET    /tasks/:id/terminal-output` - Get terminal logs
-- [ ] `GET    /tasks/:id/files-changed` - List changed files
-- [ ] `GET    /tasks/:id/diff` - Get code diff
-- [ ] `POST   /tasks/:id/approve` - Approve task
-- [ ] `POST   /tasks/:id/reject` - Request changes
+- [x] `GET    /projects/:id/tasks` - List tasks (with filters)
+- [x] `POST   /projects/:id/tasks` - Create task
+- [x] `GET    /tasks/:id` - Get task details
+- [x] `PUT    /tasks/:id` - Update task
+- [x] `PUT    /tasks/:id/assign` - Assign task to user
+- [x] `DELETE /tasks/:id` - Delete task
+- [x] `POST   /tasks/:id/dependencies` - Add dependency
+- [x] `GET    /tasks/:id/dependencies` - Get dependencies
+- [ ] `POST   /tasks/:id/start` - Start agent (Phase 2: Claude Code Integration)
+- [ ] `POST   /tasks/:id/pause` - Pause agent (Phase 2)
+- [ ] `POST   /tasks/:id/resume` - Resume agent (Phase 2)
+- [ ] `POST   /tasks/:id/stop` - Stop agent (Phase 2)
+- [x] `GET    /tasks/:id/terminal-output` - Get terminal logs
+- [x] `GET    /tasks/:id/files-changed` - List changed files
+- [x] `GET    /tasks/:id/diff` - Get code diff
+- [x] `POST   /tasks/:id/approve` - Approve task
+- [x] `POST   /tasks/:id/reject` - Request changes
 
 **Repositories (5 endpoints):**
-- [ ] `GET    /projects/:id/repositories` - List repos
-- [ ] `POST   /projects/:id/repositories` - Add repo
-- [ ] `PUT    /repositories/:id` - Update repo
-- [ ] `DELETE /repositories/:id` - Remove repo
-- [ ] `POST   /repositories/:id/sync` - Sync with remote
+- [x] `GET    /projects/:id/repositories` - List repos
+- [x] `POST   /projects/:id/repositories` - Add repo
+- [x] `PUT    /repositories/:id` - Update repo
+- [x] `DELETE /repositories/:id` - Remove repo
+- [x] `POST   /repositories/:id/sync` - Sync with remote
 
 **Notifications (4 endpoints):**
-- [ ] `GET    /projects/:id/notifications` - List notifications
-- [ ] `PUT    /notifications/:id/read` - Mark as read
-- [ ] `DELETE /notifications/:id` - Delete notification
-- [ ] `POST   /notifications/mark-all-read` - Mark all as read
+- [x] `GET    /projects/:id/notifications` - List notifications
+- [x] `PUT    /notifications/:id/read` - Mark as read
+- [x] `DELETE /notifications/:id` - Delete notification
+- [x] `POST   /notifications/mark-all-read` - Mark all as read
 
 **Files (3 endpoints):**
-- [ ] `GET    /projects/:id/files` - List files in orchestrator/
-- [ ] `GET    /files/:path` - Get file content
-- [ ] `PUT    /files/:path` - Update file content
+- [x] `GET    /projects/:id/files` - List files in orchestrator/
+- [x] `GET    /files/:path` - Get file content
+- [x] `PUT    /files/:path` - Update file content
 
 **Total: 53 endpoints** (MVP: 49, Future: 4 team management)
+**Implemented: 44 endpoints** (Agent control endpoints deferred to Phase 2)
 
 **OpenAPI Specification Example:**
 ```yaml
