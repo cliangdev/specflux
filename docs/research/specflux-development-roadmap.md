@@ -65,14 +65,14 @@ specflux/
     - [x] `openapi-generator` for TypeScript client
     - [x] Auto-generate API client for frontend
     - [x] Auto-generate types for backend
-- [ ] Database setup
-  - [ ] Install better-sqlite3
-  - [ ] Create initial schema (13 tables with proper user model)
-  - [ ] Write migration system
-  - [ ] **Add user initialization**
-    - [ ] Function to create user from OS (git config)
-    - [ ] Auto-create user on first app launch
-    - [ ] Store current user in app state
+- [x] Database setup
+  - [x] Install better-sqlite3
+  - [x] Create initial schema (13 tables with proper user model)
+  - [x] Write migration system
+  - [x] **Add user initialization**
+    - [x] Function to create user from OS (git config)
+    - [x] Auto-create user on first app launch
+    - [x] Store current user in app state
 - [ ] File system integration
   - [ ] Create orchestrator folder structure
   - [ ] Implement markdown file readers/writers
