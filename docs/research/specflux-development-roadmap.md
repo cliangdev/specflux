@@ -621,7 +621,7 @@ This section sets up your development environment with Claude Code skills, agent
 
 #### REST API Endpoints
 
-**Authentication:** All endpoints require `X-User-Id` header (desktop app) or `Authorization: Bearer <token>` (future web app)
+**Authentication:** All endpoints accept `X-User-Id` header (optional during development, required in production)
 
 **Backend Tasks:**
 - [x] **Implement authentication middleware**
@@ -973,10 +973,10 @@ const tasks = await projectsApi.getProjectTasks({ id: 1 });
 ```
 
 #### Basic UI Components
-- [ ] Project selector dropdown
-- [ ] Simple task list view
-- [ ] Task creation form
-- [ ] Basic layout with sidebar
+- [x] Project selector dropdown (wired to API with ProjectContext)
+- [x] Simple task list view (TasksPage with filters, status badges, progress bars)
+- [x] Task creation form (TaskCreateModal with validation)
+- [x] Basic layout with sidebar
 
 **Wireframe: Basic UI (Week 2)**
 ```
