@@ -11,16 +11,27 @@ projects-id-notifications:
         required: true
         schema:
           type: integer
+        description: Project ID
       - name: is_read
         in: query
         schema:
           type: boolean
+        description: Filter by read status
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+        description: Page number
       - name: limit
         in: query
         schema:
           type: integer
           default: 20
+          minimum: 1
           maximum: 100
+        description: Items per page
     responses:
       '200':
         description: List of notifications
@@ -35,12 +46,23 @@ projects-id-notifications:
                   type: array
                   items:
                     $ref: '../schemas/notification.yaml#/Notification'
+                pagination:
+                  $ref: '../schemas/common.yaml#/Pagination'
+              required:
+                - success
+                - data
+      '404':
+        description: Project not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
 
-notifications-id-read:
-  put:
-    summary: Mark as read
-    description: Mark a notification as read
-    operationId: markNotificationRead
+notifications-id:
+  get:
+    summary: Get notification
+    description: Get a notification by ID
+    operationId: getNotification
     tags:
       - Notifications
     parameters:
@@ -49,9 +71,10 @@ notifications-id-read:
         required: true
         schema:
           type: integer
+        description: Notification ID
     responses:
       '200':
-        description: Notification marked as read
+        description: Notification details
         content:
           application/json:
             schema:
@@ -61,8 +84,61 @@ notifications-id-read:
                   type: boolean
                 data:
                   $ref: '../schemas/notification.yaml#/Notification'
+              required:
+                - success
+                - data
+      '404':
+        description: Notification not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
 
-notifications-id:
+  patch:
+    summary: Update notification
+    description: Update notification (e.g., mark as read)
+    operationId: updateNotification
+    tags:
+      - Notifications
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Notification ID
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              is_read:
+                type: boolean
+                description: Mark notification as read/unread
+    responses:
+      '200':
+        description: Notification updated
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/notification.yaml#/Notification'
+              required:
+                - success
+                - data
+      '404':
+        description: Notification not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
   delete:
     summary: Delete notification
     description: Delete a notification
@@ -75,6 +151,7 @@ notifications-id:
         required: true
         schema:
           type: integer
+        description: Notification ID
     responses:
       '204':
         description: Notification deleted
@@ -85,13 +162,20 @@ notifications-id:
             schema:
               $ref: '../schemas/common.yaml#/Error'
 
-notifications-mark-all-read:
-  post:
+projects-id-notifications-read-all:
+  patch:
     summary: Mark all as read
-    description: Mark all notifications as read
+    description: Mark all notifications for a project as read
     operationId: markAllNotificationsRead
     tags:
       - Notifications
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Project ID
     responses:
       '200':
         description: All notifications marked as read
@@ -105,6 +189,15 @@ notifications-mark-all-read:
                 data:
                   type: object
                   properties:
-                    count:
+                    updated_count:
                       type: integer
                       description: Number of notifications marked as read
+              required:
+                - success
+                - data
+      '404':
+        description: Project not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'

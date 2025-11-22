@@ -15,14 +15,15 @@ Task:
       nullable: true
     status:
       type: string
-      enum: [backlog, ready, in-progress, pending-review, approved, done]
+      enum: [backlog, ready, in_progress, pending_review, approved, done]
     requires_approval:
       type: boolean
     repo_name:
       type: string
       nullable: true
-    agent_name:
+    agent_status:
       type: string
+      enum: [idle, running, paused, stopped, completed, failed]
       nullable: true
     progress_percentage:
       type: integer
@@ -44,9 +45,6 @@ Task:
       nullable: true
     github_pr_number:
       type: integer
-      nullable: true
-    file_path:
-      type: string
       nullable: true
     created_by_user_id:
       type: integer
@@ -89,12 +87,10 @@ CreateTaskRequest:
     repo_name:
       type: string
       nullable: true
-    agent_name:
-      type: string
-      nullable: true
     estimated_duration:
       type: integer
       nullable: true
+      description: Estimated duration in minutes
     dependencies:
       type: array
       items:
@@ -115,13 +111,10 @@ UpdateTaskRequest:
       nullable: true
     status:
       type: string
-      enum: [backlog, ready, in-progress, pending-review, approved, done]
+      enum: [backlog, ready, in_progress, pending_review, approved, done]
     requires_approval:
       type: boolean
     repo_name:
-      type: string
-      nullable: true
-    agent_name:
       type: string
       nullable: true
     estimated_duration:
@@ -144,6 +137,33 @@ TaskDependency:
     - task_id
     - depends_on_task_id
 
+AgentStatus:
+  type: object
+  properties:
+    task_id:
+      type: integer
+    status:
+      type: string
+      enum: [idle, running, paused, stopped, completed, failed]
+    pid:
+      type: integer
+      nullable: true
+      description: Process ID of the running agent
+    started_at:
+      type: string
+      format: date-time
+      nullable: true
+    stopped_at:
+      type: string
+      format: date-time
+      nullable: true
+    error_message:
+      type: string
+      nullable: true
+  required:
+    - task_id
+    - status
+
 TerminalOutput:
   type: object
   properties:
@@ -151,13 +171,17 @@ TerminalOutput:
       type: integer
     output:
       type: string
-    timestamp:
-      type: string
-      format: date-time
+    offset:
+      type: integer
+      description: Byte offset for pagination
+    has_more:
+      type: boolean
+      description: Whether there is more output available
   required:
     - task_id
     - output
-    - timestamp
+    - offset
+    - has_more
 
 FileChange:
   type: object
@@ -166,7 +190,11 @@ FileChange:
       type: string
     status:
       type: string
-      enum: [added, modified, deleted]
+      enum: [added, modified, deleted, renamed]
+    old_path:
+      type: string
+      nullable: true
+      description: Original path for renamed files
     lines_added:
       type: integer
     lines_removed:
@@ -174,12 +202,27 @@ FileChange:
   required:
     - path
     - status
+    - lines_added
+    - lines_removed
 
 TaskDiff:
   type: object
   properties:
     task_id:
       type: integer
+    summary:
+      type: object
+      properties:
+        files_changed:
+          type: integer
+        lines_added:
+          type: integer
+        lines_removed:
+          type: integer
+      required:
+        - files_changed
+        - lines_added
+        - lines_removed
     files:
       type: array
       items:
@@ -187,18 +230,30 @@ TaskDiff:
         properties:
           path:
             type: string
+          status:
+            type: string
+            enum: [added, modified, deleted, renamed]
           diff:
             type: string
+            description: Unified diff format
         required:
           - path
+          - status
           - diff
   required:
     - task_id
+    - summary
     - files
 
-ApprovalRequest:
+ReviewRequest:
   type: object
   properties:
+    decision:
+      type: string
+      enum: [approve, request_changes]
     feedback:
       type: string
       nullable: true
+      description: Required when decision is request_changes
+  required:
+    - decision

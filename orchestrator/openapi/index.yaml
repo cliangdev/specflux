@@ -6,6 +6,25 @@ info:
 
     SpecFlux orchestrates Claude Code agents across multiple repositories
     with spec-driven workflows and configurable pipelines.
+
+    ## API Conventions
+
+    - All responses use a consistent envelope: `{ success: boolean, data?: T, error?: Error }`
+    - List endpoints support pagination via `page` and `limit` query parameters
+    - PATCH is used for partial updates, PUT for full resource replacement
+    - 204 No Content is returned for successful DELETE operations
+    - Error responses include machine-readable codes and human-readable messages
+
+    ## Status Codes
+
+    - 200: Success
+    - 201: Created
+    - 204: No Content (successful DELETE)
+    - 400: Bad Request (validation errors)
+    - 401: Unauthorized
+    - 404: Not Found
+    - 409: Conflict (state conflicts, duplicate resources)
+    - 500: Internal Server Error
   version: 1.0.0
   contact:
     name: SpecFlux
@@ -19,11 +38,11 @@ tags:
   - name: Health
     description: Health check endpoints
   - name: Users
-    description: User management
+    description: User profile management
   - name: Projects
     description: Project management
   - name: Epics
-    description: Epic management
+    description: Epic management (groups of related tasks)
   - name: Tasks
     description: Task management and agent orchestration
   - name: Repositories
@@ -31,9 +50,10 @@ tags:
   - name: Notifications
     description: Notification management
   - name: Files
-    description: File operations
+    description: File operations within project directories
 
 paths:
+  # Health
   /health:
     $ref: './paths/health.yaml#/health'
 
@@ -53,7 +73,7 @@ paths:
   /projects/{id}/stats:
     $ref: './paths/projects.yaml#/projects-id-stats'
 
-  # Epics
+  # Epics (nested under projects)
   /projects/{id}/epics:
     $ref: './paths/epics.yaml#/projects-id-epics'
   /epics/{id}:
@@ -63,35 +83,29 @@ paths:
   /epics/{id}/progress:
     $ref: './paths/epics.yaml#/epics-id-progress'
 
-  # Tasks
+  # Tasks (nested under projects)
   /projects/{id}/tasks:
     $ref: './paths/tasks.yaml#/projects-id-tasks'
   /tasks/{id}:
     $ref: './paths/tasks.yaml#/tasks-id'
-  /tasks/{id}/assign:
-    $ref: './paths/tasks.yaml#/tasks-id-assign'
+  /tasks/{id}/assignee:
+    $ref: './paths/tasks.yaml#/tasks-id-assignee'
   /tasks/{id}/dependencies:
     $ref: './paths/tasks.yaml#/tasks-id-dependencies'
-  /tasks/{id}/start:
-    $ref: './paths/tasks.yaml#/tasks-id-start'
-  /tasks/{id}/pause:
-    $ref: './paths/tasks.yaml#/tasks-id-pause'
-  /tasks/{id}/resume:
-    $ref: './paths/tasks.yaml#/tasks-id-resume'
-  /tasks/{id}/stop:
-    $ref: './paths/tasks.yaml#/tasks-id-stop'
-  /tasks/{id}/terminal-output:
-    $ref: './paths/tasks.yaml#/tasks-id-terminal-output'
-  /tasks/{id}/files-changed:
-    $ref: './paths/tasks.yaml#/tasks-id-files-changed'
+  /tasks/{id}/dependencies/{dep_id}:
+    $ref: './paths/tasks.yaml#/tasks-id-dependencies-dep-id'
+  /tasks/{id}/agent:
+    $ref: './paths/tasks.yaml#/tasks-id-agent'
+  /tasks/{id}/agent/output:
+    $ref: './paths/tasks.yaml#/tasks-id-agent-output'
+  /tasks/{id}/changes:
+    $ref: './paths/tasks.yaml#/tasks-id-changes'
   /tasks/{id}/diff:
     $ref: './paths/tasks.yaml#/tasks-id-diff'
-  /tasks/{id}/approve:
-    $ref: './paths/tasks.yaml#/tasks-id-approve'
-  /tasks/{id}/reject:
-    $ref: './paths/tasks.yaml#/tasks-id-reject'
+  /tasks/{id}/review:
+    $ref: './paths/tasks.yaml#/tasks-id-review'
 
-  # Repositories
+  # Repositories (nested under projects)
   /projects/{id}/repositories:
     $ref: './paths/repositories.yaml#/projects-id-repositories'
   /repositories/{id}:
@@ -99,17 +113,15 @@ paths:
   /repositories/{id}/sync:
     $ref: './paths/repositories.yaml#/repositories-id-sync'
 
-  # Notifications
+  # Notifications (nested under projects)
   /projects/{id}/notifications:
     $ref: './paths/notifications.yaml#/projects-id-notifications'
-  /notifications/{id}/read:
-    $ref: './paths/notifications.yaml#/notifications-id-read'
+  /projects/{id}/notifications/read-all:
+    $ref: './paths/notifications.yaml#/projects-id-notifications-read-all'
   /notifications/{id}:
     $ref: './paths/notifications.yaml#/notifications-id'
-  /notifications/mark-all-read:
-    $ref: './paths/notifications.yaml#/notifications-mark-all-read'
 
-  # Files
+  # Files (nested under projects)
   /projects/{id}/files:
     $ref: './paths/files.yaml#/projects-id-files'
   /files/{path}:

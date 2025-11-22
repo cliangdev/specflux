@@ -1,8 +1,8 @@
 # Common schemas
 ApiResponse:
   $ref: './common.yaml#/ApiResponse'
-PaginatedResponse:
-  $ref: './common.yaml#/PaginatedResponse'
+Pagination:
+  $ref: './common.yaml#/Pagination'
 Error:
   $ref: './common.yaml#/Error'
 
@@ -47,14 +47,16 @@ UpdateTaskRequest:
   $ref: './task.yaml#/UpdateTaskRequest'
 TaskDependency:
   $ref: './task.yaml#/TaskDependency'
+AgentStatus:
+  $ref: './task.yaml#/AgentStatus'
 TerminalOutput:
   $ref: './task.yaml#/TerminalOutput'
 FileChange:
   $ref: './task.yaml#/FileChange'
 TaskDiff:
   $ref: './task.yaml#/TaskDiff'
-ApprovalRequest:
-  $ref: './task.yaml#/ApprovalRequest'
+ReviewRequest:
+  $ref: './task.yaml#/ReviewRequest'
 
 # Repository schemas
 Repository:

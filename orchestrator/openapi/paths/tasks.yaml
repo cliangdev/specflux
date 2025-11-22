@@ -11,30 +11,33 @@ projects-id-tasks:
         required: true
         schema:
           type: integer
+        description: Project ID
       - name: status
         in: query
         schema:
           type: string
-          enum: [backlog, ready, in-progress, pending-review, approved, done]
+          enum: [backlog, ready, in_progress, pending_review, approved, done]
+        description: Filter by task status
       - name: epic_id
         in: query
         schema:
           type: integer
-      - name: repo_name
-        in: query
-        schema:
-          type: string
+        description: Filter by epic ID
       - name: page
         in: query
         schema:
           type: integer
           default: 1
+          minimum: 1
+        description: Page number
       - name: limit
         in: query
         schema:
           type: integer
           default: 20
+          minimum: 1
           maximum: 100
+        description: Items per page
     responses:
       '200':
         description: List of tasks
@@ -49,6 +52,17 @@ projects-id-tasks:
                   type: array
                   items:
                     $ref: '../schemas/task.yaml#/Task'
+                pagination:
+                  $ref: '../schemas/common.yaml#/Pagination'
+              required:
+                - success
+                - data
+      '404':
+        description: Project not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
 
   post:
     summary: Create task
@@ -62,6 +76,7 @@ projects-id-tasks:
         required: true
         schema:
           type: integer
+        description: Project ID
     requestBody:
       required: true
       content:
@@ -80,6 +95,21 @@ projects-id-tasks:
                   type: boolean
                 data:
                   $ref: '../schemas/task.yaml#/Task'
+              required:
+                - success
+                - data
+      '400':
+        description: Invalid request body
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+      '404':
+        description: Project not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
 
 tasks-id:
   get:
@@ -94,6 +124,7 @@ tasks-id:
         required: true
         schema:
           type: integer
+        description: Task ID
     responses:
       '200':
         description: Task details
@@ -106,6 +137,9 @@ tasks-id:
                   type: boolean
                 data:
                   $ref: '../schemas/task.yaml#/Task'
+              required:
+                - success
+                - data
       '404':
         description: Task not found
         content:
@@ -113,9 +147,9 @@ tasks-id:
             schema:
               $ref: '../schemas/common.yaml#/Error'
 
-  put:
+  patch:
     summary: Update task
-    description: Update task details
+    description: Partially update task details
     operationId: updateTask
     tags:
       - Tasks
@@ -125,6 +159,7 @@ tasks-id:
         required: true
         schema:
           type: integer
+        description: Task ID
     requestBody:
       required: true
       content:
@@ -143,6 +178,27 @@ tasks-id:
                   type: boolean
                 data:
                   $ref: '../schemas/task.yaml#/Task'
+              required:
+                - success
+                - data
+      '400':
+        description: Invalid request body
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+      '404':
+        description: Task not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+      '409':
+        description: Invalid state transition
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
 
   delete:
     summary: Delete task
@@ -156,6 +212,7 @@ tasks-id:
         required: true
         schema:
           type: integer
+        description: Task ID
     responses:
       '204':
         description: Task deleted
@@ -165,11 +222,17 @@ tasks-id:
           application/json:
             schema:
               $ref: '../schemas/common.yaml#/Error'
+      '409':
+        description: Cannot delete task in current state
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
 
-tasks-id-assign:
+tasks-id-assignee:
   put:
     summary: Assign task
-    description: Assign task to a user
+    description: Assign or unassign a task to a user
     operationId: assignTask
     tags:
       - Tasks
@@ -179,6 +242,7 @@ tasks-id-assign:
         required: true
         schema:
           type: integer
+        description: Task ID
     requestBody:
       required: true
       content:
@@ -189,9 +253,10 @@ tasks-id-assign:
               user_id:
                 type: integer
                 nullable: true
+                description: User ID to assign, or null to unassign
     responses:
       '200':
-        description: Task assigned
+        description: Task assignment updated
         content:
           application/json:
             schema:
@@ -201,12 +266,21 @@ tasks-id-assign:
                   type: boolean
                 data:
                   $ref: '../schemas/task.yaml#/Task'
+              required:
+                - success
+                - data
+      '404':
+        description: Task or user not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
 
 tasks-id-dependencies:
   get:
-    summary: Get task dependencies
-    description: Get dependencies for a task
-    operationId: getTaskDependencies
+    summary: List task dependencies
+    description: Get all dependencies for a task
+    operationId: listTaskDependencies
     tags:
       - Tasks
     parameters:
@@ -215,6 +289,7 @@ tasks-id-dependencies:
         required: true
         schema:
           type: integer
+        description: Task ID
     responses:
       '200':
         description: Task dependencies
@@ -229,6 +304,15 @@ tasks-id-dependencies:
                   type: array
                   items:
                     $ref: '../schemas/task.yaml#/TaskDependency'
+              required:
+                - success
+                - data
+      '404':
+        description: Task not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
 
   post:
     summary: Add dependency
@@ -242,6 +326,7 @@ tasks-id-dependencies:
         required: true
         schema:
           type: integer
+        description: Task ID
     requestBody:
       required: true
       content:
@@ -251,6 +336,7 @@ tasks-id-dependencies:
             properties:
               depends_on_task_id:
                 type: integer
+                description: ID of the task this task depends on
             required:
               - depends_on_task_id
     responses:
@@ -265,12 +351,33 @@ tasks-id-dependencies:
                   type: boolean
                 data:
                   $ref: '../schemas/task.yaml#/TaskDependency'
+              required:
+                - success
+                - data
+      '400':
+        description: Invalid dependency (e.g., circular dependency)
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+      '404':
+        description: Task not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+      '409':
+        description: Dependency already exists
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
 
-tasks-id-start:
-  post:
-    summary: Start agent
-    description: Start Claude Code agent for a task
-    operationId: startTask
+tasks-id-dependencies-dep-id:
+  delete:
+    summary: Remove dependency
+    description: Remove a dependency from a task
+    operationId: removeTaskDependency
     tags:
       - Tasks
     parameters:
@@ -279,107 +386,28 @@ tasks-id-start:
         required: true
         schema:
           type: integer
-    responses:
-      '200':
-        description: Agent started
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                success:
-                  type: boolean
-                data:
-                  type: object
-                  properties:
-                    task:
-                      $ref: '../schemas/task.yaml#/Task'
-                    agent_pid:
-                      type: integer
-
-tasks-id-pause:
-  post:
-    summary: Pause agent
-    description: Pause the running agent for a task
-    operationId: pauseTask
-    tags:
-      - Tasks
-    parameters:
-      - name: id
+        description: Task ID
+      - name: dep_id
         in: path
         required: true
         schema:
           type: integer
+        description: Dependency task ID to remove
     responses:
-      '200':
-        description: Agent paused
+      '204':
+        description: Dependency removed
+      '404':
+        description: Task or dependency not found
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                success:
-                  type: boolean
-                data:
-                  $ref: '../schemas/task.yaml#/Task'
+              $ref: '../schemas/common.yaml#/Error'
 
-tasks-id-resume:
-  post:
-    summary: Resume agent
-    description: Resume a paused agent for a task
-    operationId: resumeTask
-    tags:
-      - Tasks
-    parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: integer
-    responses:
-      '200':
-        description: Agent resumed
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                success:
-                  type: boolean
-                data:
-                  $ref: '../schemas/task.yaml#/Task'
-
-tasks-id-stop:
-  post:
-    summary: Stop agent
-    description: Stop the running agent for a task
-    operationId: stopTask
-    tags:
-      - Tasks
-    parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: integer
-    responses:
-      '200':
-        description: Agent stopped
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                success:
-                  type: boolean
-                data:
-                  $ref: '../schemas/task.yaml#/Task'
-
-tasks-id-terminal-output:
+tasks-id-agent:
   get:
-    summary: Get terminal output
-    description: Get terminal output for a running task
-    operationId: getTaskTerminalOutput
+    summary: Get agent status
+    description: Get the current agent status for a task
+    operationId: getTaskAgentStatus
     tags:
       - Tasks
     parameters:
@@ -388,9 +416,112 @@ tasks-id-terminal-output:
         required: true
         schema:
           type: integer
+        description: Task ID
     responses:
       '200':
-        description: Terminal output
+        description: Agent status
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/task.yaml#/AgentStatus'
+              required:
+                - success
+                - data
+      '404':
+        description: Task not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+  put:
+    summary: Control agent
+    description: Start, pause, resume, or stop the agent for a task
+    operationId: controlTaskAgent
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Task ID
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              action:
+                type: string
+                enum: [start, pause, resume, stop]
+                description: Agent control action
+            required:
+              - action
+    responses:
+      '200':
+        description: Agent action executed
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/task.yaml#/AgentStatus'
+              required:
+                - success
+                - data
+      '400':
+        description: Invalid action for current agent state
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+      '404':
+        description: Task not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+      '409':
+        description: Agent is not in a valid state for this action
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+tasks-id-agent-output:
+  get:
+    summary: Get agent output
+    description: Get terminal output from the running agent
+    operationId: getTaskAgentOutput
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Task ID
+      - name: since
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+        description: Return output after this byte offset
+    responses:
+      '200':
+        description: Agent terminal output
         content:
           application/json:
             schema:
@@ -400,12 +531,21 @@ tasks-id-terminal-output:
                   type: boolean
                 data:
                   $ref: '../schemas/task.yaml#/TerminalOutput'
+              required:
+                - success
+                - data
+      '404':
+        description: Task not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
 
-tasks-id-files-changed:
+tasks-id-changes:
   get:
-    summary: Get files changed
+    summary: Get task changes
     description: Get list of files changed by a task
-    operationId: getTaskFilesChanged
+    operationId: getTaskChanges
     tags:
       - Tasks
     parameters:
@@ -414,9 +554,10 @@ tasks-id-files-changed:
         required: true
         schema:
           type: integer
+        description: Task ID
     responses:
       '200':
-        description: Files changed
+        description: Files changed by the task
         content:
           application/json:
             schema:
@@ -428,11 +569,20 @@ tasks-id-files-changed:
                   type: array
                   items:
                     $ref: '../schemas/task.yaml#/FileChange'
+              required:
+                - success
+                - data
+      '404':
+        description: Task not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
 
 tasks-id-diff:
   get:
-    summary: Get code diff
-    description: Get code diff for a task
+    summary: Get task diff
+    description: Get unified diff of all changes made by a task
     operationId: getTaskDiff
     tags:
       - Tasks
@@ -442,6 +592,7 @@ tasks-id-diff:
         required: true
         schema:
           type: integer
+        description: Task ID
     responses:
       '200':
         description: Code diff
@@ -454,43 +605,21 @@ tasks-id-diff:
                   type: boolean
                 data:
                   $ref: '../schemas/task.yaml#/TaskDiff'
-
-tasks-id-approve:
-  post:
-    summary: Approve task
-    description: Approve a task pending review
-    operationId: approveTask
-    tags:
-      - Tasks
-    parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: integer
-    requestBody:
-      content:
-        application/json:
-          schema:
-            $ref: '../schemas/task.yaml#/ApprovalRequest'
-    responses:
-      '200':
-        description: Task approved
+              required:
+                - success
+                - data
+      '404':
+        description: Task not found
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                success:
-                  type: boolean
-                data:
-                  $ref: '../schemas/task.yaml#/Task'
+              $ref: '../schemas/common.yaml#/Error'
 
-tasks-id-reject:
+tasks-id-review:
   post:
-    summary: Reject task
-    description: Request changes for a task
-    operationId: rejectTask
+    summary: Submit task review
+    description: Approve or request changes for a task pending review
+    operationId: submitTaskReview
     tags:
       - Tasks
     parameters:
@@ -499,20 +628,16 @@ tasks-id-reject:
         required: true
         schema:
           type: integer
+        description: Task ID
     requestBody:
       required: true
       content:
         application/json:
           schema:
-            type: object
-            properties:
-              feedback:
-                type: string
-            required:
-              - feedback
+            $ref: '../schemas/task.yaml#/ReviewRequest'
     responses:
       '200':
-        description: Changes requested
+        description: Review submitted
         content:
           application/json:
             schema:
@@ -522,3 +647,24 @@ tasks-id-reject:
                   type: boolean
                 data:
                   $ref: '../schemas/task.yaml#/Task'
+              required:
+                - success
+                - data
+      '400':
+        description: Invalid review request
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+      '404':
+        description: Task not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+      '409':
+        description: Task is not pending review
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
