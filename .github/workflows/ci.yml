@@ -9,6 +9,7 @@ on:
 permissions:
   contents: read
   checks: write
+  pull-requests: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -16,8 +17,8 @@ concurrency:
 
 jobs:
   # Backend jobs run in parallel
-  backend-lint:
-    name: Backend Lint
+  lint:
+    name: Lint & Format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,14 +32,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run ESLint
+      - name: ESLint
         run: npm run lint --workspace=orchestrator
 
-      - name: Check formatting
+      - name: Prettier
         run: npm run format:check --workspace=orchestrator
 
-  backend-typecheck:
-    name: Backend Type Check
+  typecheck:
+    name: Type Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -52,11 +53,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Type check
+      - name: TypeScript
         run: npm run typecheck --workspace=orchestrator
 
-  backend-test:
-    name: Backend Tests
+  test:
+    name: Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -70,28 +71,36 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests with coverage
+      - name: Run tests
         run: npm run test:coverage --workspace=orchestrator -- --ci --reporters=default --reporters=jest-junit
         env:
           JEST_JUNIT_OUTPUT_DIR: ${{ github.workspace }}
 
-      - name: Test Report
+      - name: Test Report (Checks Tab)
         uses: dorny/test-reporter@v1
         if: success() || failure()
         with:
-          name: Jest Tests
+          name: Test Results
           path: junit.xml
           reporter: jest-junit
 
-      - name: Upload coverage reports
+      - name: Test Report (PR Comment)
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          files: junit.xml
+          comment_mode: off
+          check_name: Test Summary
+
+      - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
           directory: orchestrator/coverage
           fail_ci_if_error: false
 
-  backend-build:
-    name: Backend Build
+  build:
+    name: Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -108,16 +117,19 @@ jobs:
       - name: Build
         run: npm run build --workspace=orchestrator
 
-  # Summary job that requires all backend jobs to pass
-  # Frontend jobs will be added when frontend code exists
   ci-success:
-    name: CI Success
+    name: CI
     runs-on: ubuntu-latest
-    needs:
-      - backend-lint
-      - backend-typecheck
-      - backend-test
-      - backend-build
+    needs: [lint, typecheck, test, build]
+    if: always()
     steps:
-      - name: All checks passed
-        run: echo "All CI checks passed successfully!"
+      - name: Check results
+        run: |
+          if [[ "${{ needs.lint.result }}" != "success" ||
+                "${{ needs.typecheck.result }}" != "success" ||
+                "${{ needs.test.result }}" != "success" ||
+                "${{ needs.build.result }}" != "success" ]]; then
+            echo "One or more jobs failed"
+            exit 1
+          fi
+          echo "All CI checks passed!"
