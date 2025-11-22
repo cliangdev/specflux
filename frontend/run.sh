@@ -25,10 +25,38 @@ check_node() {
     fi
 }
 
-check_cargo() {
+check_desktop_deps() {
+    local missing=()
+
+    # Check Rust/Cargo
     if ! command -v cargo &> /dev/null; then
-        echo "Error: Rust/Cargo is not installed"
-        echo "Install with: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+        missing+=("rust")
+    fi
+
+    # Check Xcode Command Line Tools (macOS)
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        if ! xcode-select -p &> /dev/null; then
+            missing+=("xcode-cli")
+        fi
+    fi
+
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo "Missing dependencies for desktop app:"
+        echo ""
+        for dep in "${missing[@]}"; do
+            case $dep in
+                rust)
+                    echo "  - Rust/Cargo"
+                    echo "    Install: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+                    echo ""
+                    ;;
+                xcode-cli)
+                    echo "  - Xcode Command Line Tools"
+                    echo "    Install: xcode-select --install"
+                    echo ""
+                    ;;
+            esac
+        done
         exit 1
     fi
 }
@@ -58,7 +86,7 @@ kill_vite_on_port() {
 
 run_desktop() {
     check_node
-    check_cargo
+    check_desktop_deps
     install_deps
     kill_vite_on_port 5173
     kill_vite_on_port 1420
