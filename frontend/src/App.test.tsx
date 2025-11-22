@@ -8,29 +8,30 @@ describe("App", () => {
     expect(document.body).toBeTruthy();
   });
 
-  it("displays the SpecFlux header", () => {
-    render(<App />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-      "SpecFlux",
-    );
-  });
-
-  it("displays the SF logo", () => {
+  it("displays the SpecFlux logo", () => {
     render(<App />);
     expect(screen.getByText("SF")).toBeInTheDocument();
   });
 
-  it("displays the welcome message", () => {
+  it("displays the top bar with brand name", () => {
     render(<App />);
-    expect(
-      screen.getByRole("heading", { level: 2, name: /welcome to specflux/i }),
-    ).toBeInTheDocument();
+    const topBar = screen.getByRole("banner");
+    expect(topBar).toHaveTextContent("SpecFlux");
   });
 
-  it("displays the product description", () => {
+  it("displays the sidebar navigation links", () => {
     render(<App />);
-    expect(
-      screen.getByText(/ai-powered project orchestration/i),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /board/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /tasks/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /epics/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /files/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /settings/i })).toBeInTheDocument();
+  });
+
+  it("redirects to board page by default", () => {
+    render(<App />);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      "Board",
+    );
   });
 });
