@@ -17,6 +17,6 @@
     "generate:client": "npm run generate:client --workspace=orchestrator && cp -r orchestrator/generated-client frontend/src/api/generated"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   }
 }
