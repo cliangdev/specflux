@@ -67,7 +67,15 @@ jobs:
         run: npm ci
 
       - name: Run tests with coverage
-        run: npm run test:coverage --workspace=orchestrator
+        run: npm run test:coverage --workspace=orchestrator -- --json --outputFile=orchestrator/test-results.json
+
+      - name: Test Report
+        uses: dorny/test-reporter@v1
+        if: success() || failure()
+        with:
+          name: Jest Tests
+          path: orchestrator/test-results.json
+          reporter: jest-json
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v4
