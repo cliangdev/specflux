@@ -53,14 +53,14 @@ specflux/
   - [x] Setup Express/Fastify
   - [x] Configure ESLint, Prettier
   - [x] Setup hot reload (nodemon)
-- [ ] **API-First Design**
-  - [ ] Install Swagger/OpenAPI tools
-    - [ ] `swagger-jsdoc` for documentation
-    - [ ] `swagger-ui-express` for interactive docs
-  - [ ] Create OpenAPI spec (YAML)
-    - [ ] Define all endpoints
-    - [ ] Request/response schemas
-    - [ ] Error responses
+- [x] **API-First Design**
+  - [x] Install Swagger/OpenAPI tools
+    - [x] `swagger-jsdoc` for documentation
+    - [x] `swagger-ui-express` for interactive docs
+  - [x] Create OpenAPI spec (YAML)
+    - [x] Define all endpoints
+    - [x] Request/response schemas
+    - [x] Error responses
   - [ ] Setup code generation
     - [ ] `openapi-generator` for TypeScript client
     - [ ] Auto-generate API client for frontend

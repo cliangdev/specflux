@@ -1,0 +1,135 @@
+projects-id-files:
+  get:
+    summary: List files
+    description: List files in project's orchestrator directory
+    operationId: listFiles
+    tags:
+      - Files
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: path
+        in: query
+        schema:
+          type: string
+          default: ''
+        description: Subdirectory path to list
+    responses:
+      '200':
+        description: List of files and directories
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      path:
+                        type: string
+                      type:
+                        type: string
+                        enum: [file, directory]
+                      size:
+                        type: integer
+                        nullable: true
+                      modified_at:
+                        type: string
+                        format: date-time
+
+files-path:
+  get:
+    summary: Get file content
+    description: Get content of a file
+    operationId: getFileContent
+    tags:
+      - Files
+    parameters:
+      - name: path
+        in: path
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: File content
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  type: object
+                  properties:
+                    path:
+                      type: string
+                    content:
+                      type: string
+                    modified_at:
+                      type: string
+                      format: date-time
+      '404':
+        description: File not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+  put:
+    summary: Update file content
+    description: Update content of a file
+    operationId: updateFileContent
+    tags:
+      - Files
+    parameters:
+      - name: path
+        in: path
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              content:
+                type: string
+            required:
+              - content
+    responses:
+      '200':
+        description: File updated
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  type: object
+                  properties:
+                    path:
+                      type: string
+                    modified_at:
+                      type: string
+                      format: date-time
+      '404':
+        description: File not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'

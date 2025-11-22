@@ -1,0 +1,56 @@
+users-me:
+  get:
+    summary: Get current user
+    description: Get the authenticated user's profile
+    operationId: getCurrentUser
+    tags:
+      - Users
+    responses:
+      '200':
+        description: User profile
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/user.yaml#/User'
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+  put:
+    summary: Update current user
+    description: Update the authenticated user's profile
+    operationId: updateCurrentUser
+    tags:
+      - Users
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/user.yaml#/UpdateUserRequest'
+    responses:
+      '200':
+        description: Updated user profile
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/user.yaml#/User'
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'

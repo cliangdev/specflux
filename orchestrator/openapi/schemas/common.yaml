@@ -1,0 +1,62 @@
+ApiResponse:
+  type: object
+  properties:
+    success:
+      type: boolean
+    data:
+      type: object
+    error:
+      type: string
+  required:
+    - success
+
+Pagination:
+  type: object
+  properties:
+    page:
+      type: integer
+      minimum: 1
+      description: Current page number
+    limit:
+      type: integer
+      minimum: 1
+      maximum: 100
+      description: Items per page
+    total:
+      type: integer
+      minimum: 0
+      description: Total number of items
+    total_pages:
+      type: integer
+      minimum: 0
+      description: Total number of pages
+  required:
+    - page
+    - limit
+    - total
+    - total_pages
+
+Error:
+  type: object
+  properties:
+    success:
+      type: boolean
+      enum: [false]
+    error:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          description: Additional error details (validation errors, etc.)
+      required:
+        - code
+        - message
+  required:
+    - success
+    - error
