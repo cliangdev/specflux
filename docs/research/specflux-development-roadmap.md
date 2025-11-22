@@ -515,14 +515,14 @@ const task = await createTask({
 ```
 
 #### Tauri Desktop Shell
-- [ ] Initialize Tauri project
-  - [ ] Setup React + TypeScript + Vite
-  - [ ] Configure TailwindCSS
-  - [ ] Setup Tauri IPC commands
-- [ ] Basic window setup
-  - [ ] Configure window size (1200x800 default)
-  - [ ] Add app icon
-  - [ ] Setup dev environment
+- [x] Initialize Tauri project
+  - [x] Setup React + TypeScript + Vite
+  - [x] Configure TailwindCSS
+  - [ ] Setup Tauri IPC commands (deferred - add as needed)
+- [x] Basic window setup
+  - [x] Configure window size (1200x800 default)
+  - [ ] Add app icon (placeholder for now)
+  - [x] Setup dev environment
 
 ---
 
