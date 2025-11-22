@@ -17,17 +17,26 @@ describe('Express Application', () => {
     });
   });
 
-  describe('404 Handler', () => {
-    it('should return 404 for unknown routes', async () => {
-      const response = await request(app).get('/api/unknown-route');
+  describe('Authentication', () => {
+    it('should return 401 for authenticated routes without X-User-Id header', async () => {
+      const response = await request(app).get('/api/projects');
 
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(401);
       expect(response.body).toEqual({
         success: false,
-        error: 'Not found',
+        error: 'Missing X-User-Id header',
       });
     });
 
+    it('should allow access to /api/health without authentication', async () => {
+      const response = await request(app).get('/api/health');
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+    });
+  });
+
+  describe('404 Handler', () => {
     it('should return 404 for non-api routes', async () => {
       const response = await request(app).get('/some-random-path');
 
@@ -38,12 +47,12 @@ describe('Express Application', () => {
   describe('JSON Parsing', () => {
     it('should accept JSON payloads', async () => {
       const response = await request(app)
-        .post('/api/health')
-        .send({ test: 'data' })
+        .post('/api/projects')
+        .send({ name: 'Test', local_path: '/test' })
         .set('Content-Type', 'application/json');
 
-      // POST to health returns 404 since only GET is defined
-      expect(response.status).toBe(404);
+      // Without X-User-Id header, should return 401
+      expect(response.status).toBe(401);
     });
   });
 });
