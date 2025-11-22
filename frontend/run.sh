@@ -129,7 +129,7 @@ run_desktop() {
     kill_vite_on_port 5173
     kill_vite_on_port 1420
     echo "Starting desktop app..."
-    npm run tauri dev
+    npm run tauri:dev
 }
 
 run_web() {
