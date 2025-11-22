@@ -1,71 +1,142 @@
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import ProjectSelector from "./ProjectSelector";
+import { ProjectProvider } from "../../contexts";
+import type { Project } from "../../api";
+
+// Mock the api module
+vi.mock("../../api", () => ({
+  api: {
+    projects: {
+      listProjects: vi.fn(),
+    },
+  },
+}));
+
+import { api } from "../../api";
+
+const mockProjects: Project[] = [
+  {
+    id: 1,
+    projectId: "proj-1",
+    name: "Project A",
+    localPath: "/path/a",
+    workflowTemplate: "startup-fast",
+    ownerUserId: 1,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  {
+    id: 2,
+    projectId: "proj-2",
+    name: "Project B",
+    localPath: "/path/b",
+    workflowTemplate: "startup-fast",
+    ownerUserId: 1,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+];
+
+function renderWithProvider() {
+  return render(
+    <ProjectProvider>
+      <ProjectSelector />
+    </ProjectProvider>,
+  );
+}
 
 describe("ProjectSelector", () => {
-  it("renders the dropdown button with current project", () => {
-    render(<ProjectSelector />);
-    expect(screen.getByRole("button")).toHaveTextContent("SpecFlux");
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  it("opens dropdown when clicked", () => {
-    render(<ProjectSelector />);
-    const button = screen.getByRole("button");
-
-    fireEvent.click(button);
-
-    expect(screen.getByText("+ New Project")).toBeInTheDocument();
-  });
-
-  it("displays custom projects in dropdown", () => {
-    const projects = [
-      { id: "1", name: "Project A" },
-      { id: "2", name: "Project B" },
-    ];
-    render(
-      <ProjectSelector projects={projects} currentProject={projects[0]} />,
+  it("shows loading state initially", () => {
+    vi.mocked(api.projects.listProjects).mockImplementation(
+      () => new Promise(() => {}), // Never resolves
     );
+
+    renderWithProvider();
+    expect(screen.getByText("Loading...")).toBeInTheDocument();
+  });
+
+  it("renders projects after loading", async () => {
+    vi.mocked(api.projects.listProjects).mockResolvedValue({
+      success: true,
+      data: mockProjects,
+    });
+
+    renderWithProvider();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button")).toHaveTextContent("Project A");
+    });
+  });
+
+  it("shows error state on failure", async () => {
+    vi.mocked(api.projects.listProjects).mockRejectedValue(
+      new Error("Network error"),
+    );
+
+    renderWithProvider();
+
+    await waitFor(() => {
+      expect(screen.getByText("Error loading")).toBeInTheDocument();
+    });
+  });
+
+  it("opens dropdown when clicked", async () => {
+    vi.mocked(api.projects.listProjects).mockResolvedValue({
+      success: true,
+      data: mockProjects,
+    });
+
+    renderWithProvider();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button")).toHaveTextContent("Project A");
+    });
 
     fireEvent.click(screen.getByRole("button"));
 
-    // Project A appears twice (in button and dropdown), Project B only in dropdown
-    expect(screen.getAllByText("Project A")).toHaveLength(2);
+    expect(screen.getByText("+ New Project")).toBeInTheDocument();
     expect(screen.getByText("Project B")).toBeInTheDocument();
   });
 
-  it("calls onSelect when project is selected", () => {
-    const onSelect = vi.fn();
-    const projects = [
-      { id: "1", name: "Project A" },
-      { id: "2", name: "Project B" },
-    ];
-    render(
-      <ProjectSelector
-        projects={projects}
-        currentProject={projects[0]}
-        onSelect={onSelect}
-      />,
-    );
+  it("selects project and closes dropdown", async () => {
+    vi.mocked(api.projects.listProjects).mockResolvedValue({
+      success: true,
+      data: mockProjects,
+    });
+
+    renderWithProvider();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button")).toHaveTextContent("Project A");
+    });
 
     fireEvent.click(screen.getByRole("button"));
     fireEvent.click(screen.getByText("Project B"));
 
-    expect(onSelect).toHaveBeenCalledWith({ id: "2", name: "Project B" });
+    await waitFor(() => {
+      expect(screen.getByRole("button")).toHaveTextContent("Project B");
+    });
+    expect(screen.queryByText("+ New Project")).not.toBeInTheDocument();
   });
 
-  it("closes dropdown after selection", () => {
-    const projects = [
-      { id: "1", name: "Project A" },
-      { id: "2", name: "Project B" },
-    ];
-    render(
-      <ProjectSelector projects={projects} currentProject={projects[0]} />,
-    );
+  it("shows empty state when no projects", async () => {
+    vi.mocked(api.projects.listProjects).mockResolvedValue({
+      success: true,
+      data: [],
+    });
+
+    renderWithProvider();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button")).toHaveTextContent("Select Project");
+    });
 
     fireEvent.click(screen.getByRole("button"));
-    expect(screen.getByText("+ New Project")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText("Project B"));
-    expect(screen.queryByText("+ New Project")).not.toBeInTheDocument();
+    expect(screen.getByText("No projects yet")).toBeInTheDocument();
   });
 });
