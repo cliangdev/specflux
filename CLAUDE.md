@@ -87,6 +87,16 @@ npm run generate:client  # Regenerate TS client from OpenAPI
 
 **IMPORTANT: Never push directly to main. Always use feature branches and PRs.**
 
+**CRITICAL: Each task/feature MUST start on a new branch from main.** Do not add unrelated changes to existing feature branches. One branch = one logical unit of work = one PR.
+
+### Starting a New Task
+```bash
+git checkout main
+git pull
+git checkout -b feature/your-task-name
+# make changes, commit, push, create PR
+```
+
 ### Branch Naming
 - `feature/description` - New features
 - `fix/description` - Bug fixes
