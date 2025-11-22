@@ -3,9 +3,7 @@
  */
 
 // API Response types following the pattern from CLAUDE.md
-export type ApiResponse<T> =
-  | { success: true; data: T }
-  | { success: false; error: string };
+export type ApiResponse<T> = { success: true; data: T } | { success: false; error: string };
 
 // Pagination types
 export interface PaginationParams {

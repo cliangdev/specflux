@@ -9,7 +9,7 @@ router.get('/health', (_req, res) => {
     data: {
       status: 'healthy',
       timestamp: new Date().toISOString(),
-      version: process.env.npm_package_version ?? '0.1.0',
+      version: process.env['npm_package_version'] ?? '0.1.0',
     },
   });
 });
