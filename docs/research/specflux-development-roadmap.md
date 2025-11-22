@@ -49,10 +49,10 @@ specflux/
 ### Week 1: Project Setup & Backend Core
 
 #### Backend Service
-- [ ] Initialize Node.js + TypeScript project
-  - [ ] Setup Express/Fastify
-  - [ ] Configure ESLint, Prettier
-  - [ ] Setup hot reload (nodemon)
+- [x] Initialize Node.js + TypeScript project
+  - [x] Setup Express/Fastify
+  - [x] Configure ESLint, Prettier
+  - [x] Setup hot reload (nodemon)
 - [ ] **API-First Design**
   - [ ] Install Swagger/OpenAPI tools
     - [ ] `swagger-jsdoc` for documentation
