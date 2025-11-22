@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { optionalAuthMiddleware } from '../middleware/auth.middleware';
 import projectRoutes from './projects.routes';
 import epicRoutes from './epics.routes';
 import taskRoutes from './tasks.routes';
@@ -22,8 +22,9 @@ router.get('/health', (_req, res) => {
   });
 });
 
-// Apply auth middleware to all routes below
-router.use(authMiddleware);
+// Apply optional auth middleware to all routes below
+// Auth is not required during early development
+router.use(optionalAuthMiddleware);
 
 // User routes
 router.use('/users', userRoutes);
