@@ -535,13 +535,13 @@ const task = await createTask({
 
 This section sets up your development environment with Claude Code skills, agents, and MCP servers to accelerate development.
 
-- [ ] **Create project structure**
+- [x] **Create project structure**
   ```bash
   mkdir -p specflux/.claude/{skills,agents,commands}
   cd specflux
   ```
 
-- [ ] **Setup .mcp.json for GitHub integration**
+- [x] **Setup .mcp.json for GitHub integration**
   ```json
   {
     "mcpServers": {
@@ -557,33 +557,33 @@ This section sets up your development environment with Claude Code skills, agent
   ```
   **What it does:** Gives Claude Code access to GitHub (create issues, PRs, search code)
 
-- [ ] **Create Claude skills** (4 total)
-  - [ ] typescript-patterns - Coding standards, async/await patterns, error handling
-  - [ ] tauri-dev - IPC communication, window management
-  - [ ] api-design - REST conventions, OpenAPI-first workflow
-  - [ ] database-migrations - Migration patterns, SQLite best practices
-  
+- [x] **Create Claude skills** (4 total)
+  - [x] typescript-patterns - Coding standards, async/await patterns, error handling
+  - [x] tauri-dev - IPC communication, window management
+  - [x] api-design - REST conventions, OpenAPI-first workflow
+  - [x] database-migrations - Migration patterns, SQLite best practices
+
   **What they do:** Teach Claude your project's patterns and conventions
 
-- [ ] **Create Claude agents** (3 total)
-  - [ ] backend-dev.md - Specializes in API endpoints, database, tests
-  - [ ] frontend-dev.md - Specializes in React, Tauri, UI components
-  - [ ] fullstack-dev.md - End-to-end feature implementation
-  
+- [x] **Create Claude agents** (3 total)
+  - [x] backend-dev.md - Specializes in API endpoints, database, tests
+  - [x] frontend-dev.md - Specializes in React, Tauri, UI components
+  - [x] fullstack-dev.md - End-to-end feature implementation
+
   **What they do:** Give Claude different "personas" for different types of work
 
-- [ ] **Create Claude commands** (4 total)
-  - [ ] test-all.md - Run all tests across backend and frontend
-  - [ ] build-prod.md - Build production artifacts
-  - [ ] db-migrate.md - Run database migrations
-  - [ ] api-spec-update.md - Update OpenAPI spec and regenerate client
-  
+- [x] **Create Claude commands** (4 total)
+  - [x] test-all.md - Run all tests across backend and frontend
+  - [x] build-prod.md - Build production artifacts
+  - [x] db-migrate.md - Run database migrations
+  - [x] api-spec-update.md - Update OpenAPI spec and regenerate client
+
   **What they do:** Automate common development tasks
 
-- [ ] **Create root CLAUDE.md**
+- [x] **Create root CLAUDE.md**
   High-level context about SpecFlux architecture, build commands, file structure
-  
-- [ ] **Create orchestrator/CLAUDE.md**
+
+- [x] **Create orchestrator/CLAUDE.md**
   Backend-specific context (services, routes, database patterns)
 
 **Benefit:** Claude Code will understand your codebase, follow your patterns, and work 10x faster. You'll spend less time explaining and more time building.
