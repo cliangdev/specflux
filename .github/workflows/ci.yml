@@ -69,14 +69,14 @@ jobs:
       - name: Run tests with coverage
         run: npm run test:coverage --workspace=orchestrator -- --ci --reporters=default --reporters=jest-junit
         env:
-          JEST_JUNIT_OUTPUT_DIR: orchestrator
+          JEST_JUNIT_OUTPUT_DIR: ${{ github.workspace }}
 
       - name: Test Report
         uses: dorny/test-reporter@v1
         if: success() || failure()
         with:
           name: Jest Tests
-          path: orchestrator/junit.xml
+          path: junit.xml
           reporter: jest-junit
 
       - name: Upload coverage reports
