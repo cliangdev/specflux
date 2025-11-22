@@ -27,6 +27,6 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ['dist/**', 'node_modules/**', 'generated-client/**', 'coverage/**', 'jest.config.js', 'src/__tests__/**'],
+    ignores: ['dist/**', 'node_modules/**', 'generated-client/**', 'coverage/**', 'jest.config.js', 'src/__tests__/**', 'src/types/generated/**'],
   }
 );
