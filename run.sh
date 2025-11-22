@@ -1,4 +1,5 @@
 #!/bin/bash
+# Start both backend and frontend for development
 
 set -e
 
@@ -8,14 +9,20 @@ show_help() {
     echo "Usage: ./run.sh [option]"
     echo ""
     echo "Options:"
-    echo "  desktop   Run desktop app (default)"
-    echo "  web       Run web dev server"
+    echo "  app       Run desktop app + backend (default)"
+    echo "  web       Run web dev server + backend"
+    echo "  backend   Run backend only"
     echo "  --help    Show this help message"
     echo ""
     echo "Examples:"
-    echo "  ./run.sh          # Runs desktop app"
-    echo "  ./run.sh desktop  # Runs desktop app"
-    echo "  ./run.sh web      # Runs web dev server at http://localhost:5173"
+    echo "  ./run.sh          # Runs desktop app with backend"
+    echo "  ./run.sh app      # Runs desktop app with backend"
+    echo "  ./run.sh web      # Runs web server with backend"
+    echo "  ./run.sh backend  # Runs backend only"
+    echo ""
+    echo "URLs:"
+    echo "  Backend:  http://localhost:3000"
+    echo "  Frontend: http://localhost:5173 (web mode)"
 }
 
 check_node() {
@@ -100,61 +107,121 @@ check_desktop_deps() {
 }
 
 install_deps() {
-    if [ ! -d "node_modules" ]; then
-        echo "Installing dependencies..."
-        npm install
+    local dir=$1
+    if [ ! -d "$dir/node_modules" ]; then
+        echo "Installing $dir dependencies..."
+        (cd "$dir" && npm install)
     fi
 }
 
-kill_vite_on_port() {
+kill_port() {
     local port=$1
     local pid=$(lsof -ti:$port 2>/dev/null)
     if [ -n "$pid" ]; then
-        # Check if the process is vite or node (likely our dev server)
-        local cmd=$(ps -p $pid -o args= 2>/dev/null || true)
-        if echo "$cmd" | grep -qiE "(vite|esbuild|node.*/frontend)"; then
-            echo "Killing existing dev server on port $port..."
-            kill -9 $pid 2>/dev/null || true
-            sleep 1
-        else
-            echo "Port $port is in use by another application."
-            echo "Process: $cmd"
-            read -p "Kill it anyway? [y/N] " -n 1 -r
-            echo ""
-            if [[ $REPLY =~ ^[Yy]$ ]]; then
-                kill -9 $pid 2>/dev/null || true
-                sleep 1
-            else
-                exit 1
-            fi
-        fi
+        echo "Killing existing process on port $port..."
+        kill -9 $pid 2>/dev/null || true
+        sleep 1
     fi
 }
 
-run_desktop() {
+BACKEND_PID=""
+FRONTEND_PID=""
+
+cleanup() {
+    echo ""
+    echo "Shutting down..."
+    [ -n "$BACKEND_PID" ] && kill $BACKEND_PID 2>/dev/null
+    [ -n "$FRONTEND_PID" ] && kill $FRONTEND_PID 2>/dev/null
+    # Kill any remaining processes on our ports
+    kill_port 3000
+    kill_port 5173
+    exit 0
+}
+
+trap cleanup SIGINT SIGTERM
+
+start_backend() {
+    echo "Starting backend on http://localhost:3000..."
+    install_deps "orchestrator"
+    kill_port 3000
+    (cd orchestrator && npm run dev) &
+    BACKEND_PID=$!
+    sleep 3
+}
+
+run_app() {
     check_node
     check_desktop_deps
-    install_deps
-    kill_vite_on_port 5173
-    kill_vite_on_port 1420
+
+    echo "Starting SpecFlux desktop app..."
+    echo ""
+
+    start_backend
+
     echo "Starting desktop app..."
-    npm run tauri:dev
+    install_deps "frontend"
+    kill_port 5173
+    kill_port 1420
+    (cd frontend && npm run tauri:dev) &
+    FRONTEND_PID=$!
+
+    echo ""
+    echo "Backend running at http://localhost:3000"
+    echo "Desktop app starting..."
+    echo ""
+    echo "Press Ctrl+C to stop all servers"
+
+    wait
 }
 
 run_web() {
     check_node
-    install_deps
-    kill_vite_on_port 5173
-    echo "Starting web dev server at http://localhost:5173"
-    npm run dev
+
+    echo "Starting SpecFlux web development servers..."
+    echo ""
+
+    start_backend
+
+    echo "Starting frontend on http://localhost:5173..."
+    install_deps "frontend"
+    kill_port 5173
+    (cd frontend && npm run dev) &
+    FRONTEND_PID=$!
+
+    echo ""
+    echo "Backend running at http://localhost:3000"
+    echo "Frontend running at http://localhost:5173"
+    echo ""
+    echo "Press Ctrl+C to stop both servers"
+
+    wait
 }
 
-case "${1:-desktop}" in
-    desktop)
-        run_desktop
+run_backend_only() {
+    check_node
+
+    echo "Starting SpecFlux backend only..."
+    echo ""
+
+    start_backend
+
+    echo ""
+    echo "Backend running at http://localhost:3000"
+    echo ""
+    echo "Press Ctrl+C to stop"
+
+    wait
+}
+
+case "${1:-app}" in
+    app|desktop)
+        run_app
         ;;
     web)
         run_web
+        ;;
+    backend)
+        run_backend_only
         ;;
     --help|-h)
         show_help

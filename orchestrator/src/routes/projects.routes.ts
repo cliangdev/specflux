@@ -17,9 +17,15 @@ const router = Router();
 
 /**
  * GET /projects - List all projects for current user
+ * Returns empty list if no user is authenticated (optional auth mode)
  */
 router.get('/', (req: Request, res: Response) => {
-  const projects = listProjects(req.userId!);
+  // Return empty list if no user (optional auth during development)
+  if (!req.userId) {
+    res.json({ success: true, data: [] });
+    return;
+  }
+  const projects = listProjects(req.userId);
   res.json({ success: true, data: projects });
 });
 

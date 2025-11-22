@@ -18,14 +18,12 @@ describe('Express Application', () => {
   });
 
   describe('Authentication', () => {
-    it('should return 401 for authenticated routes without X-User-Id header', async () => {
+    it('should allow access without X-User-Id header (optional auth)', async () => {
       const response = await request(app).get('/api/projects');
 
-      expect(response.status).toBe(401);
-      expect(response.body).toEqual({
-        success: false,
-        error: 'Missing X-User-Id header',
-      });
+      // Auth is optional during early development
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
     });
 
     it('should allow access to /api/health without authentication', async () => {
@@ -51,8 +49,10 @@ describe('Express Application', () => {
         .send({ name: 'Test', local_path: '/test' })
         .set('Content-Type', 'application/json');
 
-      // Without X-User-Id header, should return 401
-      expect(response.status).toBe(401);
+      // With optional auth, request proceeds (may fail validation but parses JSON)
+      // Status should not be 415 (unsupported media type)
+      expect(response.status).not.toBe(415);
+      expect(response.headers['content-type']).toMatch(/application\/json/);
     });
   });
 });
