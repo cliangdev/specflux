@@ -594,9 +594,9 @@ This section sets up your development environment with Claude Code skills, agent
 #### UI Foundation
 - [ ] Setup Tauri + React project structure
 - [ ] Configure TailwindCSS for styling
-- [ ] **Setup API Client (Auto-Generated)**
-  - [ ] Install generated TypeScript client from backend
-  - [ ] Configure base URL for API
+- [x] **Setup API Client (Auto-Generated)**
+  - [x] Install generated TypeScript client from backend
+  - [x] Configure base URL for API
   - [ ] Setup error handling interceptors
   - [ ] Add request/response logging (dev mode)
 - [ ] **Create main layout with navigation**
