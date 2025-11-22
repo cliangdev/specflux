@@ -1,0 +1,169 @@
+projects-id-repositories:
+  get:
+    summary: List repositories
+    description: Get all repositories for a project
+    operationId: listRepositories
+    tags:
+      - Repositories
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: List of repositories
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  type: array
+                  items:
+                    $ref: '../schemas/repository.yaml#/Repository'
+
+  post:
+    summary: Add repository
+    description: Add a repository to a project
+    operationId: addRepository
+    tags:
+      - Repositories
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/repository.yaml#/CreateRepositoryRequest'
+    responses:
+      '201':
+        description: Repository added
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/repository.yaml#/Repository'
+
+repositories-id:
+  get:
+    summary: Get repository
+    description: Get repository details
+    operationId: getRepository
+    tags:
+      - Repositories
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Repository details
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/repository.yaml#/Repository'
+      '404':
+        description: Repository not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+  put:
+    summary: Update repository
+    description: Update repository details
+    operationId: updateRepository
+    tags:
+      - Repositories
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/repository.yaml#/UpdateRepositoryRequest'
+    responses:
+      '200':
+        description: Updated repository
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/repository.yaml#/Repository'
+
+  delete:
+    summary: Remove repository
+    description: Remove a repository from a project
+    operationId: removeRepository
+    tags:
+      - Repositories
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '204':
+        description: Repository removed
+      '404':
+        description: Repository not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+repositories-id-sync:
+  post:
+    summary: Sync repository
+    description: Sync repository with remote
+    operationId: syncRepository
+    tags:
+      - Repositories
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Sync started
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/repository.yaml#/Repository'

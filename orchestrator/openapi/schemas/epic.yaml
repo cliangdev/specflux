@@ -1,0 +1,111 @@
+Epic:
+  type: object
+  properties:
+    id:
+      type: integer
+    project_id:
+      type: integer
+    title:
+      type: string
+    description:
+      type: string
+      nullable: true
+    prd_file_path:
+      type: string
+      nullable: true
+    epic_file_path:
+      type: string
+      nullable: true
+    status:
+      type: string
+      enum: [planning, active, completed]
+    created_by_user_id:
+      type: integer
+    task_stats:
+      type: object
+      properties:
+        total:
+          type: integer
+        done:
+          type: integer
+        in_progress:
+          type: integer
+    progress_percentage:
+      type: integer
+      minimum: 0
+      maximum: 100
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+  required:
+    - id
+    - project_id
+    - title
+    - status
+    - created_by_user_id
+    - created_at
+    - updated_at
+
+CreateEpicRequest:
+  type: object
+  properties:
+    title:
+      type: string
+      minLength: 1
+      maxLength: 200
+    description:
+      type: string
+      nullable: true
+    prd_file_path:
+      type: string
+      nullable: true
+  required:
+    - title
+
+UpdateEpicRequest:
+  type: object
+  properties:
+    title:
+      type: string
+      minLength: 1
+      maxLength: 200
+    description:
+      type: string
+      nullable: true
+    prd_file_path:
+      type: string
+      nullable: true
+    status:
+      type: string
+      enum: [planning, active, completed]
+
+EpicProgress:
+  type: object
+  properties:
+    epic_id:
+      type: integer
+    total_tasks:
+      type: integer
+    completed_tasks:
+      type: integer
+    in_progress_tasks:
+      type: integer
+    pending_review_tasks:
+      type: integer
+    blocked_tasks:
+      type: integer
+    progress_percentage:
+      type: integer
+      minimum: 0
+      maximum: 100
+  required:
+    - epic_id
+    - total_tasks
+    - completed_tasks
+    - in_progress_tasks
+    - pending_review_tasks
+    - blocked_tasks
+    - progress_percentage

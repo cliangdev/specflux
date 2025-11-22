@@ -1,0 +1,63 @@
+Repository:
+  type: object
+  properties:
+    id:
+      type: integer
+    project_id:
+      type: integer
+    name:
+      type: string
+    path:
+      type: string
+    git_url:
+      type: string
+      nullable: true
+    default_agent:
+      type: string
+      nullable: true
+    status:
+      type: string
+      enum: [ready, error, syncing]
+    last_sync_at:
+      type: string
+      format: date-time
+      nullable: true
+  required:
+    - id
+    - project_id
+    - name
+    - path
+    - status
+
+CreateRepositoryRequest:
+  type: object
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 100
+    path:
+      type: string
+    git_url:
+      type: string
+      nullable: true
+    default_agent:
+      type: string
+      nullable: true
+  required:
+    - name
+    - path
+
+UpdateRepositoryRequest:
+  type: object
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 100
+    git_url:
+      type: string
+      nullable: true
+    default_agent:
+      type: string
+      nullable: true

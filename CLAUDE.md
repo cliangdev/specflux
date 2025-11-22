@@ -111,11 +111,14 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`
 ### Pull Request Process
 1. Create feature branch: `git checkout -b feature/your-feature`
 2. Make changes and commit with conventional format
-3. Push branch: `git push -u origin feature/your-feature`
-4. Create PR with `gh pr create`
-5. PR description must include:
+3. **Update `docs/research/specflux-development-roadmap.md`** - Mark completed items with `[x]` checkboxes
+4. Push branch: `git push -u origin feature/your-feature`
+5. Create PR with `gh pr create`
+6. PR description must include:
    - **Summary** section with bullet points
    - **Test Plan** section with checklist
+
+**IMPORTANT:** Before opening any PR, always update the development roadmap (`docs/research/specflux-development-roadmap.md`) to reflect the work completed. This ensures the roadmap stays accurate and helps track overall project progress.
 
 ### Example Workflow
 ```bash
