@@ -25,6 +25,21 @@ check_node() {
     fi
 }
 
+install_rust() {
+    echo "Installing Rust/Cargo..."
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    source "$HOME/.cargo/env"
+}
+
+install_xcode_cli() {
+    echo "Installing Xcode Command Line Tools..."
+    xcode-select --install
+    echo ""
+    echo "Please complete the Xcode CLI installation in the popup window,"
+    echo "then run this script again."
+    exit 0
+}
+
 check_desktop_deps() {
     local missing=()
 
@@ -47,17 +62,40 @@ check_desktop_deps() {
             case $dep in
                 rust)
                     echo "  - Rust/Cargo"
-                    echo "    Install: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
-                    echo ""
                     ;;
                 xcode-cli)
                     echo "  - Xcode Command Line Tools"
-                    echo "    Install: xcode-select --install"
-                    echo ""
                     ;;
             esac
         done
-        exit 1
+        echo ""
+        read -p "Install missing dependencies? [y/N] " -n 1 -r
+        echo ""
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            for dep in "${missing[@]}"; do
+                case $dep in
+                    xcode-cli)
+                        install_xcode_cli
+                        ;;
+                    rust)
+                        install_rust
+                        ;;
+                esac
+            done
+        else
+            echo "Please install dependencies manually:"
+            for dep in "${missing[@]}"; do
+                case $dep in
+                    rust)
+                        echo "  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+                        ;;
+                    xcode-cli)
+                        echo "  xcode-select --install"
+                        ;;
+                esac
+            done
+            exit 1
+        fi
     fi
 }
 
