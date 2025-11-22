@@ -61,10 +61,10 @@ specflux/
     - [x] Define all endpoints
     - [x] Request/response schemas
     - [x] Error responses
-  - [ ] Setup code generation
-    - [ ] `openapi-generator` for TypeScript client
-    - [ ] Auto-generate API client for frontend
-    - [ ] Auto-generate types for backend
+  - [x] Setup code generation
+    - [x] `openapi-generator` for TypeScript client
+    - [x] Auto-generate API client for frontend
+    - [x] Auto-generate types for backend
 - [ ] Database setup
   - [ ] Install better-sqlite3
   - [ ] Create initial schema (13 tables with proper user model)
