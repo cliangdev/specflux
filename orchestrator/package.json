@@ -32,6 +32,7 @@
     "gray-matter": "^4.0.3",
     "helmet": "^8.0.0",
     "morgan": "^1.10.0",
+    "simple-git": "^3.30.0",
     "swagger-ui-express": "^5.0.1",
     "yamljs": "^0.3.0",
     "zod": "^3.23.0"

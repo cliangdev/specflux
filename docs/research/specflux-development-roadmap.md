@@ -73,14 +73,14 @@ specflux/
     - [x] Function to create user from OS (git config)
     - [x] Auto-create user on first app launch
     - [x] Store current user in app state
-- [ ] File system integration
-  - [ ] Create orchestrator folder structure
-  - [ ] Implement markdown file readers/writers
-  - [ ] Add file watching (chokidar)
-- [ ] Git integration
-  - [ ] Install simple-git
-  - [ ] Implement basic git operations (init, add, commit, push, pull)
-  - [ ] Test auto-commit functionality
+- [x] File system integration
+  - [x] Create orchestrator folder structure
+  - [x] Implement markdown file readers/writers
+  - [x] Add file watching (chokidar)
+- [x] Git integration
+  - [x] Install simple-git
+  - [x] Implement basic git operations (init, add, commit, push, pull)
+  - [x] Test auto-commit functionality
 
 **Database Schema (Week 1):**
 
