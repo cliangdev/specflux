@@ -17,20 +17,18 @@ const router = Router();
 
 /**
  * GET /projects - List all projects for current user
- * Returns empty list if no user is authenticated (optional auth mode)
+ * Uses default user ID 1 if no auth header (development mode)
  */
 router.get('/', (req: Request, res: Response) => {
-  // Return empty list if no user (optional auth during development)
-  if (!req.userId) {
-    res.json({ success: true, data: [] });
-    return;
-  }
-  const projects = listProjects(req.userId);
+  // Use default user ID 1 for development when no auth
+  const userId = req.userId ?? 1;
+  const projects = listProjects(userId);
   res.json({ success: true, data: projects });
 });
 
 /**
  * POST /projects - Create a new project
+ * Uses default user ID 1 if no auth header (development mode)
  */
 router.post('/', (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -45,6 +43,9 @@ router.post('/', (req: Request, res: Response, next: NextFunction) => {
       throw new ValidationError('local_path is required');
     }
 
+    // Use default user ID 1 for development when no auth
+    const userId = req.userId ?? 1;
+
     const project = createProject(
       {
         name,
@@ -52,7 +53,7 @@ router.post('/', (req: Request, res: Response, next: NextFunction) => {
         git_remote: git_remote as string | undefined,
         workflow_template: workflow_template as string | undefined,
       },
-      req.userId!
+      userId
     );
 
     res.status(201).json({ success: true, data: project });
