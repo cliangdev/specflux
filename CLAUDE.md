@@ -83,20 +83,68 @@ npm run build:all    # Full build
 npm run generate:client  # Regenerate TS client from OpenAPI
 ```
 
+## Git Workflow
+
+**IMPORTANT: Never push directly to main. Always use feature branches and PRs.**
+
+### Branch Naming
+- `feature/description` - New features
+- `fix/description` - Bug fixes
+- `refactor/description` - Code refactoring
+- `docs/description` - Documentation changes
+
+### Commit Messages
+Use conventional commits format:
+```
+type: short description
+
+- Detailed bullet points
+- Explaining the changes
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`
+
+### Pull Request Process
+1. Create feature branch: `git checkout -b feature/your-feature`
+2. Make changes and commit with conventional format
+3. Push branch: `git push -u origin feature/your-feature`
+4. Create PR with `gh pr create`
+5. PR description must include:
+   - **Summary** section with bullet points
+   - **Test Plan** section with checklist
+
+### Example Workflow
+```bash
+git checkout -b feature/add-task-api
+# make changes
+git add .
+git commit -m "feat: add task CRUD endpoints"
+git push -u origin feature/add-task-api
+gh pr create --title "feat: add task CRUD endpoints" --body "..."
+```
+
 ## Development Workflow
 
 ### Adding a Feature (API-First)
-1. Update relevant domain spec in `orchestrator/openapi/` (e.g., `tasks.yaml`)
-2. Run `npm run generate:client` to create TypeScript client
-3. Implement backend handler in `orchestrator/src/routes/`
-4. Write backend tests
-5. Implement frontend UI
-6. Write frontend tests
+1. Create feature branch from `main`
+2. Update relevant domain spec in `orchestrator/openapi/` (e.g., `tasks.yaml`)
+3. Run `npm run generate:client` to create TypeScript client
+4. Implement backend handler in `orchestrator/src/routes/`
+5. Write backend tests
+6. Implement frontend UI
+7. Write frontend tests
+8. Create PR for review
 
 ### Database Changes
-1. Create migration file in `migrations/NNN_description.sql` with `-- UP` and `-- DOWN` sections
-2. Run `npm run migrate`
-3. Update TypeScript types
+1. Create feature branch
+2. Create migration file in `migrations/NNN_description.sql` with `-- UP` and `-- DOWN` sections
+3. Run `npm run migrate`
+4. Update TypeScript types
+5. Create PR for review
 
 ## Code Patterns
 
