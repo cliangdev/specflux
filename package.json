@@ -1,0 +1,22 @@
+{
+  "name": "specflux",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-Powered Multi-Repo Development Orchestrator",
+  "workspaces": [
+    "orchestrator",
+    "frontend"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev --workspace=orchestrator",
+    "dev:frontend": "npm run tauri:dev --workspace=frontend",
+    "test:all": "npm run test --workspaces --if-present",
+    "build:all": "npm run build --workspaces --if-present",
+    "lint:all": "npm run lint --workspaces --if-present",
+    "migrate": "npm run migrate --workspace=orchestrator",
+    "generate:client": "npm run generate:client --workspace=orchestrator && cp -r orchestrator/generated-client frontend/src/api/generated"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
