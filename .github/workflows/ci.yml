@@ -9,7 +9,6 @@ on:
 permissions:
   contents: read
   checks: write
-  pull-requests: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -76,21 +75,13 @@ jobs:
         env:
           JEST_JUNIT_OUTPUT_DIR: ${{ github.workspace }}
 
-      - name: Test Report (Checks Tab)
+      - name: Test Report
         uses: dorny/test-reporter@v1
         if: success() || failure()
         with:
           name: Test Results
           path: junit.xml
           reporter: jest-junit
-
-      - name: Test Report (PR Comment)
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        if: always()
-        with:
-          files: junit.xml
-          comment_mode: off
-          check_name: Test Summary
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
