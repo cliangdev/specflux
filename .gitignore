@@ -13,6 +13,8 @@ frontend/src-tauri/Cargo.lock
 
 # Generated files
 orchestrator/generated-client/
+orchestrator/src/types/generated/
+orchestrator/openapi/bundled.yaml
 frontend/src/api/generated/
 
 # Database

@@ -18,7 +18,9 @@
     "typecheck": "tsc --noEmit",
     "migrate": "ts-node src/db/migrate.ts",
     "migrate:rollback": "ts-node src/db/rollback.ts",
-    "generate:client": "openapi-generator-cli generate -i openapi/index.yaml -g typescript-fetch -o generated-client",
+    "bundle:openapi": "node scripts/bundle-openapi.js",
+    "generate:client": "npm run bundle:openapi && openapi-generator-cli generate -i openapi/bundled.yaml -g typescript-fetch -o ../frontend/src/api/generated --additional-properties=supportsES6=true,typescriptThreePlus=true,withInterfaces=true",
+    "generate:types": "npm run bundle:openapi && openapi-generator-cli generate -i openapi/bundled.yaml -g typescript-axios -o src/types/generated --additional-properties=supportsES6=true,typescriptThreePlus=true",
     "validate:openapi": "node scripts/validate-openapi.js"
   },
   "dependencies": {
@@ -34,7 +36,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.11.0",
-    "@openapitools/openapi-generator-cli": "^2.13.0",
+    "@openapitools/openapi-generator-cli": "^2.25.2",
     "@types/better-sqlite3": "^7.6.11",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
