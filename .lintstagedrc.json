@@ -1,0 +1,9 @@
+{
+  "orchestrator/src/**/*.ts": [
+    "prettier --write",
+    "eslint --fix"
+  ],
+  "frontend/src/**/*.{ts,tsx}": [
+    "prettier --write"
+  ]
+}

@@ -14,9 +14,14 @@
     "build:all": "npm run build --workspaces --if-present",
     "lint:all": "npm run lint --workspaces --if-present",
     "migrate": "npm run migrate --workspace=orchestrator",
-    "generate:client": "npm run generate:client --workspace=orchestrator && cp -r orchestrator/generated-client frontend/src/api/generated"
+    "generate:client": "npm run generate:client --workspace=orchestrator && cp -r orchestrator/generated-client frontend/src/api/generated",
+    "prepare": "husky"
   },
   "engines": {
     "node": ">=22.0.0"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7"
   }
 }
