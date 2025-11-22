@@ -110,14 +110,23 @@ kill_vite_on_port() {
     local port=$1
     local pid=$(lsof -ti:$port 2>/dev/null)
     if [ -n "$pid" ]; then
-        # Check if the process is vite/node running from specflux
+        # Check if the process is vite or node (likely our dev server)
         local cmd=$(ps -p $pid -o args= 2>/dev/null || true)
-        if echo "$cmd" | grep -qE "(vite|node.*specflux)"; then
-            echo "Killing existing Vite process on port $port..."
+        if echo "$cmd" | grep -qiE "(vite|esbuild|node.*/frontend)"; then
+            echo "Killing existing dev server on port $port..."
             kill -9 $pid 2>/dev/null || true
+            sleep 1
         else
-            echo "Port $port is in use by another application. Please free it manually."
-            exit 1
+            echo "Port $port is in use by another application."
+            echo "Process: $cmd"
+            read -p "Kill it anyway? [y/N] " -n 1 -r
+            echo ""
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                kill -9 $pid 2>/dev/null || true
+                sleep 1
+            else
+                exit 1
+            fi
         fi
     fi
 }
