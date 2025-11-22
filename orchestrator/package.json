@@ -26,8 +26,10 @@
   "dependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",
     "better-sqlite3": "^11.0.0",
+    "chokidar": "^4.0.3",
     "cors": "^2.8.5",
     "express": "^4.21.0",
+    "gray-matter": "^4.0.3",
     "helmet": "^8.0.0",
     "morgan": "^1.10.0",
     "swagger-ui-express": "^5.0.1",
@@ -50,6 +52,7 @@
     "eslint": "^9.11.0",
     "eslint-config-prettier": "^9.1.0",
     "jest": "^29.7.0",
+    "jest-junit": "^16.0.0",
     "nodemon": "^3.1.7",
     "prettier": "^3.3.3",
     "supertest": "^7.0.0",
