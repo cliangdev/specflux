@@ -1,10 +1,18 @@
 import { useState, useRef, useEffect } from "react";
 import { useProject } from "../../contexts";
+import ProjectCreateModal from "./ProjectCreateModal";
 
 export default function ProjectSelector() {
-  const { projects, currentProject, loading, error, selectProject } =
-    useProject();
+  const {
+    projects,
+    currentProject,
+    loading,
+    error,
+    selectProject,
+    refreshProjects,
+  } = useProject();
   const [isOpen, setIsOpen] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -110,11 +118,24 @@ export default function ProjectSelector() {
             </div>
           )}
           <div className="border-t border-gray-700 py-1">
-            <button className="w-full px-4 py-2 text-left text-sm text-gray-400 hover:text-white hover:bg-gray-700 transition-colors">
+            <button
+              onClick={() => {
+                setIsOpen(false);
+                setShowCreateModal(true);
+              }}
+              className="w-full px-4 py-2 text-left text-sm text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
+            >
               + New Project
             </button>
           </div>
         </div>
+      )}
+
+      {showCreateModal && (
+        <ProjectCreateModal
+          onClose={() => setShowCreateModal(false)}
+          onCreated={refreshProjects}
+        />
       )}
     </div>
   );
