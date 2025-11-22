@@ -1,0 +1,524 @@
+projects-id-tasks:
+  get:
+    summary: List tasks
+    description: Get all tasks for a project
+    operationId: listTasks
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum: [backlog, ready, in-progress, pending-review, approved, done]
+      - name: epic_id
+        in: query
+        schema:
+          type: integer
+      - name: repo_name
+        in: query
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 20
+          maximum: 100
+    responses:
+      '200':
+        description: List of tasks
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  type: array
+                  items:
+                    $ref: '../schemas/task.yaml#/Task'
+
+  post:
+    summary: Create task
+    description: Create a new task in a project
+    operationId: createTask
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/task.yaml#/CreateTaskRequest'
+    responses:
+      '201':
+        description: Task created
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/task.yaml#/Task'
+
+tasks-id:
+  get:
+    summary: Get task
+    description: Get task details by ID
+    operationId: getTask
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Task details
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/task.yaml#/Task'
+      '404':
+        description: Task not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+  put:
+    summary: Update task
+    description: Update task details
+    operationId: updateTask
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/task.yaml#/UpdateTaskRequest'
+    responses:
+      '200':
+        description: Updated task
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/task.yaml#/Task'
+
+  delete:
+    summary: Delete task
+    description: Delete a task
+    operationId: deleteTask
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '204':
+        description: Task deleted
+      '404':
+        description: Task not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+tasks-id-assign:
+  put:
+    summary: Assign task
+    description: Assign task to a user
+    operationId: assignTask
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              user_id:
+                type: integer
+                nullable: true
+    responses:
+      '200':
+        description: Task assigned
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/task.yaml#/Task'
+
+tasks-id-dependencies:
+  get:
+    summary: Get task dependencies
+    description: Get dependencies for a task
+    operationId: getTaskDependencies
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Task dependencies
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  type: array
+                  items:
+                    $ref: '../schemas/task.yaml#/TaskDependency'
+
+  post:
+    summary: Add dependency
+    description: Add a dependency to a task
+    operationId: addTaskDependency
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              depends_on_task_id:
+                type: integer
+            required:
+              - depends_on_task_id
+    responses:
+      '201':
+        description: Dependency added
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/task.yaml#/TaskDependency'
+
+tasks-id-start:
+  post:
+    summary: Start agent
+    description: Start Claude Code agent for a task
+    operationId: startTask
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Agent started
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  type: object
+                  properties:
+                    task:
+                      $ref: '../schemas/task.yaml#/Task'
+                    agent_pid:
+                      type: integer
+
+tasks-id-pause:
+  post:
+    summary: Pause agent
+    description: Pause the running agent for a task
+    operationId: pauseTask
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Agent paused
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/task.yaml#/Task'
+
+tasks-id-resume:
+  post:
+    summary: Resume agent
+    description: Resume a paused agent for a task
+    operationId: resumeTask
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Agent resumed
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/task.yaml#/Task'
+
+tasks-id-stop:
+  post:
+    summary: Stop agent
+    description: Stop the running agent for a task
+    operationId: stopTask
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Agent stopped
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/task.yaml#/Task'
+
+tasks-id-terminal-output:
+  get:
+    summary: Get terminal output
+    description: Get terminal output for a running task
+    operationId: getTaskTerminalOutput
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Terminal output
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/task.yaml#/TerminalOutput'
+
+tasks-id-files-changed:
+  get:
+    summary: Get files changed
+    description: Get list of files changed by a task
+    operationId: getTaskFilesChanged
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Files changed
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  type: array
+                  items:
+                    $ref: '../schemas/task.yaml#/FileChange'
+
+tasks-id-diff:
+  get:
+    summary: Get code diff
+    description: Get code diff for a task
+    operationId: getTaskDiff
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Code diff
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/task.yaml#/TaskDiff'
+
+tasks-id-approve:
+  post:
+    summary: Approve task
+    description: Approve a task pending review
+    operationId: approveTask
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/task.yaml#/ApprovalRequest'
+    responses:
+      '200':
+        description: Task approved
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/task.yaml#/Task'
+
+tasks-id-reject:
+  post:
+    summary: Reject task
+    description: Request changes for a task
+    operationId: rejectTask
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              feedback:
+                type: string
+            required:
+              - feedback
+    responses:
+      '200':
+        description: Changes requested
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/task.yaml#/Task'

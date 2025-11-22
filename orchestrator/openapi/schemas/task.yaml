@@ -1,0 +1,204 @@
+Task:
+  type: object
+  properties:
+    id:
+      type: integer
+    project_id:
+      type: integer
+    epic_id:
+      type: integer
+      nullable: true
+    title:
+      type: string
+    description:
+      type: string
+      nullable: true
+    status:
+      type: string
+      enum: [backlog, ready, in-progress, pending-review, approved, done]
+    requires_approval:
+      type: boolean
+    repo_name:
+      type: string
+      nullable: true
+    agent_name:
+      type: string
+      nullable: true
+    progress_percentage:
+      type: integer
+      minimum: 0
+      maximum: 100
+    estimated_duration:
+      type: integer
+      nullable: true
+      description: Estimated duration in minutes
+    actual_duration:
+      type: integer
+      nullable: true
+      description: Actual duration in minutes
+    github_issue_number:
+      type: integer
+      nullable: true
+    github_branch_name:
+      type: string
+      nullable: true
+    github_pr_number:
+      type: integer
+      nullable: true
+    file_path:
+      type: string
+      nullable: true
+    created_by_user_id:
+      type: integer
+    assigned_to_user_id:
+      type: integer
+      nullable: true
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+  required:
+    - id
+    - project_id
+    - title
+    - status
+    - requires_approval
+    - progress_percentage
+    - created_by_user_id
+    - created_at
+    - updated_at
+
+CreateTaskRequest:
+  type: object
+  properties:
+    title:
+      type: string
+      minLength: 1
+      maxLength: 200
+    description:
+      type: string
+      nullable: true
+    epic_id:
+      type: integer
+      nullable: true
+    requires_approval:
+      type: boolean
+      default: true
+    repo_name:
+      type: string
+      nullable: true
+    agent_name:
+      type: string
+      nullable: true
+    estimated_duration:
+      type: integer
+      nullable: true
+    dependencies:
+      type: array
+      items:
+        type: integer
+      description: Array of task IDs this task depends on
+  required:
+    - title
+
+UpdateTaskRequest:
+  type: object
+  properties:
+    title:
+      type: string
+      minLength: 1
+      maxLength: 200
+    description:
+      type: string
+      nullable: true
+    status:
+      type: string
+      enum: [backlog, ready, in-progress, pending-review, approved, done]
+    requires_approval:
+      type: boolean
+    repo_name:
+      type: string
+      nullable: true
+    agent_name:
+      type: string
+      nullable: true
+    estimated_duration:
+      type: integer
+      nullable: true
+
+TaskDependency:
+  type: object
+  properties:
+    id:
+      type: integer
+    task_id:
+      type: integer
+    depends_on_task_id:
+      type: integer
+    depends_on_task:
+      $ref: '#/Task'
+  required:
+    - id
+    - task_id
+    - depends_on_task_id
+
+TerminalOutput:
+  type: object
+  properties:
+    task_id:
+      type: integer
+    output:
+      type: string
+    timestamp:
+      type: string
+      format: date-time
+  required:
+    - task_id
+    - output
+    - timestamp
+
+FileChange:
+  type: object
+  properties:
+    path:
+      type: string
+    status:
+      type: string
+      enum: [added, modified, deleted]
+    lines_added:
+      type: integer
+    lines_removed:
+      type: integer
+  required:
+    - path
+    - status
+
+TaskDiff:
+  type: object
+  properties:
+    task_id:
+      type: integer
+    files:
+      type: array
+      items:
+        type: object
+        properties:
+          path:
+            type: string
+          diff:
+            type: string
+        required:
+          - path
+          - diff
+  required:
+    - task_id
+    - files
+
+ApprovalRequest:
+  type: object
+  properties:
+    feedback:
+      type: string
+      nullable: true

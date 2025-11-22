@@ -1,0 +1,52 @@
+ApiResponse:
+  type: object
+  properties:
+    success:
+      type: boolean
+    data:
+      type: object
+    error:
+      type: string
+  required:
+    - success
+
+PaginatedResponse:
+  type: object
+  properties:
+    items:
+      type: array
+      items: {}
+    pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+        pages:
+          type: integer
+      required:
+        - page
+        - limit
+        - total
+        - pages
+  required:
+    - items
+    - pagination
+
+Error:
+  type: object
+  properties:
+    success:
+      type: boolean
+      enum: [false]
+    error:
+      type: string
+  required:
+    - success
+    - error

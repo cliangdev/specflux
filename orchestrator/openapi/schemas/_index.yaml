@@ -1,0 +1,69 @@
+# Common schemas
+ApiResponse:
+  $ref: './common.yaml#/ApiResponse'
+PaginatedResponse:
+  $ref: './common.yaml#/PaginatedResponse'
+Error:
+  $ref: './common.yaml#/Error'
+
+# User schemas
+User:
+  $ref: './user.yaml#/User'
+UpdateUserRequest:
+  $ref: './user.yaml#/UpdateUserRequest'
+
+# Project schemas
+Project:
+  $ref: './project.yaml#/Project'
+CreateProjectRequest:
+  $ref: './project.yaml#/CreateProjectRequest'
+UpdateProjectRequest:
+  $ref: './project.yaml#/UpdateProjectRequest'
+ProjectConfig:
+  $ref: './project.yaml#/ProjectConfig'
+UpdateProjectConfigRequest:
+  $ref: './project.yaml#/UpdateProjectConfigRequest'
+DashboardResponse:
+  $ref: './project.yaml#/DashboardResponse'
+ProjectStats:
+  $ref: './project.yaml#/ProjectStats'
+
+# Epic schemas
+Epic:
+  $ref: './epic.yaml#/Epic'
+CreateEpicRequest:
+  $ref: './epic.yaml#/CreateEpicRequest'
+UpdateEpicRequest:
+  $ref: './epic.yaml#/UpdateEpicRequest'
+EpicProgress:
+  $ref: './epic.yaml#/EpicProgress'
+
+# Task schemas
+Task:
+  $ref: './task.yaml#/Task'
+CreateTaskRequest:
+  $ref: './task.yaml#/CreateTaskRequest'
+UpdateTaskRequest:
+  $ref: './task.yaml#/UpdateTaskRequest'
+TaskDependency:
+  $ref: './task.yaml#/TaskDependency'
+TerminalOutput:
+  $ref: './task.yaml#/TerminalOutput'
+FileChange:
+  $ref: './task.yaml#/FileChange'
+TaskDiff:
+  $ref: './task.yaml#/TaskDiff'
+ApprovalRequest:
+  $ref: './task.yaml#/ApprovalRequest'
+
+# Repository schemas
+Repository:
+  $ref: './repository.yaml#/Repository'
+CreateRepositoryRequest:
+  $ref: './repository.yaml#/CreateRepositoryRequest'
+UpdateRepositoryRequest:
+  $ref: './repository.yaml#/UpdateRepositoryRequest'
+
+# Notification schemas
+Notification:
+  $ref: './notification.yaml#/Notification'

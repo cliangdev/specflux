@@ -1,0 +1,33 @@
+Notification:
+  type: object
+  properties:
+    id:
+      type: integer
+    project_id:
+      type: integer
+    user_id:
+      type: integer
+    type:
+      type: string
+      enum: [review_requested, task_completed, task_failed, dependency_unblocked, changes_requested]
+    title:
+      type: string
+    message:
+      type: string
+      nullable: true
+    task_id:
+      type: integer
+      nullable: true
+    is_read:
+      type: boolean
+    created_at:
+      type: string
+      format: date-time
+  required:
+    - id
+    - project_id
+    - user_id
+    - type
+    - title
+    - is_read
+    - created_at

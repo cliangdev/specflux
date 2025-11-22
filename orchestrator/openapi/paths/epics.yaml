@@ -1,0 +1,226 @@
+projects-id-epics:
+  get:
+    summary: List epics
+    description: Get all epics for a project
+    operationId: listEpics
+    tags:
+      - Epics
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum: [planning, active, completed]
+    responses:
+      '200':
+        description: List of epics
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  type: array
+                  items:
+                    $ref: '../schemas/epic.yaml#/Epic'
+
+  post:
+    summary: Create epic
+    description: Create a new epic in a project
+    operationId: createEpic
+    tags:
+      - Epics
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/epic.yaml#/CreateEpicRequest'
+    responses:
+      '201':
+        description: Epic created
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/epic.yaml#/Epic'
+      '400':
+        description: Invalid request
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+epics-id:
+  get:
+    summary: Get epic
+    description: Get epic details by ID
+    operationId: getEpic
+    tags:
+      - Epics
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Epic details
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/epic.yaml#/Epic'
+      '404':
+        description: Epic not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+  put:
+    summary: Update epic
+    description: Update epic details
+    operationId: updateEpic
+    tags:
+      - Epics
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/epic.yaml#/UpdateEpicRequest'
+    responses:
+      '200':
+        description: Updated epic
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/epic.yaml#/Epic'
+      '404':
+        description: Epic not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+  delete:
+    summary: Delete epic
+    description: Delete an epic
+    operationId: deleteEpic
+    tags:
+      - Epics
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '204':
+        description: Epic deleted
+      '404':
+        description: Epic not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+epics-id-tasks:
+  get:
+    summary: Get epic tasks
+    description: Get all tasks in an epic
+    operationId: getEpicTasks
+    tags:
+      - Epics
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: List of tasks
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  type: array
+                  items:
+                    $ref: '../schemas/task.yaml#/Task'
+      '404':
+        description: Epic not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+epics-id-progress:
+  get:
+    summary: Get epic progress
+    description: Get progress statistics for an epic
+    operationId: getEpicProgress
+    tags:
+      - Epics
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Epic progress
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/epic.yaml#/EpicProgress'
+      '404':
+        description: Epic not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'

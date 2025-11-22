@@ -2,17 +2,42 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import swaggerUi from 'swagger-ui-express';
 import routes from './routes';
 import { AppError } from './types';
+import { loadOpenAPISpec } from './swagger';
 
 const app = express();
 
 // Middleware
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+      },
+    },
+  })
+);
 app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Swagger UI - setup async
+const setupSwagger = async () => {
+  try {
+    const spec = await loadOpenAPISpec();
+    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(spec));
+    console.log('Swagger UI available at /api-docs');
+  } catch (error) {
+    console.error('Failed to setup Swagger UI:', error);
+  }
+};
+void setupSwagger();
 
 // Routes
 app.use('/api', routes);

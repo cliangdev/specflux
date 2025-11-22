@@ -1,0 +1,276 @@
+projects:
+  get:
+    summary: List projects
+    description: Get all projects for the current user
+    operationId: listProjects
+    tags:
+      - Projects
+    responses:
+      '200':
+        description: List of projects
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  type: array
+                  items:
+                    $ref: '../schemas/project.yaml#/Project'
+
+  post:
+    summary: Create project
+    description: Create a new project
+    operationId: createProject
+    tags:
+      - Projects
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/project.yaml#/CreateProjectRequest'
+    responses:
+      '201':
+        description: Project created
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/project.yaml#/Project'
+      '400':
+        description: Invalid request
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+projects-id:
+  get:
+    summary: Get project
+    description: Get project details by ID
+    operationId: getProject
+    tags:
+      - Projects
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Project details
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/project.yaml#/Project'
+      '404':
+        description: Project not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+  put:
+    summary: Update project
+    description: Update project details
+    operationId: updateProject
+    tags:
+      - Projects
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/project.yaml#/UpdateProjectRequest'
+    responses:
+      '200':
+        description: Updated project
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/project.yaml#/Project'
+      '404':
+        description: Project not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+  delete:
+    summary: Delete project
+    description: Delete a project
+    operationId: deleteProject
+    tags:
+      - Projects
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '204':
+        description: Project deleted
+      '404':
+        description: Project not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+projects-id-config:
+  get:
+    summary: Get project config
+    description: Get project configuration
+    operationId: getProjectConfig
+    tags:
+      - Projects
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Project configuration
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/project.yaml#/ProjectConfig'
+      '404':
+        description: Project not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+  put:
+    summary: Update project config
+    description: Update project configuration
+    operationId: updateProjectConfig
+    tags:
+      - Projects
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/project.yaml#/UpdateProjectConfigRequest'
+    responses:
+      '200':
+        description: Updated configuration
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/project.yaml#/ProjectConfig'
+      '404':
+        description: Project not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+projects-id-dashboard:
+  get:
+    summary: Get dashboard data
+    description: Get dashboard data for a project
+    operationId: getProjectDashboard
+    tags:
+      - Projects
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Dashboard data
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/project.yaml#/DashboardResponse'
+      '404':
+        description: Project not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+projects-id-stats:
+  get:
+    summary: Get project stats
+    description: Get statistics for a project
+    operationId: getProjectStats
+    tags:
+      - Projects
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Project statistics
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/project.yaml#/ProjectStats'
+      '404':
+        description: Project not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'

@@ -1,0 +1,130 @@
+openapi: 3.0.3
+info:
+  title: SpecFlux API
+  description: |
+    API for SpecFlux - AI-Powered Multi-Repo Development Orchestrator.
+
+    SpecFlux orchestrates Claude Code agents across multiple repositories
+    with spec-driven workflows and configurable pipelines.
+  version: 1.0.0
+  contact:
+    name: SpecFlux
+    url: https://github.com/cliangdev/specflux
+
+servers:
+  - url: http://localhost:3000/api
+    description: Local development server
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Users
+    description: User management
+  - name: Projects
+    description: Project management
+  - name: Epics
+    description: Epic management
+  - name: Tasks
+    description: Task management and agent orchestration
+  - name: Repositories
+    description: Repository management
+  - name: Notifications
+    description: Notification management
+  - name: Files
+    description: File operations
+
+paths:
+  /health:
+    $ref: './paths/health.yaml#/health'
+
+  # Users
+  /users/me:
+    $ref: './paths/users.yaml#/users-me'
+
+  # Projects
+  /projects:
+    $ref: './paths/projects.yaml#/projects'
+  /projects/{id}:
+    $ref: './paths/projects.yaml#/projects-id'
+  /projects/{id}/config:
+    $ref: './paths/projects.yaml#/projects-id-config'
+  /projects/{id}/dashboard:
+    $ref: './paths/projects.yaml#/projects-id-dashboard'
+  /projects/{id}/stats:
+    $ref: './paths/projects.yaml#/projects-id-stats'
+
+  # Epics
+  /projects/{id}/epics:
+    $ref: './paths/epics.yaml#/projects-id-epics'
+  /epics/{id}:
+    $ref: './paths/epics.yaml#/epics-id'
+  /epics/{id}/tasks:
+    $ref: './paths/epics.yaml#/epics-id-tasks'
+  /epics/{id}/progress:
+    $ref: './paths/epics.yaml#/epics-id-progress'
+
+  # Tasks
+  /projects/{id}/tasks:
+    $ref: './paths/tasks.yaml#/projects-id-tasks'
+  /tasks/{id}:
+    $ref: './paths/tasks.yaml#/tasks-id'
+  /tasks/{id}/assign:
+    $ref: './paths/tasks.yaml#/tasks-id-assign'
+  /tasks/{id}/dependencies:
+    $ref: './paths/tasks.yaml#/tasks-id-dependencies'
+  /tasks/{id}/start:
+    $ref: './paths/tasks.yaml#/tasks-id-start'
+  /tasks/{id}/pause:
+    $ref: './paths/tasks.yaml#/tasks-id-pause'
+  /tasks/{id}/resume:
+    $ref: './paths/tasks.yaml#/tasks-id-resume'
+  /tasks/{id}/stop:
+    $ref: './paths/tasks.yaml#/tasks-id-stop'
+  /tasks/{id}/terminal-output:
+    $ref: './paths/tasks.yaml#/tasks-id-terminal-output'
+  /tasks/{id}/files-changed:
+    $ref: './paths/tasks.yaml#/tasks-id-files-changed'
+  /tasks/{id}/diff:
+    $ref: './paths/tasks.yaml#/tasks-id-diff'
+  /tasks/{id}/approve:
+    $ref: './paths/tasks.yaml#/tasks-id-approve'
+  /tasks/{id}/reject:
+    $ref: './paths/tasks.yaml#/tasks-id-reject'
+
+  # Repositories
+  /projects/{id}/repositories:
+    $ref: './paths/repositories.yaml#/projects-id-repositories'
+  /repositories/{id}:
+    $ref: './paths/repositories.yaml#/repositories-id'
+  /repositories/{id}/sync:
+    $ref: './paths/repositories.yaml#/repositories-id-sync'
+
+  # Notifications
+  /projects/{id}/notifications:
+    $ref: './paths/notifications.yaml#/projects-id-notifications'
+  /notifications/{id}/read:
+    $ref: './paths/notifications.yaml#/notifications-id-read'
+  /notifications/{id}:
+    $ref: './paths/notifications.yaml#/notifications-id'
+  /notifications/mark-all-read:
+    $ref: './paths/notifications.yaml#/notifications-mark-all-read'
+
+  # Files
+  /projects/{id}/files:
+    $ref: './paths/files.yaml#/projects-id-files'
+  /files/{path}:
+    $ref: './paths/files.yaml#/files-path'
+
+components:
+  schemas:
+    $ref: './schemas/_index.yaml'
+
+  securitySchemes:
+    UserIdHeader:
+      type: apiKey
+      in: header
+      name: X-User-Id
+      description: User ID header for desktop app authentication
+
+security:
+  - UserIdHeader: []
