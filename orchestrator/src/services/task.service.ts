@@ -164,7 +164,7 @@ export function createTask(
       input.epic_id ?? null,
       input.title,
       input.description ?? null,
-      input.requires_approval ?? true,
+      (input.requires_approval ?? true) ? 1 : 0, // SQLite needs integer for boolean
       input.repo_name ?? null,
       input.agent_name ?? null,
       input.estimated_duration ?? null,

@@ -20,10 +20,12 @@ export function getDatabase(config?: Partial<DatabaseConfig>): Database.Database
 
   const dbPath = config?.path ?? process.env['DATABASE_PATH'] ?? DEFAULT_DB_PATH;
 
-  // Ensure directory exists
-  const dbDir = path.dirname(dbPath);
-  if (!fs.existsSync(dbDir)) {
-    fs.mkdirSync(dbDir, { recursive: true });
+  // Ensure directory exists (skip for in-memory database)
+  if (dbPath !== ':memory:') {
+    const dbDir = path.dirname(dbPath);
+    if (!fs.existsSync(dbDir)) {
+      fs.mkdirSync(dbDir, { recursive: true });
+    }
   }
 
   db = new Database(dbPath, {
@@ -34,8 +36,10 @@ export function getDatabase(config?: Partial<DatabaseConfig>): Database.Database
   // Enable foreign keys
   db.pragma('foreign_keys = ON');
 
-  // Enable WAL mode for better concurrent access
-  db.pragma('journal_mode = WAL');
+  // Enable WAL mode for better concurrent access (skip for in-memory)
+  if (dbPath !== ':memory:') {
+    db.pragma('journal_mode = WAL');
+  }
 
   return db;
 }

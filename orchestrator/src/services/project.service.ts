@@ -107,8 +107,9 @@ export function createProject(input: CreateProjectInput, ownerUserId: number): P
         ownerUserId
       );
   } catch (err: unknown) {
-    // Handle unique constraint violation
-    if (err instanceof Error && 'code' in err && err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+    // Handle unique constraint violation from better-sqlite3
+    const sqliteErr = err as { code?: string };
+    if (sqliteErr.code === 'SQLITE_CONSTRAINT_UNIQUE') {
       throw new ValidationError(`A project named "${input.name}" already exists`);
     }
     throw err;
