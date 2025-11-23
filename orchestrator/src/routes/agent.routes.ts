@@ -12,10 +12,10 @@ import { NotFoundError, ValidationError } from '../types';
 const router = Router();
 
 /**
- * GET /api/tasks/:id/agent/status
+ * GET /api/tasks/:id/agent
  * Get agent status for a task
  */
-router.get('/tasks/:id/agent/status', (req: Request, res: Response, next: NextFunction) => {
+router.get('/tasks/:id/agent', (req: Request, res: Response, next: NextFunction) => {
   try {
     const taskId = parseInt(req.params['id'] ?? '0', 10);
 
@@ -32,6 +32,74 @@ router.get('/tasks/:id/agent/status', (req: Request, res: Response, next: NextFu
       data: status,
     });
   } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PUT /api/tasks/:id/agent
+ * Control agent for a task (start, pause, resume, stop)
+ */
+router.put('/tasks/:id/agent', (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const taskId = parseInt(req.params['id'] ?? '0', 10);
+    const { action } = req.body as { action?: string };
+
+    if (!action || !['start', 'pause', 'resume', 'stop'].includes(action)) {
+      throw new ValidationError('Invalid action. Must be one of: start, pause, resume, stop');
+    }
+
+    // Verify task exists
+    const task = getTaskById(taskId);
+    if (!task) {
+      throw new NotFoundError('Task', taskId);
+    }
+
+    let result;
+    switch (action) {
+      case 'start':
+        result = spawnAgent(taskId, {});
+        res.status(201).json({
+          success: true,
+          data: {
+            status: result.status,
+            pid: result.pid,
+            taskId: result.taskId,
+            startedAt: result.startedAt,
+          },
+        });
+        return;
+
+      case 'stop':
+        stopAgent(taskId);
+        result = getAgentStatus(taskId);
+        res.json({
+          success: true,
+          data: result,
+        });
+        return;
+
+      case 'pause':
+      case 'resume':
+        // Pause/resume not yet implemented - just return current status
+        result = getAgentStatus(taskId);
+        res.json({
+          success: true,
+          data: result,
+        });
+        return;
+
+      default:
+        throw new ValidationError('Invalid action');
+    }
+  } catch (error) {
+    if (error instanceof ValidationError && error.message.includes('already running')) {
+      res.status(409).json({
+        success: false,
+        error: error.message,
+      });
+      return;
+    }
     next(error);
   }
 });

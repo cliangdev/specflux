@@ -34,6 +34,22 @@ export function Terminal({
   const [connected, setConnected] = useState(false);
   const [running, setRunning] = useState(false);
 
+  // Use refs for callbacks and running state to avoid reconnection loops
+  const runningRef = useRef(running);
+  const onStatusChangeRef = useRef(onStatusChange);
+  const onExitRef = useRef(onExit);
+
+  // Keep refs in sync with props/state
+  useEffect(() => {
+    runningRef.current = running;
+  }, [running]);
+  useEffect(() => {
+    onStatusChangeRef.current = onStatusChange;
+  }, [onStatusChange]);
+  useEffect(() => {
+    onExitRef.current = onExit;
+  }, [onExit]);
+
   // Determine WebSocket URL
   const getWsUrl = useCallback(() => {
     if (wsUrl) return wsUrl;
@@ -151,7 +167,7 @@ export function Terminal({
         switch (msg.type) {
           case "status":
             setRunning(msg.running ?? false);
-            onStatusChange?.(msg.running ?? false);
+            onStatusChangeRef.current?.(msg.running ?? false);
             if (msg.running) {
               term.writeln("\x1b[33mAgent is running...\x1b[0m");
             } else {
@@ -169,7 +185,7 @@ export function Terminal({
 
           case "exit":
             setRunning(false);
-            onStatusChange?.(false);
+            onStatusChangeRef.current?.(false);
             term.writeln("");
             if (msg.exitCode === 0) {
               term.writeln("\x1b[32mAgent completed successfully.\x1b[0m");
@@ -178,7 +194,7 @@ export function Terminal({
                 `\x1b[31mAgent exited with code ${msg.exitCode}\x1b[0m`,
               );
             }
-            onExit?.(msg.exitCode ?? 1);
+            onExitRef.current?.(msg.exitCode ?? 1);
             break;
         }
       } catch {
@@ -200,7 +216,7 @@ export function Terminal({
 
     // Handle terminal input
     const inputHandler = term.onData((data) => {
-      if (ws.readyState === WebSocket.OPEN && running) {
+      if (ws.readyState === WebSocket.OPEN && runningRef.current) {
         ws.send(
           JSON.stringify({
             type: "input",
@@ -214,7 +230,8 @@ export function Terminal({
       inputHandler.dispose();
       ws.close();
     };
-  }, [getWsUrl, onStatusChange, onExit, running]);
+    // Only reconnect when taskId or wsUrl changes, not on callback/state changes
+  }, [getWsUrl]);
 
   return (
     <div className="terminal-container">

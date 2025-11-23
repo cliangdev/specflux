@@ -177,17 +177,19 @@ describe('ContextService', () => {
   });
 
   describe('writeContextFile', () => {
-    it('should create context file in .specflux directory', () => {
+    it('should create CLAUDE.md file for Claude Code', () => {
       const contextPath = writeContextFile(testDir, taskId);
 
       expect(contextPath).not.toBeNull();
       expect(fs.existsSync(contextPath!)).toBe(true);
-      expect(contextPath).toContain('.specflux/context.md');
+      expect(contextPath).toContain('CLAUDE.md');
+      // Also creates .specflux/context.md
+      expect(fs.existsSync(path.join(testDir, '.specflux', 'context.md'))).toBe(true);
     });
 
     it('should write correct content to file', () => {
       writeContextFile(testDir, taskId);
-      const content = fs.readFileSync(path.join(testDir, '.specflux', 'context.md'), 'utf-8');
+      const content = fs.readFileSync(path.join(testDir, 'CLAUDE.md'), 'utf-8');
 
       expect(content).toContain('Implement user authentication');
       expect(content).toContain('Context Test Project');

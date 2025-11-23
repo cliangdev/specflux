@@ -42,8 +42,13 @@ void setupSwagger();
 // Routes
 app.use('/api', routes);
 
-// 404 handler
-app.use((_req: Request, res: Response) => {
+// 404 handler - skip WebSocket upgrade requests
+app.use((req: Request, res: Response) => {
+  // Don't respond to WebSocket upgrade requests - let them pass to HTTP server
+  if (req.headers.upgrade?.toLowerCase() === 'websocket') {
+    return;
+  }
+
   res.status(404).json({
     success: false,
     error: 'Not found',

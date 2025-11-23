@@ -171,9 +171,10 @@ describe('AgentService', () => {
     it('should return running status and session info', () => {
       const status = getAgentStatus(statusTaskId);
 
-      expect(status.running).toBe(false); // No in-memory agent (mocked)
-      expect(status.session).not.toBeNull();
-      expect(status.session?.status).toBe('running');
+      // Returns OpenAPI-compliant format
+      expect(status.task_id).toBe(statusTaskId);
+      expect(status.status).toBe('running'); // Session is 'running' in DB
+      expect(status.pid).toBe(11111);
     });
   });
 
