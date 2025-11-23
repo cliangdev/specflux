@@ -1,5 +1,7 @@
 import * as pty from 'node-pty';
 import { EventEmitter } from 'events';
+import fs from 'fs';
+import path from 'path';
 import { getDatabase } from '../db';
 import { NotFoundError, ValidationError } from '../types';
 import { getTaskById, updateTask } from './task.service';
@@ -189,6 +191,21 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
     throw new NotFoundError('Project', task.project_id);
   }
 
+  // Validate project path exists and is a git repo before attempting worktree
+  if (!fs.existsSync(project.local_path)) {
+    throw new ValidationError(
+      `Cannot start agent: Project path "${project.local_path}" does not exist. ` +
+        `Please update the project's local_path to a valid directory.`
+    );
+  }
+  const gitDir = path.join(project.local_path, '.git');
+  if (!fs.existsSync(gitDir)) {
+    throw new ValidationError(
+      `Cannot start agent: Project path "${project.local_path}" is not a git repository. ` +
+        `The agent requires a git repository to create isolated worktrees for tasks.`
+    );
+  }
+
   // Generate branch name and create worktree
   const branchName = generateBranchName(taskId, task.title);
   let worktreePath: string | null = null;
@@ -202,7 +219,13 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
     if (existingWorktree) {
       worktreePath = existingWorktree.path;
     } else {
-      throw error;
+      // Re-throw with more context
+      if (error instanceof ValidationError) {
+        throw error;
+      }
+      throw new ValidationError(
+        `Failed to create worktree for task ${taskId}: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
