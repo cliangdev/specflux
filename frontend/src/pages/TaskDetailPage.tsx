@@ -398,8 +398,12 @@ export default function TaskDetailPage() {
                   onClick={() =>
                     handleAgentAction(ControlTaskAgentRequestActionEnum.Start)
                   }
-                  disabled={actionLoading}
-                  className="px-3 py-1.5 text-sm font-medium bg-green-600 hover:bg-green-700 text-white rounded transition-colors disabled:opacity-50 flex items-center gap-1"
+                  disabled={
+                    actionLoading ||
+                    task.status === "done" ||
+                    task.status === "approved"
+                  }
+                  className="px-3 py-1.5 text-sm font-medium bg-green-600 hover:bg-green-700 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                 >
                   {actionLoading ? (
                     <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
