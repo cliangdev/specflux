@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { open } from "@tauri-apps/api/shell";
 import {
   api,
   type Task,
@@ -12,14 +11,9 @@ import {
 } from "../api";
 import Terminal from "../components/Terminal";
 
-// Helper to open external URLs using Tauri shell
-const openExternal = async (url: string) => {
-  try {
-    await open(url);
-  } catch (err) {
-    // Fallback to window.open if Tauri shell fails
-    window.open(url, "_blank");
-  }
+// Helper to open external URLs
+const openExternal = (url: string) => {
+  window.open(url, "_blank");
 };
 
 const STATUS_COLORS: Record<string, string> = {
