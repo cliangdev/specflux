@@ -208,7 +208,6 @@ gh pr create --title "feat: add task CRUD endpoints" --body "..."
 - **Product Spec:** `docs/research/specflux-product-spec.md` - Complete vision, architecture, workflows, UI wireframes
 - **Development Roadmap:** `docs/research/specflux-development-roadmap.md` - Week-by-week implementation plan, database schema, API specs
 - **Claude Setup Guide:** `docs/research/claude-developer-setup-guide.md` - MCP servers, skills, agents, commands
-- **UI Style Guide:** `docs/UI_STYLE_GUIDE.md` - Detailed color system, typography, component patterns
 
 ## Core Concepts
 
