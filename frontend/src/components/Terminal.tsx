@@ -9,6 +9,7 @@ interface TerminalProps {
   wsUrl?: string;
   onStatusChange?: (running: boolean) => void;
   onExit?: (exitCode: number) => void;
+  onRefresh?: () => void;
 }
 
 interface TerminalMessage {
@@ -24,6 +25,7 @@ export function Terminal({
   wsUrl,
   onStatusChange,
   onExit,
+  onRefresh,
 }: TerminalProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
@@ -218,15 +220,38 @@ export function Terminal({
     <div className="terminal-container">
       <div className="terminal-header">
         <span className="terminal-title">Agent Terminal</span>
-        <span
-          className={`terminal-status ${connected ? "connected" : "disconnected"}`}
-        >
-          {connected
-            ? running
-              ? "● Running"
-              : "○ Connected"
-            : "○ Disconnected"}
-        </span>
+        <div className="terminal-header-right">
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              className="terminal-refresh"
+              title="Refresh status"
+            >
+              <svg
+                className="refresh-icon"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+            </button>
+          )}
+          <span
+            className={`terminal-status ${connected ? "connected" : "disconnected"}`}
+          >
+            {connected
+              ? running
+                ? "● Running"
+                : "● Connected"
+              : "○ Disconnected"}
+          </span>
+        </div>
       </div>
       <div
         ref={terminalRef}
@@ -254,6 +279,30 @@ export function Terminal({
           color: #d4d4d4;
           font-size: 13px;
           font-weight: 500;
+        }
+        .terminal-header-right {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .terminal-refresh {
+          background: none;
+          border: none;
+          padding: 4px;
+          cursor: pointer;
+          color: #888;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .terminal-refresh:hover {
+          color: #d4d4d4;
+          background: #3d3d3d;
+        }
+        .refresh-icon {
+          width: 16px;
+          height: 16px;
         }
         .terminal-status {
           font-size: 12px;
