@@ -59,9 +59,22 @@ export function createWorktree(taskId: number, projectPath: string, branchName: 
   // Create worktree path
   const worktreePath = path.join(worktreeBase, `task-${taskId}`);
 
-  // Check if worktree directory already exists
+  // Check if worktree directory already exists - reuse if valid
   if (fs.existsSync(worktreePath)) {
-    throw new ValidationError(`Worktree path already exists: ${worktreePath}`);
+    // Check if it's a valid git worktree by looking for .git file
+    const gitFile = path.join(worktreePath, '.git');
+    if (fs.existsSync(gitFile)) {
+      // Valid worktree exists, reuse it
+      const worktree: Worktree = {
+        path: worktreePath,
+        branch: branchName,
+        taskId,
+      };
+      worktreeMap.set(taskId, worktree);
+      return worktree;
+    }
+    // Directory exists but not a valid worktree, remove and recreate
+    fs.rmSync(worktreePath, { recursive: true, force: true });
   }
 
   try {

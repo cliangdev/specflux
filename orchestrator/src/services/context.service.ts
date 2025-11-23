@@ -108,21 +108,27 @@ export function generateContextMarkdown(context: TaskContext): string {
 
 /**
  * Write context file to a directory
+ * Writes to CLAUDE.md so Claude Code reads it automatically on startup
  */
 export function writeContextFile(worktreePath: string, taskId: number): string | null {
   const context = getTaskContext(taskId);
   if (!context) return null;
 
+  const content = generateContextMarkdown(context);
+
+  // Write to CLAUDE.md for Claude Code to read automatically
+  const claudeMdPath = path.join(worktreePath, 'CLAUDE.md');
+  fs.writeFileSync(claudeMdPath, content, 'utf-8');
+
+  // Also write to .specflux/context.md for reference
   const contextDir = path.join(worktreePath, '.specflux');
   if (!fs.existsSync(contextDir)) {
     fs.mkdirSync(contextDir, { recursive: true });
   }
-
   const contextPath = path.join(contextDir, 'context.md');
-  const content = generateContextMarkdown(context);
   fs.writeFileSync(contextPath, content, 'utf-8');
 
-  return contextPath;
+  return claudeMdPath;
 }
 
 /**

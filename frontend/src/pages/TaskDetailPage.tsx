@@ -137,6 +137,16 @@ export default function TaskDetailPage() {
     agentStatus.status === AgentStatusStatusEnum.Completed ||
     agentStatus.status === AgentStatusStatusEnum.Failed;
 
+  // Memoize the onStatusChange callback to prevent unnecessary re-renders
+  const handleTerminalStatusChange = useCallback(
+    (running: boolean) => {
+      if (running !== isAgentRunning) {
+        fetchAgentStatus();
+      }
+    },
+    [isAgentRunning, fetchAgentStatus],
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -427,11 +437,7 @@ export default function TaskDetailPage() {
         <div className="flex-1 flex flex-col min-w-0">
           <Terminal
             taskId={task.id}
-            onStatusChange={(running) => {
-              if (running !== isAgentRunning) {
-                fetchAgentStatus();
-              }
-            }}
+            onStatusChange={handleTerminalStatusChange}
             onRefresh={fetchAgentStatus}
           />
         </div>

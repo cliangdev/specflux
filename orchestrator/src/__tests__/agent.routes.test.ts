@@ -46,18 +46,20 @@ describe('Agent API Routes', () => {
     taskId = taskResult.lastInsertRowid as number;
   });
 
-  describe('GET /api/tasks/:id/agent/status', () => {
+  describe('GET /api/tasks/:id/agent', () => {
     it('should return agent status for valid task', async () => {
-      const response = await request(app).get(`/api/tasks/${taskId}/agent/status`);
+      const response = await request(app).get(`/api/tasks/${taskId}/agent`);
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(response.body.data).toHaveProperty('running');
-      expect(response.body.data.running).toBe(false);
+      expect(response.body.data).toHaveProperty('task_id');
+      expect(response.body.data).toHaveProperty('status');
+      expect(response.body.data.task_id).toBe(taskId);
+      expect(response.body.data.status).toBe('idle');
     });
 
     it('should return 404 for non-existent task', async () => {
-      const response = await request(app).get('/api/tasks/99999/agent/status');
+      const response = await request(app).get('/api/tasks/99999/agent');
 
       expect(response.status).toBe(404);
       expect(response.body.success).toBe(false);

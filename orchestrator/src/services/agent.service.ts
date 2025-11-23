@@ -157,16 +157,57 @@ export function isAgentRunning(taskId: number): boolean {
 }
 
 /**
- * Get agent status for a task
+ * Agent status response matching OpenAPI spec
  */
-export function getAgentStatus(taskId: number): {
-  running: boolean;
-  session: AgentSession | null;
-} {
+export interface AgentStatusResponse {
+  task_id: number;
+  status: 'idle' | 'running' | 'paused' | 'stopped' | 'completed' | 'failed';
+  pid: number | null;
+  started_at: string | null;
+  stopped_at: string | null;
+  error_message: string | null;
+}
+
+/**
+ * Get agent status for a task - returns format matching OpenAPI spec
+ */
+export function getAgentStatus(taskId: number): AgentStatusResponse {
+  const isRunning = runningAgents.has(taskId);
   const session = getActiveSessionForTask(taskId);
+
+  // Map internal status to API status
+  let status: AgentStatusResponse['status'] = 'idle';
+  if (isRunning) {
+    status = 'running';
+  } else if (session) {
+    // Map session status to API status
+    switch (session.status) {
+      case 'starting':
+      case 'running':
+        status = 'running';
+        break;
+      case 'stopping':
+      case 'stopped':
+        status = 'stopped';
+        break;
+      case 'completed':
+        status = 'completed';
+        break;
+      case 'failed':
+        status = 'failed';
+        break;
+      default:
+        status = 'idle';
+    }
+  }
+
   return {
-    running: runningAgents.has(taskId),
-    session,
+    task_id: taskId,
+    status,
+    pid: session?.pid ?? null,
+    started_at: session?.startedAt ?? null,
+    stopped_at: session?.endedAt ?? null,
+    error_message: null, // Would need to add this to session tracking
   };
 }
 
@@ -238,8 +279,14 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
   const sessionId = createAgentSession(taskId, worktreePath);
 
   // Determine command and args
+  // Pass task description as initial prompt so Claude starts working immediately
   const command = config?.command ?? 'claude';
-  const args = config?.args ?? ['--print', '.specflux/context.md'];
+  let args = config?.args;
+  if (!args) {
+    // Build initial prompt from task details
+    const initialPrompt = `Please work on this task:\n\nTask #${task.id}: ${task.title}\n\n${task.description ?? 'No description provided.'}\n\nStart by understanding what needs to be done, then implement the changes.`;
+    args = [initialPrompt];
+  }
 
   // Build environment
   const env: Record<string, string> = {

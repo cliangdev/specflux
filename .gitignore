@@ -46,3 +46,6 @@ coverage/
 # Local settings (keep settings.json, ignore local overrides)
 .claude/settings.local.json
 orchestrator/data/*.db-*
+
+# SpecFlux runtime artifacts (worktrees, context files)
+.specflux/
