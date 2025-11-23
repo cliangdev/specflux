@@ -1034,9 +1034,13 @@ const tasks = await projectsApi.getProjectTasks({ id: 1 });
   - [x] Backend: ws library
   - [x] Frontend: WebSocket client
 - [x] Connect PTY output to WebSocket
-- [x] Display terminal in UI
+- [ ] Display terminal in UI (integrate into Task Detail view - Week 6)
 
-**Wireframe: Task with Terminal (Week 3)**
+**Wireframe: Task with Terminal (Target UI - implemented in Week 6)**
+
+*Note: Week 3 builds the terminal infrastructure (Terminal component, WebSocket, PTY).
+The full UI integration below is part of the Task Detail Modal in Week 6.*
+
 ```
 ┌────────────────────────────────────────────────────────────┐
 │  Active Tasks (2)                          [Tabbed View]  │
@@ -1069,9 +1073,9 @@ const tasks = await projectsApi.getProjectTasks({ id: 1 });
 ```
 
 **Testing:**
-- [x] Launch Claude Code manually
-- [x] Verify terminal output appears in UI
-- [x] Test pause/stop functionality
+- [x] Launch Claude Code manually (via API)
+- [ ] Verify terminal output appears in UI (requires Task Detail integration)
+- [x] Test pause/stop functionality (API endpoints)
 
 ---
 
@@ -1216,6 +1220,7 @@ const tasks = await projectsApi.getProjectTasks({ id: 1 });
   - [ ] Dependencies list
   - [ ] Agent configuration
   - [ ] Start/Stop buttons
+  - [ ] **Embedded Terminal** (use Terminal component from Week 3)
   - [ ] **Approval controls** (when status = pending-review)
 - [ ] Dependency visualization
   - [ ] Show blocking tasks
