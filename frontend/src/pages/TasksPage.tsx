@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { useProject } from "../contexts";
 import { api, type Task } from "../api";
 import { ListTasksStatusEnum } from "../api/generated";
-import { TaskCreateModal, TaskDetailModal } from "../components/ui";
+import { TaskCreateModal } from "../components/ui";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
@@ -49,12 +50,12 @@ function ProgressBar({ percent }: { percent: number }) {
 
 export default function TasksPage() {
   const { currentProject } = useProject();
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   const fetchTasks = useCallback(async () => {
     if (!currentProject) {
@@ -235,7 +236,7 @@ export default function TasksPage() {
                 <tr
                   key={task.id}
                   className="hover:bg-gray-750 transition-colors cursor-pointer"
-                  onClick={() => setSelectedTask(task)}
+                  onClick={() => navigate(`/tasks/${task.id}`)}
                 >
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
                     #{task.id}
@@ -276,14 +277,6 @@ export default function TasksPage() {
           projectId={currentProject.id}
           onClose={() => setShowCreateModal(false)}
           onCreated={fetchTasks}
-        />
-      )}
-
-      {selectedTask && (
-        <TaskDetailModal
-          task={selectedTask}
-          onClose={() => setSelectedTask(null)}
-          onTaskUpdated={fetchTasks}
         />
       )}
     </div>

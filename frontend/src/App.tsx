@@ -4,6 +4,7 @@ import { ProjectProvider } from "./contexts";
 import {
   BoardPage,
   TasksPage,
+  TaskDetailPage,
   EpicsPage,
   FilesPage,
   SettingsPage,
@@ -18,6 +19,7 @@ function App() {
             <Route index element={<Navigate to="/board" replace />} />
             <Route path="board" element={<BoardPage />} />
             <Route path="tasks" element={<TasksPage />} />
+            <Route path="tasks/:taskId" element={<TaskDetailPage />} />
             <Route path="epics" element={<EpicsPage />} />
             <Route path="files" element={<FilesPage />} />
             <Route path="settings" element={<SettingsPage />} />

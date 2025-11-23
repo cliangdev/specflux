@@ -1,12 +1,14 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach } from "vitest";
-import TaskDetailModal from "./TaskDetailModal";
-import { api, type Task, type AgentStatus } from "../../api";
+import { MemoryRouter, Routes, Route } from "react-router-dom";
+import TaskDetailPage from "./TaskDetailPage";
+import { api, type Task, type AgentStatus } from "../api";
 
 // Mock the api
-vi.mock("../../api", () => ({
+vi.mock("../api", () => ({
   api: {
     tasks: {
+      getTask: vi.fn(),
       getTaskAgentStatus: vi.fn(),
       controlTaskAgent: vi.fn(),
     },
@@ -28,7 +30,7 @@ vi.mock("../../api", () => ({
 }));
 
 // Mock the Terminal component
-vi.mock("../Terminal", () => ({
+vi.mock("../components/Terminal", () => ({
   default: ({ taskId }: { taskId: number }) => (
     <div data-testid="terminal">Terminal for task {taskId}</div>
   ),
@@ -52,12 +54,33 @@ const mockAgentStatus: AgentStatus = {
   status: "idle",
 };
 
-describe("TaskDetailModal", () => {
-  const mockOnClose = vi.fn();
-  const mockOnTaskUpdated = vi.fn();
+const mockNavigate = vi.fn();
 
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual("react-router-dom");
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
+function renderPage(taskId: string = "1") {
+  return render(
+    <MemoryRouter initialEntries={[`/tasks/${taskId}`]}>
+      <Routes>
+        <Route path="/tasks/:taskId" element={<TaskDetailPage />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
+describe("TaskDetailPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(api.tasks.getTask).mockResolvedValue({
+      success: true,
+      data: mockTask,
+    });
     vi.mocked(api.tasks.getTaskAgentStatus).mockResolvedValue({
       success: true,
       data: mockAgentStatus,
@@ -65,61 +88,40 @@ describe("TaskDetailModal", () => {
   });
 
   it("renders task details correctly", async () => {
-    render(
-      <TaskDetailModal
-        task={mockTask}
-        onClose={mockOnClose}
-        onTaskUpdated={mockOnTaskUpdated}
-      />,
-    );
+    renderPage();
 
-    expect(screen.getByText("#1")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("#1")).toBeInTheDocument();
+    });
+
     expect(screen.getByText("Test Task")).toBeInTheDocument();
     expect(screen.getByText("Test description")).toBeInTheDocument();
     expect(screen.getByText("50%")).toBeInTheDocument();
   });
 
   it("renders terminal component", async () => {
-    render(
-      <TaskDetailModal
-        task={mockTask}
-        onClose={mockOnClose}
-        onTaskUpdated={mockOnTaskUpdated}
-      />,
-    );
+    renderPage();
 
-    expect(screen.getByTestId("terminal")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId("terminal")).toBeInTheDocument();
+    });
+
     expect(screen.getByText("Terminal for task 1")).toBeInTheDocument();
   });
 
-  it("calls onClose when close button is clicked", async () => {
-    render(
-      <TaskDetailModal
-        task={mockTask}
-        onClose={mockOnClose}
-        onTaskUpdated={mockOnTaskUpdated}
-      />,
-    );
+  it("navigates back when back button is clicked", async () => {
+    renderPage();
 
-    // Find close button by the X icon's parent button
-    const closeButton = screen
-      .getAllByRole("button")
-      .find((btn) => btn.querySelector("svg path[d*='M6 18L18 6']"));
+    await waitFor(() => {
+      expect(screen.getByText("Back to Tasks")).toBeInTheDocument();
+    });
 
-    if (closeButton) {
-      fireEvent.click(closeButton);
-      expect(mockOnClose).toHaveBeenCalled();
-    }
+    fireEvent.click(screen.getByText("Back to Tasks"));
+    expect(mockNavigate).toHaveBeenCalledWith("/tasks");
   });
 
   it("shows Start button when agent is idle", async () => {
-    render(
-      <TaskDetailModal
-        task={mockTask}
-        onClose={mockOnClose}
-        onTaskUpdated={mockOnTaskUpdated}
-      />,
-    );
+    renderPage();
 
     await waitFor(() => {
       expect(screen.getByText("Start")).toBeInTheDocument();
@@ -132,13 +134,7 @@ describe("TaskDetailModal", () => {
       data: { ...mockAgentStatus, status: "running" },
     });
 
-    render(
-      <TaskDetailModal
-        task={mockTask}
-        onClose={mockOnClose}
-        onTaskUpdated={mockOnTaskUpdated}
-      />,
-    );
+    renderPage();
 
     await waitFor(() => {
       expect(screen.getByText("Start")).toBeInTheDocument();
@@ -154,19 +150,25 @@ describe("TaskDetailModal", () => {
     });
   });
 
+  it("shows error state when task not found", async () => {
+    vi.mocked(api.tasks.getTask).mockRejectedValue(new Error("Task not found"));
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Error loading task")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Task not found")).toBeInTheDocument();
+  });
+
   it("shows Pause and Stop buttons when agent is running", async () => {
     vi.mocked(api.tasks.getTaskAgentStatus).mockResolvedValue({
       success: true,
       data: { ...mockAgentStatus, status: "running" },
     });
 
-    render(
-      <TaskDetailModal
-        task={mockTask}
-        onClose={mockOnClose}
-        onTaskUpdated={mockOnTaskUpdated}
-      />,
-    );
+    renderPage();
 
     await waitFor(() => {
       expect(screen.getByText("Pause")).toBeInTheDocument();

@@ -1,5 +1,6 @@
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 import TasksPage from "./TasksPage";
 import { ProjectProvider } from "../contexts";
 import type { Task, Project } from "../api";
@@ -56,9 +57,11 @@ const mockTasks: Task[] = [
 
 function renderWithProvider() {
   return render(
-    <ProjectProvider>
-      <TasksPage />
-    </ProjectProvider>,
+    <MemoryRouter>
+      <ProjectProvider>
+        <TasksPage />
+      </ProjectProvider>
+    </MemoryRouter>,
   );
 }
 
