@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpecFlux - AI Development Orchestration</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            // True Blue (Project Context - Creative/Building)
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                            950: '#172554',
+                        },
+                        system: {
+                            // Slate/Zinc (System Admin Context - Infrastructure/Serious)
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            200: '#e2e8f0',
+                            300: '#cbd5e1',
+                            400: '#94a3b8',
+                            500: '#64748b',
+                            600: '#475569',
+                            700: '#334155',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                            950: '#020617',
+                        },
+                        slate: {
+                            850: '#151e2e', // Custom deep background
+                            900: '#0f172a',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+        body { font-family: 'Inter', sans-serif; }
+
+        /* Scrollbar Styling */
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.3); border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: rgba(156, 163, 175, 0.5); }
+
+        .table-row-hover:hover td { background-color: rgba(243, 244, 246, 1); }
+        .dark .table-row-hover:hover td { background-color: rgba(30, 41, 59, 0.5); }
+
+        .dropdown-enter { opacity: 0; transform: scale(0.95) translateY(-10px); }
+        .dropdown-enter-active { opacity: 1; transform: scale(1) translateY(0); transition: opacity 100ms ease-out, transform 100ms ease-out; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 dark:bg-slate-900 dark:text-gray-100 transition-colors duration-200 overflow-hidden h-screen flex flex-col">
+
+<!-- Top Header -->
+<header id="app-header" class="h-14 bg-white dark:bg-slate-850 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between px-4 shrink-0 z-30 relative transition-colors duration-300">
+    <div class="flex items-center gap-4">
+        <!-- Logo -->
+        <div class="flex items-center gap-2 cursor-pointer" onclick="switchView('board')">
+            <div id="logo-bg" class="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-brand-500/30 transition-colors duration-300">
+                SF
+            </div>
+            <span class="font-bold text-lg tracking-tight hidden md:block">SpecFlux</span>
+        </div>
+
+        <!-- Separator -->
+        <div class="h-6 w-px bg-gray-200 dark:bg-slate-700 mx-2"></div>
+
+        <!-- Context Area -->
+        <div id="project-context-container" class="relative">
+            <button onclick="toggleProjectDropdown()" id="context-btn" class="flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors text-sm font-medium">
+                <span id="context-label">My SaaS Platform</span>
+                <i data-lucide="chevron-down" class="w-4 h-4 text-gray-500"></i>
+            </button>
+
+            <!-- Strict Project Dropdown (No System Links) -->
+            <div id="project-dropdown" class="hidden absolute top-full left-0 mt-2 w-64 bg-white dark:bg-slate-850 border border-gray-200 dark:border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden dropdown-enter">
+                <div class="p-2">
+                    <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 py-2">Recent Projects</div>
+                    <button class="w-full text-left px-3 py-2 rounded bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 flex items-center justify-between text-sm font-medium">
+                        <span>My SaaS Platform</span>
+                        <i data-lucide="check" class="w-4 h-4 text-brand-500"></i>
+                    </button>
+                    <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-slate-800 flex items-center justify-between text-sm text-gray-600 dark:text-gray-300">
+                        <span>Mobile App V2</span>
+                    </button>
+                </div>
+                <div class="border-t border-gray-200 dark:border-slate-700 my-1"></div>
+                <div class="p-2">
+                    <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-slate-800 flex items-center gap-2 text-sm text-gray-500">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Create Project
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Admin Label (Hidden in Project Mode) -->
+        <div id="system-context-label" class="hidden items-center gap-2 text-gray-500 dark:text-gray-400 font-mono text-sm font-medium">
+                <span class="bg-gray-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-gray-200 dark:border-slate-700 flex items-center gap-2">
+                    <i data-lucide="shield" class="w-3 h-3"></i> SYSTEM ADMIN
+                </span>
+        </div>
+    </div>
+
+    <!-- Right Actions -->
+    <div class="flex items-center gap-3">
+        <div class="relative hidden md:block">
+            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            <input type="text" placeholder="Search tasks..." class="pl-9 pr-4 py-1.5 bg-gray-100 dark:bg-slate-800 border border-transparent focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-md text-sm w-64 transition-all outline-none placeholder-gray-500 dark:placeholder-gray-400">
+        </div>
+
+        <button onclick="toggleTheme()" class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-500 dark:text-gray-400 transition-colors" title="Toggle Theme">
+            <i data-lucide="sun" class="w-5 h-5 hidden dark:block"></i>
+            <i data-lucide="moon" class="w-5 h-5 block dark:hidden"></i>
+        </button>
+
+        <div class="h-6 w-px bg-gray-200 dark:bg-slate-700 mx-1"></div>
+
+        <!-- System Toggle Button (Shield) -->
+        <button id="system-toggle-btn" onclick="toggleContext('system')" class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-500 dark:text-gray-400 transition-colors relative group" title="Go to System Admin">
+            <i data-lucide="shield" class="w-5 h-5"></i>
+            <span class="absolute top-full right-0 mt-2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">System Admin</span>
+        </button>
+
+        <!-- Exit System Button (Hidden by default) -->
+        <button id="exit-system-btn" onclick="toggleContext('project')" class="hidden px-3 py-1.5 rounded-md bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 text-xs font-medium transition-colors">
+            Exit Admin
+        </button>
+
+        <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-brand-500 to-cyan-500 p-0.5 cursor-pointer ml-2">
+            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" class="rounded-full bg-white dark:bg-slate-900">
+        </div>
+    </div>
+</header>
+
+<div class="flex flex-1 overflow-hidden">
+
+    <!-- SIDEBAR NAVIGATION -->
+    <nav class="w-64 bg-white dark:bg-slate-850 border-r border-gray-200 dark:border-slate-700 flex flex-col shrink-0 transition-all duration-300 z-20" id="sidebar">
+
+        <!-- PROJECT SIDEBAR (Blue Context) -->
+        <div id="sidebar-project" class="flex flex-col h-full">
+            <div class="p-3 space-y-1 flex-1">
+                <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 py-2 mt-2">Workspace</div>
+
+                <button onclick="switchView('board')" id="nav-board" class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium transition-colors">
+                    <i data-lucide="kanban-square" class="w-5 h-5"></i> Board
+                </button>
+                <button onclick="switchView('tasks')" id="nav-tasks" class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-600 dark:text-gray-300 font-medium transition-colors">
+                    <i data-lucide="check-square" class="w-5 h-5"></i> Tasks
+                </button>
+                <button onclick="switchView('epics')" id="nav-epics" class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-600 dark:text-gray-300 font-medium transition-colors">
+                    <i data-lucide="layers" class="w-5 h-5"></i> Epics
+                </button>
+                <button onclick="switchView('files')" id="nav-files" class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-600 dark:text-gray-300 font-medium transition-colors">
+                    <i data-lucide="folder-open" class="w-5 h-5"></i> Files
+                </button>
+
+                <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 py-2 mt-6">Configuration</div>
+                <button onclick="switchView('agents')" id="nav-agents" class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-600 dark:text-gray-300 font-medium transition-colors">
+                    <i data-lucide="bot" class="w-5 h-5"></i> Agents
+                </button>
+                <button onclick="switchView('settings')" id="nav-settings" class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-600 dark:text-gray-300 font-medium transition-colors">
+                    <i data-lucide="settings" class="w-5 h-5"></i> Settings
+                </button>
+            </div>
+            <!-- Project Status Footer -->
+            <div class="p-4 border-t border-gray-200 dark:border-slate-700">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Status</span>
+                    <span class="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+                            <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span>
+                            Online
+                        </span>
+                </div>
+                <div class="bg-gray-100 dark:bg-slate-800 rounded-md p-2 text-xs text-gray-500 dark:text-gray-400 font-mono truncate">
+                    orchestrator/devflow
+                </div>
+            </div>
+        </div>
+
+        <!-- SYSTEM SIDEBAR (Monochrome/Slate Context) -->
+        <div id="sidebar-system" class="hidden flex-col h-full bg-slate-100 dark:bg-slate-900 border-r border-gray-200 dark:border-slate-700">
+            <div class="p-3 space-y-1 flex-1">
+                <div class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-3 py-2 mt-2">System Admin</div>
+
+                <button onclick="switchView('marketplace')" id="nav-marketplace" class="sys-nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md bg-gray-200 dark:bg-slate-800 text-gray-900 dark:text-white font-medium transition-colors">
+                    <i data-lucide="shopping-bag" class="w-5 h-5"></i> Marketplace
+                </button>
+                <button class="sys-nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-slate-800 text-gray-600 dark:text-gray-400 font-medium transition-colors">
+                    <i data-lucide="users" class="w-5 h-5"></i> Users
+                </button>
+                <button class="sys-nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-slate-800 text-gray-600 dark:text-gray-400 font-medium transition-colors">
+                    <i data-lucide="credit-card" class="w-5 h-5"></i> Billing
+                </button>
+                <button class="sys-nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-slate-800 text-gray-600 dark:text-gray-400 font-medium transition-colors">
+                    <i data-lucide="server" class="w-5 h-5"></i> Infrastructure
+                </button>
+            </div>
+            <div class="p-4 border-t border-gray-200 dark:border-slate-700">
+                <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-md p-3">
+                    <div class="text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Enterprise License</div>
+                    <div class="text-[10px] text-gray-500">Valid until Dec 2025</div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN CONTENT AREA -->
+    <main id="main-content" class="flex-1 flex flex-col overflow-hidden bg-white dark:bg-slate-900 relative">
+
+        <!-- 1. BOARD VIEW -->
+        <div id="view-board" class="view-section flex flex-col h-full overflow-hidden">
+            <div class="h-14 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between px-6 shrink-0">
+                <h1 class="text-lg font-semibold">Sprint Board</h1>
+                <div class="flex items-center gap-2">
+                    <div class="flex items-center bg-gray-100 dark:bg-slate-800 rounded-lg p-0.5 mr-2">
+                        <button class="px-3 py-1 rounded-md bg-white dark:bg-slate-700 shadow-sm text-xs font-medium">Board</button>
+                        <button onclick="switchView('tasks')" class="px-3 py-1 rounded-md text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 text-xs font-medium">List</button>
+                    </div>
+                    <button class="bg-brand-600 hover:bg-brand-700 text-white px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-2 shadow-sm">
+                        <i data-lucide="plus" class="w-4 h-4"></i> New Task
+                    </button>
+                </div>
+            </div>
+            <!-- Kanban Layout -->
+            <div class="flex-1 overflow-x-auto overflow-y-hidden p-6">
+                <div class="h-full flex gap-6 min-w-max">
+                    <!-- Column: Backlog -->
+                    <div class="w-80 flex flex-col gap-3">
+                        <div class="flex justify-between px-1"><span class="font-medium text-sm text-gray-500">Backlog</span><span class="text-xs bg-gray-100 dark:bg-slate-800 px-2 py-0.5 rounded text-gray-500">4</span></div>
+                        <div class="flex-1 overflow-y-auto custom-scrollbar space-y-3 pb-2">
+                            <div class="bg-white dark:bg-slate-800 p-4 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm hover:border-brand-400 transition-colors cursor-pointer">
+                                <div class="flex justify-between mb-2"><span class="text-xs font-mono text-gray-500">#105</span></div>
+                                <h3 class="font-medium text-sm mb-2">API Documentation</h3>
+                                <div class="flex gap-2"><span class="px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 text-[10px] border border-blue-200 dark:border-blue-800">Docs</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Column: In Progress -->
+                    <div class="w-80 flex flex-col gap-3">
+                        <div class="flex justify-between px-1"><span class="font-medium text-sm text-brand-500">In Progress</span><span class="text-xs bg-gray-100 dark:bg-slate-800 px-2 py-0.5 rounded text-gray-500">2</span></div>
+                        <div class="flex-1 overflow-y-auto custom-scrollbar space-y-3 pb-2">
+                            <!-- Active Task Card -->
+                            <div onclick="switchView('detail')" class="bg-white dark:bg-slate-800 p-4 rounded-lg border border-brand-300 dark:border-brand-600 shadow-md cursor-pointer relative overflow-hidden group">
+                                <div class="absolute bottom-0 left-0 h-1 bg-gray-200 dark:bg-slate-700 w-full"><div class="h-full bg-brand-500 w-[75%]"></div></div>
+                                <div class="flex justify-between mb-2">
+                                    <span class="text-xs font-mono text-gray-500">#102</span>
+                                    <div class="flex items-center gap-1"><span class="w-1.5 h-1.5 bg-brand-500 rounded-full animate-pulse"></span><span class="text-[10px] text-brand-500 font-medium">Running</span></div>
+                                </div>
+                                <h3 class="font-medium text-sm mb-1">API Endpoints Implementation</h3>
+                                <p class="text-xs text-gray-500 mb-3 line-clamp-2">Implement CRUD endpoints for auth and profile management.</p>
+                                <div class="flex justify-between items-center">
+                                    <span class="px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-900/30 text-purple-600 text-[10px] border border-purple-200 dark:border-purple-800">Backend</span>
+                                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" class="w-5 h-5 rounded-full">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Column: Done -->
+                    <div class="w-80 flex flex-col gap-3 opacity-60">
+                        <div class="flex justify-between px-1"><span class="font-medium text-sm text-gray-500">Done</span><span class="text-xs bg-gray-100 dark:bg-slate-800 px-2 py-0.5 rounded text-gray-500">12</span></div>
+                        <div class="bg-white dark:bg-slate-800 p-4 rounded-lg border border-gray-200 dark:border-slate-700">
+                            <span class="text-xs text-gray-500 line-through">#101 JWT Service</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. TASKS LIST VIEW -->
+        <div id="view-tasks" class="view-section hidden flex-col h-full overflow-hidden">
+            <div class="h-14 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between px-6 shrink-0">
+                <h1 class="text-lg font-semibold">All Tasks</h1>
+                <div class="flex gap-2">
+                    <button class="px-3 py-1.5 border border-gray-200 dark:border-slate-700 rounded text-sm flex items-center gap-2"><i data-lucide="filter" class="w-4 h-4"></i> Filter</button>
+                    <button class="bg-brand-600 text-white px-3 py-1.5 rounded text-sm font-medium">New Task</button>
+                </div>
+            </div>
+            <div class="flex-1 overflow-auto custom-scrollbar p-6">
+                <table class="w-full text-sm text-left border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                    <thead class="bg-gray-50 dark:bg-slate-800 text-gray-500">
+                    <tr>
+                        <th class="px-6 py-3 font-medium w-20">ID</th>
+                        <th class="px-6 py-3 font-medium">Title</th>
+                        <th class="px-6 py-3 font-medium w-40">Status</th>
+                        <th class="px-6 py-3 font-medium w-40">Repo</th>
+                        <th class="px-6 py-3 font-medium w-32">Progress</th>
+                    </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 dark:divide-slate-700 bg-white dark:bg-slate-900">
+                    <tr class="table-row-hover cursor-pointer" onclick="switchView('detail')">
+                        <td class="px-6 py-4 font-mono text-gray-500">#102</td>
+                        <td class="px-6 py-4 font-medium">API Endpoints Implementation</td>
+                        <td class="px-6 py-4">
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 border border-brand-200 dark:border-brand-800 whitespace-nowrap">
+                                        <i data-lucide="timer" class="w-3.5 h-3.5"></i>
+                                        In Progress
+                                    </span>
+                        </td>
+                        <td class="px-6 py-4 text-gray-500">backend/</td>
+                        <td class="px-6 py-4">
+                            <div class="w-full bg-gray-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden"><div class="bg-brand-500 h-full w-[75%]"></div></div>
+                        </td>
+                    </tr>
+                    <tr class="table-row-hover">
+                        <td class="px-6 py-4 font-mono text-gray-500">#103</td>
+                        <td class="px-6 py-4 font-medium">Login Form Component</td>
+                        <td class="px-6 py-4">
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 whitespace-nowrap">
+                                        <i data-lucide="circle-dashed" class="w-3.5 h-3.5"></i>
+                                        Ready
+                                    </span>
+                        </td>
+                        <td class="px-6 py-4 text-gray-500">frontend/</td>
+                        <td class="px-6 py-4"><div class="w-full bg-gray-200 dark:bg-slate-700 h-1.5 rounded-full"></div></td>
+                    </tr>
+                    <tr class="table-row-hover">
+                        <td class="px-6 py-4 font-mono text-gray-500">#42</td>
+                        <td class="px-6 py-4 font-medium">JWT Implementation</td>
+                        <td class="px-6 py-4">
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 dark:border-amber-800 whitespace-nowrap">
+                                        <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                                        Review
+                                    </span>
+                        </td>
+                        <td class="px-6 py-4 text-gray-500">backend/</td>
+                        <td class="px-6 py-4">
+                            <div class="w-full bg-gray-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden"><div class="bg-brand-500 h-full w-[100%]"></div></div>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 3. EPICS VIEW -->
+        <div id="view-epics" class="view-section hidden flex-col h-full overflow-hidden">
+            <div class="h-14 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between px-6 shrink-0">
+                <h1 class="text-lg font-semibold">Epics & Roadmaps</h1>
+                <button class="bg-brand-600 text-white px-3 py-1.5 rounded text-sm font-medium">New Epic</button>
+            </div>
+            <div class="flex-1 overflow-auto custom-scrollbar p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Epic Card 1 -->
+                <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-6 shadow-sm">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 bg-brand-100 dark:bg-brand-900/30 rounded text-brand-600"><i data-lucide="lock" class="w-5 h-5"></i></div>
+                            <div>
+                                <h3 class="font-semibold text-lg">User Authentication</h3>
+                                <p class="text-sm text-gray-500">Q4 Goal • 6 Tasks</p>
+                            </div>
+                        </div>
+                        <span class="px-2 py-1 rounded text-xs font-medium bg-brand-50 text-brand-700 border border-brand-100">In Progress</span>
+                    </div>
+                    <p class="text-sm text-gray-600 dark:text-gray-300 mb-6">Implement JWT auth, login flows, and secure session management.</p>
+                    <div class="mb-2 flex justify-between text-sm font-medium"><span>Progress</span><span>75%</span></div>
+                    <div class="h-2 bg-gray-100 dark:bg-slate-700 rounded-full overflow-hidden mb-6"><div class="h-full bg-brand-500 w-[75%]"></div></div>
+                    <div class="pt-4 border-t border-gray-100 dark:border-slate-700 flex gap-2">
+                        <span class="text-xs bg-gray-100 dark:bg-slate-700 px-2 py-1 rounded text-gray-600">PRD: auth.md</span>
+                    </div>
+                </div>
+                <!-- Epic Card 2 -->
+                <div class="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-6 shadow-sm opacity-75">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 bg-gray-100 dark:bg-slate-700 rounded text-gray-500"><i data-lucide="credit-card" class="w-5 h-5"></i></div>
+                            <div>
+                                <h3 class="font-semibold text-lg">Payments</h3>
+                                <p class="text-sm text-gray-500">Q1 Goal • 0 Tasks</p>
+                            </div>
+                        </div>
+                        <span class="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-600">Planned</span>
+                    </div>
+                    <p class="text-sm text-gray-600 dark:text-gray-300 mb-6">Stripe integration and billing portal.</p>
+                    <div class="mb-2 flex justify-between text-sm font-medium"><span>Progress</span><span>0%</span></div>
+                    <div class="h-2 bg-gray-100 dark:bg-slate-700 rounded-full overflow-hidden mb-6"><div class="h-full bg-brand-500 w-[0%]"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. FILES VIEW -->
+        <div id="view-files" class="view-section hidden flex-col h-full overflow-hidden">
+            <div class="h-14 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between px-6 shrink-0">
+                <h1 class="text-lg font-semibold">Project Artifacts</h1>
+            </div>
+            <div class="flex-1 flex overflow-hidden">
+                <div class="w-64 border-r border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900/50 p-4 overflow-y-auto">
+                    <div class="text-xs font-bold text-gray-400 mb-3">EXPLORER</div>
+                    <div class="space-y-1 text-sm">
+                        <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400 p-1"><i data-lucide="folder" class="w-4 h-4 text-blue-400"></i> orchestrator</div>
+                        <div class="pl-4 space-y-1">
+                            <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400 p-1"><i data-lucide="folder" class="w-4 h-4 text-orange-400"></i> planning</div>
+                            <div class="pl-4">
+                                <div class="flex items-center gap-2 text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 p-1 rounded font-medium"><i data-lucide="file-text" class="w-4 h-4"></i> user-auth.md</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-1 p-8 overflow-y-auto bg-white dark:bg-slate-900">
+                    <article class="prose dark:prose-invert max-w-3xl">
+                        <h1>User Authentication PRD</h1>
+                        <p class="lead">Requirements for the secure login system.</p>
+                        <h3>1. Overview</h3>
+                        <p>We need a robust system handling:</p>
+                        <ul>
+                            <li>Email/Password Login</li>
+                            <li>JWT Token Rotation</li>
+                            <li>Password Reset Flows</li>
+                        </ul>
+                    </article>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. AGENTS VIEW -->
+        <div id="view-agents" class="view-section hidden flex-col h-full overflow-hidden">
+            <div class="h-14 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between px-6 shrink-0">
+                <h1 class="text-lg font-semibold">Agent Workforce</h1>
+                <button class="text-brand-600 hover:text-brand-500 text-sm font-medium">Manage Skills</button>
+            </div>
+            <div class="flex-1 overflow-auto custom-scrollbar p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Backend Agent -->
+                    <div onclick="switchView('agent-detail')" class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-5 cursor-pointer hover:border-brand-500 transition-all relative overflow-hidden group">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-2xl">🤖</div>
+                            <span class="flex h-3 w-3"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span></span>
+                        </div>
+                        <h3 class="font-semibold text-lg group-hover:text-brand-500">Backend Developer</h3>
+                        <p class="text-sm text-gray-500 mb-4">Node.js & DB Expert</p>
+                        <div class="bg-gray-100 dark:bg-slate-700 rounded p-2 text-xs font-mono mb-4 flex justify-between">
+                            <span>Task:</span><span class="text-brand-500">#102 API Endpoints</span>
+                        </div>
+                        <div class="border-t border-gray-100 dark:border-slate-700 pt-3 flex justify-between items-center">
+                            <span class="text-xs text-emerald-500 font-medium">Active</span>
+                            <span class="text-xs text-gray-400 hover:text-gray-300">View Logs →</span>
+                        </div>
+                    </div>
+                    <!-- Frontend Agent -->
+                    <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-5 hover:border-gray-300 transition-all">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="w-12 h-12 rounded-full bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center text-2xl">🎨</div>
+                        </div>
+                        <h3 class="font-semibold text-lg">Frontend Developer</h3>
+                        <p class="text-sm text-gray-500 mb-4">React & Tailwind Expert</p>
+                        <div class="bg-gray-100 dark:bg-slate-700 rounded p-2 text-xs font-mono mb-4 flex justify-between">
+                            <span>Task:</span><span class="text-gray-500">Idle</span>
+                        </div>
+                        <div class="border-t border-gray-100 dark:border-slate-700 pt-3 flex justify-between items-center">
+                            <span class="text-xs text-gray-500">Standby</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. SETTINGS VIEW -->
+        <div id="view-settings" class="view-section hidden flex-col h-full overflow-hidden">
+            <div class="h-14 border-b border-gray-200 dark:border-slate-800 flex items-center px-6 shrink-0">
+                <h1 class="text-lg font-semibold">Project Settings</h1>
+            </div>
+            <div class="flex-1 flex overflow-hidden">
+                <div class="w-48 border-r border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900/50 p-4 space-y-1">
+                    <button class="w-full text-left px-3 py-2 rounded bg-white dark:bg-slate-800 shadow-sm text-sm font-medium text-brand-600">General</button>
+                    <button class="w-full text-left px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-slate-800 text-sm text-gray-600 dark:text-gray-400">Workflow</button>
+                </div>
+                <div class="flex-1 p-8">
+                    <div class="max-w-xl">
+                        <label class="block text-sm font-medium mb-2">Project Name</label>
+                        <input type="text" value="My SaaS Platform" class="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm mb-6">
+                        <label class="block text-sm font-medium mb-2">Description</label>
+                        <textarea class="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm h-24 mb-6">A robust SaaS boilerplate.</textarea>
+                        <button class="bg-brand-600 text-white px-4 py-2 rounded text-sm font-medium">Save Changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 7. TASK DETAIL (Rich Split View) -->
+        <div id="view-detail" class="view-section hidden flex-col h-full overflow-hidden">
+            <div class="h-12 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between px-4 bg-white dark:bg-slate-900 shrink-0">
+                <div class="flex items-center gap-2 text-sm">
+                    <button onclick="switchView('board')" class="text-gray-500 hover:text-gray-900 dark:hover:text-white flex items-center gap-1"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back</button>
+                    <span class="text-gray-300">/</span>
+                    <span class="font-mono text-gray-500">#102</span>
+                    <span class="font-medium">API Endpoints Implementation</span>
+                    <span class="ml-2 px-2 py-0.5 rounded-full bg-brand-100 text-brand-700 text-xs font-medium">In Progress</span>
+                </div>
+            </div>
+            <div class="flex-1 flex overflow-hidden">
+                <!-- Left: Metadata & Controls -->
+                <div class="w-1/2 border-r border-gray-200 dark:border-slate-800 overflow-y-auto custom-scrollbar bg-white dark:bg-slate-900 p-6">
+                    <div class="mb-6 p-3 rounded-lg bg-gray-50 dark:bg-slate-850 border border-gray-200 dark:border-slate-700 flex gap-3">
+                        <div class="p-2 bg-brand-100 dark:bg-brand-900/30 rounded text-brand-600"><i data-lucide="layers" class="w-4 h-4"></i></div>
+                        <div><div class="text-xs text-gray-500 font-bold uppercase">Epic</div><div class="text-sm font-medium">User Authentication</div></div>
+                    </div>
+
+                    <h2 class="text-lg font-semibold mb-2">Description</h2>
+                    <p class="text-sm text-gray-600 dark:text-gray-300 mb-6 leading-relaxed">Implement REST endpoints for: Login, Register, Refresh Token. Use <code>jsonwebtoken</code> and Zod for validation.</p>
+
+                    <div class="mb-6">
+                        <h3 class="text-xs font-bold text-gray-400 uppercase mb-2">Dependencies</h3>
+                        <div class="flex items-center gap-2 p-2 bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded">
+                            <i data-lucide="check-circle" class="w-4 h-4 text-emerald-500"></i>
+                            <span class="text-xs line-through text-emerald-700 dark:text-emerald-400">#101 JWT Service</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <h3 class="text-xs font-bold text-gray-400 uppercase mb-2">Files Changed</h3>
+                        <div class="space-y-1">
+                            <div class="flex items-center justify-between text-sm p-2 rounded hover:bg-gray-50 dark:hover:bg-slate-800">
+                                <span class="font-mono text-green-500">+ src/routes/auth.ts</span>
+                                <span class="text-xs text-gray-400">Diff</span>
+                            </div>
+                            <div class="flex items-center justify-between text-sm p-2 rounded hover:bg-gray-50 dark:hover:bg-slate-800">
+                                <span class="font-mono text-amber-500">M src/app.ts</span>
+                                <span class="text-xs text-gray-400">Diff</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-4 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
+                        <h3 class="text-sm font-medium mb-3">Agent Controls</h3>
+                        <div class="flex gap-2">
+                            <button class="flex-1 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 py-1.5 rounded text-sm font-medium shadow-sm">Pause</button>
+                            <button class="flex-1 bg-red-50 text-red-600 border border-red-200 py-1.5 rounded text-sm font-medium">Stop</button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Right: Terminal -->
+                <div class="w-1/2 bg-slate-950 text-slate-300 p-4 font-mono text-xs md:text-sm overflow-y-auto custom-scrollbar flex flex-col">
+                    <div class="flex items-center gap-2 text-slate-500 mb-4 border-b border-slate-800 pb-2">
+                        <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                        <span>backend-developer @ terminal</span>
+                    </div>
+                    <div class="space-y-2">
+                        <div><span class="text-blue-400">$</span> claude --task 102 --context full</div>
+                        <div class="text-slate-400">ℹ Loading context from Task #101 (JWT Service)...</div>
+                        <div class="text-emerald-400">✓ Context loaded.</div>
+                        <br>
+                        <div><span class="text-blue-400">></span> Creating src/routes/auth.ts...</div>
+                        <div class="text-emerald-400">✓ Created file.</div>
+                        <br>
+                        <div class="text-slate-400">Writing endpoint logic for /login...</div>
+                        <div class="pl-2 border-l-2 border-slate-800 text-slate-500 italic">
+                            const LoginSchema = z.object({ email: z.string().email() });
+                        </div>
+                        <br>
+                        <div><span class="text-blue-400">></span> npm test tests/auth.test.ts</div>
+                        <div class="text-emerald-400">PASS tests/auth.test.ts (342ms)</div>
+                        <div class="animate-pulse">_</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 8. AGENT DETAIL VIEW -->
+        <div id="view-agent-detail" class="view-section hidden flex-col h-full overflow-hidden">
+            <div class="h-14 border-b border-gray-200 dark:border-slate-800 flex items-center gap-3 px-6 shrink-0">
+                <button onclick="switchView('agents')" class="hover:bg-gray-100 dark:hover:bg-slate-800 p-1 rounded"><i data-lucide="arrow-left" class="w-5 h-5"></i></button>
+                <h1 class="text-lg font-semibold">Backend Developer</h1>
+                <span class="bg-emerald-100 text-emerald-700 text-xs px-2 py-0.5 rounded font-medium">Active</span>
+            </div>
+            <div class="flex-1 flex overflow-hidden">
+                <div class="w-80 border-r border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900/50 p-6">
+                    <div class="flex flex-col items-center mb-6">
+                        <div class="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center text-3xl mb-3">🤖</div>
+                        <h2 class="font-bold">Backend Specialist</h2>
+                        <p class="text-xs text-gray-500">v2.4.0</p>
+                    </div>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase mb-3">Skills</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="px-2 py-1 bg-white dark:bg-slate-800 border rounded text-xs">Node.js</span>
+                        <span class="px-2 py-1 bg-white dark:bg-slate-800 border rounded text-xs">PostgreSQL</span>
+                        <span class="px-2 py-1 bg-white dark:bg-slate-800 border rounded text-xs">Docker</span>
+                    </div>
+                </div>
+                <div class="flex-1 bg-slate-950 text-slate-300 p-4 font-mono text-sm">
+                    <div class="text-slate-500 border-b border-slate-800 pb-2 mb-2">Live Activity Stream</div>
+                    <div class="text-emerald-400">✓ Task #102: Tests passed. Committing changes...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 9. SYSTEM: MARKETPLACE (Admin Mode - SLATE THEME) -->
+        <div id="view-marketplace" class="view-section hidden flex-col h-full overflow-hidden">
+            <div class="h-14 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between px-6 shrink-0 bg-slate-50 dark:bg-slate-900">
+                <h1 class="text-lg font-semibold text-gray-700 dark:text-gray-300">System Marketplace</h1>
+            </div>
+            <div class="flex-1 p-8 overflow-auto bg-white dark:bg-slate-900">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="border border-gray-200 dark:border-slate-700 rounded-xl p-6 bg-white dark:bg-slate-800 hover:border-gray-400 dark:hover:border-slate-600 transition-colors">
+                        <div class="flex gap-4 mb-4">
+                            <div class="w-12 h-12 rounded bg-gray-100 dark:bg-slate-700 flex items-center justify-center text-2xl">🛡️</div>
+                            <div><h3 class="font-bold">SecOps</h3><p class="text-sm text-gray-500">Auditor</p></div>
+                        </div>
+                        <p class="text-sm text-gray-500 mb-4 h-10 line-clamp-2">Automated security auditing for your codebase.</p>
+                        <button class="w-full py-2 rounded bg-slate-800 text-white text-sm hover:bg-slate-700 transition-colors">Install</button>
+                    </div>
+                    <div class="border border-gray-200 dark:border-slate-700 rounded-xl p-6 bg-white dark:bg-slate-800 hover:border-gray-400 dark:hover:border-slate-600 transition-colors">
+                        <div class="flex gap-4 mb-4">
+                            <div class="w-12 h-12 rounded bg-gray-100 dark:bg-slate-700 flex items-center justify-center text-2xl">⚡</div>
+                            <div><h3 class="font-bold">Performance</h3><p class="text-sm text-gray-500">Monitor</p></div>
+                        </div>
+                        <p class="text-sm text-gray-500 mb-4 h-10 line-clamp-2">Real-time performance tracking for agents.</p>
+                        <button class="w-full py-2 rounded bg-slate-800 text-white text-sm hover:bg-slate-700 transition-colors">Install</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script>
+    lucide.createIcons();
+
+    function toggleTheme() {
+        const html = document.documentElement;
+        if (html.classList.contains('dark')) {
+            html.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+        } else {
+            html.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+        }
+        lucide.createIcons();
+    }
+
+    function toggleProjectDropdown() {
+        const dropdown = document.getElementById('project-dropdown');
+        if (dropdown.classList.contains('hidden')) {
+            dropdown.classList.remove('hidden');
+            dropdown.classList.add('dropdown-enter-active');
+        } else {
+            dropdown.classList.add('hidden');
+            dropdown.classList.remove('dropdown-enter-active');
+        }
+    }
+
+    function toggleContext(context) {
+        const projectSidebar = document.getElementById('sidebar-project');
+        const systemSidebar = document.getElementById('sidebar-system');
+        const logoBg = document.getElementById('logo-bg');
+        const systemLabel = document.getElementById('system-context-label');
+        const projectContainer = document.getElementById('project-context-container');
+        const systemToggleBtn = document.getElementById('system-toggle-btn');
+        const exitSystemBtn = document.getElementById('exit-system-btn');
+
+        // Close dropdown if open
+        document.getElementById('project-dropdown').classList.add('hidden');
+
+        if (context === 'system') {
+            // Show System Sidebar
+            projectSidebar.classList.add('hidden');
+            systemSidebar.classList.remove('hidden');
+            systemSidebar.classList.add('flex');
+
+            // Header Adjustments (Slate Theme)
+            logoBg.classList.remove('bg-brand-600');
+            logoBg.classList.add('bg-slate-600');
+            systemLabel.classList.remove('hidden');
+            systemLabel.classList.add('flex');
+            projectContainer.classList.add('hidden');
+
+            // Swap Toggle Buttons
+            systemToggleBtn.classList.add('hidden');
+            exitSystemBtn.classList.remove('hidden');
+
+            switchView('marketplace');
+        } else {
+            // Show Project Sidebar
+            systemSidebar.classList.add('hidden');
+            systemSidebar.classList.remove('flex');
+            projectSidebar.classList.remove('hidden');
+
+            // Header Revert (Brand Blue Theme)
+            logoBg.classList.add('bg-brand-600');
+            logoBg.classList.remove('bg-slate-600');
+            systemLabel.classList.add('hidden');
+            systemLabel.classList.remove('flex');
+            projectContainer.classList.remove('hidden');
+
+            // Swap Toggle Buttons
+            systemToggleBtn.classList.remove('hidden');
+            exitSystemBtn.classList.add('hidden');
+
+            switchView('board');
+        }
+    }
+
+    function switchView(viewName) {
+        // Hide all views
+        document.querySelectorAll('.view-section').forEach(view => {
+            view.classList.add('hidden');
+            view.classList.remove('flex');
+        });
+
+        // Reset Nav Styles
+        document.querySelectorAll('.nav-item, .sys-nav-item').forEach(item => {
+            if (item.classList.contains('sys-nav-item')) {
+                item.className = "sys-nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-slate-800 text-gray-600 dark:text-gray-400 font-medium transition-colors";
+            } else {
+                item.className = "nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-600 dark:text-gray-300 font-medium transition-colors";
+            }
+        });
+
+        // Show active view
+        const activeView = document.getElementById('view-' + viewName);
+        if (activeView) {
+            activeView.classList.remove('hidden');
+            activeView.classList.add('flex');
+        }
+
+        // Highlight Nav
+        const activeNav = document.getElementById('nav-' + viewName);
+        if (activeNav) {
+            if (activeNav.classList.contains('sys-nav-item')) {
+                activeNav.className = "sys-nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md bg-gray-200 dark:bg-slate-800 text-gray-900 dark:text-white font-medium transition-colors";
+            } else {
+                activeNav.className = "nav-item w-full flex items-center gap-3 px-3 py-2 rounded-md bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 font-medium transition-colors";
+            }
+        }
+    }
+
+    // Click outside to close dropdown
+    window.addEventListener('click', function(e) {
+        const btn = document.getElementById('context-btn');
+        const dropdown = document.getElementById('project-dropdown');
+        if (btn && dropdown && !btn.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.classList.add('hidden');
+        }
+    });
+</script>
+</body>
+</html>

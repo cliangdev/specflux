@@ -43,7 +43,8 @@ specflux/                    <- Run Claude Code from here
 │   │   ├── typescript-patterns/
 │   │   ├── tauri-dev/
 │   │   ├── api-design/
-│   │   └── database-migrations/
+│   │   ├── database-migrations/
+│   │   └── ui-patterns/     # UI design patterns (colors, components, dark mode)
 │   ├── agents/              # Specialized agent definitions
 │   │   ├── backend-dev.md
 │   │   ├── frontend-dev.md
@@ -197,6 +198,10 @@ gh pr create --title "feat: add task CRUD endpoints" --body "..."
 - Functional components only with hooks
 - TailwindCSS for styling
 - Use generated API client from OpenAPI
+- **UI Patterns:** Use the `ui-patterns` skill when working on UI components
+- **Dark Mode:** All components MUST support dark mode with `dark:` variants
+- **Component Classes:** Use `.btn`, `.input`, `.select`, `.card` from `src/index.css`
+- **Colors:** Brand (blue) for actions, System (slate) for chrome, Semantic (emerald/amber/red) for status
 
 ## Key Documentation
 

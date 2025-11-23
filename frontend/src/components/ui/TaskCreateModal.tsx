@@ -63,12 +63,14 @@ export default function TaskCreateModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4 border border-gray-700">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
-          <h2 className="text-lg font-semibold text-white">Create Task</h2>
+      <div className="relative bg-white dark:bg-system-800 rounded-lg shadow-xl w-full max-w-md mx-4 border border-system-200 dark:border-system-700">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-system-200 dark:border-system-700">
+          <h2 className="text-lg font-semibold text-system-900 dark:text-white">
+            Create Task
+          </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-system-400 hover:text-system-600 dark:hover:text-white transition-colors"
           >
             <svg
               className="w-5 h-5"
@@ -89,7 +91,7 @@ export default function TaskCreateModal({
         <form onSubmit={handleSubmit}>
           <div className="px-6 py-4 space-y-4">
             {error && (
-              <div className="p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-300 text-sm">
+              <div className="p-3 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-lg text-red-600 dark:text-red-300 text-sm">
                 {error}
               </div>
             )}
@@ -97,9 +99,9 @@ export default function TaskCreateModal({
             <div>
               <label
                 htmlFor="title"
-                className="block text-sm font-medium text-gray-300 mb-1"
+                className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
               >
-                Title <span className="text-red-400">*</span>
+                Title <span className="text-red-500">*</span>
               </label>
               <input
                 id="title"
@@ -107,7 +109,7 @@ export default function TaskCreateModal({
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Enter task title"
-                className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="input"
                 autoFocus
               />
             </div>
@@ -115,7 +117,7 @@ export default function TaskCreateModal({
             <div>
               <label
                 htmlFor="description"
-                className="block text-sm font-medium text-gray-300 mb-1"
+                className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
               >
                 Description
               </label>
@@ -125,7 +127,7 @@ export default function TaskCreateModal({
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Optional description"
                 rows={3}
-                className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                className="input resize-none"
               />
             </div>
 
@@ -135,30 +137,30 @@ export default function TaskCreateModal({
                 type="checkbox"
                 checked={requiresApproval}
                 onChange={(e) => setRequiresApproval(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-600 bg-gray-900 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-gray-800"
+                className="w-4 h-4 rounded border-system-300 dark:border-system-600 bg-white dark:bg-system-900 text-brand-600 focus:ring-brand-500 focus:ring-offset-white dark:focus:ring-offset-system-800"
               />
               <label
                 htmlFor="requiresApproval"
-                className="text-sm text-gray-300"
+                className="text-sm text-system-700 dark:text-system-300"
               >
                 Requires approval before completion
               </label>
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-700">
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-system-200 dark:border-system-700">
             <button
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-system-600 dark:text-system-300 hover:text-system-900 dark:hover:text-white transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting || !title.trim()}
-              className="px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting && (
                 <svg

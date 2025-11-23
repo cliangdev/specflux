@@ -106,8 +106,13 @@ const navItems = [
 
 export default function Sidebar() {
   return (
-    <aside className="w-56 bg-gray-800 border-r border-gray-700 flex flex-col">
+    <aside className="w-64 bg-system-50 dark:bg-system-900 border-r border-system-200 dark:border-system-800 flex flex-col">
       <nav className="flex-1 px-3 py-4">
+        <div className="mb-2 px-3">
+          <span className="text-xs font-semibold uppercase tracking-wider text-system-400 dark:text-system-500">
+            Navigation
+          </span>
+        </div>
         <ul className="space-y-1">
           {navItems.map((item) => (
             <li key={item.to}>
@@ -116,8 +121,8 @@ export default function Sidebar() {
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     isActive
-                      ? "bg-indigo-600 text-white"
-                      : "text-gray-400 hover:text-white hover:bg-gray-700"
+                      ? "bg-brand-600 text-white"
+                      : "text-system-600 dark:text-system-400 hover:text-system-900 dark:hover:text-white hover:bg-system-100 dark:hover:bg-system-800"
                   }`
                 }
               >

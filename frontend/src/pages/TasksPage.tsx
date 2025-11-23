@@ -15,33 +15,152 @@ const STATUS_OPTIONS = [
   { value: "done", label: "Done" },
 ];
 
-const STATUS_COLORS: Record<string, string> = {
-  backlog: "bg-gray-500",
-  ready: "bg-blue-500",
-  in_progress: "bg-yellow-500",
-  pending_review: "bg-purple-500",
-  approved: "bg-green-500",
-  done: "bg-emerald-600",
+// Status badge configuration matching the mock design
+const STATUS_CONFIG: Record<
+  string,
+  { label: string; icon: string; classes: string }
+> = {
+  backlog: {
+    label: "Backlog",
+    icon: "inbox",
+    classes:
+      "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
+  },
+  ready: {
+    label: "Ready",
+    icon: "circle-dashed",
+    classes:
+      "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
+  },
+  in_progress: {
+    label: "In Progress",
+    icon: "timer",
+    classes:
+      "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 border-brand-200 dark:border-brand-800",
+  },
+  pending_review: {
+    label: "Pending Review",
+    icon: "eye",
+    classes:
+      "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800",
+  },
+  approved: {
+    label: "Approved",
+    icon: "check-circle",
+    classes:
+      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
+  },
+  done: {
+    label: "Done",
+    icon: "check-circle",
+    classes:
+      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
+  },
+};
+
+// SVG icons for status badges
+const StatusIcons: Record<string, JSX.Element> = {
+  inbox: (
+    <svg
+      className="w-3.5 h-3.5"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+      />
+    </svg>
+  ),
+  "circle-dashed": (
+    <svg
+      className="w-3.5 h-3.5"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <circle cx="12" cy="12" r="10" strokeDasharray="4 2" />
+    </svg>
+  ),
+  timer: (
+    <svg
+      className="w-3.5 h-3.5"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
+    </svg>
+  ),
+  eye: (
+    <svg
+      className="w-3.5 h-3.5"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+      />
+    </svg>
+  ),
+  "check-circle": (
+    <svg
+      className="w-3.5 h-3.5"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
+    </svg>
+  ),
 };
 
 function StatusBadge({ status }: { status: string }) {
-  const color = STATUS_COLORS[status] || "bg-gray-500";
-  const label = status.replace(/_/g, " ");
+  const config = STATUS_CONFIG[status] || {
+    label: status.replace(/_/g, " "),
+    icon: "circle-dashed",
+    classes:
+      "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
+  };
 
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${color} text-white capitalize`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap ${config.classes}`}
     >
-      {label}
+      {StatusIcons[config.icon]}
+      {config.label}
     </span>
   );
 }
 
 function ProgressBar({ percent }: { percent: number }) {
   return (
-    <div className="w-24 bg-gray-700 rounded-full h-2">
+    <div className="w-24 bg-system-200 dark:bg-system-700 rounded-full h-2">
       <div
-        className="bg-indigo-500 h-2 rounded-full transition-all"
+        className="bg-brand-500 h-2 rounded-full transition-all"
         style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}
       />
     </div>
@@ -89,8 +208,10 @@ export default function TasksPage() {
   if (!currentProject) {
     return (
       <div className="text-center py-12">
-        <div className="text-gray-400 text-lg">No project selected</div>
-        <p className="text-gray-500 mt-2">
+        <div className="text-system-500 dark:text-system-400 text-lg">
+          No project selected
+        </div>
+        <p className="text-system-400 dark:text-system-500 mt-2">
           Select a project from the dropdown above
         </p>
       </div>
@@ -100,12 +221,14 @@ export default function TasksPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold">Tasks</h1>
+        <h1 className="text-2xl font-semibold text-system-900 dark:text-white">
+          Tasks
+        </h1>
         <div className="flex items-center gap-4">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-lg px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+            className="select w-[180px]"
           >
             {STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -115,7 +238,7 @@ export default function TasksPage() {
           </select>
           <button
             onClick={fetchTasks}
-            className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+            className="btn btn-ghost"
             title="Refresh"
           >
             <svg
@@ -134,7 +257,7 @@ export default function TasksPage() {
           </button>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+            className="btn btn-primary"
           >
             <svg
               className="w-4 h-4"
@@ -157,7 +280,7 @@ export default function TasksPage() {
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <svg
-            className="animate-spin w-8 h-8 text-indigo-500"
+            className="animate-spin w-8 h-8 text-brand-500"
             viewBox="0 0 24 24"
           >
             <circle
@@ -178,19 +301,18 @@ export default function TasksPage() {
         </div>
       ) : error ? (
         <div className="text-center py-12">
-          <div className="text-red-400 text-lg">Error loading tasks</div>
-          <p className="text-gray-500 mt-2">{error}</p>
-          <button
-            onClick={fetchTasks}
-            className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-sm font-medium transition-colors"
-          >
+          <div className="text-red-500 dark:text-red-400 text-lg">
+            Error loading tasks
+          </div>
+          <p className="text-system-500 mt-2">{error}</p>
+          <button onClick={fetchTasks} className="mt-4 btn btn-primary">
             Try Again
           </button>
         </div>
       ) : tasks.length === 0 ? (
-        <div className="text-center py-12 bg-gray-800 rounded-lg border border-gray-700">
+        <div className="text-center py-12 card">
           <svg
-            className="mx-auto h-12 w-12 text-gray-500"
+            className="mx-auto h-12 w-12 text-system-400 dark:text-system-500"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -202,51 +324,53 @@ export default function TasksPage() {
               d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
             />
           </svg>
-          <h3 className="mt-4 text-lg font-medium text-gray-300">No tasks</h3>
-          <p className="mt-2 text-gray-500">
+          <h3 className="mt-4 text-lg font-medium text-system-700 dark:text-system-300">
+            No tasks
+          </h3>
+          <p className="mt-2 text-system-500">
             {statusFilter
               ? "No tasks match the selected filter."
               : "Get started by creating your first task."}
           </p>
         </div>
       ) : (
-        <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-700">
-            <thead className="bg-gray-900">
+        <div className="card overflow-hidden">
+          <table className="min-w-full divide-y divide-system-200 dark:divide-system-700">
+            <thead className="bg-system-50 dark:bg-system-800">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-system-500 dark:text-system-400 uppercase tracking-wider">
                   ID
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-system-500 dark:text-system-400 uppercase tracking-wider">
                   Title
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-system-500 dark:text-system-400 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-system-500 dark:text-system-400 uppercase tracking-wider">
                   Repository
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-system-500 dark:text-system-400 uppercase tracking-wider">
                   Progress
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-700">
+            <tbody className="divide-y divide-system-200 dark:divide-system-700">
               {tasks.map((task) => (
                 <tr
                   key={task.id}
-                  className="hover:bg-gray-750 transition-colors cursor-pointer"
+                  className="hover:bg-system-50 dark:hover:bg-system-800/50 transition-colors cursor-pointer"
                   onClick={() => navigate(`/tasks/${task.id}`)}
                 >
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-system-500 dark:text-system-400">
                     #{task.id}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-white">
+                    <div className="text-sm font-medium text-system-900 dark:text-white">
                       {task.title}
                     </div>
                     {task.description && (
-                      <div className="text-sm text-gray-400 truncate max-w-xs">
+                      <div className="text-sm text-system-500 dark:text-system-400 truncate max-w-xs">
                         {task.description}
                       </div>
                     )}
@@ -254,13 +378,13 @@ export default function TasksPage() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <StatusBadge status={task.status} />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-system-500 dark:text-system-400">
                     {task.repoName || "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
                       <ProgressBar percent={task.progressPercentage} />
-                      <span className="text-sm text-gray-400">
+                      <span className="text-sm text-system-500 dark:text-system-400">
                         {task.progressPercentage}%
                       </span>
                     </div>

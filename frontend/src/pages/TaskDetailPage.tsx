@@ -22,45 +22,186 @@ const openExternal = async (url: string) => {
   }
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  backlog: "bg-gray-500",
-  ready: "bg-blue-500",
-  in_progress: "bg-yellow-500",
-  pending_review: "bg-purple-500",
-  approved: "bg-green-500",
-  done: "bg-emerald-600",
+// Status badge configuration matching the mock design
+const STATUS_CONFIG: Record<
+  string,
+  { label: string; icon: string; classes: string }
+> = {
+  backlog: {
+    label: "Backlog",
+    icon: "inbox",
+    classes:
+      "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
+  },
+  ready: {
+    label: "Ready",
+    icon: "circle-dashed",
+    classes:
+      "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
+  },
+  in_progress: {
+    label: "In Progress",
+    icon: "timer",
+    classes:
+      "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 border-brand-200 dark:border-brand-800",
+  },
+  pending_review: {
+    label: "Pending Review",
+    icon: "eye",
+    classes:
+      "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800",
+  },
+  approved: {
+    label: "Approved",
+    icon: "check-circle",
+    classes:
+      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
+  },
+  done: {
+    label: "Done",
+    icon: "check-circle",
+    classes:
+      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
+  },
+};
+
+// SVG icons for status badges
+const StatusIcons: Record<string, JSX.Element> = {
+  inbox: (
+    <svg
+      className="w-3.5 h-3.5"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+      />
+    </svg>
+  ),
+  "circle-dashed": (
+    <svg
+      className="w-3.5 h-3.5"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <circle cx="12" cy="12" r="10" strokeDasharray="4 2" />
+    </svg>
+  ),
+  timer: (
+    <svg
+      className="w-3.5 h-3.5"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
+    </svg>
+  ),
+  eye: (
+    <svg
+      className="w-3.5 h-3.5"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+      />
+    </svg>
+  ),
+  "check-circle": (
+    <svg
+      className="w-3.5 h-3.5"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
+    </svg>
+  ),
 };
 
 function StatusBadge({ status }: { status: string }) {
-  const color = STATUS_COLORS[status] || "bg-gray-500";
-  const label = status.replace(/_/g, " ");
+  const config = STATUS_CONFIG[status] || {
+    label: status.replace(/_/g, " "),
+    icon: "circle-dashed",
+    classes:
+      "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
+  };
 
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${color} text-white capitalize`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap ${config.classes}`}
     >
-      {label}
+      {StatusIcons[config.icon]}
+      {config.label}
     </span>
   );
 }
 
-function AgentStatusBadge({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    idle: "bg-gray-500",
-    running: "bg-green-500",
-    paused: "bg-yellow-500",
-    stopped: "bg-red-500",
-    completed: "bg-emerald-600",
-    failed: "bg-red-600",
+// Agent status badge configuration
+const AGENT_STATUS_CONFIG: Record<string, { classes: string; dot?: boolean }> =
+  {
+    idle: {
+      classes:
+        "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
+    },
+    running: {
+      classes:
+        "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
+      dot: true,
+    },
+    paused: {
+      classes:
+        "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800",
+    },
+    stopped: {
+      classes:
+        "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800",
+    },
+    completed: {
+      classes:
+        "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
+    },
+    failed: {
+      classes:
+        "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800",
+    },
   };
-  const color = colors[status] || "bg-gray-500";
+
+function AgentStatusBadge({ status }: { status: string }) {
+  const config = AGENT_STATUS_CONFIG[status] || AGENT_STATUS_CONFIG.idle;
 
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${color} text-white capitalize`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border capitalize ${config.classes}`}
     >
-      {status === "running" && (
-        <span className="w-2 h-2 bg-white rounded-full mr-1.5 animate-pulse" />
+      {config.dot && (
+        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
       )}
       {status}
     </span>
@@ -239,7 +380,7 @@ export default function TaskDetailPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <svg
-          className="animate-spin w-8 h-8 text-indigo-500"
+          className="animate-spin w-8 h-8 text-brand-500"
           viewBox="0 0 24 24"
         >
           <circle
@@ -264,11 +405,13 @@ export default function TaskDetailPage() {
   if (error && !task) {
     return (
       <div className="text-center py-12">
-        <div className="text-red-400 text-lg">Error loading task</div>
-        <p className="text-gray-500 mt-2">{error}</p>
+        <div className="text-red-500 dark:text-red-400 text-lg">
+          Error loading task
+        </div>
+        <p className="text-system-500 mt-2">{error}</p>
         <button
           onClick={() => navigate("/tasks")}
-          className="mt-4 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
+          className="btn btn-secondary mt-4"
         >
           Back to Tasks
         </button>
@@ -279,10 +422,12 @@ export default function TaskDetailPage() {
   if (!task) {
     return (
       <div className="text-center py-12">
-        <div className="text-gray-400 text-lg">Task not found</div>
+        <div className="text-system-500 dark:text-system-400 text-lg">
+          Task not found
+        </div>
         <button
           onClick={() => navigate("/tasks")}
-          className="mt-4 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium transition-colors"
+          className="btn btn-secondary mt-4"
         >
           Back to Tasks
         </button>
@@ -297,7 +442,7 @@ export default function TaskDetailPage() {
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate("/tasks")}
-            className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors"
+            className="flex items-center gap-1 text-system-500 hover:text-system-700 dark:text-system-400 dark:hover:text-white transition-colors"
           >
             <svg
               className="w-5 h-5"
@@ -314,77 +459,83 @@ export default function TaskDetailPage() {
             </svg>
             Back to Tasks
           </button>
-          <div className="h-6 w-px bg-gray-700" />
-          <span className="text-gray-400 text-sm">#{task.id}</span>
-          <h1 className="text-xl font-semibold text-white">{task.title}</h1>
+          <div className="h-6 w-px bg-system-200 dark:bg-system-700" />
+          <span className="text-system-500 dark:text-system-400 text-sm">
+            #{task.id}
+          </span>
+          <h1 className="text-xl font-semibold text-system-900 dark:text-white">
+            {task.title}
+          </h1>
           <StatusBadge status={task.status} />
         </div>
       </div>
 
       {/* Error banner */}
       {error && (
-        <div className="px-4 py-3 bg-red-900/50 border border-red-700 rounded-lg text-red-300 text-sm mb-4 flex-shrink-0">
+        <div className="px-4 py-3 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-lg text-red-600 dark:text-red-300 text-sm mb-4 flex-shrink-0">
           {error}
         </div>
       )}
 
       {/* Content - Split Pane */}
-      <div className="flex flex-1 min-h-0 bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden rounded-lg border border-system-200 dark:border-system-800">
         {/* Left Panel - Task Details */}
-        <div className="w-80 border-r border-gray-700 p-4 overflow-y-auto flex-shrink-0">
+        <div className="w-1/2 border-r border-system-200 dark:border-system-800 p-6 overflow-y-auto bg-white dark:bg-system-900 scrollbar-thin">
           {/* Description */}
-          <div className="mb-4">
-            <h3 className="text-sm font-medium text-gray-400 mb-2">
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold text-system-900 dark:text-white mb-2">
               Description
-            </h3>
-            <p className="text-sm text-gray-300">
+            </h2>
+            <p className="text-sm text-system-600 dark:text-system-300 leading-relaxed">
               {task.description || "No description provided"}
             </p>
           </div>
 
           {/* Agent Status */}
-          <div className="mb-4">
-            <h3 className="text-sm font-medium text-gray-400 mb-2">
+          <div className="mb-6">
+            <h3 className="text-xs font-bold text-system-400 uppercase tracking-wider mb-2">
               Agent Status
             </h3>
             {agentLoading ? (
-              <span className="text-gray-500 text-sm">Loading...</span>
+              <span className="text-system-500 text-sm">Loading...</span>
             ) : agentStatus ? (
               <div className="space-y-2">
                 <AgentStatusBadge status={agentStatus.status} />
                 {agentStatus.pid && (
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-system-500">
                     PID: {agentStatus.pid}
                   </p>
                 )}
                 {agentStatus.startedAt && (
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-system-500">
                     Started:{" "}
                     {new Date(agentStatus.startedAt).toLocaleTimeString()}
                   </p>
                 )}
                 {agentStatus.errorMessage && (
-                  <p className="text-xs text-red-400">
+                  <p className="text-xs text-red-500 dark:text-red-400">
                     Error: {agentStatus.errorMessage}
                   </p>
                 )}
               </div>
             ) : (
-              <span className="text-gray-500 text-sm">No agent running</span>
+              <span className="text-system-500 text-sm">No agent running</span>
             )}
           </div>
 
           {/* Progress */}
-          <div className="mb-4">
-            <h3 className="text-sm font-medium text-gray-400 mb-2">Progress</h3>
+          <div className="mb-6">
+            <h3 className="text-xs font-bold text-system-400 uppercase tracking-wider mb-2">
+              Progress
+            </h3>
             <div className="flex items-center gap-2">
-              <div className="flex-1 bg-gray-700 rounded-full h-2">
+              <div className="flex-1 bg-system-200 dark:bg-system-700 rounded-full h-1.5">
                 <div
-                  className="bg-indigo-500 h-2 rounded-full transition-all"
+                  className="bg-brand-500 h-1.5 rounded-full transition-all"
                   style={{ width: `${task.progressPercentage}%` }}
                 />
               </div>
-              <span className="text-sm text-gray-400">
+              <span className="text-sm text-system-500 dark:text-system-400">
                 {task.progressPercentage}%
               </span>
             </div>
@@ -392,17 +543,19 @@ export default function TaskDetailPage() {
 
           {/* Repository */}
           {task.repoName && (
-            <div className="mb-4">
-              <h3 className="text-sm font-medium text-gray-400 mb-2">
+            <div className="mb-6">
+              <h3 className="text-xs font-bold text-system-400 uppercase tracking-wider mb-2">
                 Repository
               </h3>
-              <p className="text-sm text-gray-300">{task.repoName}</p>
+              <p className="text-sm text-system-700 dark:text-system-300">
+                {task.repoName}
+              </p>
             </div>
           )}
 
-          {/* Agent Controls */}
-          <div className="pt-4 border-t border-gray-700">
-            <h3 className="text-sm font-medium text-gray-400 mb-3">
+          {/* Agent Controls - in a card */}
+          <div className="p-4 bg-system-50 dark:bg-system-800 rounded-lg border border-system-200 dark:border-system-700">
+            <h3 className="text-sm font-medium text-system-900 dark:text-white mb-3">
               Agent Controls
             </h3>
             <div className="flex flex-wrap gap-2">
@@ -454,15 +607,8 @@ export default function TaskDetailPage() {
                       handleAgentAction(ControlTaskAgentRequestActionEnum.Pause)
                     }
                     disabled={actionLoading}
-                    className="px-3 py-1.5 text-sm font-medium bg-yellow-600 hover:bg-yellow-700 text-white rounded transition-colors disabled:opacity-50 flex items-center gap-1"
+                    className="flex-1 py-1.5 text-sm font-medium bg-white dark:bg-system-700 border border-system-200 dark:border-system-600 rounded shadow-sm hover:bg-system-50 dark:hover:bg-system-600 transition-colors disabled:opacity-50"
                   >
-                    <svg
-                      className="w-4 h-4"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path d="M5.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75A.75.75 0 007.25 3h-1.5zM12.75 3a.75.75 0 00-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-1.5z" />
-                    </svg>
                     Pause
                   </button>
                   <button
@@ -470,15 +616,8 @@ export default function TaskDetailPage() {
                       handleAgentAction(ControlTaskAgentRequestActionEnum.Stop)
                     }
                     disabled={actionLoading}
-                    className="px-3 py-1.5 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded transition-colors disabled:opacity-50 flex items-center gap-1"
+                    className="flex-1 py-1.5 text-sm font-medium bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50"
                   >
-                    <svg
-                      className="w-4 h-4"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path d="M5.25 3A2.25 2.25 0 003 5.25v9.5A2.25 2.25 0 005.25 17h9.5A2.25 2.25 0 0017 14.75v-9.5A2.25 2.25 0 0014.75 3h-9.5z" />
-                    </svg>
                     Stop
                   </button>
                 </>
@@ -492,15 +631,8 @@ export default function TaskDetailPage() {
                       )
                     }
                     disabled={actionLoading}
-                    className="px-3 py-1.5 text-sm font-medium bg-green-600 hover:bg-green-700 text-white rounded transition-colors disabled:opacity-50 flex items-center gap-1"
+                    className="flex-1 py-1.5 text-sm font-medium bg-white dark:bg-system-700 border border-system-200 dark:border-system-600 rounded shadow-sm hover:bg-system-50 dark:hover:bg-system-600 transition-colors disabled:opacity-50"
                   >
-                    <svg
-                      className="w-4 h-4"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                    </svg>
                     Resume
                   </button>
                   <button
@@ -508,15 +640,8 @@ export default function TaskDetailPage() {
                       handleAgentAction(ControlTaskAgentRequestActionEnum.Stop)
                     }
                     disabled={actionLoading}
-                    className="px-3 py-1.5 text-sm font-medium bg-red-600 hover:bg-red-700 text-white rounded transition-colors disabled:opacity-50 flex items-center gap-1"
+                    className="flex-1 py-1.5 text-sm font-medium bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50"
                   >
-                    <svg
-                      className="w-4 h-4"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path d="M5.25 3A2.25 2.25 0 003 5.25v9.5A2.25 2.25 0 005.25 17h9.5A2.25 2.25 0 0017 14.75v-9.5A2.25 2.25 0 0014.75 3h-9.5z" />
-                    </svg>
                     Stop
                   </button>
                 </>
@@ -530,8 +655,8 @@ export default function TaskDetailPage() {
             task.status === "approved" ||
             task.githubPrUrl ||
             prResult?.prUrl) && (
-            <div className="mt-6 pt-4 border-t border-gray-700">
-              <h3 className="text-sm font-medium text-gray-400 mb-3">
+            <div className="mt-6">
+              <h3 className="text-xs font-bold text-system-400 uppercase tracking-wider mb-3">
                 Review & Approve
               </h3>
 
@@ -541,7 +666,7 @@ export default function TaskDetailPage() {
                   onClick={() =>
                     openExternal(task.githubPrUrl || prResult?.prUrl || "")
                   }
-                  className="inline-block mb-3 text-blue-400 text-sm hover:underline text-left"
+                  className="inline-block mb-3 text-brand-500 dark:text-brand-400 text-sm hover:underline text-left"
                 >
                   View PR #{task.githubPrNumber || prResult?.prNumber}
                 </button>
@@ -551,25 +676,27 @@ export default function TaskDetailPage() {
               {task.status === "pending_review" && (
                 <>
                   {diffLoading ? (
-                    <p className="text-gray-500 text-sm">Loading changes...</p>
+                    <p className="text-system-500 text-sm">
+                      Loading changes...
+                    </p>
                   ) : taskDiff ? (
                     <div className="mb-3">
                       {taskDiff.hasChanges ? (
                         <>
-                          <p className="text-sm text-gray-300 mb-2">
+                          <p className="text-sm text-system-700 dark:text-system-300 mb-2">
                             {taskDiff.filesChanged?.length ?? 0} file(s) changed
                             {taskDiff.insertions !== undefined && (
-                              <span className="text-green-400 ml-2">
+                              <span className="text-emerald-600 dark:text-emerald-400 ml-2">
                                 +{taskDiff.insertions}
                               </span>
                             )}
                             {taskDiff.deletions !== undefined && (
-                              <span className="text-red-400 ml-1">
+                              <span className="text-red-600 dark:text-red-400 ml-1">
                                 -{taskDiff.deletions}
                               </span>
                             )}
                           </p>
-                          <ul className="text-xs text-gray-400 space-y-1 max-h-24 overflow-y-auto">
+                          <ul className="text-xs text-system-500 dark:text-system-400 space-y-1 max-h-24 overflow-y-auto scrollbar-thin">
                             {taskDiff.filesChanged?.map((file, i) => (
                               <li key={i} className="truncate">
                                 {file}
@@ -578,7 +705,7 @@ export default function TaskDetailPage() {
                           </ul>
                         </>
                       ) : (
-                        <p className="text-sm text-gray-400">
+                        <p className="text-sm text-system-500 dark:text-system-400">
                           No changes detected
                         </p>
                       )}
@@ -698,7 +825,7 @@ export default function TaskDetailPage() {
         </div>
 
         {/* Right Panel - Terminal */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="w-1/2 flex flex-col min-w-0">
           <Terminal
             taskId={task.id}
             onStatusChange={handleTerminalStatusChange}
