@@ -1009,32 +1009,32 @@ const tasks = await projectsApi.getProjectTasks({ id: 1 });
 ### Week 3: Process Spawning & Terminal
 
 #### Claude Code Integration
-- [ ] Install node-pty
-- [ ] Implement process spawning
-  - [ ] Create AgentService class
-  - [ ] Spawn Claude Code with arguments
-  - [ ] Capture stdout/stderr
-- [ ] Basic context injection
-  - [ ] Generate context files from tasks
-  - [ ] Pass PRD/Epic paths to Claude
-- [ ] **Worktree Management** (for parallel execution)
-  - [ ] Create WorktreeManager class
-  - [ ] Auto-detect conflicts (multiple tasks in same repo)
-  - [ ] Auto-create worktree if needed
-  - [ ] Launch agent in appropriate directory (main or worktree)
-- [ ] Process management
-  - [ ] Track running agents (in-memory)
-  - [ ] Stop/pause agent endpoints
-  - [ ] Track worktree assignments
+- [x] Install node-pty
+- [x] Implement process spawning
+  - [x] Create AgentService class
+  - [x] Spawn Claude Code with arguments
+  - [x] Capture stdout/stderr
+- [x] Basic context injection
+  - [x] Generate context files from tasks
+  - [x] Pass PRD/Epic paths to Claude
+- [x] **Worktree Management** (for parallel execution)
+  - [x] Create WorktreeManager class
+  - [x] Auto-detect conflicts (multiple tasks in same repo)
+  - [x] Auto-create worktree if needed
+  - [x] Launch agent in appropriate directory (main or worktree)
+- [x] Process management
+  - [x] Track running agents (in-memory)
+  - [x] Stop/pause agent endpoints
+  - [x] Track worktree assignments
 
 #### Terminal Embedding
-- [ ] Install xterm.js
-- [ ] Create Terminal React component
-- [ ] Setup WebSocket for terminal streams
-  - [ ] Backend: ws library
-  - [ ] Frontend: WebSocket client
-- [ ] Connect PTY output to WebSocket
-- [ ] Display terminal in UI
+- [x] Install xterm.js
+- [x] Create Terminal React component
+- [x] Setup WebSocket for terminal streams
+  - [x] Backend: ws library
+  - [x] Frontend: WebSocket client
+- [x] Connect PTY output to WebSocket
+- [x] Display terminal in UI
 
 **Wireframe: Task with Terminal (Week 3)**
 ```
@@ -1069,9 +1069,9 @@ const tasks = await projectsApi.getProjectTasks({ id: 1 });
 ```
 
 **Testing:**
-- [ ] Launch Claude Code manually
-- [ ] Verify terminal output appears in UI
-- [ ] Test pause/stop functionality
+- [x] Launch Claude Code manually
+- [x] Verify terminal output appears in UI
+- [x] Test pause/stop functionality
 
 ---
 
