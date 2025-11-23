@@ -115,7 +115,9 @@ describe('Express Application', () => {
         .send({ name: uniqueName, local_path: '/second/path' })
         .set('Content-Type', 'application/json');
 
-      expect(second.status).toBe(500); // Unique constraint violation
+      expect(second.status).toBe(400); // ValidationError for duplicate name
+      expect(second.body.success).toBe(false);
+      expect(second.body.error).toContain('already exists');
     });
   });
 });
