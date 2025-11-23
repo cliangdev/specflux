@@ -567,6 +567,7 @@ function handleAgentCompletion(
         updateTask(taskId, {
           status: 'done',
           github_pr_number: result.prNumber ?? undefined,
+          github_pr_url: result.prUrl ?? undefined,
         });
         result.taskStatus = 'done';
       } catch {
@@ -645,10 +646,11 @@ export function createTaskPR(taskId: number): CompletionResult {
   result.prUrl = prResult.pr.prUrl;
   result.prNumber = prResult.pr.prNumber;
 
-  // Update task with PR number (but keep status as pending_review)
-  if (result.prNumber) {
+  // Update task with PR info (but keep status as pending_review)
+  if (result.prNumber || result.prUrl) {
     updateTask(taskId, {
-      github_pr_number: result.prNumber,
+      github_pr_number: result.prNumber ?? undefined,
+      github_pr_url: result.prUrl ?? undefined,
     });
   }
 

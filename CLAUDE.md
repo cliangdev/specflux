@@ -6,7 +6,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 SpecFlux is a desktop application (Tauri + React) that orchestrates Claude Code AI agents across multiple software repositories. It transforms "vibe coding" into disciplined, spec-driven engineering by providing a unified Kanban board for multi-repo project management, automatic Claude Code agent launching with context injection, and human-in-the-loop approval workflows.
 
-**Current Status:** Project structure initialized with Claude Code configuration, npm workspaces, and package.json files. Ready for implementation.
+**Current Status:** ~35-40% of MVP complete. Phase 1-2 foundation done, Phase 3+ remaining.
+
+### Completed
+- **Backend:** Node.js + Express + SQLite with 13 tables, 44/49 MVP endpoints
+- **Frontend:** React + TailwindCSS + Tauri with layout, navigation, task list, task creation
+- **Claude Code Integration:** Process spawning, worktree management, terminal embedding (xterm.js + WebSocket)
+- **Dev Tools:** Skills, agents, commands, CLAUDE.md files configured
+
+### In Progress
+- Terminal output parsing, file change tracking, worktree lifecycle management
+
+### Remaining
+- Kanban board with drag-drop (Week 5-6)
+- Approval system and dependency visualization (Week 6)
+- Chain output generation and context injection (Week 7-8)
+- Workflow templates and agent management UI (Week 9-10)
+- Git sync, notifications, polish, onboarding (Week 11-12)
+
+**Key Milestone:** Self-hosting target at end of Week 6 (use SpecFlux to build SpecFlux)
 
 ## Tech Stack
 

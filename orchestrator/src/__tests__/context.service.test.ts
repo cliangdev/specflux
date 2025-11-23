@@ -161,6 +161,7 @@ describe('ContextService', () => {
           github_issue_number: null,
           github_branch_name: null,
           github_pr_number: null,
+          github_pr_url: null,
           file_path: null,
           created_by_user_id: 1,
           assigned_to_user_id: 1,

@@ -46,6 +46,9 @@ Task:
     github_pr_number:
       type: integer
       nullable: true
+    github_pr_url:
+      type: string
+      nullable: true
     created_by_user_id:
       type: integer
     assigned_to_user_id:
