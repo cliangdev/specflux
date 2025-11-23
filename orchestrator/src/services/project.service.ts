@@ -1,5 +1,5 @@
 import { getDatabase } from '../db';
-import { NotFoundError } from '../types';
+import { NotFoundError, ValidationError } from '../types';
 
 export interface Project {
   id: number;
@@ -89,21 +89,31 @@ export function createProject(input: CreateProjectInput, ownerUserId: number): P
   const projectId = generateProjectId(input.name);
   const workflowTemplate = input.workflow_template ?? 'startup-fast';
 
-  const result = db
-    .prepare(
+  let result;
+  try {
+    result = db
+      .prepare(
+        `
+        INSERT INTO projects (project_id, name, local_path, git_remote, workflow_template, owner_user_id)
+        VALUES (?, ?, ?, ?, ?, ?)
       `
-      INSERT INTO projects (project_id, name, local_path, git_remote, workflow_template, owner_user_id)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `
-    )
-    .run(
-      projectId,
-      input.name,
-      input.local_path,
-      input.git_remote ?? null,
-      workflowTemplate,
-      ownerUserId
-    );
+      )
+      .run(
+        projectId,
+        input.name,
+        input.local_path,
+        input.git_remote ?? null,
+        workflowTemplate,
+        ownerUserId
+      );
+  } catch (err: unknown) {
+    // Handle unique constraint violation from better-sqlite3
+    const sqliteErr = err as { code?: string };
+    if (sqliteErr.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      throw new ValidationError(`A project named "${input.name}" already exists`);
+    }
+    throw err;
+  }
 
   const newProjectId = result.lastInsertRowid as number;
 

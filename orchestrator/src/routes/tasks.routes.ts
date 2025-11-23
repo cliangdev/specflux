@@ -19,6 +19,7 @@ const router = Router();
 
 /**
  * GET /projects/:projectId/tasks - List tasks for a project
+ * Uses default user ID 1 if no auth header (development mode)
  */
 router.get('/projects/:projectId/tasks', (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -28,7 +29,9 @@ router.get('/projects/:projectId/tasks', (req: Request, res: Response, next: Nex
       throw new ValidationError('Invalid project id');
     }
 
-    if (!userHasProjectAccess(projectId, req.userId!)) {
+    // Use default user ID 1 for development when no auth
+    const userId = req.userId ?? 1;
+    if (!userHasProjectAccess(projectId, userId)) {
       throw new NotFoundError('Project', projectId);
     }
 
@@ -50,16 +53,15 @@ router.get('/projects/:projectId/tasks', (req: Request, res: Response, next: Nex
 
     const { tasks, total } = listTasks(projectId, filters, pagination);
 
+    // Response format matches OpenAPI spec: data is array, pagination at same level
     res.json({
       success: true,
-      data: {
-        items: tasks,
-        pagination: {
-          page: pagination.page,
-          limit: pagination.limit,
-          total,
-          pages: Math.ceil(total / pagination.limit),
-        },
+      data: tasks,
+      pagination: {
+        page: pagination.page,
+        limit: pagination.limit,
+        total,
+        pages: Math.ceil(total / pagination.limit),
       },
     });
   } catch (error) {
@@ -69,6 +71,7 @@ router.get('/projects/:projectId/tasks', (req: Request, res: Response, next: Nex
 
 /**
  * POST /projects/:projectId/tasks - Create a new task
+ * Uses default user ID 1 if no auth header (development mode)
  */
 router.post('/projects/:projectId/tasks', (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -78,7 +81,9 @@ router.post('/projects/:projectId/tasks', (req: Request, res: Response, next: Ne
       throw new ValidationError('Invalid project id');
     }
 
-    if (!userHasProjectAccess(projectId, req.userId!)) {
+    // Use default user ID 1 for development when no auth
+    const userId = req.userId ?? 1;
+    if (!userHasProjectAccess(projectId, userId)) {
       throw new NotFoundError('Project', projectId);
     }
 
@@ -108,7 +113,7 @@ router.post('/projects/:projectId/tasks', (req: Request, res: Response, next: Ne
         agent_name: agent_name as string | undefined,
         estimated_duration: estimated_duration as number | undefined,
       },
-      req.userId!
+      userId
     );
 
     res.status(201).json({ success: true, data: task });
@@ -134,7 +139,9 @@ router.get('/tasks/:id', (req: Request, res: Response, next: NextFunction) => {
       throw new NotFoundError('Task', taskId);
     }
 
-    if (!userHasProjectAccess(task.project_id, req.userId!)) {
+    // Use default user ID 1 for development when no auth
+    const userId = req.userId ?? 1;
+    if (!userHasProjectAccess(task.project_id, userId)) {
       throw new NotFoundError('Task', taskId);
     }
 
@@ -164,7 +171,9 @@ router.patch('/tasks/:id', (req: Request, res: Response, next: NextFunction) => 
       throw new NotFoundError('Task', taskId);
     }
 
-    if (!userHasProjectAccess(existingTask.project_id, req.userId!)) {
+    // Use default user ID 1 for development when no auth
+    const userId = req.userId ?? 1;
+    if (!userHasProjectAccess(existingTask.project_id, userId)) {
       throw new NotFoundError('Task', taskId);
     }
 
@@ -193,7 +202,9 @@ router.delete('/tasks/:id', (req: Request, res: Response, next: NextFunction) =>
       throw new NotFoundError('Task', taskId);
     }
 
-    if (!userHasProjectAccess(existingTask.project_id, req.userId!)) {
+    // Use default user ID 1 for development when no auth
+    const userId = req.userId ?? 1;
+    if (!userHasProjectAccess(existingTask.project_id, userId)) {
       throw new NotFoundError('Task', taskId);
     }
 
