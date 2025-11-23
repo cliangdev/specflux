@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",
+    "@types/ws": "^8.18.1",
     "better-sqlite3": "^11.0.0",
     "chokidar": "^4.0.3",
     "cors": "^2.8.5",
@@ -32,8 +33,10 @@
     "gray-matter": "^4.0.3",
     "helmet": "^8.0.0",
     "morgan": "^1.10.0",
+    "node-pty": "^1.0.0",
     "simple-git": "^3.30.0",
     "swagger-ui-express": "^5.0.1",
+    "ws": "^8.18.3",
     "yamljs": "^0.3.0",
     "zod": "^3.23.0"
   },

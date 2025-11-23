@@ -1,0 +1,255 @@
+import { execSync, exec } from 'child_process';
+import path from 'path';
+import fs from 'fs';
+import { ValidationError } from '../types';
+
+export interface Worktree {
+  path: string;
+  branch: string;
+  taskId: number;
+}
+
+// In-memory tracking of worktrees per task
+const worktreeMap = new Map<number, Worktree>();
+
+/**
+ * Generate branch name for a task
+ */
+export function generateBranchName(taskId: number, taskTitle: string): string {
+  const slug = taskTitle
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .substring(0, 40);
+  return `task/${taskId}-${slug}`;
+}
+
+/**
+ * Get worktree base directory for a project
+ */
+export function getWorktreeBaseDir(projectPath: string): string {
+  return path.join(projectPath, '.specflux', 'worktrees');
+}
+
+/**
+ * Create a git worktree for a task
+ */
+export function createWorktree(taskId: number, projectPath: string, branchName: string): Worktree {
+  // Check if worktree already exists for this task
+  if (worktreeMap.has(taskId)) {
+    throw new ValidationError(`Worktree already exists for task ${taskId}`);
+  }
+
+  // Ensure project path exists and is a git repo
+  if (!fs.existsSync(projectPath)) {
+    throw new ValidationError(`Project path does not exist: ${projectPath}`);
+  }
+
+  const gitDir = path.join(projectPath, '.git');
+  if (!fs.existsSync(gitDir)) {
+    throw new ValidationError(`Project is not a git repository: ${projectPath}`);
+  }
+
+  // Create worktree base directory
+  const worktreeBase = getWorktreeBaseDir(projectPath);
+  if (!fs.existsSync(worktreeBase)) {
+    fs.mkdirSync(worktreeBase, { recursive: true });
+  }
+
+  // Create worktree path
+  const worktreePath = path.join(worktreeBase, `task-${taskId}`);
+
+  // Check if worktree directory already exists
+  if (fs.existsSync(worktreePath)) {
+    throw new ValidationError(`Worktree path already exists: ${worktreePath}`);
+  }
+
+  try {
+    // Create the branch if it doesn't exist
+    try {
+      execSync(`git rev-parse --verify ${branchName}`, {
+        cwd: projectPath,
+        stdio: 'pipe',
+      });
+    } catch {
+      // Branch doesn't exist, create it from current HEAD
+      execSync(`git branch ${branchName}`, {
+        cwd: projectPath,
+        stdio: 'pipe',
+      });
+    }
+
+    // Create the worktree
+    execSync(`git worktree add "${worktreePath}" ${branchName}`, {
+      cwd: projectPath,
+      stdio: 'pipe',
+    });
+
+    const worktree: Worktree = {
+      path: worktreePath,
+      branch: branchName,
+      taskId,
+    };
+
+    worktreeMap.set(taskId, worktree);
+    return worktree;
+  } catch (error) {
+    // Clean up on failure
+    if (fs.existsSync(worktreePath)) {
+      fs.rmSync(worktreePath, { recursive: true, force: true });
+    }
+    throw new ValidationError(
+      `Failed to create worktree: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
+/**
+ * Remove a git worktree for a task
+ */
+export function removeWorktree(taskId: number, projectPath: string): void {
+  const worktree = worktreeMap.get(taskId);
+
+  if (!worktree) {
+    // Check if there's a worktree on disk that we need to clean up
+    const worktreePath = path.join(getWorktreeBaseDir(projectPath), `task-${taskId}`);
+    if (fs.existsSync(worktreePath)) {
+      try {
+        execSync(`git worktree remove "${worktreePath}" --force`, {
+          cwd: projectPath,
+          stdio: 'pipe',
+        });
+      } catch {
+        // Force remove directory if git command fails
+        fs.rmSync(worktreePath, { recursive: true, force: true });
+        execSync('git worktree prune', { cwd: projectPath, stdio: 'pipe' });
+      }
+    }
+    return;
+  }
+
+  try {
+    // Remove the worktree using git
+    execSync(`git worktree remove "${worktree.path}" --force`, {
+      cwd: projectPath,
+      stdio: 'pipe',
+    });
+  } catch {
+    // Force remove directory if git command fails
+    if (fs.existsSync(worktree.path)) {
+      fs.rmSync(worktree.path, { recursive: true, force: true });
+    }
+    execSync('git worktree prune', { cwd: projectPath, stdio: 'pipe' });
+  }
+
+  worktreeMap.delete(taskId);
+}
+
+/**
+ * Get worktree info for a task
+ */
+export function getWorktree(taskId: number): Worktree | null {
+  return worktreeMap.get(taskId) ?? null;
+}
+
+/**
+ * List all tracked worktrees
+ */
+export function listWorktrees(): Worktree[] {
+  return Array.from(worktreeMap.values());
+}
+
+/**
+ * Check if worktree exists for a task
+ */
+export function hasWorktree(taskId: number): boolean {
+  return worktreeMap.has(taskId);
+}
+
+/**
+ * Async version of createWorktree for non-blocking operations
+ */
+export function createWorktreeAsync(
+  taskId: number,
+  projectPath: string,
+  branchName: string
+): Promise<Worktree> {
+  return new Promise((resolve, reject) => {
+    try {
+      // Synchronous validations
+      if (worktreeMap.has(taskId)) {
+        throw new ValidationError(`Worktree already exists for task ${taskId}`);
+      }
+
+      if (!fs.existsSync(projectPath)) {
+        throw new ValidationError(`Project path does not exist: ${projectPath}`);
+      }
+
+      const gitDir = path.join(projectPath, '.git');
+      if (!fs.existsSync(gitDir)) {
+        throw new ValidationError(`Project is not a git repository: ${projectPath}`);
+      }
+
+      const worktreeBase = getWorktreeBaseDir(projectPath);
+      if (!fs.existsSync(worktreeBase)) {
+        fs.mkdirSync(worktreeBase, { recursive: true });
+      }
+
+      const worktreePath = path.join(worktreeBase, `task-${taskId}`);
+
+      if (fs.existsSync(worktreePath)) {
+        throw new ValidationError(`Worktree path already exists: ${worktreePath}`);
+      }
+
+      // Create branch if needed
+      exec(`git rev-parse --verify ${branchName}`, { cwd: projectPath }, (err) => {
+        const createWorktreeCmd = () => {
+          exec(
+            `git worktree add "${worktreePath}" ${branchName}`,
+            { cwd: projectPath },
+            (wtErr) => {
+              if (wtErr) {
+                if (fs.existsSync(worktreePath)) {
+                  fs.rmSync(worktreePath, { recursive: true, force: true });
+                }
+                reject(new ValidationError(`Failed to create worktree: ${wtErr.message}`));
+                return;
+              }
+
+              const worktree: Worktree = {
+                path: worktreePath,
+                branch: branchName,
+                taskId,
+              };
+
+              worktreeMap.set(taskId, worktree);
+              resolve(worktree);
+            }
+          );
+        };
+
+        if (err) {
+          // Branch doesn't exist, create it
+          exec(`git branch ${branchName}`, { cwd: projectPath }, (branchErr) => {
+            if (branchErr) {
+              reject(new ValidationError(`Failed to create branch: ${branchErr.message}`));
+              return;
+            }
+            createWorktreeCmd();
+          });
+        } else {
+          createWorktreeCmd();
+        }
+      });
+    } catch (error) {
+      reject(error instanceof Error ? error : new Error(String(error)));
+    }
+  });
+}
+
+/**
+ * Clear worktree tracking (for testing)
+ */
+export function clearWorktreeTracking(): void {
+  worktreeMap.clear();
+}

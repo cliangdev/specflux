@@ -7,6 +7,7 @@ import repositoryRoutes from './repositories.routes';
 import notificationRoutes from './notifications.routes';
 import userRoutes from './users.routes';
 import fileRoutes from './files.routes';
+import agentRoutes from './agent.routes';
 
 const router = Router();
 
@@ -46,5 +47,8 @@ router.use(notificationRoutes);
 
 // File routes
 router.use(fileRoutes);
+
+// Agent routes (for Claude Code agent management)
+router.use(agentRoutes);
 
 export default router;
