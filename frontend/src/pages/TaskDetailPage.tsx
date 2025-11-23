@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { open } from "@tauri-apps/plugin-shell";
 import {
   api,
   type Task,
@@ -11,9 +12,14 @@ import {
 } from "../api";
 import Terminal from "../components/Terminal";
 
-// Helper to open external URLs
-const openExternal = (url: string) => {
-  window.open(url, "_blank");
+// Helper to open external URLs using Tauri shell plugin
+const openExternal = async (url: string) => {
+  try {
+    await open(url);
+  } catch {
+    // Fallback for non-Tauri environments
+    window.open(url, "_blank");
+  }
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -516,31 +522,33 @@ export default function TaskDetailPage() {
             </div>
           </div>
 
+          {/* PR Link - shown if PR exists (persists after task is done) */}
+          {(task.githubPrUrl || prResult?.prUrl) && (
+            <div className="mt-6 pt-4 border-t border-gray-700">
+              <h3 className="text-sm font-medium text-gray-400 mb-3">
+                Pull Request
+              </h3>
+              <div className="p-3 bg-blue-900/30 border border-blue-700 rounded-lg">
+                <button
+                  onClick={() =>
+                    openExternal(
+                      (task.githubPrUrl || prResult?.prUrl) as string,
+                    )
+                  }
+                  className="text-blue-400 text-sm hover:underline text-left"
+                >
+                  View PR #{task.githubPrNumber || prResult?.prNumber} →
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Review Section - shown when pending_review */}
           {task.status === "pending_review" && (
             <div className="mt-6 pt-4 border-t border-gray-700">
               <h3 className="text-sm font-medium text-gray-400 mb-3">
                 Review & Approve
               </h3>
-
-              {/* PR Link - shown if PR exists (from task data or just created) */}
-              {(task.githubPrUrl || prResult?.prUrl) && (
-                <div className="mb-3 p-3 bg-blue-900/30 border border-blue-700 rounded-lg">
-                  <p className="text-blue-300 text-sm font-medium">
-                    Pull Request Created
-                  </p>
-                  <button
-                    onClick={() =>
-                      openExternal(
-                        (task.githubPrUrl || prResult?.prUrl) as string,
-                      )
-                    }
-                    className="text-blue-400 text-sm hover:underline text-left"
-                  >
-                    View PR #{task.githubPrNumber || prResult?.prNumber} →
-                  </button>
-                </div>
-              )}
 
               {/* Changes info */}
               {diffLoading ? (
