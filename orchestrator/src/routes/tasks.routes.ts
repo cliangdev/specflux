@@ -12,7 +12,7 @@ import {
   submitTaskReview,
   isTaskBlocked,
 } from '../services/task.service';
-import { userHasProjectAccess } from '../services/project.service';
+import { userHasProjectAccess, getProjectConfig } from '../services/project.service';
 import { getWorktree } from '../services/worktree.service';
 import { getWorktreeChanges, getWorktreeDiff } from '../services/git-workflow.service';
 import { createTaskPR, approveTask } from '../services/agent.service';
@@ -458,11 +458,15 @@ router.get('/tasks/:id/diff', (req: Request, res: Response, next: NextFunction) 
       return;
     }
 
-    // Get changes and diff
-    const changes = getWorktreeChanges(worktree.path);
+    // Get base branch from project config
+    const config = getProjectConfig(task.project_id);
+    const baseBranch = config?.default_pr_target_branch ?? 'main';
+
+    // Get changes and diff compared to base branch
+    const changes = getWorktreeChanges(worktree.path, baseBranch);
     let diff = '';
     if (changes.hasChanges) {
-      diff = getWorktreeDiff(worktree.path);
+      diff = getWorktreeDiff(worktree.path, baseBranch);
     }
 
     res.json({

@@ -25,54 +25,79 @@ export interface PullRequestResult {
 }
 
 /**
- * Check if a worktree has uncommitted changes
+ * Check if a worktree has changes (committed or uncommitted) compared to base branch
  */
-export function getWorktreeChanges(worktreePath: string): WorktreeChanges {
+export function getWorktreeChanges(
+  worktreePath: string,
+  baseBranch: string = 'main'
+): WorktreeChanges {
   try {
-    // Check for any changes (staged or unstaged)
+    // First check for uncommitted changes
     const status = execSync('git status --porcelain', {
       cwd: worktreePath,
       encoding: 'utf-8',
     }).trim();
 
-    if (!status) {
-      return {
-        hasChanges: false,
-        filesChanged: [],
-        insertions: 0,
-        deletions: 0,
-      };
-    }
-
-    // Get list of changed files
-    const filesChanged = status
-      .split('\n')
-      .map((line) => line.substring(3).trim())
-      .filter(Boolean);
-
-    // Get diff stats
+    // Also check for committed changes compared to base branch
+    let filesChanged: string[] = [];
     let insertions = 0;
     let deletions = 0;
+
+    // Get committed changes compared to base branch
     try {
-      const diffStat = execSync('git diff --stat HEAD 2>/dev/null || git diff --stat', {
+      // Fetch to ensure we have latest remote refs
+      execSync('git fetch origin 2>/dev/null || true', {
         cwd: worktreePath,
         encoding: 'utf-8',
-      }).trim();
+      });
 
-      const statMatch = diffStat.match(/(\d+) insertion|(\d+) deletion/g);
-      if (statMatch) {
-        statMatch.forEach((match) => {
-          const num = parseInt(match.match(/\d+/)?.[0] ?? '0', 10);
-          if (match.includes('insertion')) insertions = num;
-          if (match.includes('deletion')) deletions = num;
-        });
+      // Compare against origin/baseBranch or baseBranch
+      const compareRef = `origin/${baseBranch}`;
+      const diffNameOnly = execSync(
+        `git diff --name-only ${compareRef}...HEAD 2>/dev/null || git diff --name-only ${baseBranch}...HEAD 2>/dev/null || echo ""`,
+        {
+          cwd: worktreePath,
+          encoding: 'utf-8',
+        }
+      ).trim();
+
+      if (diffNameOnly) {
+        filesChanged = diffNameOnly.split('\n').filter(Boolean);
       }
+
+      // Get stats for committed changes
+      const diffStat = execSync(
+        `git diff --stat ${compareRef}...HEAD 2>/dev/null || git diff --stat ${baseBranch}...HEAD 2>/dev/null || echo ""`,
+        {
+          cwd: worktreePath,
+          encoding: 'utf-8',
+        }
+      ).trim();
+
+      const insertionMatch = diffStat.match(/(\d+) insertion/);
+      const deletionMatch = diffStat.match(/(\d+) deletion/);
+      if (insertionMatch) insertions = parseInt(insertionMatch[1]!, 10);
+      if (deletionMatch) deletions = parseInt(deletionMatch[1]!, 10);
     } catch {
-      // Ignore diff stat errors
+      // Ignore diff errors, fall back to uncommitted changes only
+    }
+
+    // Also include uncommitted files if any
+    if (status) {
+      const uncommittedFiles = status
+        .split('\n')
+        .map((line) => line.substring(3).trim())
+        .filter(Boolean);
+      // Merge with committed files, avoiding duplicates
+      uncommittedFiles.forEach((file) => {
+        if (!filesChanged.includes(file)) {
+          filesChanged.push(file);
+        }
+      });
     }
 
     return {
-      hasChanges: true,
+      hasChanges: filesChanged.length > 0,
       filesChanged,
       insertions,
       deletions,
@@ -98,16 +123,20 @@ export function hasUncommittedChanges(taskId: number): boolean {
 }
 
 /**
- * Get the diff for a worktree (for review UI)
+ * Get the diff for a worktree (for review UI) - compares against base branch
  */
-export function getWorktreeDiff(worktreePath: string): string {
+export function getWorktreeDiff(worktreePath: string, baseBranch: string = 'main'): string {
   try {
-    // Get diff of all changes
-    const diff = execSync('git diff HEAD 2>/dev/null || git diff', {
-      cwd: worktreePath,
-      encoding: 'utf-8',
-      maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large diffs
-    });
+    // Compare against base branch to show all changes in this branch
+    const compareRef = `origin/${baseBranch}`;
+    const diff = execSync(
+      `git diff ${compareRef}...HEAD 2>/dev/null || git diff ${baseBranch}...HEAD 2>/dev/null || git diff HEAD`,
+      {
+        cwd: worktreePath,
+        encoding: 'utf-8',
+        maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large diffs
+      }
+    );
 
     return diff;
   } catch (error) {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { open } from "@tauri-apps/plugin-shell";
+import { invoke } from "@tauri-apps/api/core";
 import {
   api,
   type Task,
@@ -12,12 +12,12 @@ import {
 } from "../api";
 import Terminal from "../components/Terminal";
 
-// Helper to open external URLs using Tauri shell plugin
+// Helper to open external URLs using Tauri command
 const openExternal = async (url: string) => {
   try {
-    await open(url);
+    await invoke("open_url", { url });
   } catch {
-    // Fallback for non-Tauri environments
+    // Fallback for non-Tauri environments or errors
     window.open(url, "_blank");
   }
 };
@@ -153,6 +153,8 @@ export default function TaskDetailPage() {
         id: Number(taskId),
       });
       setPRResult(response.data ?? null);
+      // Refresh task to persist PR URL from database
+      fetchTask();
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to create PR";
@@ -522,169 +524,175 @@ export default function TaskDetailPage() {
             </div>
           </div>
 
-          {/* PR Link - shown if PR exists (persists after task is done) */}
-          {(task.githubPrUrl || prResult?.prUrl) && (
-            <div className="mt-6 pt-4 border-t border-gray-700">
-              <h3 className="text-sm font-medium text-gray-400 mb-3">
-                Pull Request
-              </h3>
-              <div className="p-3 bg-blue-900/30 border border-blue-700 rounded-lg">
-                <button
-                  onClick={() =>
-                    openExternal(
-                      (task.githubPrUrl || prResult?.prUrl) as string,
-                    )
-                  }
-                  className="text-blue-400 text-sm hover:underline text-left"
-                >
-                  View PR #{task.githubPrNumber || prResult?.prNumber} →
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Review Section - shown when pending_review */}
-          {task.status === "pending_review" && (
+          {/* Review Section - shown when pending_review or has PR */}
+          {(task.status === "pending_review" ||
+            task.status === "done" ||
+            task.status === "approved" ||
+            task.githubPrUrl ||
+            prResult?.prUrl) && (
             <div className="mt-6 pt-4 border-t border-gray-700">
               <h3 className="text-sm font-medium text-gray-400 mb-3">
                 Review & Approve
               </h3>
 
-              {/* Changes info */}
-              {diffLoading ? (
-                <p className="text-gray-500 text-sm">Loading changes...</p>
-              ) : taskDiff ? (
-                <div className="mb-3">
-                  {taskDiff.hasChanges ? (
-                    <>
-                      <p className="text-sm text-gray-300 mb-2">
-                        {taskDiff.filesChanged?.length ?? 0} file(s) changed
-                        {taskDiff.insertions !== undefined && (
-                          <span className="text-green-400 ml-2">
-                            +{taskDiff.insertions}
-                          </span>
-                        )}
-                        {taskDiff.deletions !== undefined && (
-                          <span className="text-red-400 ml-1">
-                            -{taskDiff.deletions}
-                          </span>
-                        )}
-                      </p>
-                      <ul className="text-xs text-gray-400 space-y-1 max-h-24 overflow-y-auto">
-                        {taskDiff.filesChanged?.map((file, i) => (
-                          <li key={i} className="truncate">
-                            {file}
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  ) : (
-                    <p className="text-sm text-gray-400">No changes detected</p>
-                  )}
-                </div>
-              ) : null}
+              {/* PR Link */}
+              {(task.githubPrUrl || prResult?.prUrl) && (
+                <button
+                  onClick={() =>
+                    openExternal(task.githubPrUrl || prResult?.prUrl || "")
+                  }
+                  className="inline-block mb-3 text-blue-400 text-sm hover:underline text-left"
+                >
+                  View PR #{task.githubPrNumber || prResult?.prNumber}
+                </button>
+              )}
 
-              {/* Action buttons */}
-              <div className="flex flex-col gap-2">
-                {/* Create PR button - only show if PR not created yet and has changes */}
-                {!task.githubPrUrl &&
-                  !prResult?.prUrl &&
-                  taskDiff?.hasChanges && (
-                    <button
-                      onClick={handleCreatePR}
-                      disabled={createPRLoading}
-                      className="w-full px-4 py-2 text-sm font-medium bg-gray-600 hover:bg-gray-500 text-white rounded transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                      {createPRLoading ? (
+              {/* Changes info - only show when pending_review */}
+              {task.status === "pending_review" && (
+                <>
+                  {diffLoading ? (
+                    <p className="text-gray-500 text-sm">Loading changes...</p>
+                  ) : taskDiff ? (
+                    <div className="mb-3">
+                      {taskDiff.hasChanges ? (
                         <>
-                          <svg
-                            className="animate-spin w-4 h-4"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                              fill="none"
-                            />
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                            />
-                          </svg>
-                          Creating PR...
+                          <p className="text-sm text-gray-300 mb-2">
+                            {taskDiff.filesChanged?.length ?? 0} file(s) changed
+                            {taskDiff.insertions !== undefined && (
+                              <span className="text-green-400 ml-2">
+                                +{taskDiff.insertions}
+                              </span>
+                            )}
+                            {taskDiff.deletions !== undefined && (
+                              <span className="text-red-400 ml-1">
+                                -{taskDiff.deletions}
+                              </span>
+                            )}
+                          </p>
+                          <ul className="text-xs text-gray-400 space-y-1 max-h-24 overflow-y-auto">
+                            {taskDiff.filesChanged?.map((file, i) => (
+                              <li key={i} className="truncate">
+                                {file}
+                              </li>
+                            ))}
+                          </ul>
                         </>
                       ) : (
-                        <>
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
-                            />
-                          </svg>
-                          Create PR
-                        </>
+                        <p className="text-sm text-gray-400">
+                          No changes detected
+                        </p>
                       )}
-                    </button>
-                  )}
+                    </div>
+                  ) : null}
+                </>
+              )}
 
-                {/* Approve button */}
-                <button
-                  onClick={handleApprove}
-                  disabled={approveLoading}
-                  className="w-full px-4 py-2 text-sm font-medium bg-green-600 hover:bg-green-700 text-white rounded transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {approveLoading ? (
-                    <>
-                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                          fill="none"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                        />
-                      </svg>
-                      Approving...
-                    </>
-                  ) : (
-                    <>
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
+              {/* Action buttons - only show when pending_review */}
+              {task.status === "pending_review" && (
+                <div className="flex flex-col gap-2">
+                  {/* Create PR button - only show if PR not created yet and has changes */}
+                  {!task.githubPrUrl &&
+                    !prResult?.prUrl &&
+                    taskDiff?.hasChanges && (
+                      <button
+                        onClick={handleCreatePR}
+                        disabled={createPRLoading}
+                        className="w-full px-4 py-2 text-sm font-medium bg-gray-600 hover:bg-gray-500 text-white rounded transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                      Approve
-                    </>
-                  )}
-                </button>
-              </div>
+                        {createPRLoading ? (
+                          <>
+                            <svg
+                              className="animate-spin w-4 h-4"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                                fill="none"
+                              />
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                              />
+                            </svg>
+                            Creating PR...
+                          </>
+                        ) : (
+                          <>
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
+                              />
+                            </svg>
+                            Create PR
+                          </>
+                        )}
+                      </button>
+                    )}
+
+                  {/* Approve button */}
+                  <button
+                    onClick={handleApprove}
+                    disabled={approveLoading}
+                    className="w-full px-4 py-2 text-sm font-medium bg-green-600 hover:bg-green-700 text-white rounded transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {approveLoading ? (
+                      <>
+                        <svg
+                          className="animate-spin w-4 h-4"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                            fill="none"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                          />
+                        </svg>
+                        Approving...
+                      </>
+                    ) : (
+                      <>
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                        Approve
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
