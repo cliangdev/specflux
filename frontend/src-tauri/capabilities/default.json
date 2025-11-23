@@ -1,0 +1,10 @@
+{
+  "$schema": "https://schema.tauri.app/config/2.0.0/capabilities",
+  "identifier": "default",
+  "description": "Default capabilities for SpecFlux",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "shell:allow-open"
+  ]
+}

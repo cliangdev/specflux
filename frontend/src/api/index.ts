@@ -38,6 +38,7 @@ export type {
   AgentStatus,
   TerminalOutput,
   Pagination,
+  ApproveAndPRResult,
 } from "./generated";
 
 // Request types

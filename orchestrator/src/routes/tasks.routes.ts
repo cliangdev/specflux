@@ -12,7 +12,10 @@ import {
   submitTaskReview,
   isTaskBlocked,
 } from '../services/task.service';
-import { userHasProjectAccess } from '../services/project.service';
+import { userHasProjectAccess, getProjectConfig } from '../services/project.service';
+import { getWorktree } from '../services/worktree.service';
+import { getWorktreeChanges, getWorktreeDiff } from '../services/git-workflow.service';
+import { createTaskPR, approveTask } from '../services/agent.service';
 import { NotFoundError, ValidationError } from '../types';
 
 const router = Router();
@@ -421,7 +424,7 @@ router.get('/tasks/:id/changes', (req: Request, res: Response, next: NextFunctio
 });
 
 /**
- * GET /tasks/:id/diff - Get code diff (stub)
+ * GET /tasks/:id/diff - Get code diff for task worktree
  */
 router.get('/tasks/:id/diff', (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -441,12 +444,116 @@ router.get('/tasks/:id/diff', (req: Request, res: Response, next: NextFunction) 
       throw new NotFoundError('Task', taskId);
     }
 
-    // Stub response
+    // Get worktree for this task
+    const worktree = getWorktree(taskId);
+    if (!worktree) {
+      res.json({
+        success: true,
+        data: {
+          hasChanges: false,
+          filesChanged: [],
+          diff: '',
+        },
+      });
+      return;
+    }
+
+    // Get base branch from project config
+    const config = getProjectConfig(task.project_id);
+    const baseBranch = config?.default_pr_target_branch ?? 'main';
+
+    // Get changes and diff compared to base branch
+    const changes = getWorktreeChanges(worktree.path, baseBranch);
+    let diff = '';
+    if (changes.hasChanges) {
+      diff = getWorktreeDiff(worktree.path, baseBranch);
+    }
+
     res.json({
       success: true,
       data: {
-        diff: '',
+        hasChanges: changes.hasChanges,
+        filesChanged: changes.filesChanged,
+        insertions: changes.insertions,
+        deletions: changes.deletions,
+        diff,
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /tasks/:id/create-pr - Create PR for task
+ */
+router.post('/tasks/:id/create-pr', (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const taskId = parseInt(req.params['id']!, 10);
+
+    if (isNaN(taskId)) {
+      throw new ValidationError('Invalid task id');
+    }
+
+    const task = getTaskById(taskId);
+
+    if (!task) {
+      throw new NotFoundError('Task', taskId);
+    }
+
+    if (!userHasProjectAccess(task.project_id, req.userId!)) {
+      throw new NotFoundError('Task', taskId);
+    }
+
+    // Only allow PR creation for pending_review tasks
+    if (task.status !== 'pending_review') {
+      throw new ValidationError('Task must be in pending_review status to create PR');
+    }
+
+    // Create PR
+    const result = createTaskPR(taskId);
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /tasks/:id/approve - Approve task and mark as done
+ */
+router.post('/tasks/:id/approve', (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const taskId = parseInt(req.params['id']!, 10);
+
+    if (isNaN(taskId)) {
+      throw new ValidationError('Invalid task id');
+    }
+
+    const task = getTaskById(taskId);
+
+    if (!task) {
+      throw new NotFoundError('Task', taskId);
+    }
+
+    if (!userHasProjectAccess(task.project_id, req.userId!)) {
+      throw new NotFoundError('Task', taskId);
+    }
+
+    // Only allow approval of pending_review tasks
+    if (task.status !== 'pending_review') {
+      throw new ValidationError('Task must be in pending_review status to approve');
+    }
+
+    // Approve task
+    const result = approveTask(taskId);
+
+    res.json({
+      success: true,
+      data: result.task,
     });
   } catch (error) {
     next(error);

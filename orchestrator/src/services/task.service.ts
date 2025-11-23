@@ -17,6 +17,7 @@ export interface Task {
   github_issue_number: number | null;
   github_branch_name: string | null;
   github_pr_number: number | null;
+  github_pr_url: string | null;
   file_path: string | null;
   created_by_user_id: number;
   assigned_to_user_id: number | null;
@@ -59,6 +60,7 @@ export interface UpdateTaskInput {
   github_issue_number?: number | null;
   github_branch_name?: string | null;
   github_pr_number?: number | null;
+  github_pr_url?: string | null;
   file_path?: string | null;
 }
 
@@ -203,6 +205,7 @@ export function updateTask(id: number, input: UpdateTaskInput): Task {
     'github_issue_number',
     'github_branch_name',
     'github_pr_number',
+    'github_pr_url',
     'file_path',
   ];
 

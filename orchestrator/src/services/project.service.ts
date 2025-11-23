@@ -19,6 +19,7 @@ export interface ProjectConfig {
   workflow_template: string;
   workflow_config: string | null;
   approval_config: string | null;
+  default_pr_target_branch: string | null;
   created_at: string;
   updated_at: string;
 }

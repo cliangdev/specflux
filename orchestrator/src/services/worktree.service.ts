@@ -33,8 +33,14 @@ export function getWorktreeBaseDir(projectPath: string): string {
 
 /**
  * Create a git worktree for a task
+ * @param baseBranch - The branch to base the new branch on (defaults to 'main')
  */
-export function createWorktree(taskId: number, projectPath: string, branchName: string): Worktree {
+export function createWorktree(
+  taskId: number,
+  projectPath: string,
+  branchName: string,
+  baseBranch: string = 'main'
+): Worktree {
   // Check if worktree already exists for this task
   if (worktreeMap.has(taskId)) {
     throw new ValidationError(`Worktree already exists for task ${taskId}`);
@@ -78,6 +84,16 @@ export function createWorktree(taskId: number, projectPath: string, branchName: 
   }
 
   try {
+    // Fetch latest from remote to ensure we have the base branch
+    try {
+      execSync(`git fetch origin ${baseBranch}`, {
+        cwd: projectPath,
+        stdio: 'pipe',
+      });
+    } catch {
+      // Ignore fetch errors (might be offline or no remote)
+    }
+
     // Create the branch if it doesn't exist
     try {
       execSync(`git rev-parse --verify ${branchName}`, {
@@ -85,11 +101,15 @@ export function createWorktree(taskId: number, projectPath: string, branchName: 
         stdio: 'pipe',
       });
     } catch {
-      // Branch doesn't exist, create it from current HEAD
-      execSync(`git branch ${branchName}`, {
-        cwd: projectPath,
-        stdio: 'pipe',
-      });
+      // Branch doesn't exist, create it from base branch
+      execSync(
+        `git branch ${branchName} origin/${baseBranch} 2>/dev/null || git branch ${branchName} ${baseBranch}`,
+        {
+          cwd: projectPath,
+          stdio: 'pipe',
+          shell: '/bin/bash',
+        }
+      );
     }
 
     // Create the worktree
@@ -265,4 +285,113 @@ export function createWorktreeAsync(
  */
 export function clearWorktreeTracking(): void {
   worktreeMap.clear();
+}
+
+/**
+ * Clean up worktree after task completion
+ * Removes the worktree directory and prunes git worktree list
+ */
+export function cleanupWorktree(
+  taskId: number,
+  projectPath: string
+): { success: boolean; message: string } {
+  const worktree = worktreeMap.get(taskId);
+  const worktreePath =
+    worktree?.path ?? path.join(getWorktreeBaseDir(projectPath), `task-${taskId}`);
+
+  try {
+    if (fs.existsSync(worktreePath)) {
+      // Try to remove using git first
+      try {
+        execSync(`git worktree remove "${worktreePath}" --force`, {
+          cwd: projectPath,
+          stdio: 'pipe',
+        });
+      } catch {
+        // If git command fails, force remove the directory
+        fs.rmSync(worktreePath, { recursive: true, force: true });
+        execSync('git worktree prune', { cwd: projectPath, stdio: 'pipe' });
+      }
+    }
+
+    worktreeMap.delete(taskId);
+
+    return {
+      success: true,
+      message: `Cleaned up worktree for task ${taskId}`,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: `Failed to cleanup worktree: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    };
+  }
+}
+
+/**
+ * Clean up all stale worktrees for a project
+ * Called on app startup to remove orphaned worktrees
+ */
+export function cleanupStaleWorktrees(projectPath: string): { cleaned: number; errors: string[] } {
+  const worktreeBase = getWorktreeBaseDir(projectPath);
+  const cleaned: string[] = [];
+  const errors: string[] = [];
+
+  if (!fs.existsSync(worktreeBase)) {
+    return { cleaned: 0, errors: [] };
+  }
+
+  try {
+    // Get list of worktree directories
+    const dirs = fs.readdirSync(worktreeBase);
+
+    for (const dir of dirs) {
+      // Only process task-* directories
+      if (!dir.startsWith('task-')) continue;
+
+      const worktreePath = path.join(worktreeBase, dir);
+      const taskIdMatch = dir.match(/^task-(\d+)$/);
+      const taskId = taskIdMatch?.[1] ? parseInt(taskIdMatch[1], 10) : null;
+
+      // Check if this worktree is tracked in memory
+      if (taskId && worktreeMap.has(taskId)) {
+        continue; // Skip active worktrees
+      }
+
+      // Remove stale worktree
+      try {
+        execSync(`git worktree remove "${worktreePath}" --force`, {
+          cwd: projectPath,
+          stdio: 'pipe',
+        });
+        cleaned.push(dir);
+      } catch {
+        // Try force remove
+        try {
+          fs.rmSync(worktreePath, { recursive: true, force: true });
+          cleaned.push(dir);
+        } catch (e) {
+          errors.push(
+            `Failed to remove ${dir}: ${e instanceof Error ? e.message : 'Unknown error'}`
+          );
+        }
+      }
+    }
+
+    // Prune git worktree list
+    try {
+      execSync('git worktree prune', { cwd: projectPath, stdio: 'pipe' });
+    } catch {
+      // Ignore prune errors
+    }
+
+    return { cleaned: cleaned.length, errors };
+  } catch (error) {
+    return {
+      cleaned: 0,
+      errors: [
+        `Failed to scan worktrees: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      ],
+    };
+  }
 }

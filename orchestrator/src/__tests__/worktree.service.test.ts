@@ -27,6 +27,8 @@ describe('WorktreeService', () => {
     fs.writeFileSync(path.join(testRepoPath, 'README.md'), '# Test Repo');
     execSync('git add .', { cwd: testRepoPath, stdio: 'pipe' });
     execSync('git commit -m "Initial commit"', { cwd: testRepoPath, stdio: 'pipe' });
+    // Ensure we have a 'main' branch (required by createWorktree)
+    execSync('git branch -M main', { cwd: testRepoPath, stdio: 'pipe' });
   });
 
   afterAll(() => {
