@@ -15,7 +15,7 @@ import {
 import { userHasProjectAccess } from '../services/project.service';
 import { getWorktree } from '../services/worktree.service';
 import { getWorktreeChanges, getWorktreeDiff } from '../services/git-workflow.service';
-import { approveAndCreatePR } from '../services/agent.service';
+import { createTaskPR, approveTask } from '../services/agent.service';
 import { NotFoundError, ValidationError } from '../types';
 
 const router = Router();
@@ -481,9 +481,47 @@ router.get('/tasks/:id/diff', (req: Request, res: Response, next: NextFunction) 
 });
 
 /**
- * POST /tasks/:id/approve-and-pr - Approve task and create PR
+ * POST /tasks/:id/create-pr - Create PR for task
  */
-router.post('/tasks/:id/approve-and-pr', (req: Request, res: Response, next: NextFunction) => {
+router.post('/tasks/:id/create-pr', (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const taskId = parseInt(req.params['id']!, 10);
+
+    if (isNaN(taskId)) {
+      throw new ValidationError('Invalid task id');
+    }
+
+    const task = getTaskById(taskId);
+
+    if (!task) {
+      throw new NotFoundError('Task', taskId);
+    }
+
+    if (!userHasProjectAccess(task.project_id, req.userId!)) {
+      throw new NotFoundError('Task', taskId);
+    }
+
+    // Only allow PR creation for pending_review tasks
+    if (task.status !== 'pending_review') {
+      throw new ValidationError('Task must be in pending_review status to create PR');
+    }
+
+    // Create PR
+    const result = createTaskPR(taskId);
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /tasks/:id/approve - Approve task and mark as done
+ */
+router.post('/tasks/:id/approve', (req: Request, res: Response, next: NextFunction) => {
   try {
     const taskId = parseInt(req.params['id']!, 10);
 
@@ -506,12 +544,12 @@ router.post('/tasks/:id/approve-and-pr', (req: Request, res: Response, next: Nex
       throw new ValidationError('Task must be in pending_review status to approve');
     }
 
-    // Approve and create PR
-    const result = approveAndCreatePR(taskId);
+    // Approve task
+    const result = approveTask(taskId);
 
     res.json({
       success: true,
-      data: result,
+      data: result.task,
     });
   } catch (error) {
     next(error);

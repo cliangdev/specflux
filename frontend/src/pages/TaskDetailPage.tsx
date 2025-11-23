@@ -67,10 +67,9 @@ export default function TaskDetailPage() {
   const [agentLoading, setAgentLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [diffLoading, setDiffLoading] = useState(false);
+  const [createPRLoading, setCreatePRLoading] = useState(false);
   const [approveLoading, setApproveLoading] = useState(false);
-  const [approveResult, setApproveResult] = useState<ApproveAndPRResult | null>(
-    null,
-  );
+  const [prResult, setPRResult] = useState<ApproveAndPRResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchTask = useCallback(async () => {
@@ -133,20 +132,39 @@ export default function TaskDetailPage() {
     }
   }, [task?.status, fetchDiff]);
 
-  const handleApproveAndCreatePR = async () => {
+  const handleCreatePR = async () => {
+    if (!taskId) return;
+
+    try {
+      setCreatePRLoading(true);
+      setError(null);
+      const response = await api.tasks.createTaskPR({
+        id: Number(taskId),
+      });
+      setPRResult(response.data ?? null);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to create PR";
+      setError(message);
+      console.error("Failed to create PR:", err);
+    } finally {
+      setCreatePRLoading(false);
+    }
+  };
+
+  const handleApprove = async () => {
     if (!taskId) return;
 
     try {
       setApproveLoading(true);
       setError(null);
-      const response = await api.tasks.approveTaskAndCreatePR({
+      await api.tasks.approveTask({
         id: Number(taskId),
       });
-      setApproveResult(response.data ?? null);
-      fetchTask(); // Refresh task to get updated status
+      fetchTask(); // Refresh task to get updated status (should be 'done')
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Failed to approve and create PR";
+        err instanceof Error ? err.message : "Failed to approve task";
       setError(message);
       console.error("Failed to approve:", err);
     } finally {
@@ -496,22 +514,20 @@ export default function TaskDetailPage() {
                 Review & Approve
               </h3>
 
-              {/* PR Result */}
-              {approveResult && (
-                <div className="mb-3 p-3 bg-green-900/30 border border-green-700 rounded-lg">
-                  <p className="text-green-300 text-sm font-medium">
-                    Task approved!
+              {/* PR Link - shown after PR is created */}
+              {prResult?.prUrl && (
+                <div className="mb-3 p-3 bg-blue-900/30 border border-blue-700 rounded-lg">
+                  <p className="text-blue-300 text-sm font-medium">
+                    Pull Request Created
                   </p>
-                  {approveResult.prUrl && (
-                    <a
-                      href={approveResult.prUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-green-400 text-sm hover:underline"
-                    >
-                      View PR #{approveResult.prNumber}
-                    </a>
-                  )}
+                  <a
+                    href={prResult.prUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 text-sm hover:underline"
+                  >
+                    View PR #{prResult.prNumber} →
+                  </a>
                 </div>
               )}
 
@@ -549,53 +565,105 @@ export default function TaskDetailPage() {
                 </div>
               ) : null}
 
-              {/* Approve button */}
-              <button
-                onClick={handleApproveAndCreatePR}
-                disabled={approveLoading || !!approveResult}
-                className="w-full px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {approveLoading ? (
-                  <>
-                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                        fill="none"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                      />
-                    </svg>
-                    Approving...
-                  </>
-                ) : approveResult ? (
-                  "Approved"
-                ) : (
-                  <>
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                    Approve & Create PR
-                  </>
+              {/* Action buttons */}
+              <div className="flex gap-2">
+                {/* Create PR button - only show if PR not created yet and has changes */}
+                {!prResult?.prUrl && taskDiff?.hasChanges && (
+                  <button
+                    onClick={handleCreatePR}
+                    disabled={createPRLoading}
+                    className="flex-1 px-4 py-2 text-sm font-medium bg-gray-600 hover:bg-gray-500 text-white rounded transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {createPRLoading ? (
+                      <>
+                        <svg
+                          className="animate-spin w-4 h-4"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                            fill="none"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                          />
+                        </svg>
+                        Creating PR...
+                      </>
+                    ) : (
+                      <>
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
+                          />
+                        </svg>
+                        Create PR
+                      </>
+                    )}
+                  </button>
                 )}
-              </button>
+
+                {/* Approve button */}
+                <button
+                  onClick={handleApprove}
+                  disabled={approveLoading}
+                  className="flex-1 px-4 py-2 text-sm font-medium bg-green-600 hover:bg-green-700 text-white rounded transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {approveLoading ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                          fill="none"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                        />
+                      </svg>
+                      Approving...
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                      Approve
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           )}
         </div>

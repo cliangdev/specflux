@@ -104,8 +104,10 @@ paths:
     $ref: './paths/tasks.yaml#/tasks-id-diff'
   /tasks/{id}/review:
     $ref: './paths/tasks.yaml#/tasks-id-review'
-  /tasks/{id}/approve-and-pr:
-    $ref: './paths/tasks.yaml#/tasks-id-approve-and-pr'
+  /tasks/{id}/create-pr:
+    $ref: './paths/tasks.yaml#/tasks-id-create-pr'
+  /tasks/{id}/approve:
+    $ref: './paths/tasks.yaml#/tasks-id-approve'
 
   # Repositories (nested under projects)
   /projects/{id}/repositories:

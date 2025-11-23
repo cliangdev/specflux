@@ -669,11 +669,11 @@ tasks-id-review:
             schema:
               $ref: '../schemas/common.yaml#/Error'
 
-tasks-id-approve-and-pr:
+tasks-id-create-pr:
   post:
-    summary: Approve task and create PR
-    description: Approve a pending review task, commit changes, and create a pull request
-    operationId: approveTaskAndCreatePR
+    summary: Create PR for task
+    description: Commit changes and create a pull request for a task pending review
+    operationId: createTaskPR
     tags:
       - Tasks
     parameters:
@@ -685,7 +685,7 @@ tasks-id-approve-and-pr:
         description: Task ID
     responses:
       '200':
-        description: Task approved and PR created
+        description: PR created
         content:
           application/json:
             schema:
@@ -695,6 +695,48 @@ tasks-id-approve-and-pr:
                   type: boolean
                 data:
                   $ref: '../schemas/task.yaml#/ApproveAndPRResult'
+              required:
+                - success
+                - data
+      '400':
+        description: Task not in pending_review status or no changes
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+      '404':
+        description: Task not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+tasks-id-approve:
+  post:
+    summary: Approve task
+    description: Approve a task and mark it as done
+    operationId: approveTask
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Task ID
+    responses:
+      '200':
+        description: Task approved
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/task.yaml#/Task'
               required:
                 - success
                 - data

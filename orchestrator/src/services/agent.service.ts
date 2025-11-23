@@ -596,10 +596,10 @@ function handleAgentCompletion(
 }
 
 /**
- * Manually approve task and trigger commit/PR creation
- * Called when user approves a task in pending_review status
+ * Create PR for a task (without approving/completing it)
+ * Called when user wants to create a PR for code review
  */
-export function approveAndCreatePR(taskId: number): CompletionResult {
+export function createTaskPR(taskId: number): CompletionResult {
   const task = getTaskById(taskId);
   if (!task) {
     throw new NotFoundError('Task', taskId);
@@ -625,32 +625,59 @@ export function approveAndCreatePR(taskId: number): CompletionResult {
     worktreeCleaned: false,
   };
 
+  if (!worktree) {
+    throw new ValidationError('No worktree found for task - nothing to commit');
+  }
+
   // Check for changes
+  const changes = getWorktreeChanges(worktree.path);
+  result.hasChanges = changes.hasChanges;
+  result.changes = changes;
+
+  if (!changes.hasChanges) {
+    throw new ValidationError('No changes to commit');
+  }
+
+  // Commit and create PR
+  const prResult = commitAndCreatePR(taskId);
+  result.commitHash = prResult.commit.commitHash;
+  result.prCreated = prResult.pr.success;
+  result.prUrl = prResult.pr.prUrl;
+  result.prNumber = prResult.pr.prNumber;
+
+  // Update task with PR number (but keep status as pending_review)
+  if (result.prNumber) {
+    updateTask(taskId, {
+      github_pr_number: result.prNumber,
+    });
+  }
+
+  return result;
+}
+
+/**
+ * Approve a task and mark it as done
+ * Optionally cleans up the worktree
+ */
+export function approveTask(taskId: number): { task: ReturnType<typeof getTaskById> } {
+  const task = getTaskById(taskId);
+  if (!task) {
+    throw new NotFoundError('Task', taskId);
+  }
+
+  const project = getProjectById(task.project_id);
+  if (!project) {
+    throw new NotFoundError('Project', task.project_id);
+  }
+
+  // Clean up worktree if exists
+  const worktree = getWorktree(taskId);
   if (worktree) {
-    const changes = getWorktreeChanges(worktree.path);
-    result.hasChanges = changes.hasChanges;
-    result.changes = changes;
-
-    if (changes.hasChanges) {
-      // Commit and create PR
-      const prResult = commitAndCreatePR(taskId);
-      result.commitHash = prResult.commit.commitHash;
-      result.prCreated = prResult.pr.success;
-      result.prUrl = prResult.pr.prUrl;
-      result.prNumber = prResult.pr.prNumber;
-    }
-
-    // Clean up worktree
-    const cleanup = cleanupWorktree(taskId, project.local_path);
-    result.worktreeCleaned = cleanup.success;
+    cleanupWorktree(taskId, project.local_path);
   }
 
   // Update task to done
-  updateTask(taskId, {
-    status: 'done',
-    github_pr_number: result.prNumber ?? undefined,
-  });
-  result.taskStatus = 'done';
+  const updatedTask = updateTask(taskId, { status: 'done' });
 
-  return result;
+  return { task: updatedTask };
 }
