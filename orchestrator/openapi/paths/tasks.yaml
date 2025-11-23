@@ -752,3 +752,39 @@ tasks-id-approve:
           application/json:
             schema:
               $ref: '../schemas/common.yaml#/Error'
+
+tasks-id-file-changes:
+  get:
+    summary: Get file changes for task
+    description: Get tracked file changes recorded during agent execution for a task
+    operationId: getTaskFileChanges
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Task ID
+    responses:
+      '200':
+        description: Task file changes
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/task.yaml#/TaskFileChangesResponse'
+              required:
+                - success
+                - data
+      '404':
+        description: Task not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'

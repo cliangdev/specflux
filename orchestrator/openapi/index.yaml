@@ -108,6 +108,8 @@ paths:
     $ref: './paths/tasks.yaml#/tasks-id-create-pr'
   /tasks/{id}/approve:
     $ref: './paths/tasks.yaml#/tasks-id-approve'
+  /tasks/{id}/file-changes:
+    $ref: './paths/tasks.yaml#/tasks-id-file-changes'
 
   # Repositories (nested under projects)
   /projects/{id}/repositories:

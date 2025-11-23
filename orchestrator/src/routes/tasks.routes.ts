@@ -16,6 +16,7 @@ import { userHasProjectAccess, getProjectConfig } from '../services/project.serv
 import { getWorktree } from '../services/worktree.service';
 import { getWorktreeChanges, getWorktreeDiff } from '../services/git-workflow.service';
 import { createTaskPR, approveTask } from '../services/agent.service';
+import { getFileChangesForTask, getFileChangeSummary } from '../services/file-tracking.service';
 import { NotFoundError, ValidationError } from '../types';
 
 const router = Router();
@@ -487,7 +488,7 @@ router.get('/tasks/:id/diff', (req: Request, res: Response, next: NextFunction) 
 /**
  * POST /tasks/:id/create-pr - Create PR for task
  */
-router.post('/tasks/:id/create-pr', (req: Request, res: Response, next: NextFunction) => {
+router.post('/tasks/:id/create-pr', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const taskId = parseInt(req.params['id']!, 10);
 
@@ -511,7 +512,7 @@ router.post('/tasks/:id/create-pr', (req: Request, res: Response, next: NextFunc
     }
 
     // Create PR
-    const result = createTaskPR(taskId);
+    const result = await createTaskPR(taskId);
 
     res.json({
       success: true,
@@ -554,6 +555,43 @@ router.post('/tasks/:id/approve', (req: Request, res: Response, next: NextFuncti
     res.json({
       success: true,
       data: result.task,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /tasks/:id/file-changes - Get tracked file changes for a task
+ * Returns all file changes recorded during agent sessions
+ */
+router.get('/tasks/:id/file-changes', (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const taskId = parseInt(req.params['id']!, 10);
+
+    if (isNaN(taskId)) {
+      throw new ValidationError('Invalid task id');
+    }
+
+    const task = getTaskById(taskId);
+
+    if (!task) {
+      throw new NotFoundError('Task', taskId);
+    }
+
+    if (!userHasProjectAccess(task.project_id, req.userId!)) {
+      throw new NotFoundError('Task', taskId);
+    }
+
+    const fileChanges = getFileChangesForTask(taskId);
+    const summary = getFileChangeSummary(taskId);
+
+    res.json({
+      success: true,
+      data: {
+        changes: fileChanges,
+        summary,
+      },
     });
   } catch (error) {
     next(error);

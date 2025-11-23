@@ -1078,31 +1078,31 @@ const tasks = await projectsApi.getProjectTasks({ id: 1 });
 ### Week 4: Progress Tracking & File Watching
 
 #### Progress Tracking
-- [ ] Implement terminal output parser
-  - [ ] Detect "Created file: X" patterns
-  - [ ] Detect "Test passed/failed" patterns
-  - [ ] Calculate progress percentage
-- [ ] Update task status automatically
-  - [ ] In Progress when agent starts
-  - [ ] Progress % based on terminal output
-- [ ] File change tracking
-  - [ ] Watch repository directories
-  - [ ] Log file modifications
-  - [ ] Display in UI
+- [x] Implement terminal output parser
+  - [x] Detect "Created file: X" patterns
+  - [x] Detect "Test passed/failed" patterns
+  - [x] Calculate progress percentage
+- [x] Update task status automatically
+  - [x] In Progress when agent starts
+  - [x] Progress % based on terminal output
+- [x] File change tracking
+  - [x] Track file modifications in database
+  - [x] Log file modifications
+  - [x] Display in UI (FileChangesPanel in task detail)
 
 #### Worktree Lifecycle Management
-- [ ] Auto-commit changes in worktree on completion
-- [ ] Create PR or merge back to main
-- [ ] Auto-cleanup worktrees after task completion
-- [ ] Handle worktree errors gracefully
+- [x] Auto-commit changes in worktree on completion
+- [x] Create PR via GitHub REST API (with fallback to gh CLI and manual URL)
+- [x] Auto-cleanup worktrees after task completion
+- [x] Handle worktree errors gracefully
 - [ ] Cleanup stale worktrees on startup
 
 #### Agent Context Files
-- [ ] Auto-generate task context files
-  - [ ] Include PRD reference
-  - [ ] Include Epic reference
-  - [ ] Include acceptance criteria
-- [ ] Store in `.specflux/tasks/` directory
+- [x] Auto-generate task context files
+  - [x] Include PRD reference
+  - [x] Include Epic reference
+  - [x] Include task description and dependencies
+- [x] Store in `.specflux/` and `CLAUDE.md` for Claude Code
 
 **Testing:**
 - [ ] Run Claude Code on real task

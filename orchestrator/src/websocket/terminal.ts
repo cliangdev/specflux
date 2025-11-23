@@ -93,9 +93,61 @@ function handleConnection(ws: WebSocket, taskId: number): void {
     }
   };
 
+  // Handle progress updates
+  const progressHandler = (event: { taskId: number; progress: number }) => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(
+        JSON.stringify({
+          type: 'progress',
+          progress: event.progress,
+        })
+      );
+    }
+  };
+
+  // Handle file change events
+  const fileChangeHandler = (event: {
+    taskId: number;
+    sessionId: number;
+    action: string;
+    filePath: string;
+  }) => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(
+        JSON.stringify({
+          type: 'file-change',
+          action: event.action,
+          filePath: event.filePath,
+        })
+      );
+    }
+  };
+
+  // Handle test result events
+  const testResultHandler = (event: {
+    taskId: number;
+    passed: number;
+    failed: number;
+    total: number;
+  }) => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(
+        JSON.stringify({
+          type: 'test-result',
+          passed: event.passed,
+          failed: event.failed,
+          total: event.total,
+        })
+      );
+    }
+  };
+
   if (emitter) {
     emitter.on('data', dataHandler);
     emitter.on('exit', exitHandler);
+    emitter.on('progress', progressHandler);
+    emitter.on('file-change', fileChangeHandler);
+    emitter.on('test-result', testResultHandler);
   }
 
   // Handle incoming messages
@@ -126,6 +178,9 @@ function handleConnection(ws: WebSocket, taskId: number): void {
     if (emitter) {
       emitter.off('data', dataHandler);
       emitter.off('exit', exitHandler);
+      emitter.off('progress', progressHandler);
+      emitter.off('file-change', fileChangeHandler);
+      emitter.off('test-result', testResultHandler);
     }
   });
 

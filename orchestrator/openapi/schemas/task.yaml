@@ -278,3 +278,65 @@ ReviewRequest:
       description: Required when decision is request_changes
   required:
     - decision
+
+TrackedFileChange:
+  type: object
+  description: A file change tracked during agent execution
+  properties:
+    id:
+      type: integer
+    taskId:
+      type: integer
+    sessionId:
+      type: integer
+      nullable: true
+    filePath:
+      type: string
+      description: Path of the changed file relative to repository root
+    changeType:
+      type: string
+      enum: [created, modified, deleted]
+    diffSummary:
+      type: string
+      nullable: true
+      description: Summary of the changes made to this file
+    createdAt:
+      type: string
+      format: date-time
+  required:
+    - id
+    - taskId
+    - filePath
+    - changeType
+    - createdAt
+
+FileChangeSummary:
+  type: object
+  description: Summary of file changes for a task
+  properties:
+    total:
+      type: integer
+    created:
+      type: integer
+    modified:
+      type: integer
+    deleted:
+      type: integer
+  required:
+    - total
+    - created
+    - modified
+    - deleted
+
+TaskFileChangesResponse:
+  type: object
+  properties:
+    changes:
+      type: array
+      items:
+        $ref: '#/TrackedFileChange'
+    summary:
+      $ref: '#/FileChangeSummary'
+  required:
+    - changes
+    - summary
