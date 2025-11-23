@@ -192,9 +192,16 @@ export default function TaskDetailPage() {
     (running: boolean) => {
       if (running !== isAgentRunning) {
         fetchAgentStatus();
+        // When agent stops, refresh task to get updated status (e.g., pending_review)
+        if (!running) {
+          // Small delay to allow backend to process completion
+          setTimeout(() => {
+            fetchTask();
+          }, 500);
+        }
       }
     },
-    [isAgentRunning, fetchAgentStatus],
+    [isAgentRunning, fetchAgentStatus, fetchTask],
   );
 
   if (loading) {
@@ -484,7 +491,7 @@ export default function TaskDetailPage() {
 
           {/* Review Section - shown when pending_review */}
           {task.status === "pending_review" && (
-            <div className="pt-4 border-t border-gray-700">
+            <div className="mt-6 pt-4 border-t border-gray-700">
               <h3 className="text-sm font-medium text-gray-400 mb-3">
                 Review & Approve
               </h3>

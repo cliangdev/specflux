@@ -5,7 +5,7 @@ import path from 'path';
 import { getDatabase } from '../db';
 import { NotFoundError, ValidationError } from '../types';
 import { getTaskById, updateTask } from './task.service';
-import { getProjectById } from './project.service';
+import { getProjectById, getProjectConfig } from './project.service';
 import {
   createWorktree,
   removeWorktree,
@@ -253,8 +253,12 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
   const branchName = generateBranchName(taskId, task.title);
   let worktreePath: string | null = null;
 
+  // Get base branch from project config
+  const projectConfig = getProjectConfig(project.id);
+  const baseBranch = projectConfig?.default_pr_target_branch ?? 'main';
+
   try {
-    const worktree = createWorktree(taskId, project.local_path, branchName);
+    const worktree = createWorktree(taskId, project.local_path, branchName, baseBranch);
     worktreePath = worktree.path;
   } catch (error) {
     // Check if worktree already exists

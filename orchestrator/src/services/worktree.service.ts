@@ -33,8 +33,14 @@ export function getWorktreeBaseDir(projectPath: string): string {
 
 /**
  * Create a git worktree for a task
+ * @param baseBranch - The branch to base the new branch on (defaults to 'main')
  */
-export function createWorktree(taskId: number, projectPath: string, branchName: string): Worktree {
+export function createWorktree(
+  taskId: number,
+  projectPath: string,
+  branchName: string,
+  baseBranch: string = 'main'
+): Worktree {
   // Check if worktree already exists for this task
   if (worktreeMap.has(taskId)) {
     throw new ValidationError(`Worktree already exists for task ${taskId}`);
@@ -78,6 +84,16 @@ export function createWorktree(taskId: number, projectPath: string, branchName: 
   }
 
   try {
+    // Fetch latest from remote to ensure we have the base branch
+    try {
+      execSync(`git fetch origin ${baseBranch}`, {
+        cwd: projectPath,
+        stdio: 'pipe',
+      });
+    } catch {
+      // Ignore fetch errors (might be offline or no remote)
+    }
+
     // Create the branch if it doesn't exist
     try {
       execSync(`git rev-parse --verify ${branchName}`, {
@@ -85,11 +101,15 @@ export function createWorktree(taskId: number, projectPath: string, branchName: 
         stdio: 'pipe',
       });
     } catch {
-      // Branch doesn't exist, create it from current HEAD
-      execSync(`git branch ${branchName}`, {
-        cwd: projectPath,
-        stdio: 'pipe',
-      });
+      // Branch doesn't exist, create it from base branch
+      execSync(
+        `git branch ${branchName} origin/${baseBranch} 2>/dev/null || git branch ${branchName} ${baseBranch}`,
+        {
+          cwd: projectPath,
+          stdio: 'pipe',
+          shell: '/bin/bash',
+        }
+      );
     }
 
     // Create the worktree
