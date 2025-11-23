@@ -11,8 +11,10 @@ import {
   removeWorktree,
   getWorktree,
   generateBranchName,
+  cleanupWorktree,
 } from './worktree.service';
 import { writeContextFile } from './context.service';
+import { getWorktreeChanges, commitAndCreatePR, WorktreeChanges } from './git-workflow.service';
 
 export interface AgentSession {
   id: number;
@@ -333,18 +335,25 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
     ptyProcess.onExit(({ exitCode }) => {
       runningAgents.delete(taskId);
 
-      const status: AgentSession['status'] = exitCode === 0 ? 'completed' : 'failed';
+      const sessionStatus: AgentSession['status'] = exitCode === 0 ? 'completed' : 'failed';
       updateAgentSession(sessionId, {
-        status,
+        status: sessionStatus,
         ended_at: new Date().toISOString(),
         exit_code: exitCode,
       });
 
-      // Update task status
-      if (exitCode === 0) {
-        updateTask(taskId, { status: 'pending_review' });
-      } else {
-        updateTask(taskId, { status: 'ready' }); // Back to ready on failure
+      // Handle completion flow
+      try {
+        const completionResult = handleAgentCompletion(
+          taskId,
+          exitCode,
+          worktreePath,
+          project.local_path,
+          task.requires_approval
+        );
+        emitter.emit('completion', completionResult);
+      } catch (error) {
+        emitter.emit('completion-error', error);
       }
 
       emitter.emit('exit', exitCode);
@@ -469,4 +478,175 @@ export function cleanupStaleSessions(): void {
          error_message = 'Server restart - session interrupted'
      WHERE status IN ('starting', 'running', 'stopping')`
   ).run();
+}
+
+/**
+ * Completion flow result
+ */
+export interface CompletionResult {
+  taskId: number;
+  exitCode: number;
+  hasChanges: boolean;
+  changes: WorktreeChanges | null;
+  requiresApproval: boolean;
+  taskStatus: string;
+  prCreated: boolean;
+  prUrl: string | null;
+  prNumber: number | null;
+  commitHash: string | null;
+  worktreeCleaned: boolean;
+}
+
+/**
+ * Handle agent completion - determines task status based on changes and approval settings
+ */
+function handleAgentCompletion(
+  taskId: number,
+  exitCode: number,
+  worktreePath: string | null,
+  projectPath: string,
+  requiresApproval: boolean
+): CompletionResult {
+  const result: CompletionResult = {
+    taskId,
+    exitCode,
+    hasChanges: false,
+    changes: null,
+    requiresApproval,
+    taskStatus: 'ready',
+    prCreated: false,
+    prUrl: null,
+    prNumber: null,
+    commitHash: null,
+    worktreeCleaned: false,
+  };
+
+  // If agent failed, set task back to ready
+  if (exitCode !== 0) {
+    updateTask(taskId, { status: 'ready' });
+    result.taskStatus = 'ready';
+    return result;
+  }
+
+  // Check for changes in worktree
+  if (worktreePath) {
+    try {
+      const changes = getWorktreeChanges(worktreePath);
+      result.hasChanges = changes.hasChanges;
+      result.changes = changes;
+    } catch {
+      // If we can't check changes, assume no changes
+      result.hasChanges = false;
+    }
+  }
+
+  // Determine flow based on changes and approval setting
+  if (result.hasChanges) {
+    if (requiresApproval) {
+      // Has changes + needs approval -> pending_review
+      // User will review and trigger commit/PR manually
+      updateTask(taskId, { status: 'pending_review' });
+      result.taskStatus = 'pending_review';
+    } else {
+      // Has changes + no approval -> auto commit and create PR
+      try {
+        const prResult = commitAndCreatePR(taskId);
+        result.commitHash = prResult.commit.commitHash;
+        result.prCreated = prResult.pr.success;
+        result.prUrl = prResult.pr.prUrl;
+        result.prNumber = prResult.pr.prNumber;
+
+        // Clean up worktree after PR created
+        const cleanup = cleanupWorktree(taskId, projectPath);
+        result.worktreeCleaned = cleanup.success;
+
+        updateTask(taskId, {
+          status: 'done',
+          github_pr_number: result.prNumber ?? undefined,
+        });
+        result.taskStatus = 'done';
+      } catch {
+        // If PR creation fails, move to pending_review for manual handling
+        updateTask(taskId, { status: 'pending_review' });
+        result.taskStatus = 'pending_review';
+      }
+    }
+  } else {
+    // No changes
+    if (requiresApproval) {
+      // No changes + needs approval -> pending_review (user confirms completion)
+      updateTask(taskId, { status: 'pending_review' });
+      result.taskStatus = 'pending_review';
+    } else {
+      // No changes + no approval -> done
+      // Clean up worktree
+      const cleanup = cleanupWorktree(taskId, projectPath);
+      result.worktreeCleaned = cleanup.success;
+
+      updateTask(taskId, { status: 'done' });
+      result.taskStatus = 'done';
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Manually approve task and trigger commit/PR creation
+ * Called when user approves a task in pending_review status
+ */
+export function approveAndCreatePR(taskId: number): CompletionResult {
+  const task = getTaskById(taskId);
+  if (!task) {
+    throw new NotFoundError('Task', taskId);
+  }
+
+  const project = getProjectById(task.project_id);
+  if (!project) {
+    throw new NotFoundError('Project', task.project_id);
+  }
+
+  const worktree = getWorktree(taskId);
+  const result: CompletionResult = {
+    taskId,
+    exitCode: 0,
+    hasChanges: false,
+    changes: null,
+    requiresApproval: task.requires_approval,
+    taskStatus: task.status,
+    prCreated: false,
+    prUrl: null,
+    prNumber: null,
+    commitHash: null,
+    worktreeCleaned: false,
+  };
+
+  // Check for changes
+  if (worktree) {
+    const changes = getWorktreeChanges(worktree.path);
+    result.hasChanges = changes.hasChanges;
+    result.changes = changes;
+
+    if (changes.hasChanges) {
+      // Commit and create PR
+      const prResult = commitAndCreatePR(taskId);
+      result.commitHash = prResult.commit.commitHash;
+      result.prCreated = prResult.pr.success;
+      result.prUrl = prResult.pr.prUrl;
+      result.prNumber = prResult.pr.prNumber;
+    }
+
+    // Clean up worktree
+    const cleanup = cleanupWorktree(taskId, project.local_path);
+    result.worktreeCleaned = cleanup.success;
+  }
+
+  // Update task to done
+  updateTask(taskId, {
+    status: 'done',
+    github_pr_number: result.prNumber ?? undefined,
+  });
+  result.taskStatus = 'done';
+
+  return result;
 }

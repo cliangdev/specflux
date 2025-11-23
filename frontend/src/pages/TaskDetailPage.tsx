@@ -4,6 +4,8 @@ import {
   api,
   type Task,
   type AgentStatus,
+  type TaskDiff,
+  type ApproveAndPRResult,
   ControlTaskAgentRequestActionEnum,
   AgentStatusStatusEnum,
 } from "../api";
@@ -60,9 +62,15 @@ export default function TaskDetailPage() {
 
   const [task, setTask] = useState<Task | null>(null);
   const [agentStatus, setAgentStatus] = useState<AgentStatus | null>(null);
+  const [taskDiff, setTaskDiff] = useState<TaskDiff | null>(null);
   const [loading, setLoading] = useState(true);
   const [agentLoading, setAgentLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [diffLoading, setDiffLoading] = useState(false);
+  const [approveLoading, setApproveLoading] = useState(false);
+  const [approveResult, setApproveResult] = useState<ApproveAndPRResult | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
 
   const fetchTask = useCallback(async () => {
@@ -99,10 +107,52 @@ export default function TaskDetailPage() {
     }
   }, [taskId]);
 
+  const fetchDiff = useCallback(async () => {
+    if (!taskId) return;
+
+    try {
+      setDiffLoading(true);
+      const response = await api.tasks.getTaskDiff({ id: Number(taskId) });
+      setTaskDiff(response.data ?? null);
+    } catch (err) {
+      console.error("Failed to fetch diff:", err);
+    } finally {
+      setDiffLoading(false);
+    }
+  }, [taskId]);
+
   useEffect(() => {
     fetchTask();
     fetchAgentStatus();
   }, [fetchTask, fetchAgentStatus]);
+
+  // Fetch diff when task is in pending_review
+  useEffect(() => {
+    if (task?.status === "pending_review") {
+      fetchDiff();
+    }
+  }, [task?.status, fetchDiff]);
+
+  const handleApproveAndCreatePR = async () => {
+    if (!taskId) return;
+
+    try {
+      setApproveLoading(true);
+      setError(null);
+      const response = await api.tasks.approveTaskAndCreatePR({
+        id: Number(taskId),
+      });
+      setApproveResult(response.data ?? null);
+      fetchTask(); // Refresh task to get updated status
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to approve and create PR";
+      setError(message);
+      console.error("Failed to approve:", err);
+    } finally {
+      setApproveLoading(false);
+    }
+  };
 
   const handleAgentAction = async (
     action: ControlTaskAgentRequestActionEnum,
@@ -431,6 +481,116 @@ export default function TaskDetailPage() {
               )}
             </div>
           </div>
+
+          {/* Review Section - shown when pending_review */}
+          {task.status === "pending_review" && (
+            <div className="pt-4 border-t border-gray-700">
+              <h3 className="text-sm font-medium text-gray-400 mb-3">
+                Review & Approve
+              </h3>
+
+              {/* PR Result */}
+              {approveResult && (
+                <div className="mb-3 p-3 bg-green-900/30 border border-green-700 rounded-lg">
+                  <p className="text-green-300 text-sm font-medium">
+                    Task approved!
+                  </p>
+                  {approveResult.prUrl && (
+                    <a
+                      href={approveResult.prUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-green-400 text-sm hover:underline"
+                    >
+                      View PR #{approveResult.prNumber}
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {/* Changes info */}
+              {diffLoading ? (
+                <p className="text-gray-500 text-sm">Loading changes...</p>
+              ) : taskDiff ? (
+                <div className="mb-3">
+                  {taskDiff.hasChanges ? (
+                    <>
+                      <p className="text-sm text-gray-300 mb-2">
+                        {taskDiff.filesChanged?.length ?? 0} file(s) changed
+                        {taskDiff.insertions !== undefined && (
+                          <span className="text-green-400 ml-2">
+                            +{taskDiff.insertions}
+                          </span>
+                        )}
+                        {taskDiff.deletions !== undefined && (
+                          <span className="text-red-400 ml-1">
+                            -{taskDiff.deletions}
+                          </span>
+                        )}
+                      </p>
+                      <ul className="text-xs text-gray-400 space-y-1 max-h-24 overflow-y-auto">
+                        {taskDiff.filesChanged?.map((file, i) => (
+                          <li key={i} className="truncate">
+                            {file}
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-400">No changes detected</p>
+                  )}
+                </div>
+              ) : null}
+
+              {/* Approve button */}
+              <button
+                onClick={handleApproveAndCreatePR}
+                disabled={approveLoading || !!approveResult}
+                className="w-full px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {approveLoading ? (
+                  <>
+                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        fill="none"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      />
+                    </svg>
+                    Approving...
+                  </>
+                ) : approveResult ? (
+                  "Approved"
+                ) : (
+                  <>
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                    Approve & Create PR
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Right Panel - Terminal */}

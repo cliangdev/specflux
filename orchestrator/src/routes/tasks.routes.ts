@@ -13,6 +13,9 @@ import {
   isTaskBlocked,
 } from '../services/task.service';
 import { userHasProjectAccess } from '../services/project.service';
+import { getWorktree } from '../services/worktree.service';
+import { getWorktreeChanges, getWorktreeDiff } from '../services/git-workflow.service';
+import { approveAndCreatePR } from '../services/agent.service';
 import { NotFoundError, ValidationError } from '../types';
 
 const router = Router();
@@ -421,7 +424,7 @@ router.get('/tasks/:id/changes', (req: Request, res: Response, next: NextFunctio
 });
 
 /**
- * GET /tasks/:id/diff - Get code diff (stub)
+ * GET /tasks/:id/diff - Get code diff for task worktree
  */
 router.get('/tasks/:id/diff', (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -441,12 +444,74 @@ router.get('/tasks/:id/diff', (req: Request, res: Response, next: NextFunction) 
       throw new NotFoundError('Task', taskId);
     }
 
-    // Stub response
+    // Get worktree for this task
+    const worktree = getWorktree(taskId);
+    if (!worktree) {
+      res.json({
+        success: true,
+        data: {
+          hasChanges: false,
+          filesChanged: [],
+          diff: '',
+        },
+      });
+      return;
+    }
+
+    // Get changes and diff
+    const changes = getWorktreeChanges(worktree.path);
+    let diff = '';
+    if (changes.hasChanges) {
+      diff = getWorktreeDiff(worktree.path);
+    }
+
     res.json({
       success: true,
       data: {
-        diff: '',
+        hasChanges: changes.hasChanges,
+        filesChanged: changes.filesChanged,
+        insertions: changes.insertions,
+        deletions: changes.deletions,
+        diff,
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /tasks/:id/approve-and-pr - Approve task and create PR
+ */
+router.post('/tasks/:id/approve-and-pr', (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const taskId = parseInt(req.params['id']!, 10);
+
+    if (isNaN(taskId)) {
+      throw new ValidationError('Invalid task id');
+    }
+
+    const task = getTaskById(taskId);
+
+    if (!task) {
+      throw new NotFoundError('Task', taskId);
+    }
+
+    if (!userHasProjectAccess(task.project_id, req.userId!)) {
+      throw new NotFoundError('Task', taskId);
+    }
+
+    // Only allow approval of pending_review tasks
+    if (task.status !== 'pending_review') {
+      throw new ValidationError('Task must be in pending_review status to approve');
+    }
+
+    // Approve and create PR
+    const result = approveAndCreatePR(taskId);
+
+    res.json({
+      success: true,
+      data: result,
     });
   } catch (error) {
     next(error);

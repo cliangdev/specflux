@@ -208,42 +208,60 @@ FileChange:
 TaskDiff:
   type: object
   properties:
-    task_id:
-      type: integer
-    summary:
-      type: object
-      properties:
-        files_changed:
-          type: integer
-        lines_added:
-          type: integer
-        lines_removed:
-          type: integer
-      required:
-        - files_changed
-        - lines_added
-        - lines_removed
-    files:
+    hasChanges:
+      type: boolean
+      description: Whether the task worktree has uncommitted changes
+    filesChanged:
       type: array
       items:
-        type: object
-        properties:
-          path:
-            type: string
-          status:
-            type: string
-            enum: [added, modified, deleted, renamed]
-          diff:
-            type: string
-            description: Unified diff format
-        required:
-          - path
-          - status
-          - diff
+        type: string
+      description: List of changed file paths
+    insertions:
+      type: integer
+      description: Number of lines added
+    deletions:
+      type: integer
+      description: Number of lines removed
+    diff:
+      type: string
+      description: Unified diff of all changes
   required:
-    - task_id
-    - summary
-    - files
+    - hasChanges
+    - filesChanged
+    - diff
+
+ApproveAndPRResult:
+  type: object
+  properties:
+    taskId:
+      type: integer
+    exitCode:
+      type: integer
+    hasChanges:
+      type: boolean
+    requiresApproval:
+      type: boolean
+    taskStatus:
+      type: string
+    prCreated:
+      type: boolean
+    prUrl:
+      type: string
+      nullable: true
+    prNumber:
+      type: integer
+      nullable: true
+    commitHash:
+      type: string
+      nullable: true
+    worktreeCleaned:
+      type: boolean
+  required:
+    - taskId
+    - hasChanges
+    - taskStatus
+    - prCreated
+    - worktreeCleaned
 
 ReviewRequest:
   type: object

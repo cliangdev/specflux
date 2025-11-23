@@ -55,6 +55,8 @@ FileChange:
   $ref: './task.yaml#/FileChange'
 TaskDiff:
   $ref: './task.yaml#/TaskDiff'
+ApproveAndPRResult:
+  $ref: './task.yaml#/ApproveAndPRResult'
 ReviewRequest:
   $ref: './task.yaml#/ReviewRequest'
 
