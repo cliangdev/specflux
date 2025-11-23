@@ -1,9 +1,127 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
-    Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+@layer base {
+  html {
+    @apply font-sans antialiased;
+  }
+
+  body {
+    @apply m-0 bg-system-50 text-system-900 dark:bg-system-950 dark:text-system-100;
+    @apply transition-colors duration-200;
+  }
+}
+
+@layer components {
+  /* Custom scrollbar styles */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: theme('colors.system.300') transparent;
+  }
+
+  .dark .scrollbar-thin {
+    scrollbar-color: theme('colors.system.700') transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-system-300 dark:bg-system-700 rounded-full;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    @apply bg-system-400 dark:bg-system-600;
+  }
+
+  /* Status badge styles */
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full;
+  }
+
+  .badge-todo {
+    @apply bg-system-100 text-system-600 dark:bg-system-800 dark:text-system-400;
+  }
+
+  .badge-in-progress {
+    @apply bg-brand-100 text-brand-700 dark:bg-brand-900/50 dark:text-brand-400;
+  }
+
+  .badge-pending-review {
+    @apply bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400;
+  }
+
+  .badge-done {
+    @apply bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400;
+  }
+
+  .badge-blocked {
+    @apply bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400;
+  }
+
+  /* Card styles */
+  .card {
+    @apply bg-white dark:bg-system-900 rounded-lg border border-system-200 dark:border-system-800;
+    @apply shadow-sm;
+  }
+
+  /* Button styles */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg;
+    @apply transition-colors duration-150 whitespace-nowrap;
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-system-900;
+  }
+
+  .btn-primary {
+    @apply bg-brand-600 text-white hover:bg-brand-700;
+    @apply focus:ring-brand-500 shadow-sm;
+  }
+
+  .btn-secondary {
+    @apply bg-system-100 text-system-700 hover:bg-system-200;
+    @apply dark:bg-system-800 dark:text-system-300 dark:hover:bg-system-700;
+    @apply focus:ring-system-500;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent text-system-600 hover:bg-system-100;
+    @apply dark:text-system-400 dark:hover:bg-system-800;
+  }
+
+  /* Input styles */
+  .input {
+    @apply w-full px-3 py-2 text-sm rounded-lg border;
+    @apply bg-white dark:bg-system-800;
+    @apply border-system-200 dark:border-system-700;
+    @apply text-system-900 dark:text-system-100;
+    @apply placeholder:text-system-400 dark:placeholder:text-system-500;
+    @apply focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent;
+  }
+
+  /* Select styles - improved for dark mode */
+  .select {
+    @apply px-3 py-2 text-sm rounded-lg border appearance-none cursor-pointer;
+    @apply bg-white dark:bg-system-800;
+    @apply border-system-200 dark:border-system-700;
+    @apply text-system-900 dark:text-system-100;
+    @apply focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent;
+    @apply pr-8;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+  }
+
+  .dark .select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  }
 }

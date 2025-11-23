@@ -11,7 +11,7 @@ export default function NotificationBell({ count = 0 }: NotificationBellProps) {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-400 hover:text-white rounded-lg hover:bg-gray-700 transition-colors"
+        className="relative p-2 text-system-500 dark:text-system-400 hover:text-system-700 dark:hover:text-white rounded-lg hover:bg-system-100 dark:hover:bg-system-800 transition-colors"
         aria-label="Notifications"
       >
         <svg
@@ -35,11 +35,15 @@ export default function NotificationBell({ count = 0 }: NotificationBellProps) {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50">
-          <div className="p-4 border-b border-gray-700">
-            <h3 className="text-sm font-medium">Notifications</h3>
+        <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-system-800 border border-system-200 dark:border-system-700 rounded-lg shadow-lg z-50">
+          <div className="p-4 border-b border-system-200 dark:border-system-700">
+            <h3 className="text-sm font-medium text-system-900 dark:text-white">
+              Notifications
+            </h3>
           </div>
-          <div className="p-4 text-sm text-gray-400">No notifications yet.</div>
+          <div className="p-4 text-sm text-system-500 dark:text-system-400">
+            No notifications yet.
+          </div>
         </div>
       )}
     </div>

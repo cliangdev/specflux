@@ -149,8 +149,8 @@ describe("TasksPage", () => {
     renderWithProvider();
 
     await waitFor(() => {
-      expect(screen.getByText("backlog")).toBeInTheDocument();
-      expect(screen.getByText("in progress")).toBeInTheDocument();
+      expect(screen.getByText("Backlog")).toBeInTheDocument();
+      expect(screen.getByText("In Progress")).toBeInTheDocument();
     });
   });
 
