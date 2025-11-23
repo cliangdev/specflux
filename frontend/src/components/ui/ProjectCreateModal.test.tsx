@@ -77,7 +77,16 @@ describe("ProjectCreateModal", () => {
   it("submits form and calls callbacks on success", async () => {
     vi.mocked(api.projects.createProject).mockResolvedValue({
       success: true,
-      data: { id: 1, name: "Test Project" },
+      data: {
+        id: 1,
+        name: "Test Project",
+        projectId: "test-project",
+        localPath: "/test/path",
+        workflowTemplate: "startup-fast",
+        ownerUserId: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
     });
 
     renderModal();

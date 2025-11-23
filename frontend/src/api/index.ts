@@ -56,3 +56,9 @@ export type {
 
 // Error type
 export type { ModelError } from "./generated";
+
+// Enum types
+export {
+  ControlTaskAgentRequestActionEnum,
+  AgentStatusStatusEnum,
+} from "./generated";

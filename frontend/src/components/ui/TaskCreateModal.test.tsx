@@ -70,7 +70,17 @@ describe("TaskCreateModal", () => {
   it("submits form and calls callbacks on success", async () => {
     vi.mocked(api.tasks.createTask).mockResolvedValue({
       success: true,
-      data: { id: 1, title: "Test Task" },
+      data: {
+        id: 1,
+        title: "Test Task",
+        projectId: 1,
+        status: "backlog",
+        requiresApproval: false,
+        progressPercentage: 0,
+        createdByUserId: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
     });
 
     renderModal();
@@ -101,7 +111,17 @@ describe("TaskCreateModal", () => {
   it("includes requiresApproval when checked", async () => {
     vi.mocked(api.tasks.createTask).mockResolvedValue({
       success: true,
-      data: { id: 1, title: "Test Task" },
+      data: {
+        id: 1,
+        title: "Test Task",
+        projectId: 1,
+        status: "backlog",
+        requiresApproval: true,
+        progressPercentage: 0,
+        createdByUserId: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
     });
 
     renderModal();
