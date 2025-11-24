@@ -1155,21 +1155,22 @@ const tasks = await projectsApi.getProjectTasks({ id: 1 });
 **Result:** When users create projects, SpecFlux auto-installs relevant skills.
 
 #### Kanban Board Component
-- [ ] Install react-beautiful-dnd or dnd-kit
-- [ ] **Board View (/board)**
-  - [ ] Create Board component
-  - [ ] Columns: Backlog, Ready, In Progress, Pending Review, Approved, Done
-  - [ ] Drag and drop tasks between columns
+- [x] Install react-beautiful-dnd or dnd-kit (used @dnd-kit/core, @dnd-kit/sortable)
+- [x] **Board View (/board)**
+  - [x] Create Board component (KanbanBoard with dynamic columns)
+  - [x] Columns: Configurable per workflow template (startup-fast, design-first, full-lifecycle)
+  - [x] Drag and drop tasks between columns
   - [ ] Visual indicators (repo color, agent icon, blocked status)
   - [ ] Filter by repository
   - [ ] Filter by epic
   - [ ] Search tasks
-- [ ] Task card component
-  - [ ] Title, description preview
+- [x] Task card component
+  - [x] Title, description preview (with truncation and hover tooltips)
   - [ ] Status badge
-  - [ ] Assigned repo/agent
+  - [x] Assigned repo tag
   - [ ] Dependency indicators (🔒 if blocked)
-  - [ ] Progress bar
+  - [x] Progress bar
+  - [x] Running indicator animation
 
 #### Additional Views
 - [ ] **Tasks View (/tasks)**
@@ -1202,14 +1203,15 @@ const tasks = await projectsApi.getProjectTasks({ id: 1 });
   - [ ] Team members (future)
 
 #### Backend Support
-- [ ] `PUT /tasks/:id/status` - Update status via drag-drop
-- [ ] `GET /projects/:id/board` - Get board view data
+- [x] `PUT /tasks/:id/status` - Update status via drag-drop (uses existing PATCH /tasks/:id)
+- [ ] `GET /projects/:id/board` - Get board view data (using existing list tasks endpoint)
 - [ ] Auto-unblock dependent tasks when blockers complete
 
 **Testing:**
-- [ ] Create multiple tasks
-- [ ] Drag tasks between columns
-- [ ] Verify status updates in database
+- [x] Create multiple tasks
+- [x] Drag tasks between columns
+- [x] Verify status updates in database
+- [x] Unit tests for TaskCard and KanbanBoard components
 
 ---
 
