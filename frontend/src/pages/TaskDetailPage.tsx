@@ -297,14 +297,14 @@ export default function TaskDetailPage() {
     fetchFileChanges();
   }, [fetchTask, fetchAgentStatus, fetchFileChanges]);
 
-  // Poll for file changes while agent is running (git-based tracking)
+  // Poll for file changes (git-based tracking)
+  // Fast polling when agent is running, slower when idle
   useEffect(() => {
-    if (!isAgentRunning) return;
+    const pollInterval = isAgentRunning ? 3000 : 10000; // 3s when running, 10s when idle
 
-    // Poll every 3 seconds while agent is running
     const interval = setInterval(() => {
       fetchFileChanges();
-    }, 3000);
+    }, pollInterval);
 
     return () => clearInterval(interval);
   }, [isAgentRunning, fetchFileChanges]);
