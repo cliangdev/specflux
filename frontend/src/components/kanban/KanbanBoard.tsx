@@ -7,7 +7,8 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  closestCorners,
+  pointerWithin,
+  rectIntersection,
 } from "@dnd-kit/core";
 import { Task, TaskStatusEnum } from "../../api/generated/models/Task";
 import { api } from "../../api";
@@ -214,7 +215,7 @@ export function KanbanBoard({
       <div className="flex-1 overflow-x-auto overflow-y-hidden px-6 pb-6">
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCorners}
+          collisionDetection={rectIntersection}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
