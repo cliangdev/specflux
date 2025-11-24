@@ -106,6 +106,36 @@ describe('Terminal Parser Service', () => {
         }
       });
 
+      it('should detect Claude Code Write tool pattern', () => {
+        const events = parseTerminalOutput('Write(hello.txt)', state);
+        const fileEvent = events.find((e) => e.type === 'file');
+        expect(fileEvent).toBeDefined();
+        if (fileEvent?.type === 'file') {
+          expect(fileEvent.action).toBe('created');
+          expect(fileEvent.filePath).toBe('hello.txt');
+        }
+      });
+
+      it('should detect Claude Code Wrote lines pattern', () => {
+        const events = parseTerminalOutput('Wrote 2 lines to hello.txt', state);
+        const fileEvent = events.find((e) => e.type === 'file');
+        expect(fileEvent).toBeDefined();
+        if (fileEvent?.type === 'file') {
+          expect(fileEvent.action).toBe('created');
+          expect(fileEvent.filePath).toBe('hello.txt');
+        }
+      });
+
+      it('should detect Claude Code Edit tool pattern', () => {
+        const events = parseTerminalOutput('Edit(src/service.ts)', state);
+        const fileEvent = events.find((e) => e.type === 'file');
+        expect(fileEvent).toBeDefined();
+        if (fileEvent?.type === 'file') {
+          expect(fileEvent.action).toBe('modified');
+          expect(fileEvent.filePath).toBe('src/service.ts');
+        }
+      });
+
       it('should track unique files', () => {
         parseTerminalOutput('Created file: src/a.ts', state);
         parseTerminalOutput('Created file: src/b.ts', state);

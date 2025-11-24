@@ -56,6 +56,9 @@ const PATTERNS = {
     /\[File\]\s+Created:?\s*([^\s]+)/i,
     /Writing\s+to\s+([^\s]+)/i,
     /✓\s+Created\s+([^\s]+)/i,
+    // Claude Code tool patterns
+    /Write\(([^)]+)\)/i,
+    /Wrote\s+\d+\s+lines?\s+to\s+([^\s]+)/i,
   ],
 
   // File modification patterns
@@ -64,6 +67,9 @@ const PATTERNS = {
     /\[File\]\s+Modified:?\s*([^\s]+)/i,
     /Updated\s+([^\s]+)/i,
     /✓\s+Updated\s+([^\s]+)/i,
+    // Claude Code tool patterns
+    /Edit\(([^)]+)\)/i,
+    /Edited\s+([^\s]+)/i,
   ],
 
   // File deletion patterns

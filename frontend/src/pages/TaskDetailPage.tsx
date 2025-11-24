@@ -946,6 +946,10 @@ export default function TaskDetailPage() {
             taskId={task.id}
             onStatusChange={handleTerminalStatusChange}
             onRefresh={fetchAgentStatus}
+            onFileChange={() => {
+              // Refetch file changes when a new file change event is received
+              fetchFileChanges();
+            }}
           />
         </div>
       </div>
