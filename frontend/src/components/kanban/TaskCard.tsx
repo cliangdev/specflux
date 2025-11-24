@@ -79,8 +79,8 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
         )}
       </div>
 
-      {/* Title */}
-      <h3 className="font-medium text-sm mb-1 text-gray-900 dark:text-gray-100">
+      {/* Title - truncate to 2 lines for consistent card height */}
+      <h3 className="font-medium text-sm mb-1 text-gray-900 dark:text-gray-100 line-clamp-2">
         {task.title}
       </h3>
 
