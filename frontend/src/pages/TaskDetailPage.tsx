@@ -275,21 +275,24 @@ export default function TaskDetailPage() {
     }
   }, [taskId]);
 
-  const fetchFileChanges = useCallback(async () => {
-    if (!taskId) return;
+  const fetchFileChanges = useCallback(
+    async (showLoading = true) => {
+      if (!taskId) return;
 
-    try {
-      setFileChangesLoading(true);
-      const response = await api.tasks.getTaskFileChanges({
-        id: Number(taskId),
-      });
-      setFileChanges(response.data ?? null);
-    } catch (err) {
-      console.error("Failed to fetch file changes:", err);
-    } finally {
-      setFileChangesLoading(false);
-    }
-  }, [taskId]);
+      try {
+        if (showLoading) setFileChangesLoading(true);
+        const response = await api.tasks.getTaskFileChanges({
+          id: Number(taskId),
+        });
+        setFileChanges(response.data ?? null);
+      } catch (err) {
+        console.error("Failed to fetch file changes:", err);
+      } finally {
+        if (showLoading) setFileChangesLoading(false);
+      }
+    },
+    [taskId],
+  );
 
   useEffect(() => {
     fetchTask();
@@ -381,11 +384,12 @@ export default function TaskDetailPage() {
 
   // Poll for file changes (git-based tracking)
   // Fast polling when agent is running, slower when idle
+  // Pass false to not show loading indicator during polling
   useEffect(() => {
     const pollInterval = isAgentRunning ? 3000 : 10000; // 3s when running, 10s when idle
 
     const interval = setInterval(() => {
-      fetchFileChanges();
+      fetchFileChanges(false); // Don't show loading on poll updates
     }, pollInterval);
 
     return () => clearInterval(interval);
@@ -401,7 +405,7 @@ export default function TaskDetailPage() {
           // Small delay to allow backend to process completion
           setTimeout(() => {
             fetchTask();
-            fetchFileChanges();
+            fetchFileChanges(false); // Don't show loading on status change
           }, 500);
         }
       }

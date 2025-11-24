@@ -37,10 +37,11 @@ export function getWorktreeChanges(
 ): WorktreeChanges {
   try {
     // First check for uncommitted changes
+    // Note: Don't trim() as it removes leading spaces which are part of the status code format
     const status = execSync('git status --porcelain', {
       cwd: worktreePath,
       encoding: 'utf-8',
-    }).trim();
+    }).replace(/\n$/, ''); // Only remove trailing newline, not leading spaces
 
     // Also check for committed changes compared to base branch
     let filesChanged: string[] = [];
