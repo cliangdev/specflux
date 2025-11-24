@@ -114,7 +114,7 @@ describe("KanbanBoard", () => {
     render(<KanbanBoard projectId={1} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Sprint Board")).toBeInTheDocument();
+      expect(screen.getByText("Board")).toBeInTheDocument();
     });
   });
 

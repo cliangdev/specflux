@@ -183,7 +183,7 @@ export function KanbanBoard({
       {/* Board Header */}
       <div className="h-14 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between px-6 shrink-0">
         <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-          Sprint Board
+          Board
         </h1>
         <div className="flex items-center gap-2">
           {onTaskCreate && (
