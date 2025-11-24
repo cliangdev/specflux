@@ -17,7 +17,7 @@ vi.mock("@dnd-kit/core", () => ({
   PointerSensor: vi.fn(),
   useSensor: vi.fn(() => ({})),
   useSensors: vi.fn(() => []),
-  closestCorners: vi.fn(),
+  rectIntersection: vi.fn(),
   useDroppable: () => ({
     setNodeRef: vi.fn(),
     isOver: false,
@@ -58,8 +58,8 @@ const mockTasks = [
     agentStatus: TaskAgentStatusEnum.Idle,
     progressPercentage: 0,
     createdByUserId: 1,
-    createdAt: "2024-01-01T00:00:00Z",
-    updatedAt: "2024-01-01T00:00:00Z",
+    createdAt: new Date("2024-01-01T00:00:00Z"),
+    updatedAt: new Date("2024-01-01T00:00:00Z"),
   },
   {
     id: 2,
@@ -70,8 +70,8 @@ const mockTasks = [
     agentStatus: TaskAgentStatusEnum.Running,
     progressPercentage: 50,
     createdByUserId: 1,
-    createdAt: "2024-01-01T00:00:00Z",
-    updatedAt: "2024-01-01T00:00:00Z",
+    createdAt: new Date("2024-01-01T00:00:00Z"),
+    updatedAt: new Date("2024-01-01T00:00:00Z"),
   },
   {
     id: 3,
@@ -82,8 +82,8 @@ const mockTasks = [
     agentStatus: TaskAgentStatusEnum.Idle,
     progressPercentage: 100,
     createdByUserId: 1,
-    createdAt: "2024-01-01T00:00:00Z",
-    updatedAt: "2024-01-01T00:00:00Z",
+    createdAt: new Date("2024-01-01T00:00:00Z"),
+    updatedAt: new Date("2024-01-01T00:00:00Z"),
   },
 ];
 

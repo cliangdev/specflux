@@ -7,7 +7,6 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  pointerWithin,
   rectIntersection,
 } from "@dnd-kit/core";
 import { Task, TaskStatusEnum } from "../../api/generated/models/Task";
