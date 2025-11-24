@@ -32,26 +32,16 @@ export function FileChanges({ taskId, isAgentRunning }: FileChangesProps) {
     fetchFileChanges(true);
   }, [fetchFileChanges]);
 
-  // Poll for file changes only when agent is running
+  // Light polling - only fetch every 30 seconds as a fallback
+  // Real-time updates should come from Terminal WebSocket events
   useEffect(() => {
     if (!isAgentRunning) return;
 
     const interval = setInterval(() => {
       fetchFileChanges(false);
-    }, 3000);
+    }, 30000); // 30 second polling as fallback
 
     return () => clearInterval(interval);
-  }, [isAgentRunning, fetchFileChanges]);
-
-  // Fetch once when agent stops
-  useEffect(() => {
-    if (!isAgentRunning) {
-      // Small delay to allow backend to process
-      const timeout = setTimeout(() => {
-        fetchFileChanges(false);
-      }, 500);
-      return () => clearTimeout(timeout);
-    }
   }, [isAgentRunning, fetchFileChanges]);
 
   if (loading) {
