@@ -421,6 +421,11 @@ export default function TaskDetailPage() {
     [isAgentRunning, fetchAgentStatus, fetchTask, fetchFileChanges],
   );
 
+  // Memoize file change handler to prevent Terminal re-renders
+  const handleFileChange = useCallback(() => {
+    fetchFileChanges(false);
+  }, [fetchFileChanges]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -971,10 +976,7 @@ export default function TaskDetailPage() {
             taskId={task.id}
             onStatusChange={handleTerminalStatusChange}
             onRefresh={fetchAgentStatus}
-            onFileChange={() => {
-              // Refetch file changes when a new file change event is received
-              fetchFileChanges();
-            }}
+            onFileChange={handleFileChange}
           />
         </div>
       </div>
