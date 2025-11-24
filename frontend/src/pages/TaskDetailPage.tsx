@@ -545,14 +545,6 @@ export default function TaskDetailPage() {
             </div>
           )}
 
-          {/* File Changes - isolated component with its own state/polling */}
-          <div className="mb-6">
-            <h3 className="text-xs font-bold text-system-400 uppercase tracking-wider mb-2">
-              File Changes
-            </h3>
-            <FileChanges taskId={task.id} isAgentRunning={isAgentRunning} />
-          </div>
-
           {/* Agent Controls - in a card */}
           <div className="p-4 bg-system-50 dark:bg-system-800 rounded-lg border border-system-200 dark:border-system-700">
             <h3 className="text-sm font-medium text-system-900 dark:text-white mb-3">
@@ -649,6 +641,14 @@ export default function TaskDetailPage() {
             </div>
           </div>
 
+          {/* File Changes - isolated component with its own state/polling */}
+          <div className="mt-6">
+            <h3 className="text-xs font-bold text-system-400 uppercase tracking-wider mb-2">
+              File Changes
+            </h3>
+            <FileChanges taskId={task.id} isAgentRunning={isAgentRunning} />
+          </div>
+
           {/* Review Section - shown when pending_review or has PR */}
           {(task.status === "pending_review" ||
             task.status === "done" ||
@@ -670,48 +670,6 @@ export default function TaskDetailPage() {
                 >
                   View PR #{task.githubPrNumber || prResult?.prNumber}
                 </button>
-              )}
-
-              {/* Changes info - only show when pending_review */}
-              {task.status === "pending_review" && (
-                <>
-                  {diffLoading ? (
-                    <p className="text-system-500 text-sm">
-                      Loading changes...
-                    </p>
-                  ) : taskDiff ? (
-                    <div className="mb-3">
-                      {taskDiff.hasChanges ? (
-                        <>
-                          <p className="text-sm text-system-700 dark:text-system-300 mb-2">
-                            {taskDiff.filesChanged?.length ?? 0} file(s) changed
-                            {taskDiff.insertions !== undefined && (
-                              <span className="text-emerald-600 dark:text-emerald-400 ml-2">
-                                +{taskDiff.insertions}
-                              </span>
-                            )}
-                            {taskDiff.deletions !== undefined && (
-                              <span className="text-red-600 dark:text-red-400 ml-1">
-                                -{taskDiff.deletions}
-                              </span>
-                            )}
-                          </p>
-                          <ul className="text-xs text-system-500 dark:text-system-400 space-y-1 max-h-24 overflow-y-auto scrollbar-thin">
-                            {taskDiff.filesChanged?.map((file, i) => (
-                              <li key={i} className="truncate">
-                                {file}
-                              </li>
-                            ))}
-                          </ul>
-                        </>
-                      ) : (
-                        <p className="text-sm text-system-500 dark:text-system-400">
-                          No changes detected
-                        </p>
-                      )}
-                    </div>
-                  ) : null}
-                </>
               )}
 
               {/* Action buttons - only show when pending_review */}
