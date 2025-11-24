@@ -16,7 +16,6 @@ import { userHasProjectAccess, getProjectConfig } from '../services/project.serv
 import { getWorktree } from '../services/worktree.service';
 import { getWorktreeChanges, getWorktreeDiff } from '../services/git-workflow.service';
 import { createTaskPR, approveTask } from '../services/agent.service';
-import { getFileChangesForTask, getFileChangeSummary } from '../services/file-tracking.service';
 import { NotFoundError, ValidationError } from '../types';
 
 const router = Router();
@@ -562,8 +561,8 @@ router.post('/tasks/:id/approve', (req: Request, res: Response, next: NextFuncti
 });
 
 /**
- * GET /tasks/:id/file-changes - Get tracked file changes for a task
- * Returns all file changes recorded during agent sessions
+ * GET /tasks/:id/file-changes - Get file changes for a task from git status
+ * Returns all uncommitted file changes in the task's worktree
  */
 router.get('/tasks/:id/file-changes', (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -583,8 +582,61 @@ router.get('/tasks/:id/file-changes', (req: Request, res: Response, next: NextFu
       throw new NotFoundError('Task', taskId);
     }
 
-    const fileChanges = getFileChangesForTask(taskId);
-    const summary = getFileChangeSummary(taskId);
+    // Get the worktree for this task
+    const worktree = getWorktree(taskId);
+
+    if (!worktree) {
+      // No worktree means no file changes
+      res.json({
+        success: true,
+        data: {
+          changes: [],
+          summary: { total: 0, created: 0, modified: 0, deleted: 0 },
+        },
+      });
+      return;
+    }
+
+    // Use git status to get actual file changes
+    const changes = getWorktreeChanges(worktree.path, worktree.branch);
+
+    // Convert to the expected format
+    const fileChanges = [
+      ...changes.newFiles.map((f) => ({
+        id: 0, // Not stored in DB
+        taskId,
+        sessionId: null,
+        filePath: f,
+        changeType: 'created' as const,
+        diffSummary: null,
+        createdAt: new Date().toISOString(),
+      })),
+      ...changes.modifiedFiles.map((f) => ({
+        id: 0,
+        taskId,
+        sessionId: null,
+        filePath: f,
+        changeType: 'modified' as const,
+        diffSummary: null,
+        createdAt: new Date().toISOString(),
+      })),
+      ...changes.deletedFiles.map((f) => ({
+        id: 0,
+        taskId,
+        sessionId: null,
+        filePath: f,
+        changeType: 'deleted' as const,
+        diffSummary: null,
+        createdAt: new Date().toISOString(),
+      })),
+    ];
+
+    const summary = {
+      total: fileChanges.length,
+      created: changes.newFiles.length,
+      modified: changes.modifiedFiles.length,
+      deleted: changes.deletedFiles.length,
+    };
 
     res.json({
       success: true,

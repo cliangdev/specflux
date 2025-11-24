@@ -8,6 +8,9 @@ import { createPullRequest as createPRViaGitHub, pushBranch } from './github.ser
 export interface WorktreeChanges {
   hasChanges: boolean;
   filesChanged: string[];
+  newFiles: string[];
+  modifiedFiles: string[];
+  deletedFiles: string[];
   insertions: number;
   deletions: number;
 }
@@ -83,23 +86,56 @@ export function getWorktreeChanges(
       // Ignore diff errors, fall back to uncommitted changes only
     }
 
-    // Also include uncommitted files if any
+    // Parse uncommitted files from git status --porcelain
+    // Format: XY filename where X=staged status, Y=unstaged status
+    // Common codes: A=added, M=modified, D=deleted, ?=untracked
+    const newFiles: string[] = [];
+    const modifiedFiles: string[] = [];
+    const deletedFiles: string[] = [];
+
     if (status) {
-      const uncommittedFiles = status
-        .split('\n')
-        .map((line) => line.substring(3).trim())
-        .filter(Boolean);
-      // Merge with committed files, avoiding duplicates
-      uncommittedFiles.forEach((file) => {
-        if (!filesChanged.includes(file)) {
-          filesChanged.push(file);
+      const lines = status.split('\n').filter(Boolean);
+      for (const line of lines) {
+        const statusCode = line.substring(0, 2);
+        const filePath = line.substring(3).trim();
+
+        if (!filePath) continue;
+
+        // Add to filesChanged if not already there
+        if (!filesChanged.includes(filePath)) {
+          filesChanged.push(filePath);
         }
-      });
+
+        // Categorize by status code
+        // X or Y can be: A(added), M(modified), D(deleted), R(renamed), C(copied), U(updated), ?(untracked)
+        const staged = statusCode[0];
+        const unstaged = statusCode[1];
+
+        if (staged === '?' || staged === 'A' || unstaged === 'A') {
+          // New/untracked file
+          if (!newFiles.includes(filePath)) {
+            newFiles.push(filePath);
+          }
+        } else if (staged === 'D' || unstaged === 'D') {
+          // Deleted file
+          if (!deletedFiles.includes(filePath)) {
+            deletedFiles.push(filePath);
+          }
+        } else if (staged === 'M' || unstaged === 'M' || staged === 'R' || unstaged === 'R') {
+          // Modified or renamed file
+          if (!modifiedFiles.includes(filePath)) {
+            modifiedFiles.push(filePath);
+          }
+        }
+      }
     }
 
     return {
       hasChanges: filesChanged.length > 0,
       filesChanged,
+      newFiles,
+      modifiedFiles,
+      deletedFiles,
       insertions,
       deletions,
     };
