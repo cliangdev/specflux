@@ -200,14 +200,19 @@ export function Terminal({
 
         switch (msg.type) {
           case "status":
-            setRunning(msg.running ?? false);
-            onStatusChangeRef.current?.(msg.running ?? false);
-            if (msg.running) {
-              term.writeln("\x1b[33mAgent is running...\x1b[0m");
-            } else {
-              term.writeln(
-                "\x1b[90mAgent is not running. Start the agent to see output.\x1b[0m",
-              );
+            // Only update if status actually changed
+            if (msg.running !== runningRef.current) {
+              setRunning(msg.running ?? false);
+              onStatusChangeRef.current?.(msg.running ?? false);
+              if (msg.running) {
+                // Clear screen and reset cursor to top-left before Claude Code starts
+                // This ensures Claude Code's TUI has full control of the terminal
+                term.write("\x1b[2J\x1b[H");
+              } else {
+                term.writeln(
+                  "\x1b[90mAgent is not running. Start the agent to see output.\x1b[0m",
+                );
+              }
             }
             break;
 

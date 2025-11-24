@@ -156,7 +156,7 @@ function StatusBadge({ status }: { status: string }) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap ${config.classes}`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap flex-shrink-0 ${config.classes}`}
     >
       {StatusIcons[config.icon]}
       {config.label}
@@ -233,6 +233,7 @@ export default function TaskDetailPage() {
   const [approveLoading, setApproveLoading] = useState(false);
   const [prResult, setPRResult] = useState<ApproveAndPRResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hasFileChanges, setHasFileChanges] = useState(false);
 
   const fetchTask = useCallback(async () => {
     if (!taskId) return;
@@ -307,8 +308,20 @@ export default function TaskDetailPage() {
       // Refresh task to persist PR URL from database
       fetchTask();
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to create PR";
+      let message = "Failed to create PR";
+      // Handle ResponseError from generated API client
+      if (err && typeof err === "object" && "response" in err) {
+        const responseErr = err as { response: Response };
+        try {
+          const body = await responseErr.response.json();
+          message = body.error?.message || body.error || message;
+        } catch {
+          // If JSON parsing fails, use status text
+          message = responseErr.response.statusText || message;
+        }
+      } else if (err instanceof Error) {
+        message = err.message;
+      }
       setError(message);
       console.error("Failed to create PR:", err);
     } finally {
@@ -349,7 +362,10 @@ export default function TaskDetailPage() {
         controlTaskAgentRequest: { action },
       });
       setAgentStatus(response.data ?? null);
-      fetchTask();
+      // Only refresh task when stopping agent (status might change)
+      if (action === ControlTaskAgentRequestActionEnum.Stop) {
+        fetchTask();
+      }
     } catch (err) {
       const message =
         err instanceof Error ? err.message : `Failed to ${action} agent`;
@@ -448,36 +464,34 @@ export default function TaskDetailPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4 flex-shrink-0">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate("/tasks")}
-            className="flex items-center gap-1 text-system-500 hover:text-system-700 dark:text-system-400 dark:hover:text-white transition-colors"
+      <div className="flex items-center gap-3 mb-4 flex-shrink-0">
+        <button
+          onClick={() => navigate("/tasks")}
+          className="flex items-center gap-1 text-system-500 hover:text-system-700 dark:text-system-400 dark:hover:text-white transition-colors flex-shrink-0"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-            Back to Tasks
-          </button>
-          <div className="h-6 w-px bg-system-200 dark:bg-system-700" />
-          <span className="text-system-500 dark:text-system-400 text-sm">
-            #{task.id}
-          </span>
-          <h1 className="text-xl font-semibold text-system-900 dark:text-white">
-            {task.title}
-          </h1>
-          <StatusBadge status={task.status} />
-        </div>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+          Back to Tasks
+        </button>
+        <div className="h-6 w-px bg-system-200 dark:bg-system-700 flex-shrink-0" />
+        <span className="text-system-500 dark:text-system-400 text-sm flex-shrink-0">
+          #{task.id}
+        </span>
+        <h1 className="text-xl font-semibold text-system-900 dark:text-white truncate flex-1 min-w-0">
+          {task.title}
+        </h1>
+        <StatusBadge status={task.status} />
       </div>
 
       {/* Error banner */}
@@ -501,36 +515,25 @@ export default function TaskDetailPage() {
             </p>
           </div>
 
-          {/* Agent Status */}
+          {/* Agent Status - fixed height to prevent layout shift */}
           <div className="mb-6">
             <h3 className="text-xs font-bold text-system-400 uppercase tracking-wider mb-2">
               Agent Status
             </h3>
-            {agentLoading ? (
-              <span className="text-system-500 text-sm">Loading...</span>
-            ) : agentStatus ? (
-              <div className="space-y-2">
-                <AgentStatusBadge status={agentStatus.status} />
-                {agentStatus.pid && (
-                  <p className="text-xs text-system-500">
-                    PID: {agentStatus.pid}
-                  </p>
-                )}
-                {agentStatus.startedAt && (
-                  <p className="text-xs text-system-500">
-                    Started:{" "}
-                    {new Date(agentStatus.startedAt).toLocaleTimeString()}
-                  </p>
-                )}
-                {agentStatus.errorMessage && (
-                  <p className="text-xs text-red-500 dark:text-red-400">
-                    Error: {agentStatus.errorMessage}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <span className="text-system-500 text-sm">No agent running</span>
-            )}
+            <div className="flex items-center gap-3">
+              {agentLoading ? (
+                <span className="text-system-500 text-sm">Loading...</span>
+              ) : (
+                <>
+                  <AgentStatusBadge status={agentStatus?.status ?? "idle"} />
+                  {agentStatus?.errorMessage && (
+                    <span className="text-xs text-red-500 dark:text-red-400">
+                      {agentStatus.errorMessage}
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
           </div>
 
           {/* Repository */}
@@ -550,7 +553,7 @@ export default function TaskDetailPage() {
             <h3 className="text-sm font-medium text-system-900 dark:text-white mb-3">
               Agent Controls
             </h3>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex gap-2">
               {isAgentIdle && (
                 <button
                   onClick={() =>
@@ -561,7 +564,7 @@ export default function TaskDetailPage() {
                     task.status === "done" ||
                     task.status === "approved"
                   }
-                  className="px-3 py-1.5 text-sm font-medium bg-green-600 hover:bg-green-700 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                  className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {actionLoading ? (
                     <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
@@ -599,7 +602,7 @@ export default function TaskDetailPage() {
                       handleAgentAction(ControlTaskAgentRequestActionEnum.Pause)
                     }
                     disabled={actionLoading}
-                    className="flex-1 py-1.5 text-sm font-medium bg-white dark:bg-system-700 border border-system-200 dark:border-system-600 rounded shadow-sm hover:bg-system-50 dark:hover:bg-system-600 transition-colors disabled:opacity-50"
+                    className="btn btn-secondary disabled:opacity-50"
                   >
                     Pause
                   </button>
@@ -608,7 +611,7 @@ export default function TaskDetailPage() {
                       handleAgentAction(ControlTaskAgentRequestActionEnum.Stop)
                     }
                     disabled={actionLoading}
-                    className="flex-1 py-1.5 text-sm font-medium bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50"
+                    className="btn btn-danger disabled:opacity-50"
                   >
                     Stop
                   </button>
@@ -623,7 +626,7 @@ export default function TaskDetailPage() {
                       )
                     }
                     disabled={actionLoading}
-                    className="flex-1 py-1.5 text-sm font-medium bg-white dark:bg-system-700 border border-system-200 dark:border-system-600 rounded shadow-sm hover:bg-system-50 dark:hover:bg-system-600 transition-colors disabled:opacity-50"
+                    className="btn btn-secondary disabled:opacity-50"
                   >
                     Resume
                   </button>
@@ -632,7 +635,7 @@ export default function TaskDetailPage() {
                       handleAgentAction(ControlTaskAgentRequestActionEnum.Stop)
                     }
                     disabled={actionLoading}
-                    className="flex-1 py-1.5 text-sm font-medium bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50"
+                    className="btn btn-danger disabled:opacity-50"
                   >
                     Stop
                   </button>
@@ -646,138 +649,113 @@ export default function TaskDetailPage() {
             <h3 className="text-xs font-bold text-system-400 uppercase tracking-wider mb-2">
               File Changes
             </h3>
-            <FileChanges taskId={task.id} isAgentRunning={isAgentRunning} />
+            <FileChanges
+              taskId={task.id}
+              isAgentRunning={isAgentRunning}
+              onHasChanges={(has) => setHasFileChanges(has)}
+            />
+
+            {/* Create PR button - show when there are file changes and no PR yet */}
+            {hasFileChanges &&
+              !prResult?.prUrl &&
+              !task.githubPrUrl &&
+              task.status !== "done" && (
+                <button
+                  onClick={handleCreatePR}
+                  disabled={createPRLoading}
+                  className="mt-3 btn btn-primary disabled:opacity-50"
+                >
+                  {createPRLoading ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                          fill="none"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                        />
+                      </svg>
+                      Creating PR...
+                    </>
+                  ) : (
+                    "Create PR"
+                  )}
+                </button>
+              )}
           </div>
 
           {/* Review Section - shown when pending_review or has PR */}
           {(task.status === "pending_review" ||
             task.status === "done" ||
             task.status === "approved" ||
-            task.githubPrUrl ||
-            prResult?.prUrl) && (
+            prResult?.prUrl ||
+            task.githubPrUrl) && (
             <div className="mt-6">
               <h3 className="text-xs font-bold text-system-400 uppercase tracking-wider mb-3">
                 Review & Approve
               </h3>
 
-              {/* PR Link */}
-              {(task.githubPrUrl || prResult?.prUrl) && (
+              {/* PR Link - prefer prResult (fresh) over task (from DB) */}
+              {(prResult?.prUrl || task.githubPrUrl) && (
                 <button
                   onClick={() =>
-                    openExternal(task.githubPrUrl || prResult?.prUrl || "")
+                    openExternal(prResult?.prUrl || task.githubPrUrl || "")
                   }
                   className="inline-block mb-3 text-brand-500 dark:text-brand-400 text-sm hover:underline text-left"
                 >
-                  View PR #{task.githubPrNumber || prResult?.prNumber}
+                  {prResult?.prNumber || task.githubPrNumber
+                    ? `View PR #${prResult?.prNumber || task.githubPrNumber}`
+                    : "View PR"}
                 </button>
               )}
 
-              {/* Action buttons - only show when pending_review */}
-              {task.status === "pending_review" && (
-                <div className="flex flex-wrap gap-2">
-                  {/* Create PR button - only show if PR not created yet and has changes */}
-                  {!task.githubPrUrl &&
-                    !prResult?.prUrl &&
-                    taskDiff?.hasChanges && (
-                      <button
-                        onClick={handleCreatePR}
-                        disabled={createPRLoading}
-                        className="px-3 py-1.5 text-sm font-medium bg-gray-600 hover:bg-gray-500 text-white rounded transition-colors disabled:opacity-50 flex items-center gap-1"
-                      >
-                        {createPRLoading ? (
-                          <>
-                            <svg
-                              className="animate-spin w-4 h-4"
-                              viewBox="0 0 24 24"
-                            >
-                              <circle
-                                className="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                                fill="none"
-                              />
-                              <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                              />
-                            </svg>
-                            Creating PR...
-                          </>
-                        ) : (
-                          <>
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
+              {/* Action buttons - show when there's a PR and task not done */}
+              {(prResult?.prUrl || task.githubPrUrl) &&
+                task.status !== "done" && (
+                  <div className="flex gap-2">
+                    {/* Approve button */}
+                    <button
+                      onClick={handleApprove}
+                      disabled={approveLoading}
+                      className="btn btn-success disabled:opacity-50"
+                    >
+                      {approveLoading ? (
+                        <>
+                          <svg
+                            className="animate-spin w-4 h-4"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
                               stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
-                              />
-                            </svg>
-                            Create PR
-                          </>
-                        )}
-                      </button>
-                    )}
-
-                  {/* Approve button */}
-                  <button
-                    onClick={handleApprove}
-                    disabled={approveLoading}
-                    className="px-3 py-1.5 text-sm font-medium bg-green-600 hover:bg-green-700 text-white rounded transition-colors disabled:opacity-50 flex items-center gap-1"
-                  >
-                    {approveLoading ? (
-                      <>
-                        <svg
-                          className="animate-spin w-4 h-4"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                            fill="none"
-                          />
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                          />
-                        </svg>
-                        Approving...
-                      </>
-                    ) : (
-                      <>
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                        Approve
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
+                              strokeWidth="4"
+                              fill="none"
+                            />
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                            />
+                          </svg>
+                          Approving...
+                        </>
+                      ) : (
+                        "Approve & Complete"
+                      )}
+                    </button>
+                  </div>
+                )}
             </div>
           )}
         </div>

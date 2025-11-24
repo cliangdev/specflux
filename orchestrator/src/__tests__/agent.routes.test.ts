@@ -129,14 +129,15 @@ describe('Agent API Routes', () => {
       expect(response.body.success).toBe(false);
     });
 
-    it('should return 404 when no agent is running', async () => {
+    it('should succeed even when no agent is running (idempotent)', async () => {
       const response = await request(app)
         .post(`/api/tasks/${taskId}/agent/stop`)
         .send({})
         .set('Content-Type', 'application/json');
 
-      expect(response.status).toBe(404);
-      expect(response.body.success).toBe(false);
+      // stopAgent is idempotent - stopping when nothing is running is fine
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
     });
   });
 });

@@ -40,7 +40,6 @@ describe("TaskCreateModal", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText(/Title/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Description/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Requires approval/)).toBeInTheDocument();
   });
 
   it("calls onClose when clicking backdrop", () => {
@@ -99,49 +98,12 @@ describe("TaskCreateModal", () => {
         createTaskRequest: {
           title: "Test Task",
           description: "Test description",
-          requiresApproval: false,
         },
       });
     });
 
     expect(mockOnCreated).toHaveBeenCalled();
     expect(mockOnClose).toHaveBeenCalled();
-  });
-
-  it("includes requiresApproval when checked", async () => {
-    vi.mocked(api.tasks.createTask).mockResolvedValue({
-      success: true,
-      data: {
-        id: 1,
-        title: "Test Task",
-        projectId: 1,
-        status: "backlog",
-        requiresApproval: true,
-        progressPercentage: 0,
-        createdByUserId: 1,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
-
-    renderModal();
-
-    fireEvent.change(screen.getByLabelText(/Title/), {
-      target: { value: "Test Task" },
-    });
-    fireEvent.click(screen.getByLabelText(/Requires approval/));
-    fireEvent.click(screen.getByRole("button", { name: /Create Task/i }));
-
-    await waitFor(() => {
-      expect(api.tasks.createTask).toHaveBeenCalledWith({
-        id: projectId,
-        createTaskRequest: {
-          title: "Test Task",
-          description: undefined,
-          requiresApproval: true,
-        },
-      });
-    });
   });
 
   it("shows error message on API failure", async () => {

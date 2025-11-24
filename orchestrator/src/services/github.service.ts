@@ -32,10 +32,13 @@ export interface RepoInfo {
 
 /**
  * Parse owner and repo from a git remote URL
- * Supports: git@github.com:owner/repo.git and https://github.com/owner/repo.git
+ * Supports:
+ *   - git@github.com:owner/repo.git (standard SSH)
+ *   - https://github.com/owner/repo.git (HTTPS)
+ *   - github.com-alias:owner/repo.git (custom SSH host alias from ~/.ssh/config)
  */
 export function parseGitRemote(remoteUrl: string): RepoInfo | null {
-  // SSH format: git@github.com:owner/repo.git
+  // Standard SSH format: git@github.com:owner/repo.git
   const sshMatch = remoteUrl.match(/git@github\.com:([^/]+)\/([^/.]+)(?:\.git)?$/);
   if (sshMatch?.[1] && sshMatch[2]) {
     return { owner: sshMatch[1], repo: sshMatch[2] };
@@ -45,6 +48,13 @@ export function parseGitRemote(remoteUrl: string): RepoInfo | null {
   const httpsMatch = remoteUrl.match(/https:\/\/github\.com\/([^/]+)\/([^/.]+)(?:\.git)?$/);
   if (httpsMatch?.[1] && httpsMatch[2]) {
     return { owner: httpsMatch[1], repo: httpsMatch[2] };
+  }
+
+  // Custom SSH host alias format: github.com-alias:owner/repo.git or alias:owner/repo.git
+  // This handles SSH config aliases like "github.com-cliangdev" that map to github.com
+  const aliasMatch = remoteUrl.match(/^[^@:/]+:([^/]+)\/([^/.]+)(?:\.git)?$/);
+  if (aliasMatch?.[1] && aliasMatch[2]) {
+    return { owner: aliasMatch[1], repo: aliasMatch[2] };
   }
 
   return null;
@@ -156,13 +166,20 @@ export function createPullRequestCLI(
     // Check if gh CLI is available
     execSync('which gh', { stdio: 'pipe' });
 
-    const prOutput = execSync(
-      `gh pr create --title "${input.title.replace(/"/g, '\\"')}" --body "${input.body.replace(/"/g, '\\"')}" --base ${input.base} --head ${input.head}`,
-      {
-        cwd: workingDir,
-        encoding: 'utf-8',
-      }
-    ).trim();
+    // Escape single quotes in title and body for shell
+    const escapedTitle = input.title.replace(/'/g, "'\\''");
+    const escapedBody = input.body.replace(/'/g, "'\\''");
+
+    const cmd = `gh pr create --title '${escapedTitle}' --body '${escapedBody}' --base ${input.base} --head ${input.head}`;
+    console.log(`[GitHub] Creating PR with gh CLI: ${cmd.substring(0, 100)}...`);
+
+    const prOutput = execSync(cmd, {
+      cwd: workingDir,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+
+    console.log(`[GitHub] gh CLI output: ${prOutput}`);
 
     // Parse PR URL from output
     const prUrl = prOutput;
@@ -177,11 +194,13 @@ export function createPullRequestCLI(
       method: 'cli',
     };
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`[GitHub] gh CLI error: ${errorMessage}`);
     return {
       success: false,
       prNumber: null,
       prUrl: null,
-      message: `gh CLI error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      message: `gh CLI error: ${errorMessage}`,
       method: 'cli',
     };
   }
@@ -220,6 +239,7 @@ export async function createPullRequest(
 
   // Try API first (if token available)
   if (hasGitHubToken()) {
+    console.log(`[GitHub] Attempting PR creation via API for ${repoInfo.owner}/${repoInfo.repo}`);
     const apiResult = await createPullRequestAPI({
       owner: repoInfo.owner,
       repo: repoInfo.repo,
@@ -227,11 +247,14 @@ export async function createPullRequest(
     });
 
     if (apiResult.success) {
+      console.log(`[GitHub] PR created via API: ${apiResult.prUrl}`);
       return apiResult;
     }
 
     // Log API failure but continue to fallback
-    console.warn(`GitHub API PR creation failed: ${apiResult.message}`);
+    console.warn(`[GitHub] API PR creation failed: ${apiResult.message}`);
+  } else {
+    console.log('[GitHub] No GitHub token, skipping API method');
   }
 
   // Try gh CLI as fallback
