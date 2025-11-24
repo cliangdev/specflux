@@ -96,15 +96,17 @@ export function Terminal({
     if (!terminalRef.current) return;
 
     // Create terminal instance
+    // Hide xterm cursor since Claude Code shows its own cursor
     const term = new XTerm({
-      cursorBlink: true,
-      cursorStyle: "block",
+      cursorBlink: false,
+      cursorStyle: "bar",
+      cursorInactiveStyle: "none",
       fontSize: 14,
       fontFamily: 'Menlo, Monaco, "Courier New", monospace',
       theme: {
         background: "#1e1e1e",
         foreground: "#d4d4d4",
-        cursor: "#d4d4d4",
+        cursor: "transparent", // Hide the cursor
         selectionBackground: "#264f78",
         black: "#000000",
         red: "#cd3131",
