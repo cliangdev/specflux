@@ -435,13 +435,18 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
       );
     }
 
-    // Spawn PTY process
+    // Spawn PTY process with flow control enabled
+    // Flow control helps prevent buffer back pressure when Claude Code produces large outputs
+    // See: terminal-integration-research.md for details
     const ptyProcess = pty.spawn(command, args, {
       name: 'xterm-256color',
       cols: ptyCols,
       rows: ptyRows,
       cwd: worktreePath ?? project.local_path,
       env,
+      // Enable flow control for backpressure management (from research)
+      // This pauses PTY output when buffer is full (XOFF) and resumes when cleared (XON)
+      handleFlowControl: true,
     });
 
     // Create event emitter for output streaming
@@ -480,6 +485,28 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
     // Track whether we've sent the initial clear screen
     let sentInitialClear = false;
 
+    // Chunked output processing for large outputs (from research)
+    // This prevents UI freezing by processing data in smaller chunks
+    const OUTPUT_CHUNK_SIZE = 4096; // 4KB chunks
+    let outputBuffer = '';
+    let chunkFlushTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const flushOutputBuffer = () => {
+      if (outputBuffer.length === 0) return;
+
+      // Process buffer in chunks
+      while (outputBuffer.length > 0) {
+        const chunk = outputBuffer.slice(0, OUTPUT_CHUNK_SIZE);
+        outputBuffer = outputBuffer.slice(OUTPUT_CHUNK_SIZE);
+        emitter.emit('data', chunk);
+      }
+
+      if (chunkFlushTimer) {
+        clearTimeout(chunkFlushTimer);
+        chunkFlushTimer = null;
+      }
+    };
+
     // Register output handler AFTER storing agent and notifying WebSocket
     // This ensures WebSocket is subscribed before any data is emitted
     ptyProcess.onData((data) => {
@@ -496,7 +523,17 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
         emitter.emit('data', '\x1b[2J\x1b[H');
       }
 
-      emitter.emit('data', filteredData);
+      // Add filtered data to buffer
+      outputBuffer += filteredData;
+
+      // If buffer is large, flush in chunks immediately
+      if (outputBuffer.length >= OUTPUT_CHUNK_SIZE) {
+        flushOutputBuffer();
+      } else {
+        // For smaller outputs, use a short timer to batch them
+        // This reduces the number of WebSocket messages for rapid small writes
+        chunkFlushTimer ??= setTimeout(flushOutputBuffer, 10);
+      }
 
       // Parse terminal output for progress events
       const events = parseTerminalOutput(data, parserState);
@@ -562,6 +599,13 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
 
     // Handle exit
     ptyProcess.onExit(({ exitCode }) => {
+      // Flush any remaining buffered output before processing exit
+      flushOutputBuffer();
+      if (chunkFlushTimer) {
+        clearTimeout(chunkFlushTimer);
+        chunkFlushTimer = null;
+      }
+
       runningAgents.delete(taskId);
 
       const sessionStatus: AgentSession['status'] = exitCode === 0 ? 'completed' : 'failed';
