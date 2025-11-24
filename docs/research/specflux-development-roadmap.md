@@ -1111,6 +1111,10 @@ const tasks = await projectsApi.getProjectTasks({ id: 1 });
 - [ ] Start 2 tasks in same repo, verify both run
 - [ ] Complete task, verify worktree cleanup
 
+#### Known Issues / Technical Debt
+- [ ] **Agent state lost on server restart** - Agent tracking is in-memory only. When the orchestrator server restarts, it loses track of running Claude Code processes, leaving orphaned PTY processes. The UI shows "Active" but the terminal displays "Agent is running..." with no output. **Fix:** Persist agent PIDs to database (active_agents table exists but isn't used for recovery), or implement process discovery on startup to reconnect to orphaned agents.
+- [ ] **File changes polling causes terminal lag** - Frequent polling (< 10s) causes React re-renders that lag terminal input. Currently using 30s polling as workaround. **Fix:** Use WebSocket events from backend when files change instead of polling.
+
 ---
 
 ## Phase 3: Core Kanban UI (Weeks 5-6)
