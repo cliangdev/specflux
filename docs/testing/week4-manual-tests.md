@@ -6,20 +6,6 @@
 
 ## Terminal Output
 
-### Agent Status Detection
-- [ ] Start an agent - status badge should show "running" with green pulse
-- [ ] Let agent complete - status should change to "completed" or "idle"
-- [ ] Start agent and stop it manually - status should show "stopped"
-
-## Progress Tracking
-
-### Task Progress
-- [ ] Create a task and start the agent
-- [ ] Verify progress bar updates as agent works
-- [ ] Verify progress percentage is displayed correctly
-
-## GitHub Integration
-
 ### PR Creation (requires GitHub repo with remote)
 - [ ] Complete a task with file changes
 - [ ] Task should move to "pending_review" status

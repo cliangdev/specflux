@@ -1114,6 +1114,7 @@ const tasks = await projectsApi.getProjectTasks({ id: 1 });
 #### Known Issues / Technical Debt
 - [ ] **Agent state lost on server restart** - Agent tracking is in-memory only. When the orchestrator server restarts, it loses track of running Claude Code processes, leaving orphaned PTY processes. The UI shows "Active" but the terminal displays "Agent is running..." with no output. **Fix:** Persist agent PIDs to database (active_agents table exists but isn't used for recovery), or implement process discovery on startup to reconnect to orphaned agents.
 - [ ] **File changes polling causes terminal lag** - Frequent polling (< 10s) causes React re-renders that lag terminal input. Currently using 30s polling as workaround. **Fix:** Use WebSocket events from backend when files change instead of polling.
+- [ ] **Progress bar removed - needs reliable measurement approach** - Progress bar was removed from task detail page because there's no reliable way to measure task progress. Claude Code output is unpredictable. **Options to evaluate:** (1) Parse Claude's tool usage counts, (2) Milestone-based progress with user-defined checkpoints, (3) Time-based estimate using estimated_duration, (4) Integration with Claude Code's internal progress if available.
 
 ---
 
