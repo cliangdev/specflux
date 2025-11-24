@@ -391,15 +391,14 @@ export default function TaskDetailPage() {
     agentStatus.status === AgentStatusStatusEnum.Completed ||
     agentStatus.status === AgentStatusStatusEnum.Failed;
 
-  // Poll for file changes (git-based tracking)
-  // Fast polling when agent is running, slower when idle
-  // Pass false to not show loading indicator during polling
+  // Poll for file changes only when agent is running (git-based tracking)
+  // No need to poll when idle since file changes won't happen
   useEffect(() => {
-    const pollInterval = isAgentRunning ? 3000 : 10000; // 3s when running, 10s when idle
+    if (!isAgentRunning) return;
 
     const interval = setInterval(() => {
       fetchFileChanges(false); // Don't show loading on poll updates
-    }, pollInterval);
+    }, 3000); // Poll every 3s while agent is active
 
     return () => clearInterval(interval);
   }, [isAgentRunning, fetchFileChanges]);
