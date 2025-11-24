@@ -98,4 +98,54 @@ describe("TaskCard", () => {
     fireEvent.click(screen.getByText("Test Task"));
     expect(handleClick).toHaveBeenCalledWith(mockTask);
   });
+
+  it("shows blocked indicator when task has blockedByCount > 0", () => {
+    const blockedTask: Task = {
+      ...mockTask,
+      blockedByCount: 2,
+    };
+    render(<TaskCard task={blockedTask} />);
+    // Should show the count
+    expect(screen.getByText("2")).toBeInTheDocument();
+    // Should have tooltip with blocking info
+    expect(
+      screen.getByTitle("Blocked by 2 incomplete tasks"),
+    ).toBeInTheDocument();
+  });
+
+  it("does not show blocked indicator when task is not blocked", () => {
+    const unblockedTask: Task = {
+      ...mockTask,
+      blockedByCount: 0,
+    };
+    render(<TaskCard task={unblockedTask} />);
+    expect(screen.queryByTitle(/Blocked by/)).not.toBeInTheDocument();
+  });
+
+  it("shows correct agent status for paused task", () => {
+    const pausedTask: Task = {
+      ...mockTask,
+      agentStatus: TaskAgentStatusEnum.Paused,
+    };
+    render(<TaskCard task={pausedTask} />);
+    expect(screen.getByTitle("Paused")).toBeInTheDocument();
+  });
+
+  it("shows correct agent status for failed task", () => {
+    const failedTask: Task = {
+      ...mockTask,
+      agentStatus: TaskAgentStatusEnum.Failed,
+    };
+    render(<TaskCard task={failedTask} />);
+    expect(screen.getByTitle("Failed")).toBeInTheDocument();
+  });
+
+  it("shows correct agent status for completed task", () => {
+    const completedTask: Task = {
+      ...mockTask,
+      agentStatus: TaskAgentStatusEnum.Completed,
+    };
+    render(<TaskCard task={completedTask} />);
+    expect(screen.getByTitle("Completed")).toBeInTheDocument();
+  });
 });

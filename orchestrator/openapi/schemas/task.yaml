@@ -29,6 +29,10 @@ Task:
       type: integer
       minimum: 0
       maximum: 100
+    blocked_by_count:
+      type: integer
+      minimum: 0
+      description: Number of incomplete tasks blocking this task
     estimated_duration:
       type: integer
       nullable: true

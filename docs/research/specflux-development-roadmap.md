@@ -1160,15 +1160,15 @@ const tasks = await projectsApi.getProjectTasks({ id: 1 });
   - [x] Create Board component (KanbanBoard with dynamic columns)
   - [x] Columns: Configurable per workflow template (startup-fast, design-first, full-lifecycle)
   - [x] Drag and drop tasks between columns
-  - [ ] Visual indicators (repo color, agent icon, blocked status)
+  - [x] Visual indicators (repo color, agent icon, blocked status)
   - [ ] Filter by repository
   - [ ] Filter by epic
   - [ ] Search tasks
 - [x] Task card component
   - [x] Title, description preview (with truncation and hover tooltips)
   - [ ] Status badge
-  - [x] Assigned repo tag
-  - [ ] Dependency indicators (🔒 if blocked)
+  - [x] Assigned repo tag (with dynamic colors)
+  - [x] Dependency indicators (🔒 with blocked count)
   - [x] Progress bar
   - [x] Running indicator animation
 

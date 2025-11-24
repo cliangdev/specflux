@@ -167,6 +167,7 @@ describe('ContextService', () => {
           assigned_to_user_id: 1,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
+          blocked_by_count: 0,
         },
         dependencies: [],
         projectName: 'Test Project',
