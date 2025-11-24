@@ -4,7 +4,10 @@
 - [ ] Backend server running (`npm run dev` in orchestrator/)
 - [ ] Frontend app running (`npm run tauri dev` in frontend/)
 - [ ] At least one project created with multiple tasks
-- [ ] Database has some tasks with dependencies set up
+
+**Note:** Dependency management UI is not yet implemented. To test blocked indicators, you'll need to create dependencies via:
+- **Option A:** API calls (see "Creating Dependencies via API" section below)
+- **Option B:** Direct database inserts (see "Creating Dependencies via Database" section below)
 
 ---
 
@@ -202,6 +205,111 @@
 - [ ] Progress bar shows for running tasks
 - [ ] Avatar placeholder shows for assigned tasks
 - [ ] Clicking task card opens task detail (if implemented)
+
+---
+
+## Appendix: Creating Dependencies for Testing
+
+### Option A: Creating Dependencies via API
+
+**Step 1:** Get task IDs
+```bash
+curl http://localhost:3000/api/projects/1/tasks \
+  -H "X-User-Id: 1" | jq '.data[] | {id, title}'
+```
+
+**Step 2:** Create dependency (Task B depends on Task A)
+```bash
+# Make Task B (id=2) depend on Task A (id=1)
+curl -X POST http://localhost:3000/api/tasks/2/dependencies \
+  -H "Content-Type: application/json" \
+  -H "X-User-Id: 1" \
+  -d '{"depends_on_task_id": 1}'
+```
+
+**Step 3:** Verify dependency
+```bash
+curl http://localhost:3000/api/tasks/2/dependencies \
+  -H "X-User-Id: 1"
+```
+
+**Step 4:** Refresh board to see blocked indicator on Task B
+
+---
+
+### Option B: Creating Dependencies via Database
+
+**Step 1:** Open SQLite database
+```bash
+cd orchestrator
+sqlite3 data/specflux.db
+```
+
+**Step 2:** View existing tasks
+```sql
+SELECT id, title, status FROM tasks WHERE project_id = 1;
+```
+
+**Step 3:** Insert dependency
+```sql
+-- Make task 2 depend on task 1
+INSERT INTO task_dependencies (task_id, depends_on_task_id)
+VALUES (2, 1);
+```
+
+**Step 4:** Verify blocked count
+```sql
+SELECT
+  t.id,
+  t.title,
+  t.status,
+  (
+    SELECT COUNT(*) FROM task_dependencies td
+    INNER JOIN tasks blocker ON blocker.id = td.depends_on_task_id
+    WHERE td.task_id = t.id AND blocker.status NOT IN ('approved', 'done')
+  ) as blocked_by_count
+FROM tasks t
+WHERE t.id = 2;
+```
+
+**Step 5:** Exit SQLite and refresh board
+```sql
+.exit
+```
+
+---
+
+### Example Test Scenario
+
+**Create a blocked task chain:**
+```bash
+# Assume you have Task #1, #2, #3 all in "backlog" status
+
+# Task 3 depends on Task 2
+curl -X POST http://localhost:3000/api/tasks/3/dependencies \
+  -H "Content-Type: application/json" \
+  -H "X-User-Id: 1" \
+  -d '{"depends_on_task_id": 2}'
+
+# Task 3 also depends on Task 1
+curl -X POST http://localhost:3000/api/tasks/3/dependencies \
+  -H "Content-Type: application/json" \
+  -H "X-User-Id: 1" \
+  -d '{"depends_on_task_id": 1}'
+
+# Result: Task #3 should show "🔒 2" blocked by 2 tasks
+```
+
+**Test unblocking:**
+```bash
+# Complete Task 1
+curl -X PATCH http://localhost:3000/api/tasks/1 \
+  -H "Content-Type: application/json" \
+  -H "X-User-Id: 1" \
+  -d '{"status": "done"}'
+
+# Refresh board - Task #3 should now show "🔒 1" (only blocked by Task 2)
+```
 
 ---
 
