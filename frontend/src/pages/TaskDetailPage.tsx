@@ -165,46 +165,55 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 // Agent status badge configuration
-const AGENT_STATUS_CONFIG: Record<string, { classes: string; dot?: boolean }> =
-  {
-    idle: {
-      classes:
-        "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
-    },
-    running: {
-      classes:
-        "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
-      dot: true,
-    },
-    paused: {
-      classes:
-        "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800",
-    },
-    stopped: {
-      classes:
-        "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800",
-    },
-    completed: {
-      classes:
-        "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
-    },
-    failed: {
-      classes:
-        "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800",
-    },
-  };
+// "running" means the process is alive - could be working or waiting for input
+const AGENT_STATUS_CONFIG: Record<
+  string,
+  { label: string; classes: string; dot?: boolean }
+> = {
+  idle: {
+    label: "Idle",
+    classes:
+      "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
+  },
+  running: {
+    label: "Active", // More accurate than "Running" - agent is alive, may be working or waiting
+    classes:
+      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
+    dot: true,
+  },
+  paused: {
+    label: "Paused",
+    classes:
+      "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800",
+  },
+  stopped: {
+    label: "Stopped",
+    classes:
+      "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800",
+  },
+  completed: {
+    label: "Completed",
+    classes:
+      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
+  },
+  failed: {
+    label: "Failed",
+    classes:
+      "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800",
+  },
+};
 
 function AgentStatusBadge({ status }: { status: string }) {
   const config = AGENT_STATUS_CONFIG[status] || AGENT_STATUS_CONFIG.idle;
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border capitalize ${config.classes}`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${config.classes}`}
     >
       {config.dot && (
         <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
       )}
-      {status}
+      {config.label}
     </span>
   );
 }
