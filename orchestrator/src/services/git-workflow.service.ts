@@ -36,19 +36,14 @@ export function getWorktreeChanges(
   baseBranch: string = 'main'
 ): WorktreeChanges {
   try {
-    // First check for uncommitted changes
-    // Note: Don't trim() as it removes leading spaces which are part of the status code format
-    const status = execSync('git status --porcelain', {
-      cwd: worktreePath,
-      encoding: 'utf-8',
-    }).replace(/\n$/, ''); // Only remove trailing newline, not leading spaces
-
-    // Also check for committed changes compared to base branch
-    let filesChanged: string[] = [];
+    const newFiles: string[] = [];
+    const modifiedFiles: string[] = [];
+    const deletedFiles: string[] = [];
+    const filesChanged: string[] = [];
     let insertions = 0;
     let deletions = 0;
 
-    // Get committed changes compared to base branch
+    // Get committed changes compared to base branch using --name-status
     try {
       // Fetch to ensure we have latest remote refs
       execSync('git fetch origin 2>/dev/null || true', {
@@ -56,18 +51,36 @@ export function getWorktreeChanges(
         encoding: 'utf-8',
       });
 
-      // Compare against origin/baseBranch or baseBranch
+      // Compare against origin/baseBranch or baseBranch using --name-status to get change types
       const compareRef = `origin/${baseBranch}`;
-      const diffNameOnly = execSync(
-        `git diff --name-only ${compareRef}...HEAD 2>/dev/null || git diff --name-only ${baseBranch}...HEAD 2>/dev/null || echo ""`,
+      const diffNameStatus = execSync(
+        `git diff --name-status ${compareRef}...HEAD 2>/dev/null || git diff --name-status ${baseBranch}...HEAD 2>/dev/null || echo ""`,
         {
           cwd: worktreePath,
           encoding: 'utf-8',
         }
       ).trim();
 
-      if (diffNameOnly) {
-        filesChanged = diffNameOnly.split('\n').filter(Boolean);
+      if (diffNameStatus) {
+        const lines = diffNameStatus.split('\n').filter(Boolean);
+        for (const line of lines) {
+          // Format: STATUS<tab>filename (e.g., "A\tfile.txt" or "M\tfile.txt")
+          const [status, ...filenameParts] = line.split('\t');
+          const filePath = filenameParts.join('\t'); // Handle filenames with tabs
+
+          if (!filePath) continue;
+
+          filesChanged.push(filePath);
+
+          // Categorize by status
+          if (status === 'A') {
+            newFiles.push(filePath);
+          } else if (status === 'D') {
+            deletedFiles.push(filePath);
+          } else if (status === 'M' || status?.startsWith('R')) {
+            modifiedFiles.push(filePath);
+          }
+        }
       }
 
       // Get stats for committed changes
@@ -87,12 +100,12 @@ export function getWorktreeChanges(
       // Ignore diff errors, fall back to uncommitted changes only
     }
 
-    // Parse uncommitted files from git status --porcelain
-    // Format: XY filename where X=staged status, Y=unstaged status
-    // Common codes: A=added, M=modified, D=deleted, ?=untracked
-    const newFiles: string[] = [];
-    const modifiedFiles: string[] = [];
-    const deletedFiles: string[] = [];
+    // Also check for uncommitted changes from git status
+    // Note: Don't trim() as it removes leading spaces which are part of the status code format
+    const status = execSync('git status --porcelain', {
+      cwd: worktreePath,
+      encoding: 'utf-8',
+    }).replace(/\n$/, '');
 
     if (status) {
       const lines = status.split('\n').filter(Boolean);
@@ -107,23 +120,19 @@ export function getWorktreeChanges(
           filesChanged.push(filePath);
         }
 
-        // Categorize by status code
-        // X or Y can be: A(added), M(modified), D(deleted), R(renamed), C(copied), U(updated), ?(untracked)
+        // Categorize by status code (only if not already categorized from committed changes)
         const staged = statusCode[0];
         const unstaged = statusCode[1];
 
         if (staged === '?' || staged === 'A' || unstaged === 'A') {
-          // New/untracked file
           if (!newFiles.includes(filePath)) {
             newFiles.push(filePath);
           }
         } else if (staged === 'D' || unstaged === 'D') {
-          // Deleted file
           if (!deletedFiles.includes(filePath)) {
             deletedFiles.push(filePath);
           }
         } else if (staged === 'M' || unstaged === 'M' || staged === 'R' || unstaged === 'R') {
-          // Modified or renamed file
           if (!modifiedFiles.includes(filePath)) {
             modifiedFiles.push(filePath);
           }
@@ -150,8 +159,8 @@ export function getWorktreeChanges(
 /**
  * Check if there are uncommitted changes for a task's worktree
  */
-export function hasUncommittedChanges(taskId: number): boolean {
-  const worktree = getWorktree(taskId);
+export function hasUncommittedChanges(taskId: number, projectPath: string): boolean {
+  const worktree = getWorktree(taskId, projectPath);
   if (!worktree) {
     return false;
   }
@@ -188,7 +197,26 @@ export function getWorktreeDiff(worktreePath: string, baseBranch: string = 'main
  * Commit all changes in a worktree
  */
 export function commitWorktreeChanges(taskId: number): CommitResult {
-  const worktree = getWorktree(taskId);
+  // Get task and project to enable disk-based worktree lookup
+  const task = getTaskById(taskId);
+  if (!task) {
+    return {
+      success: false,
+      commitHash: null,
+      message: `Task ${taskId} not found`,
+    };
+  }
+
+  const project = getProjectById(task.project_id);
+  if (!project?.local_path) {
+    return {
+      success: false,
+      commitHash: null,
+      message: `Project not found for task ${taskId}`,
+    };
+  }
+
+  const worktree = getWorktree(taskId, project.local_path);
   if (!worktree) {
     return {
       success: false,
@@ -197,14 +225,29 @@ export function commitWorktreeChanges(taskId: number): CommitResult {
     };
   }
 
-  const changes = getWorktreeChanges(worktree.path);
-  if (!changes.hasChanges) {
+  // Check for uncommitted changes directly via git status (not getWorktreeChanges which includes committed changes)
+  const gitStatus = execSync('git status --porcelain', {
+    cwd: worktree.path,
+    encoding: 'utf-8',
+  }).trim();
+
+  console.log(
+    `[commitWorktreeChanges] git status output: "${gitStatus.substring(0, 100)}${gitStatus.length > 100 ? '...' : ''}"`
+  );
+
+  if (!gitStatus) {
+    console.log(
+      '[commitWorktreeChanges] No uncommitted changes to commit (changes may already be committed)'
+    );
     return {
       success: false,
       commitHash: null,
       message: 'No changes to commit',
     };
   }
+
+  // Count files for logging
+  const uncommittedFiles = gitStatus.split('\n').filter(Boolean).length;
 
   try {
     // Stage all changes
@@ -213,9 +256,8 @@ export function commitWorktreeChanges(taskId: number): CommitResult {
       stdio: 'pipe',
     });
 
-    // Get task info for commit message
-    const task = getTaskById(taskId);
-    const commitMessage = `feat(task-${taskId}): ${task?.title ?? 'Complete task'}\n\nTask #${taskId} completed via SpecFlux agent.\n\n🤖 Generated with SpecFlux`;
+    // Build commit message (task already fetched above)
+    const commitMessage = `feat(task-${taskId}): ${task.title ?? 'Complete task'}\n\nTask #${taskId} completed via SpecFlux agent.\n\n🤖 Generated with SpecFlux`;
 
     // Commit
     execSync(`git commit -m "${commitMessage.replace(/"/g, '\\"')}"`, {
@@ -232,7 +274,7 @@ export function commitWorktreeChanges(taskId: number): CommitResult {
     return {
       success: true,
       commitHash,
-      message: `Committed ${changes.filesChanged.length} file(s)`,
+      message: `Committed ${uncommittedFiles} file(s)`,
     };
   } catch (error) {
     return {
@@ -246,8 +288,11 @@ export function commitWorktreeChanges(taskId: number): CommitResult {
 /**
  * Push worktree branch to remote
  */
-export function pushWorktreeBranch(taskId: number): { success: boolean; message: string } {
-  const worktree = getWorktree(taskId);
+export function pushWorktreeBranch(
+  taskId: number,
+  projectPath: string
+): { success: boolean; message: string } {
+  const worktree = getWorktree(taskId, projectPath);
   if (!worktree) {
     return {
       success: false,
@@ -279,17 +324,7 @@ export function pushWorktreeBranch(taskId: number): { success: boolean; message:
  * Uses GitHub API with fallback to gh CLI and manual URL
  */
 export async function createPullRequest(taskId: number): Promise<PullRequestResult> {
-  const worktree = getWorktree(taskId);
-  if (!worktree) {
-    return {
-      success: false,
-      prNumber: null,
-      prUrl: null,
-      message: `No worktree found for task ${taskId}`,
-    };
-  }
-
-  // Get task and project info
+  // Get task and project info first (needed for disk-based worktree lookup)
   const task = getTaskById(taskId);
   if (!task) {
     return {
@@ -301,7 +336,7 @@ export async function createPullRequest(taskId: number): Promise<PullRequestResu
   }
 
   const project = getProjectById(task.project_id);
-  if (!project) {
+  if (!project?.local_path) {
     return {
       success: false,
       prNumber: null,
@@ -310,12 +345,26 @@ export async function createPullRequest(taskId: number): Promise<PullRequestResu
     };
   }
 
+  const worktree = getWorktree(taskId, project.local_path);
+  if (!worktree) {
+    return {
+      success: false,
+      prNumber: null,
+      prUrl: null,
+      message: `No worktree found for task ${taskId}`,
+    };
+  }
+
   // Get target branch from project config
   const config = getProjectConfig(task.project_id);
   const targetBranch = config?.default_pr_target_branch ?? 'main';
 
   // Ensure branch is pushed
+  console.log(`[createPullRequest] Pushing branch ${worktree.branch}...`);
   const pushResult = pushBranch(worktree.path, worktree.branch);
+  console.log(
+    `[createPullRequest] Push result: success=${pushResult.success}, message=${pushResult.message}`
+  );
   if (!pushResult.success) {
     return {
       success: false,
@@ -337,12 +386,16 @@ This PR was auto-generated by SpecFlux after task completion.
 ---
 🤖 Generated with SpecFlux`;
 
+  console.log(`[createPullRequest] Creating PR: head=${worktree.branch}, base=${targetBranch}`);
   const result = await createPRViaGitHub(worktree.path, {
     title: prTitle,
     body: prBody,
     head: worktree.branch,
     base: targetBranch,
   });
+  console.log(
+    `[createPullRequest] PR result: success=${result.success}, prNumber=${result.prNumber}, method=${result.method}, message=${result.message}`
+  );
 
   return {
     success: result.success,
@@ -358,22 +411,33 @@ This PR was auto-generated by SpecFlux after task completion.
 export async function commitAndCreatePR(
   taskId: number
 ): Promise<{ commit: CommitResult; pr: PullRequestResult }> {
-  // First commit
+  // First try to commit any uncommitted changes
   const commitResult = commitWorktreeChanges(taskId);
 
-  if (!commitResult.success) {
+  // Even if commit fails (e.g., no uncommitted changes because agent already committed),
+  // we should still try to create the PR if there are committed changes vs base branch
+  const isNothingToCommit =
+    commitResult.message.includes('No changes to commit') ||
+    commitResult.message.includes('nothing to commit') ||
+    commitResult.message.includes('working tree clean');
+  if (!commitResult.success && !isNothingToCommit) {
+    // Real commit failure (not just "nothing to commit")
+    console.warn(`[commitAndCreatePR] Real commit failure: ${commitResult.message}`);
     return {
       commit: commitResult,
       pr: {
         success: false,
         prNumber: null,
         prUrl: null,
-        message: 'Skipped PR creation due to commit failure',
+        message: `Skipped PR creation due to commit failure: ${commitResult.message}`,
       },
     };
   }
+  console.log(
+    `[commitAndCreatePR] Proceeding to PR creation (commit success=${commitResult.success}, message=${commitResult.message})`
+  );
 
-  // Then create PR
+  // Create PR (even if commit returned "no changes" - the changes might already be committed)
   const prResult = await createPullRequest(taskId);
 
   return {

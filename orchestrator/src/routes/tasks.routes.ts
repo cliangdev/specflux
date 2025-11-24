@@ -17,7 +17,7 @@ import {
   getProjectConfig,
   getProjectById,
 } from '../services/project.service';
-import { getWorktreeFromDisk } from '../services/worktree.service';
+import { getWorktree } from '../services/worktree.service';
 import { getWorktreeChanges, getWorktreeDiff } from '../services/git-workflow.service';
 import { createTaskPR, approveTask } from '../services/agent.service';
 import { NotFoundError, ValidationError } from '../types';
@@ -462,8 +462,8 @@ router.get('/tasks/:id/diff', (req: Request, res: Response, next: NextFunction) 
       return;
     }
 
-    // Get worktree for this task from disk
-    const worktree = getWorktreeFromDisk(taskId, project.local_path);
+    // Get worktree for this task
+    const worktree = getWorktree(taskId, project.local_path);
     if (!worktree) {
       res.json({
         success: true,
@@ -521,11 +521,6 @@ router.post('/tasks/:id/create-pr', async (req: Request, res: Response, next: Ne
 
     if (!userHasProjectAccess(task.project_id, req.userId!)) {
       throw new NotFoundError('Task', taskId);
-    }
-
-    // Only allow PR creation for pending_review tasks
-    if (task.status !== 'pending_review') {
-      throw new ValidationError('Task must be in pending_review status to create PR');
     }
 
     // Create PR
@@ -613,8 +608,8 @@ router.get('/tasks/:id/file-changes', (req: Request, res: Response, next: NextFu
       return;
     }
 
-    // Get the worktree for this task from disk (always check disk for accurate state)
-    const worktree = getWorktreeFromDisk(taskId, project.local_path);
+    // Get the worktree for this task
+    const worktree = getWorktree(taskId, project.local_path);
 
     if (!worktree) {
       // No worktree means no file changes
@@ -628,8 +623,12 @@ router.get('/tasks/:id/file-changes', (req: Request, res: Response, next: NextFu
       return;
     }
 
-    // Use git status to get actual file changes
-    const changes = getWorktreeChanges(worktree.path, worktree.branch);
+    // Get base branch from project config for comparison
+    const config = getProjectConfig(task.project_id);
+    const baseBranch = config?.default_pr_target_branch ?? 'main';
+
+    // Get file changes compared to base branch
+    const changes = getWorktreeChanges(worktree.path, baseBranch);
 
     // Convert to the expected format
     const fileChanges = [

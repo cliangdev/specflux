@@ -4,9 +4,14 @@ import { api, type TaskFileChanges } from "../api";
 interface FileChangesProps {
   taskId: number;
   isAgentRunning: boolean;
+  onHasChanges?: (hasChanges: boolean, count: number) => void;
 }
 
-export function FileChanges({ taskId, isAgentRunning }: FileChangesProps) {
+export function FileChanges({
+  taskId,
+  isAgentRunning,
+  onHasChanges,
+}: FileChangesProps) {
   const [fileChanges, setFileChanges] = useState<TaskFileChanges | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -43,6 +48,12 @@ export function FileChanges({ taskId, isAgentRunning }: FileChangesProps) {
 
     return () => clearInterval(interval);
   }, [isAgentRunning, fetchFileChanges]);
+
+  // Notify parent when changes are detected
+  useEffect(() => {
+    const hasChanges = fileChanges && fileChanges.changes.length > 0;
+    onHasChanges?.(hasChanges ?? false, fileChanges?.changes.length ?? 0);
+  }, [fileChanges, onHasChanges]);
 
   if (loading) {
     return <p className="text-system-500 text-sm">Loading...</p>;

@@ -179,31 +179,21 @@ export function removeWorktree(taskId: number, projectPath: string): void {
 }
 
 /**
- * Get worktree info for a task
- * First checks in-memory map, then falls back to checking disk
+ * Get worktree info for a task by checking disk
+ * Disk is the source of truth - in-memory map is just a cache
  */
-export function getWorktree(taskId: number): Worktree | null {
-  // Check in-memory first
-  const cached = worktreeMap.get(taskId);
-  if (cached) return cached;
-
-  return null;
-}
-
-/**
- * Get worktree for a task by checking the project's worktree directory on disk
- * Use this when the worktree might exist but not be tracked in memory (e.g., after server restart)
- */
-export function getWorktreeFromDisk(taskId: number, projectPath: string): Worktree | null {
+export function getWorktree(taskId: number, projectPath: string): Worktree | null {
   const worktreePath = path.join(getWorktreeBaseDir(projectPath), `task-${taskId}`);
 
   // Check if the worktree directory exists and is valid
   if (!fs.existsSync(worktreePath)) {
+    worktreeMap.delete(taskId); // Clean up stale cache
     return null;
   }
 
   const gitFile = path.join(worktreePath, '.git');
   if (!fs.existsSync(gitFile)) {
+    worktreeMap.delete(taskId); // Clean up stale cache
     return null;
   }
 
@@ -227,6 +217,14 @@ export function getWorktreeFromDisk(taskId: number, projectPath: string): Worktr
   } catch {
     return null;
   }
+}
+
+/**
+ * @deprecated Use getWorktree(taskId, projectPath) instead
+ * Kept for backwards compatibility during migration
+ */
+export function getWorktreeFromDisk(taskId: number, projectPath: string): Worktree | null {
+  return getWorktree(taskId, projectPath);
 }
 
 /**

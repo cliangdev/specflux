@@ -14,7 +14,6 @@ export default function TaskCreateModal({
 }: TaskCreateModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [requiresApproval, setRequiresApproval] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,7 +32,6 @@ export default function TaskCreateModal({
       const request: CreateTaskRequest = {
         title: title.trim(),
         description: description.trim() || undefined,
-        requiresApproval,
       };
 
       await api.tasks.createTask({
@@ -129,22 +127,6 @@ export default function TaskCreateModal({
                 rows={3}
                 className="input resize-none"
               />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                id="requiresApproval"
-                type="checkbox"
-                checked={requiresApproval}
-                onChange={(e) => setRequiresApproval(e.target.checked)}
-                className="w-4 h-4 rounded border-system-300 dark:border-system-600 bg-white dark:bg-system-900 text-brand-600 focus:ring-brand-500 focus:ring-offset-white dark:focus:ring-offset-system-800"
-              />
-              <label
-                htmlFor="requiresApproval"
-                className="text-sm text-system-700 dark:text-system-300"
-              >
-                Requires approval before completion
-              </label>
             </div>
           </div>
 

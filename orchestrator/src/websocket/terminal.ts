@@ -1,11 +1,13 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { IncomingMessage, Server } from 'http';
 import { parse } from 'url';
+import { EventEmitter } from 'events';
 import {
   getAgentEmitter,
   sendAgentInput,
   resizeAgentPty,
   isAgentRunning,
+  agentLifecycleEmitter,
 } from '../services/agent.service';
 
 interface TerminalClient {
@@ -69,43 +71,28 @@ function handleConnection(ws: WebSocket, taskId: number): void {
     })
   );
 
-  // Subscribe to agent output if running
-  const emitter = getAgentEmitter(taskId);
+  // Track current emitter subscription
+  let currentEmitter: EventEmitter | null = null;
+
+  // Event handlers
   const dataHandler = (data: string) => {
     if (ws.readyState === WebSocket.OPEN) {
-      ws.send(
-        JSON.stringify({
-          type: 'output',
-          data,
-        })
-      );
+      ws.send(JSON.stringify({ type: 'output', data }));
     }
   };
 
   const exitHandler = (exitCode: number) => {
     if (ws.readyState === WebSocket.OPEN) {
-      ws.send(
-        JSON.stringify({
-          type: 'exit',
-          exitCode,
-        })
-      );
+      ws.send(JSON.stringify({ type: 'exit', exitCode }));
     }
   };
 
-  // Handle progress updates
   const progressHandler = (event: { taskId: number; progress: number }) => {
     if (ws.readyState === WebSocket.OPEN) {
-      ws.send(
-        JSON.stringify({
-          type: 'progress',
-          progress: event.progress,
-        })
-      );
+      ws.send(JSON.stringify({ type: 'progress', progress: event.progress }));
     }
   };
 
-  // Handle file change events
   const fileChangeHandler = (event: {
     taskId: number;
     sessionId: number;
@@ -123,7 +110,6 @@ function handleConnection(ws: WebSocket, taskId: number): void {
     }
   };
 
-  // Handle test result events
   const testResultHandler = (event: {
     taskId: number;
     passed: number;
@@ -142,13 +128,45 @@ function handleConnection(ws: WebSocket, taskId: number): void {
     }
   };
 
-  if (emitter) {
+  // Helper to subscribe to an emitter
+  const subscribeToEmitter = (emitter: EventEmitter) => {
+    // If already subscribed to this exact emitter, do nothing
+    if (currentEmitter === emitter) {
+      return;
+    }
+
+    // Unsubscribe from previous emitter if any
+    if (currentEmitter) {
+      currentEmitter.off('data', dataHandler);
+      currentEmitter.off('exit', exitHandler);
+      currentEmitter.off('progress', progressHandler);
+      currentEmitter.off('file-change', fileChangeHandler);
+      currentEmitter.off('test-result', testResultHandler);
+    }
+    currentEmitter = emitter;
     emitter.on('data', dataHandler);
     emitter.on('exit', exitHandler);
     emitter.on('progress', progressHandler);
     emitter.on('file-change', fileChangeHandler);
     emitter.on('test-result', testResultHandler);
+  };
+
+  // Subscribe to agent output if already running
+  const initialEmitter = getAgentEmitter(taskId);
+  if (initialEmitter) {
+    subscribeToEmitter(initialEmitter);
   }
+
+  // Listen for agent lifecycle events (when agent starts after WS connection)
+  const agentStartedHandler = (event: { taskId: number; emitter: EventEmitter }) => {
+    if (event.taskId === taskId && ws.readyState === WebSocket.OPEN) {
+      // Send status update
+      ws.send(JSON.stringify({ type: 'status', running: true, taskId }));
+      // Subscribe to the new emitter
+      subscribeToEmitter(event.emitter);
+    }
+  };
+  agentLifecycleEmitter.on('agent-started', agentStartedHandler);
 
   // Handle incoming messages
   ws.on('message', (message: Buffer) => {
@@ -174,14 +192,17 @@ function handleConnection(ws: WebSocket, taskId: number): void {
       clientsByTask.delete(taskId);
     }
 
-    // Remove listeners
-    if (emitter) {
-      emitter.off('data', dataHandler);
-      emitter.off('exit', exitHandler);
-      emitter.off('progress', progressHandler);
-      emitter.off('file-change', fileChangeHandler);
-      emitter.off('test-result', testResultHandler);
+    // Remove listeners from current emitter
+    if (currentEmitter) {
+      currentEmitter.off('data', dataHandler);
+      currentEmitter.off('exit', exitHandler);
+      currentEmitter.off('progress', progressHandler);
+      currentEmitter.off('file-change', fileChangeHandler);
+      currentEmitter.off('test-result', testResultHandler);
     }
+
+    // Remove lifecycle listener
+    agentLifecycleEmitter.off('agent-started', agentStartedHandler);
   });
 
   // Handle errors

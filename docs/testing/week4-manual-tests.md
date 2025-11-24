@@ -21,14 +21,7 @@
 
 ## Edge Cases
 
-### No Worktree
-- [ ] View a task that has never had an agent started
-- [ ] File changes should show "No file changes tracked yet"
-- [ ] No errors should appear in console
 
-### Empty Worktree
-- [ ] Start an agent that doesn't make any changes
-- [ ] File changes should show "No file changes tracked yet"
 
 ### Multiple Tasks
 - [ ] Create multiple tasks for the same project

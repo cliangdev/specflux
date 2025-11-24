@@ -157,14 +157,14 @@ describe('WorktreeService', () => {
       const branchName = 'task/20-get-test';
       createWorktree(20, testRepoPath, branchName);
 
-      const worktree = getWorktree(20);
+      const worktree = getWorktree(20, testRepoPath);
       expect(worktree).not.toBeNull();
       expect(worktree?.taskId).toBe(20);
       expect(worktree?.branch).toBe(branchName);
     });
 
     it('should return null for non-existent task', () => {
-      const worktree = getWorktree(999);
+      const worktree = getWorktree(999, testRepoPath);
       expect(worktree).toBeNull();
     });
   });

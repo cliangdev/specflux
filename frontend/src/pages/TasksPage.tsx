@@ -365,12 +365,12 @@ export default function TasksPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-system-500 dark:text-system-400">
                     #{task.id}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-system-900 dark:text-white">
+                  <td className="px-6 py-4 max-w-md">
+                    <div className="text-sm font-medium text-system-900 dark:text-white truncate">
                       {task.title}
                     </div>
                     {task.description && (
-                      <div className="text-sm text-system-500 dark:text-system-400 truncate max-w-xs">
+                      <div className="text-sm text-system-500 dark:text-system-400 truncate">
                         {task.description}
                       </div>
                     )}

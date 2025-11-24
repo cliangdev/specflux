@@ -23,6 +23,10 @@ import {
 } from './terminal-parser.service';
 import { recordFileChange } from './file-tracking.service';
 
+// Global emitter for agent lifecycle events (start/stop)
+// WebSocket handlers subscribe to this to know when to re-subscribe to task emitters
+export const agentLifecycleEmitter = new EventEmitter();
+
 export interface AgentSession {
   id: number;
   taskId: number;
@@ -270,7 +274,7 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
     worktreePath = worktree.path;
   } catch (error) {
     // Check if worktree already exists
-    const existingWorktree = getWorktree(taskId);
+    const existingWorktree = getWorktree(taskId, project.local_path);
     if (existingWorktree) {
       worktreePath = existingWorktree.path;
     } else {
@@ -332,7 +336,7 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
     // Create parser state for this agent
     const parserState = createParserState();
 
-    // Store agent process
+    // Store agent process FIRST so getAgentEmitter() works when WebSocket reconnects
     const agentProcess: AgentProcess = {
       taskId,
       sessionId,
@@ -342,11 +346,15 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
     };
     runningAgents.set(taskId, agentProcess);
 
+    // Notify WebSocket handlers that agent started (they can now subscribe to emitter)
+    agentLifecycleEmitter.emit('agent-started', { taskId, emitter });
+
     // Track last progress update to avoid database spam
     let lastProgressUpdate = 0;
     const PROGRESS_UPDATE_THRESHOLD = 5; // Only update DB if progress changes by 5%
 
-    // Handle output
+    // Register output handler AFTER storing agent and notifying WebSocket
+    // This ensures WebSocket is subscribed before any data is emitted
     ptyProcess.onData((data) => {
       emitter.emit('data', data);
 
@@ -464,11 +472,13 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
 
 /**
  * Stop running agent for a task
+ * Idempotent - if no agent is running, silently returns
  */
 export function stopAgent(taskId: number): void {
   const agentProcess = runningAgents.get(taskId);
   if (!agentProcess) {
-    throw new NotFoundError('AgentProcess', taskId);
+    // No agent running - that's fine, nothing to stop
+    return;
   }
 
   // Update session status
@@ -684,11 +694,12 @@ export async function createTaskPR(taskId: number): Promise<CompletionResult> {
   }
 
   const project = getProjectById(task.project_id);
-  if (!project) {
+  if (!project?.local_path) {
     throw new NotFoundError('Project', task.project_id);
   }
 
-  const worktree = getWorktree(taskId);
+  const worktree = getWorktree(taskId, project.local_path);
+
   const result: CompletionResult = {
     taskId,
     exitCode: 0,
@@ -745,12 +756,12 @@ export function approveTask(taskId: number): { task: ReturnType<typeof getTaskBy
   }
 
   const project = getProjectById(task.project_id);
-  if (!project) {
+  if (!project?.local_path) {
     throw new NotFoundError('Project', task.project_id);
   }
 
   // Clean up worktree if exists
-  const worktree = getWorktree(taskId);
+  const worktree = getWorktree(taskId, project.local_path);
   if (worktree) {
     cleanupWorktree(taskId, project.local_path);
   }
