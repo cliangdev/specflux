@@ -79,14 +79,20 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
         )}
       </div>
 
-      {/* Title - truncate to 2 lines for consistent card height */}
-      <h3 className="font-medium text-sm mb-1 text-gray-900 dark:text-gray-100 line-clamp-2">
+      {/* Title - truncate to 2 lines for consistent card height, hover for full title */}
+      <h3
+        className="font-medium text-sm mb-1 text-gray-900 dark:text-gray-100 line-clamp-2"
+        title={task.title}
+      >
         {task.title}
       </h3>
 
-      {/* Description preview */}
+      {/* Description preview - hover for full description */}
       {task.description && (
-        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">
+        <p
+          className="text-xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-2"
+          title={task.description}
+        >
           {task.description}
         </p>
       )}
