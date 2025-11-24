@@ -234,6 +234,10 @@ export default function TaskDetailPage() {
   const [prResult, setPRResult] = useState<ApproveAndPRResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hasFileChanges, setHasFileChanges] = useState(false);
+  const [terminalDimensions, setTerminalDimensions] = useState<{
+    cols: number;
+    rows: number;
+  } | null>(null);
 
   const fetchTask = useCallback(async () => {
     if (!taskId) return;
@@ -357,9 +361,18 @@ export default function TaskDetailPage() {
     try {
       setActionLoading(true);
       setError(null);
+      // Include terminal dimensions when starting agent for correct PTY sizing
+      const requestBody =
+        action === ControlTaskAgentRequestActionEnum.Start && terminalDimensions
+          ? {
+              action,
+              cols: terminalDimensions.cols,
+              rows: terminalDimensions.rows,
+            }
+          : { action };
       const response = await api.tasks.controlTaskAgent({
         id: Number(taskId),
-        controlTaskAgentRequest: { action },
+        controlTaskAgentRequest: requestBody,
       });
       setAgentStatus(response.data ?? null);
       // Only refresh task when stopping agent (status might change)
@@ -504,7 +517,7 @@ export default function TaskDetailPage() {
       {/* Content - Split Pane */}
       <div className="flex flex-1 min-h-0 overflow-hidden rounded-lg border border-system-200 dark:border-system-800">
         {/* Left Panel - Task Details */}
-        <div className="w-1/2 border-r border-system-200 dark:border-system-800 p-6 overflow-y-auto bg-white dark:bg-system-900 scrollbar-thin">
+        <div className="w-1/3 border-r border-system-200 dark:border-system-800 p-6 overflow-y-auto bg-white dark:bg-system-900 scrollbar-thin">
           {/* Description */}
           <div className="mb-6">
             <h2 className="text-lg font-semibold text-system-900 dark:text-white mb-2">
@@ -761,11 +774,12 @@ export default function TaskDetailPage() {
         </div>
 
         {/* Right Panel - Terminal */}
-        <div className="w-1/2 flex flex-col min-w-0">
+        <div className="w-2/3 flex flex-col min-w-0">
           <Terminal
             taskId={task.id}
             onStatusChange={handleTerminalStatusChange}
             onRefresh={fetchAgentStatus}
+            onDimensionsReady={setTerminalDimensions}
           />
         </div>
       </div>
