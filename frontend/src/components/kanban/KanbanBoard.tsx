@@ -181,7 +181,7 @@ export function KanbanBoard({
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Board Header - matches TasksPage styling */}
-      <div className="flex items-center justify-between mb-6 px-6 pt-6">
+      <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold text-system-900 dark:text-white">
           Board
         </h1>
@@ -211,7 +211,7 @@ export function KanbanBoard({
       </div>
 
       {/* Kanban Columns */}
-      <div className="flex-1 overflow-x-auto overflow-y-hidden px-6 pb-6">
+      <div className="flex-1 overflow-x-auto overflow-y-hidden">
         <DndContext
           sensors={sensors}
           collisionDetection={rectIntersection}
