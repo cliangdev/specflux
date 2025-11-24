@@ -12,8 +12,12 @@ import {
   submitTaskReview,
   isTaskBlocked,
 } from '../services/task.service';
-import { userHasProjectAccess, getProjectConfig } from '../services/project.service';
-import { getWorktree } from '../services/worktree.service';
+import {
+  userHasProjectAccess,
+  getProjectConfig,
+  getProjectById,
+} from '../services/project.service';
+import { getWorktreeFromDisk } from '../services/worktree.service';
 import { getWorktreeChanges, getWorktreeDiff } from '../services/git-workflow.service';
 import { createTaskPR, approveTask } from '../services/agent.service';
 import { NotFoundError, ValidationError } from '../types';
@@ -444,8 +448,22 @@ router.get('/tasks/:id/diff', (req: Request, res: Response, next: NextFunction) 
       throw new NotFoundError('Task', taskId);
     }
 
-    // Get worktree for this task
-    const worktree = getWorktree(taskId);
+    // Get project to find worktree path
+    const project = getProjectById(task.project_id);
+    if (!project?.local_path) {
+      res.json({
+        success: true,
+        data: {
+          hasChanges: false,
+          filesChanged: [],
+          diff: '',
+        },
+      });
+      return;
+    }
+
+    // Get worktree for this task from disk
+    const worktree = getWorktreeFromDisk(taskId, project.local_path);
     if (!worktree) {
       res.json({
         success: true,
@@ -582,8 +600,21 @@ router.get('/tasks/:id/file-changes', (req: Request, res: Response, next: NextFu
       throw new NotFoundError('Task', taskId);
     }
 
-    // Get the worktree for this task
-    const worktree = getWorktree(taskId);
+    // Get project to find worktree path
+    const project = getProjectById(task.project_id);
+    if (!project?.local_path) {
+      res.json({
+        success: true,
+        data: {
+          changes: [],
+          summary: { total: 0, created: 0, modified: 0, deleted: 0 },
+        },
+      });
+      return;
+    }
+
+    // Get the worktree for this task from disk (always check disk for accurate state)
+    const worktree = getWorktreeFromDisk(taskId, project.local_path);
 
     if (!worktree) {
       // No worktree means no file changes
