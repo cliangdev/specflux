@@ -39,6 +39,10 @@ export type {
   TerminalOutput,
   Pagination,
   ApproveAndPRResult,
+  // File tracking types
+  GetTaskFileChanges200ResponseData as TaskFileChanges,
+  GetTaskFileChanges200ResponseDataChangesInner as TrackedFileChange,
+  GetTaskFileChanges200ResponseDataSummary as FileChangeSummary,
 } from "./generated";
 
 // Request types

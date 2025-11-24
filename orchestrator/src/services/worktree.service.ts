@@ -180,9 +180,53 @@ export function removeWorktree(taskId: number, projectPath: string): void {
 
 /**
  * Get worktree info for a task
+ * First checks in-memory map, then falls back to checking disk
  */
 export function getWorktree(taskId: number): Worktree | null {
-  return worktreeMap.get(taskId) ?? null;
+  // Check in-memory first
+  const cached = worktreeMap.get(taskId);
+  if (cached) return cached;
+
+  return null;
+}
+
+/**
+ * Get worktree for a task by checking the project's worktree directory on disk
+ * Use this when the worktree might exist but not be tracked in memory (e.g., after server restart)
+ */
+export function getWorktreeFromDisk(taskId: number, projectPath: string): Worktree | null {
+  const worktreePath = path.join(getWorktreeBaseDir(projectPath), `task-${taskId}`);
+
+  // Check if the worktree directory exists and is valid
+  if (!fs.existsSync(worktreePath)) {
+    return null;
+  }
+
+  const gitFile = path.join(worktreePath, '.git');
+  if (!fs.existsSync(gitFile)) {
+    return null;
+  }
+
+  // Get the branch name from git
+  try {
+    const branch = execSync('git branch --show-current', {
+      cwd: worktreePath,
+      encoding: 'utf-8',
+    }).trim();
+
+    const worktree: Worktree = {
+      path: worktreePath,
+      branch,
+      taskId,
+    };
+
+    // Cache it for future lookups
+    worktreeMap.set(taskId, worktree);
+
+    return worktree;
+  } catch {
+    return null;
+  }
 }
 
 /**

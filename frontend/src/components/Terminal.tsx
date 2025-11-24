@@ -4,20 +4,42 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 
+interface FileChangeEvent {
+  action: "created" | "modified" | "deleted";
+  filePath: string;
+}
+
 interface TerminalProps {
   taskId: number;
   wsUrl?: string;
   onStatusChange?: (running: boolean) => void;
   onExit?: (exitCode: number) => void;
   onRefresh?: () => void;
+  onFileChange?: (event: FileChangeEvent) => void;
+  onProgress?: (progress: number) => void;
 }
 
 interface TerminalMessage {
-  type: "status" | "output" | "exit";
+  type:
+    | "status"
+    | "output"
+    | "exit"
+    | "file-change"
+    | "progress"
+    | "test-result";
   data?: string;
   running?: boolean;
   exitCode?: number;
   taskId?: number;
+  // file-change fields
+  action?: "created" | "modified" | "deleted";
+  filePath?: string;
+  // progress fields
+  progress?: number;
+  // test-result fields
+  passed?: number;
+  failed?: number;
+  total?: number;
 }
 
 export function Terminal({
@@ -26,6 +48,8 @@ export function Terminal({
   onStatusChange,
   onExit,
   onRefresh,
+  onFileChange,
+  onProgress,
 }: TerminalProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
@@ -38,6 +62,8 @@ export function Terminal({
   const runningRef = useRef(running);
   const onStatusChangeRef = useRef(onStatusChange);
   const onExitRef = useRef(onExit);
+  const onFileChangeRef = useRef(onFileChange);
+  const onProgressRef = useRef(onProgress);
 
   // Keep refs in sync with props/state
   useEffect(() => {
@@ -49,6 +75,12 @@ export function Terminal({
   useEffect(() => {
     onExitRef.current = onExit;
   }, [onExit]);
+  useEffect(() => {
+    onFileChangeRef.current = onFileChange;
+  }, [onFileChange]);
+  useEffect(() => {
+    onProgressRef.current = onProgress;
+  }, [onProgress]);
 
   // Determine WebSocket URL
   const getWsUrl = useCallback(() => {
@@ -64,15 +96,17 @@ export function Terminal({
     if (!terminalRef.current) return;
 
     // Create terminal instance
+    // Hide xterm cursor since Claude Code shows its own cursor
     const term = new XTerm({
-      cursorBlink: true,
-      cursorStyle: "block",
+      cursorBlink: false,
+      cursorStyle: "bar",
+      cursorInactiveStyle: "none",
       fontSize: 14,
       fontFamily: 'Menlo, Monaco, "Courier New", monospace',
       theme: {
         background: "#1e1e1e",
         foreground: "#d4d4d4",
-        cursor: "#d4d4d4",
+        cursor: "transparent", // Hide the cursor
         selectionBackground: "#264f78",
         black: "#000000",
         red: "#cd3131",
@@ -195,6 +229,25 @@ export function Terminal({
               );
             }
             onExitRef.current?.(msg.exitCode ?? 1);
+            break;
+
+          case "file-change":
+            if (msg.action && msg.filePath) {
+              onFileChangeRef.current?.({
+                action: msg.action,
+                filePath: msg.filePath,
+              });
+            }
+            break;
+
+          case "progress":
+            if (msg.progress !== undefined) {
+              onProgressRef.current?.(msg.progress);
+            }
+            break;
+
+          case "test-result":
+            // Could add a callback for this if needed
             break;
         }
       } catch {

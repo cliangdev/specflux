@@ -11,6 +11,7 @@ import {
   AgentStatusStatusEnum,
 } from "../api";
 import Terminal from "../components/Terminal";
+import FileChanges from "../components/FileChanges";
 
 // Helper to open external URLs using Tauri command
 const openExternal = async (url: string) => {
@@ -164,46 +165,55 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 // Agent status badge configuration
-const AGENT_STATUS_CONFIG: Record<string, { classes: string; dot?: boolean }> =
-  {
-    idle: {
-      classes:
-        "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
-    },
-    running: {
-      classes:
-        "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
-      dot: true,
-    },
-    paused: {
-      classes:
-        "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800",
-    },
-    stopped: {
-      classes:
-        "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800",
-    },
-    completed: {
-      classes:
-        "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
-    },
-    failed: {
-      classes:
-        "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800",
-    },
-  };
+// "running" means the process is alive - could be working or waiting for input
+const AGENT_STATUS_CONFIG: Record<
+  string,
+  { label: string; classes: string; dot?: boolean }
+> = {
+  idle: {
+    label: "Idle",
+    classes:
+      "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
+  },
+  running: {
+    label: "Active", // More accurate than "Running" - agent is alive, may be working or waiting
+    classes:
+      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
+    dot: true,
+  },
+  paused: {
+    label: "Paused",
+    classes:
+      "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800",
+  },
+  stopped: {
+    label: "Stopped",
+    classes:
+      "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800",
+  },
+  completed: {
+    label: "Completed",
+    classes:
+      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
+  },
+  failed: {
+    label: "Failed",
+    classes:
+      "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800",
+  },
+};
 
 function AgentStatusBadge({ status }: { status: string }) {
   const config = AGENT_STATUS_CONFIG[status] || AGENT_STATUS_CONFIG.idle;
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border capitalize ${config.classes}`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${config.classes}`}
     >
       {config.dot && (
         <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
       )}
-      {status}
+      {config.label}
     </span>
   );
 }
@@ -364,7 +374,7 @@ export default function TaskDetailPage() {
     (running: boolean) => {
       if (running !== isAgentRunning) {
         fetchAgentStatus();
-        // When agent stops, refresh task to get updated status (e.g., pending_review)
+        // When agent stops, refresh task
         if (!running) {
           // Small delay to allow backend to process completion
           setTimeout(() => {
@@ -523,24 +533,6 @@ export default function TaskDetailPage() {
             )}
           </div>
 
-          {/* Progress */}
-          <div className="mb-6">
-            <h3 className="text-xs font-bold text-system-400 uppercase tracking-wider mb-2">
-              Progress
-            </h3>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 bg-system-200 dark:bg-system-700 rounded-full h-1.5">
-                <div
-                  className="bg-brand-500 h-1.5 rounded-full transition-all"
-                  style={{ width: `${task.progressPercentage}%` }}
-                />
-              </div>
-              <span className="text-sm text-system-500 dark:text-system-400">
-                {task.progressPercentage}%
-              </span>
-            </div>
-          </div>
-
           {/* Repository */}
           {task.repoName && (
             <div className="mb-6">
@@ -649,6 +641,14 @@ export default function TaskDetailPage() {
             </div>
           </div>
 
+          {/* File Changes - isolated component with its own state/polling */}
+          <div className="mt-6">
+            <h3 className="text-xs font-bold text-system-400 uppercase tracking-wider mb-2">
+              File Changes
+            </h3>
+            <FileChanges taskId={task.id} isAgentRunning={isAgentRunning} />
+          </div>
+
           {/* Review Section - shown when pending_review or has PR */}
           {(task.status === "pending_review" ||
             task.status === "done" ||
@@ -672,51 +672,9 @@ export default function TaskDetailPage() {
                 </button>
               )}
 
-              {/* Changes info - only show when pending_review */}
-              {task.status === "pending_review" && (
-                <>
-                  {diffLoading ? (
-                    <p className="text-system-500 text-sm">
-                      Loading changes...
-                    </p>
-                  ) : taskDiff ? (
-                    <div className="mb-3">
-                      {taskDiff.hasChanges ? (
-                        <>
-                          <p className="text-sm text-system-700 dark:text-system-300 mb-2">
-                            {taskDiff.filesChanged?.length ?? 0} file(s) changed
-                            {taskDiff.insertions !== undefined && (
-                              <span className="text-emerald-600 dark:text-emerald-400 ml-2">
-                                +{taskDiff.insertions}
-                              </span>
-                            )}
-                            {taskDiff.deletions !== undefined && (
-                              <span className="text-red-600 dark:text-red-400 ml-1">
-                                -{taskDiff.deletions}
-                              </span>
-                            )}
-                          </p>
-                          <ul className="text-xs text-system-500 dark:text-system-400 space-y-1 max-h-24 overflow-y-auto scrollbar-thin">
-                            {taskDiff.filesChanged?.map((file, i) => (
-                              <li key={i} className="truncate">
-                                {file}
-                              </li>
-                            ))}
-                          </ul>
-                        </>
-                      ) : (
-                        <p className="text-sm text-system-500 dark:text-system-400">
-                          No changes detected
-                        </p>
-                      )}
-                    </div>
-                  ) : null}
-                </>
-              )}
-
               {/* Action buttons - only show when pending_review */}
               {task.status === "pending_review" && (
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap gap-2">
                   {/* Create PR button - only show if PR not created yet and has changes */}
                   {!task.githubPrUrl &&
                     !prResult?.prUrl &&
@@ -724,7 +682,7 @@ export default function TaskDetailPage() {
                       <button
                         onClick={handleCreatePR}
                         disabled={createPRLoading}
-                        className="w-full px-4 py-2 text-sm font-medium bg-gray-600 hover:bg-gray-500 text-white rounded transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                        className="px-3 py-1.5 text-sm font-medium bg-gray-600 hover:bg-gray-500 text-white rounded transition-colors disabled:opacity-50 flex items-center gap-1"
                       >
                         {createPRLoading ? (
                           <>
@@ -774,7 +732,7 @@ export default function TaskDetailPage() {
                   <button
                     onClick={handleApprove}
                     disabled={approveLoading}
-                    className="w-full px-4 py-2 text-sm font-medium bg-green-600 hover:bg-green-700 text-white rounded transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="px-3 py-1.5 text-sm font-medium bg-green-600 hover:bg-green-700 text-white rounded transition-colors disabled:opacity-50 flex items-center gap-1"
                   >
                     {approveLoading ? (
                       <>

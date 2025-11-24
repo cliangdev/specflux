@@ -12,6 +12,7 @@ export interface TaskContext {
   }[];
   projectName: string;
   epicTitle?: string;
+  epicPrd?: string;
 }
 
 /**
@@ -28,13 +29,15 @@ export function getTaskContext(taskId: number): TaskContext | null {
     | { name: string }
     | undefined;
 
-  // Get epic title if exists
+  // Get epic title and PRD if exists
   let epicTitle: string | undefined;
+  let epicPrd: string | undefined;
   if (task.epic_id) {
-    const epic = db.prepare('SELECT title FROM epics WHERE id = ?').get(task.epic_id) as
-      | { title: string }
-      | undefined;
+    const epic = db
+      .prepare('SELECT title, prd_content FROM epics WHERE id = ?')
+      .get(task.epic_id) as { title: string; prd_content: string | null } | undefined;
     epicTitle = epic?.title;
+    epicPrd = epic?.prd_content ?? undefined;
   }
 
   // Get dependencies
@@ -49,6 +52,7 @@ export function getTaskContext(taskId: number): TaskContext | null {
     dependencies,
     projectName: project?.name ?? 'Unknown Project',
     epicTitle,
+    epicPrd,
   };
 }
 
@@ -79,6 +83,15 @@ export function generateContextMarkdown(context: TaskContext): string {
     lines.push('## Description');
     lines.push('');
     lines.push(context.task.description);
+    lines.push('');
+  }
+
+  if (context.epicPrd) {
+    lines.push('## Epic PRD (Product Requirements Document)');
+    lines.push('');
+    lines.push('This task is part of an epic. Here is the PRD for context:');
+    lines.push('');
+    lines.push(context.epicPrd);
     lines.push('');
   }
 

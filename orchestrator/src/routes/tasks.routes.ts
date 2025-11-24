@@ -12,8 +12,12 @@ import {
   submitTaskReview,
   isTaskBlocked,
 } from '../services/task.service';
-import { userHasProjectAccess, getProjectConfig } from '../services/project.service';
-import { getWorktree } from '../services/worktree.service';
+import {
+  userHasProjectAccess,
+  getProjectConfig,
+  getProjectById,
+} from '../services/project.service';
+import { getWorktreeFromDisk } from '../services/worktree.service';
 import { getWorktreeChanges, getWorktreeDiff } from '../services/git-workflow.service';
 import { createTaskPR, approveTask } from '../services/agent.service';
 import { NotFoundError, ValidationError } from '../types';
@@ -444,8 +448,22 @@ router.get('/tasks/:id/diff', (req: Request, res: Response, next: NextFunction) 
       throw new NotFoundError('Task', taskId);
     }
 
-    // Get worktree for this task
-    const worktree = getWorktree(taskId);
+    // Get project to find worktree path
+    const project = getProjectById(task.project_id);
+    if (!project?.local_path) {
+      res.json({
+        success: true,
+        data: {
+          hasChanges: false,
+          filesChanged: [],
+          diff: '',
+        },
+      });
+      return;
+    }
+
+    // Get worktree for this task from disk
+    const worktree = getWorktreeFromDisk(taskId, project.local_path);
     if (!worktree) {
       res.json({
         success: true,
@@ -487,7 +505,7 @@ router.get('/tasks/:id/diff', (req: Request, res: Response, next: NextFunction) 
 /**
  * POST /tasks/:id/create-pr - Create PR for task
  */
-router.post('/tasks/:id/create-pr', (req: Request, res: Response, next: NextFunction) => {
+router.post('/tasks/:id/create-pr', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const taskId = parseInt(req.params['id']!, 10);
 
@@ -511,7 +529,7 @@ router.post('/tasks/:id/create-pr', (req: Request, res: Response, next: NextFunc
     }
 
     // Create PR
-    const result = createTaskPR(taskId);
+    const result = await createTaskPR(taskId);
 
     res.json({
       success: true,
@@ -554,6 +572,109 @@ router.post('/tasks/:id/approve', (req: Request, res: Response, next: NextFuncti
     res.json({
       success: true,
       data: result.task,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /tasks/:id/file-changes - Get file changes for a task from git status
+ * Returns all uncommitted file changes in the task's worktree
+ */
+router.get('/tasks/:id/file-changes', (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const taskId = parseInt(req.params['id']!, 10);
+
+    if (isNaN(taskId)) {
+      throw new ValidationError('Invalid task id');
+    }
+
+    const task = getTaskById(taskId);
+
+    if (!task) {
+      throw new NotFoundError('Task', taskId);
+    }
+
+    if (!userHasProjectAccess(task.project_id, req.userId!)) {
+      throw new NotFoundError('Task', taskId);
+    }
+
+    // Get project to find worktree path
+    const project = getProjectById(task.project_id);
+    if (!project?.local_path) {
+      res.json({
+        success: true,
+        data: {
+          changes: [],
+          summary: { total: 0, created: 0, modified: 0, deleted: 0 },
+        },
+      });
+      return;
+    }
+
+    // Get the worktree for this task from disk (always check disk for accurate state)
+    const worktree = getWorktreeFromDisk(taskId, project.local_path);
+
+    if (!worktree) {
+      // No worktree means no file changes
+      res.json({
+        success: true,
+        data: {
+          changes: [],
+          summary: { total: 0, created: 0, modified: 0, deleted: 0 },
+        },
+      });
+      return;
+    }
+
+    // Use git status to get actual file changes
+    const changes = getWorktreeChanges(worktree.path, worktree.branch);
+
+    // Convert to the expected format
+    const fileChanges = [
+      ...changes.newFiles.map((f) => ({
+        id: 0, // Not stored in DB
+        taskId,
+        sessionId: null,
+        filePath: f,
+        changeType: 'created' as const,
+        diffSummary: null,
+        createdAt: new Date().toISOString(),
+      })),
+      ...changes.modifiedFiles.map((f) => ({
+        id: 0,
+        taskId,
+        sessionId: null,
+        filePath: f,
+        changeType: 'modified' as const,
+        diffSummary: null,
+        createdAt: new Date().toISOString(),
+      })),
+      ...changes.deletedFiles.map((f) => ({
+        id: 0,
+        taskId,
+        sessionId: null,
+        filePath: f,
+        changeType: 'deleted' as const,
+        diffSummary: null,
+        createdAt: new Date().toISOString(),
+      })),
+    ];
+
+    const summary = {
+      total: fileChanges.length,
+      created: changes.newFiles.length,
+      modified: changes.modifiedFiles.length,
+      deleted: changes.deletedFiles.length,
+    };
+
+    res.json({
+      success: true,
+      data: {
+        changes: fileChanges,
+        summary,
+      },
     });
   } catch (error) {
     next(error);

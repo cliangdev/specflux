@@ -15,6 +15,13 @@ import {
 } from './worktree.service';
 import { writeContextFile } from './context.service';
 import { getWorktreeChanges, commitAndCreatePR, WorktreeChanges } from './git-workflow.service';
+import {
+  parseTerminalOutput,
+  createParserState,
+  estimateProgress,
+  type ParserState,
+} from './terminal-parser.service';
+import { recordFileChange } from './file-tracking.service';
 
 export interface AgentSession {
   id: number;
@@ -31,6 +38,7 @@ export interface AgentProcess {
   sessionId: number;
   pty: pty.IPty;
   emitter: EventEmitter;
+  parserState: ParserState;
 }
 
 export interface SpawnAgentConfig {
@@ -321,18 +329,87 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
     // Update task status
     updateTask(taskId, { status: 'in_progress' });
 
+    // Create parser state for this agent
+    const parserState = createParserState();
+
     // Store agent process
     const agentProcess: AgentProcess = {
       taskId,
       sessionId,
       pty: ptyProcess,
       emitter,
+      parserState,
     };
     runningAgents.set(taskId, agentProcess);
+
+    // Track last progress update to avoid database spam
+    let lastProgressUpdate = 0;
+    const PROGRESS_UPDATE_THRESHOLD = 5; // Only update DB if progress changes by 5%
 
     // Handle output
     ptyProcess.onData((data) => {
       emitter.emit('data', data);
+
+      // Parse terminal output for progress events
+      const events = parseTerminalOutput(data, parserState);
+
+      // Emit parsed events
+      for (const event of events) {
+        emitter.emit('parsed', event);
+
+        // Update task progress in database (throttled)
+        if (event.type === 'progress') {
+          const progress = event.progress;
+          if (Math.abs(progress - lastProgressUpdate) >= PROGRESS_UPDATE_THRESHOLD) {
+            lastProgressUpdate = progress;
+            updateTask(taskId, { progress_percentage: progress });
+            emitter.emit('progress', { taskId, progress });
+          }
+        }
+
+        // Emit file events for tracking and record in database
+        if (event.type === 'file') {
+          // Record file change in database
+          try {
+            recordFileChange({
+              taskId,
+              sessionId,
+              filePath: event.filePath,
+              changeType: event.action,
+            });
+          } catch {
+            // Ignore database errors - don't break terminal streaming
+          }
+
+          emitter.emit('file-change', {
+            taskId,
+            sessionId,
+            action: event.action,
+            filePath: event.filePath,
+          });
+        }
+
+        // Emit test events
+        if (event.type === 'test') {
+          emitter.emit('test-result', {
+            taskId,
+            passed: event.passed,
+            failed: event.failed,
+            total: event.total,
+          });
+        }
+      }
+
+      // Periodically update estimated progress if no explicit progress
+      const estimatedProgress = estimateProgress(parserState);
+      if (
+        parserState.lastProgress === 0 &&
+        estimatedProgress > lastProgressUpdate + PROGRESS_UPDATE_THRESHOLD
+      ) {
+        lastProgressUpdate = estimatedProgress;
+        updateTask(taskId, { progress_percentage: estimatedProgress });
+        emitter.emit('progress', { taskId, progress: estimatedProgress });
+      }
     });
 
     // Handle exit
@@ -504,13 +581,13 @@ export interface CompletionResult {
 /**
  * Handle agent completion - determines task status based on changes and approval settings
  */
-function handleAgentCompletion(
+async function handleAgentCompletion(
   taskId: number,
   exitCode: number,
   worktreePath: string | null,
   projectPath: string,
   requiresApproval: boolean
-): CompletionResult {
+): Promise<CompletionResult> {
   const result: CompletionResult = {
     taskId,
     exitCode,
@@ -554,7 +631,7 @@ function handleAgentCompletion(
     } else {
       // Has changes + no approval -> auto commit and create PR
       try {
-        const prResult = commitAndCreatePR(taskId);
+        const prResult = await commitAndCreatePR(taskId);
         result.commitHash = prResult.commit.commitHash;
         result.prCreated = prResult.pr.success;
         result.prUrl = prResult.pr.prUrl;
@@ -600,7 +677,7 @@ function handleAgentCompletion(
  * Create PR for a task (without approving/completing it)
  * Called when user wants to create a PR for code review
  */
-export function createTaskPR(taskId: number): CompletionResult {
+export async function createTaskPR(taskId: number): Promise<CompletionResult> {
   const task = getTaskById(taskId);
   if (!task) {
     throw new NotFoundError('Task', taskId);
@@ -640,7 +717,7 @@ export function createTaskPR(taskId: number): CompletionResult {
   }
 
   // Commit and create PR
-  const prResult = commitAndCreatePR(taskId);
+  const prResult = await commitAndCreatePR(taskId);
   result.commitHash = prResult.commit.commitHash;
   result.prCreated = prResult.pr.success;
   result.prUrl = prResult.pr.prUrl;
