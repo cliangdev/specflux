@@ -238,7 +238,6 @@ export default function TaskDetailPage() {
     cols: number;
     rows: number;
   } | null>(null);
-
   const fetchTask = useCallback(async () => {
     if (!taskId) return;
 

@@ -8,6 +8,7 @@ vi.mock("@xterm/xterm", () => ({
     open: vi.fn(),
     write: vi.fn(),
     writeln: vi.fn(),
+    clear: vi.fn(),
     onData: vi.fn(() => ({ dispose: vi.fn() })),
     dispose: vi.fn(),
     cols: 80,
@@ -23,6 +24,13 @@ vi.mock("@xterm/addon-fit", () => ({
 
 vi.mock("@xterm/addon-web-links", () => ({
   WebLinksAddon: vi.fn().mockImplementation(() => ({})),
+}));
+
+vi.mock("@xterm/addon-webgl", () => ({
+  WebglAddon: vi.fn().mockImplementation(() => ({
+    onContextLoss: vi.fn(),
+    dispose: vi.fn(),
+  })),
 }));
 
 // Track WebSocket instances and timeouts
