@@ -12,6 +12,7 @@ export interface Task {
   repo_name: string | null;
   agent_name: string | null;
   progress_percentage: number;
+  blocked_by_count: number;
   estimated_duration: number | null;
   actual_duration: number | null;
   github_issue_number: number | null;
@@ -121,9 +122,15 @@ export function listTasks(
   const tasks = db
     .prepare(
       `
-      SELECT * FROM tasks
-      WHERE ${whereClause}
-      ORDER BY created_at DESC
+      SELECT t.*,
+        (
+          SELECT COUNT(*) FROM task_dependencies td
+          INNER JOIN tasks blocker ON blocker.id = td.depends_on_task_id
+          WHERE td.task_id = t.id AND blocker.status NOT IN ('approved', 'done')
+        ) as blocked_by_count
+      FROM tasks t
+      WHERE ${whereClause.replace(/\b(project_id|epic_id|assigned_to_user_id|status|title|description)\b/g, 't.$1')}
+      ORDER BY t.created_at DESC
       LIMIT ? OFFSET ?
     `
     )
@@ -137,7 +144,20 @@ export function listTasks(
  */
 export function getTaskById(id: number): Task | null {
   const db = getDatabase();
-  const row = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as Task | undefined;
+  const row = db
+    .prepare(
+      `
+      SELECT t.*,
+        (
+          SELECT COUNT(*) FROM task_dependencies td
+          INNER JOIN tasks blocker ON blocker.id = td.depends_on_task_id
+          WHERE td.task_id = t.id AND blocker.status NOT IN ('approved', 'done')
+        ) as blocked_by_count
+      FROM tasks t
+      WHERE t.id = ?
+    `
+    )
+    .get(id) as Task | undefined;
   return row ?? null;
 }
 

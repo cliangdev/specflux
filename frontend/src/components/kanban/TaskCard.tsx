@@ -1,6 +1,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Task, TaskAgentStatusEnum } from "../../api/generated/models/Task";
+import { getRepoColorClasses } from "./types";
 
 interface TaskCardProps {
   task: Task;
@@ -8,14 +9,94 @@ interface TaskCardProps {
 }
 
 /**
+ * Agent status configuration for icons and colors
+ */
+const AGENT_STATUS_CONFIG: Record<
+  string,
+  { icon: JSX.Element; color: string; label: string }
+> = {
+  idle: {
+    icon: (
+      <svg
+        className="w-3 h-3"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      >
+        <circle cx="12" cy="12" r="10" strokeDasharray="4 2" />
+      </svg>
+    ),
+    color: "text-slate-400 dark:text-slate-500",
+    label: "Idle",
+  },
+  running: {
+    icon: <span className="w-2 h-2 bg-brand-500 rounded-full animate-pulse" />,
+    color: "text-brand-500",
+    label: "Running",
+  },
+  paused: {
+    icon: (
+      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+        <rect x="6" y="4" width="4" height="16" rx="1" />
+        <rect x="14" y="4" width="4" height="16" rx="1" />
+      </svg>
+    ),
+    color: "text-amber-500 dark:text-amber-400",
+    label: "Paused",
+  },
+  stopped: {
+    icon: (
+      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+        <rect x="4" y="4" width="16" height="16" rx="2" />
+      </svg>
+    ),
+    color: "text-slate-500 dark:text-slate-400",
+    label: "Stopped",
+  },
+  completed: {
+    icon: (
+      <svg
+        className="w-3 h-3"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+      </svg>
+    ),
+    color: "text-emerald-500 dark:text-emerald-400",
+    label: "Completed",
+  },
+  failed: {
+    icon: (
+      <svg
+        className="w-3 h-3"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      >
+        <circle cx="12" cy="12" r="10" />
+        <path strokeLinecap="round" d="M15 9l-6 6M9 9l6 6" />
+      </svg>
+    ),
+    color: "text-red-500 dark:text-red-400",
+    label: "Failed",
+  },
+};
+
+/**
  * TaskCard - Draggable task card for Kanban board
  *
- * Design follows mock.html with:
+ * Features:
  * - Task ID badge
- * - Title and description preview
- * - Repository tag
+ * - Title and description preview with truncation
+ * - Dynamic repository color badge
+ * - Agent status icon for all states
+ * - Blocked indicator with count
  * - Progress bar (when running)
- * - Running indicator animation
  */
 export function TaskCard({ task, onClick }: TaskCardProps) {
   const {
@@ -34,6 +115,11 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
 
   const isRunning = task.agentStatus === TaskAgentStatusEnum.Running;
   const hasProgress = (task.progressPercentage ?? 0) > 0;
+  const isBlocked = (task.blockedByCount ?? 0) > 0;
+  const agentStatus = task.agentStatus ?? "idle";
+  const statusConfig =
+    AGENT_STATUS_CONFIG[agentStatus] ?? AGENT_STATUS_CONFIG.idle;
+  const repoColors = getRepoColorClasses(task.repoName);
 
   return (
     <div
@@ -50,7 +136,9 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
             ? "opacity-50 shadow-lg border-brand-400 dark:border-brand-500"
             : isRunning
               ? "border-brand-300 dark:border-brand-600 shadow-md"
-              : "border-gray-200 dark:border-slate-700 hover:border-brand-400 dark:hover:border-brand-500"
+              : isBlocked
+                ? "border-amber-300 dark:border-amber-600"
+                : "border-gray-200 dark:border-slate-700 hover:border-brand-400 dark:hover:border-brand-500"
         }
       `}
     >
@@ -64,19 +152,39 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
         </div>
       )}
 
-      {/* Header: ID and Running Status */}
-      <div className="flex justify-between mb-2">
-        <span className="text-xs font-mono text-gray-500 dark:text-gray-400">
-          #{task.id}
-        </span>
-        {isRunning && (
-          <div className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 bg-brand-500 rounded-full animate-pulse" />
-            <span className="text-[10px] text-brand-500 font-medium">
-              Running
+      {/* Header: ID, Blocked indicator, and Agent Status */}
+      <div className="flex justify-between items-center mb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-mono text-gray-500 dark:text-gray-400">
+            #{task.id}
+          </span>
+          {/* Blocked indicator with count */}
+          {isBlocked && (
+            <span
+              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-[10px] font-medium"
+              title={`Blocked by ${task.blockedByCount} incomplete task${task.blockedByCount === 1 ? "" : "s"}`}
+            >
+              <svg
+                className="w-2.5 h-2.5"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M12 2C9.243 2 7 4.243 7 7v3H6a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2v-8a2 2 0 00-2-2h-1V7c0-2.757-2.243-5-5-5zm-3 5c0-1.654 1.346-3 3-3s3 1.346 3 3v3H9V7zm4 10a1 1 0 11-2 0v-3a1 1 0 112 0v3z" />
+              </svg>
+              {task.blockedByCount}
             </span>
-          </div>
-        )}
+          )}
+        </div>
+        {/* Agent status indicator */}
+        <div
+          className={`flex items-center gap-1 ${statusConfig.color}`}
+          title={statusConfig.label}
+        >
+          {statusConfig.icon}
+          {isRunning && (
+            <span className="text-[10px] font-medium">Running</span>
+          )}
+        </div>
       </div>
 
       {/* Title - truncate to 2 lines for consistent card height, hover for full title */}
@@ -97,10 +205,12 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
         </p>
       )}
 
-      {/* Footer: Repo tag */}
+      {/* Footer: Repo tag and avatar */}
       <div className="flex justify-between items-center">
         {task.repoName ? (
-          <span className="px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-[10px] border border-purple-200 dark:border-purple-800">
+          <span
+            className={`px-1.5 py-0.5 rounded text-[10px] border border-current/20 ${repoColors.bg} ${repoColors.text}`}
+          >
             {task.repoName}
           </span>
         ) : (
