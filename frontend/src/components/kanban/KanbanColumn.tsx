@@ -38,7 +38,7 @@ export function KanbanColumn({
   const taskIds = tasks.map((t) => t.id);
 
   return (
-    <div className="w-80 flex flex-col gap-3 shrink-0">
+    <div className="w-80 flex flex-col gap-3 shrink-0 h-full">
       {/* Column Header */}
       <div className="flex justify-between items-center px-1">
         <span className={`font-medium text-sm ${colors.text}`}>
@@ -49,13 +49,13 @@ export function KanbanColumn({
         </span>
       </div>
 
-      {/* Droppable Task Area */}
+      {/* Droppable Task Area - full height for better drop target */}
       <div
         ref={setNodeRef}
         className={`
-          flex-1 overflow-y-auto custom-scrollbar space-y-3 pb-2 min-h-[200px]
-          rounded-lg p-2 transition-colors
-          ${isOver ? `${colors.bg} ${colors.border} border-2 border-dashed` : ""}
+          flex-1 overflow-y-auto custom-scrollbar space-y-3 pb-2
+          rounded-lg p-2 transition-colors min-h-[300px]
+          ${isOver ? `${colors.bg} ${colors.border} border-2 border-dashed` : "bg-slate-800/30"}
         `}
       >
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
@@ -64,17 +64,10 @@ export function KanbanColumn({
           ))}
         </SortableContext>
 
-        {/* Empty state */}
-        {tasks.length === 0 && !isOver && (
-          <div className="flex items-center justify-center h-32 text-gray-400 dark:text-gray-500 text-sm">
-            No tasks
-          </div>
-        )}
-
-        {/* Drop indicator */}
-        {isOver && tasks.length === 0 && (
-          <div className="flex items-center justify-center h-32 text-gray-400 dark:text-gray-500 text-sm">
-            Drop here
+        {/* Empty state - fills the column for better drop target */}
+        {tasks.length === 0 && (
+          <div className="flex items-center justify-center h-full min-h-[250px] text-gray-400 dark:text-gray-500 text-sm">
+            {isOver ? "Drop here" : "No tasks"}
           </div>
         )}
       </div>
