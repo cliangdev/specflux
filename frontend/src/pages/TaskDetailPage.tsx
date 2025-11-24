@@ -297,18 +297,6 @@ export default function TaskDetailPage() {
     fetchFileChanges();
   }, [fetchTask, fetchAgentStatus, fetchFileChanges]);
 
-  // Poll for file changes (git-based tracking)
-  // Fast polling when agent is running, slower when idle
-  useEffect(() => {
-    const pollInterval = isAgentRunning ? 3000 : 10000; // 3s when running, 10s when idle
-
-    const interval = setInterval(() => {
-      fetchFileChanges();
-    }, pollInterval);
-
-    return () => clearInterval(interval);
-  }, [isAgentRunning, fetchFileChanges]);
-
   // Fetch diff when task is in pending_review
   useEffect(() => {
     if (task?.status === "pending_review") {
@@ -390,6 +378,18 @@ export default function TaskDetailPage() {
     agentStatus.status === AgentStatusStatusEnum.Stopped ||
     agentStatus.status === AgentStatusStatusEnum.Completed ||
     agentStatus.status === AgentStatusStatusEnum.Failed;
+
+  // Poll for file changes (git-based tracking)
+  // Fast polling when agent is running, slower when idle
+  useEffect(() => {
+    const pollInterval = isAgentRunning ? 3000 : 10000; // 3s when running, 10s when idle
+
+    const interval = setInterval(() => {
+      fetchFileChanges();
+    }, pollInterval);
+
+    return () => clearInterval(interval);
+  }, [isAgentRunning, fetchFileChanges]);
 
   // Memoize the onStatusChange callback to prevent unnecessary re-renders
   const handleTerminalStatusChange = useCallback(
