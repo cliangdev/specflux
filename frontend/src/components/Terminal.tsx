@@ -9,6 +9,11 @@ interface FileChangeEvent {
   filePath: string;
 }
 
+interface TerminalDimensions {
+  cols: number;
+  rows: number;
+}
+
 interface TerminalProps {
   taskId: number;
   wsUrl?: string;
@@ -17,6 +22,7 @@ interface TerminalProps {
   onRefresh?: () => void;
   onFileChange?: (event: FileChangeEvent) => void;
   onProgress?: (progress: number) => void;
+  onDimensionsReady?: (dimensions: TerminalDimensions) => void;
 }
 
 interface TerminalMessage {
@@ -50,6 +56,7 @@ export function Terminal({
   onRefresh,
   onFileChange,
   onProgress,
+  onDimensionsReady,
 }: TerminalProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
@@ -64,6 +71,7 @@ export function Terminal({
   const onExitRef = useRef(onExit);
   const onFileChangeRef = useRef(onFileChange);
   const onProgressRef = useRef(onProgress);
+  const onDimensionsReadyRef = useRef(onDimensionsReady);
 
   // Keep refs in sync with props/state
   useEffect(() => {
@@ -81,6 +89,9 @@ export function Terminal({
   useEffect(() => {
     onProgressRef.current = onProgress;
   }, [onProgress]);
+  useEffect(() => {
+    onDimensionsReadyRef.current = onDimensionsReady;
+  }, [onDimensionsReady]);
 
   // Determine WebSocket URL
   const getWsUrl = useCallback(() => {
@@ -103,6 +114,8 @@ export function Terminal({
       cursorInactiveStyle: "none",
       fontSize: 14,
       fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+      // Disable scrollback - Claude Code's TUI handles its own screen management
+      scrollback: 0,
       theme: {
         background: "#1e1e1e",
         foreground: "#d4d4d4",
@@ -137,6 +150,38 @@ export function Terminal({
     term.open(terminalRef.current);
     fitAddon.fit();
 
+    // Disable mouse tracking at the xterm.js level
+    // Add CSS to prevent mouse events from being processed by xterm's internal mouse handler
+    const xtermElement = terminalRef.current.querySelector(".xterm");
+    if (xtermElement) {
+      (xtermElement as HTMLElement).style.setProperty("pointer-events", "auto");
+      // Add a transparent overlay that captures mouse moves but allows clicks through
+      const overlay = document.createElement("div");
+      overlay.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 10;
+        pointer-events: none;
+      `;
+      // The overlay is pointer-events:none so clicks go through,
+      // but we add listeners on the actual terminal element
+      const termElement = terminalRef.current;
+      const preventMouseTracking = (e: MouseEvent) => {
+        // Only allow click events for focusing, block all mouse move related events
+        // that would trigger xterm's mouse reporting
+        if (e.type === "mousemove") {
+          e.stopPropagation();
+        }
+      };
+      termElement.addEventListener("mousemove", preventMouseTracking, true);
+    }
+
+    // Notify parent of terminal dimensions (for spawning PTY with correct size)
+    onDimensionsReadyRef.current?.({ cols: term.cols, rows: term.rows });
+
     // Store refs
     xtermRef.current = term;
     fitAddonRef.current = fitAddon;
@@ -144,6 +189,8 @@ export function Terminal({
     // Handle window resize
     const handleResize = () => {
       fitAddon.fit();
+      // Notify parent of new dimensions
+      onDimensionsReadyRef.current?.({ cols: term.cols, rows: term.rows });
       // Send resize to server if connected
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(
@@ -157,10 +204,7 @@ export function Terminal({
     };
     window.addEventListener("resize", handleResize);
 
-    // Initial greeting
-    term.writeln("\x1b[1;34m=== SpecFlux Agent Terminal ===\x1b[0m");
-    term.writeln(`\x1b[90mTask ID: ${taskId}\x1b[0m`);
-    term.writeln("");
+    // No initial greeting - let Claude Code's TUI take full control
 
     return () => {
       window.removeEventListener("resize", handleResize);
@@ -174,16 +218,11 @@ export function Terminal({
     if (!term) return;
 
     const url = getWsUrl();
-    term.writeln(`\x1b[90mConnecting to ${url}...\x1b[0m`);
-
     const ws = new WebSocket(url);
     wsRef.current = ws;
 
     ws.onopen = () => {
       setConnected(true);
-      term.writeln("\x1b[32mConnected!\x1b[0m");
-      term.writeln("");
-
       // Send initial resize
       ws.send(
         JSON.stringify({
@@ -204,15 +243,12 @@ export function Terminal({
             if (msg.running !== runningRef.current) {
               setRunning(msg.running ?? false);
               onStatusChangeRef.current?.(msg.running ?? false);
-              if (msg.running) {
-                // Clear screen and reset cursor to top-left before Claude Code starts
-                // This ensures Claude Code's TUI has full control of the terminal
-                term.write("\x1b[2J\x1b[H");
-              } else {
+              if (!msg.running) {
                 term.writeln(
                   "\x1b[90mAgent is not running. Start the agent to see output.\x1b[0m",
                 );
               }
+              // Note: Don't clear screen here - Claude Code's TUI handles its own screen management
             }
             break;
 
@@ -272,15 +308,27 @@ export function Terminal({
       term.writeln("\x1b[90mDisconnected\x1b[0m");
     };
 
-    // Handle terminal input
+    // Handle terminal input - filter out mouse sequences
     const inputHandler = term.onData((data) => {
       if (ws.readyState === WebSocket.OPEN && runningRef.current) {
-        ws.send(
-          JSON.stringify({
-            type: "input",
-            data,
-          }),
-        );
+        // Filter out mouse tracking sequences that xterm.js generates
+        // SGR mouse: ESC[<button;col;row[Mm]
+        // X10 mouse: ESC[M followed by 3 bytes
+        // Focus: ESC[I and ESC[O
+        const mouseFiltered = data
+          .replace(/\x1b\[<\d+;\d+;\d+[Mm]/g, "")
+          .replace(/\x1b\[M.../g, "")
+          .replace(/\x1b\[[IO]/g, "");
+
+        // Only send if there's actual keyboard input left
+        if (mouseFiltered) {
+          ws.send(
+            JSON.stringify({
+              type: "input",
+              data: mouseFiltered,
+            }),
+          );
+        }
       }
     });
 

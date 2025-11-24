@@ -43,7 +43,7 @@ router.get('/tasks/:id/agent', (req: Request, res: Response, next: NextFunction)
 router.put('/tasks/:id/agent', (req: Request, res: Response, next: NextFunction) => {
   try {
     const taskId = parseInt(req.params['id'] ?? '0', 10);
-    const { action } = req.body as { action?: string };
+    const { action, cols, rows } = req.body as { action?: string; cols?: number; rows?: number };
 
     if (!action || !['start', 'pause', 'resume', 'stop'].includes(action)) {
       throw new ValidationError('Invalid action. Must be one of: start, pause, resume, stop');
@@ -58,7 +58,8 @@ router.put('/tasks/:id/agent', (req: Request, res: Response, next: NextFunction)
     let result;
     switch (action) {
       case 'start':
-        result = spawnAgent(taskId, {});
+        // Pass terminal dimensions if provided
+        result = spawnAgent(taskId, { cols, rows });
         res.status(201).json({
           success: true,
           data: {

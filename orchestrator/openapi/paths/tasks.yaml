@@ -463,6 +463,16 @@ tasks-id-agent:
                 type: string
                 enum: [start, pause, resume, stop]
                 description: Agent control action
+              cols:
+                type: integer
+                minimum: 1
+                maximum: 500
+                description: Terminal width in columns (for start action)
+              rows:
+                type: integer
+                minimum: 1
+                maximum: 200
+                description: Terminal height in rows (for start action)
             required:
               - action
     responses:

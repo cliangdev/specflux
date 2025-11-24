@@ -74,9 +74,21 @@ function handleConnection(ws: WebSocket, taskId: number): void {
   // Track current emitter subscription
   let currentEmitter: EventEmitter | null = null;
 
+  // DEBUG
+  const DEBUG_TERMINAL = process.env['DEBUG_TERMINAL'] === '1';
+  let wsMessageCount = 0;
+
   // Event handlers
   const dataHandler = (data: string) => {
     if (ws.readyState === WebSocket.OPEN) {
+      wsMessageCount++;
+
+      // DEBUG: Log WebSocket messages containing "Please work"
+      if (DEBUG_TERMINAL && data.includes('Please work')) {
+        console.log(`[WS DEBUG] Task ${taskId} sending msg #${wsMessageCount} with "Please work"`);
+        console.log(`[WS DEBUG] Data length: ${data.length}`);
+      }
+
       ws.send(JSON.stringify({ type: 'output', data }));
     }
   };
@@ -163,6 +175,7 @@ function handleConnection(ws: WebSocket, taskId: number): void {
       // Send status update
       ws.send(JSON.stringify({ type: 'status', running: true, taskId }));
       // Subscribe to the new emitter
+      // Note: Clear screen is sent from agent.service.ts before first PTY output
       subscribeToEmitter(event.emitter);
     }
   };
@@ -212,6 +225,35 @@ function handleConnection(ws: WebSocket, taskId: number): void {
 }
 
 /**
+ * Filter out mouse input sequences from terminal input
+ * xterm.js sends these when mouse mode is enabled by the application
+ *
+ * Mouse sequences:
+ * - SGR format: ESC[<Cb;Cx;CyM or ESC[<Cb;Cx;Cym (button;col;row + M for press, m for release)
+ * - X10/Normal format: ESC[M followed by 3 bytes
+ * - Focus events: ESC[I (focus in) and ESC[O (focus out) - enabled by ESC[?1004h
+ */
+function filterMouseInput(data: string): string {
+  // Filter SGR mouse sequences: ESC[<...M or ESC[<...m
+  // eslint-disable-next-line no-control-regex
+  const sgrMouseRegex = /\x1b\[<\d+;\d+;\d+[Mm]/g;
+
+  // Filter X10/Normal mouse sequences: ESC[M followed by 3 characters
+  // eslint-disable-next-line no-control-regex
+  const x10MouseRegex = /\x1b\[M.../g;
+
+  // Filter focus events: ESC[I and ESC[O
+  // eslint-disable-next-line no-control-regex
+  const focusRegex = /\x1b\[[IO]/g;
+
+  let filtered = data.replace(sgrMouseRegex, '');
+  filtered = filtered.replace(x10MouseRegex, '');
+  filtered = filtered.replace(focusRegex, '');
+
+  return filtered;
+}
+
+/**
  * Handle messages from WebSocket client
  */
 function handleClientMessage(
@@ -221,16 +263,36 @@ function handleClientMessage(
   switch (msg.type) {
     case 'input':
       if (msg.data && isAgentRunning(taskId)) {
-        try {
-          sendAgentInput(taskId, msg.data);
-        } catch {
-          // Agent might have stopped
+        // Filter out mouse sequences - we only want keyboard input
+        const filteredData = filterMouseInput(msg.data);
+
+        // DEBUG: Log input to see what's being received
+        if (process.env['DEBUG_TERMINAL'] === '1') {
+          const original = JSON.stringify(msg.data);
+          const filtered = JSON.stringify(filteredData);
+          if (original !== filtered) {
+            console.log(`[WS INPUT] Task ${taskId} filtered mouse: ${original} -> ${filtered}`);
+          }
+        }
+
+        if (filteredData) {
+          try {
+            sendAgentInput(taskId, filteredData);
+          } catch {
+            // Agent might have stopped
+          }
         }
       }
       break;
 
     case 'resize':
       if (msg.cols && msg.rows && isAgentRunning(taskId)) {
+        // DEBUG: Log resize requests
+        if (process.env['DEBUG_TERMINAL'] === '1') {
+          console.log(
+            `[WS DEBUG] Task ${taskId} resize request: cols=${msg.cols}, rows=${msg.rows}`
+          );
+        }
         try {
           resizeAgentPty(taskId, msg.cols, msg.rows);
         } catch {

@@ -43,16 +43,126 @@ export interface AgentProcess {
   pty: pty.IPty;
   emitter: EventEmitter;
   parserState: ParserState;
+  dedupeState: DedupeState;
 }
 
 export interface SpawnAgentConfig {
   command?: string;
   args?: string[];
   env?: Record<string, string>;
+  cols?: number;
+  rows?: number;
 }
 
 // In-memory tracking of running agent processes
 const runningAgents = new Map<number, AgentProcess>();
+
+/**
+ * Filter out mouse tracking ANSI escape sequences from PTY output
+ * Claude Code enables mouse tracking but we only want keyboard navigation in the embedded terminal
+ *
+ * Mouse mode sequences:
+ * - ESC[?1000h/l - Mouse click tracking
+ * - ESC[?1001h/l - Mouse highlight mode
+ * - ESC[?1002h/l - Button event tracking
+ * - ESC[?1003h/l - Any-event tracking (mouse movement)
+ * - ESC[?1004h/l - Focus reporting
+ * - ESC[?1006h/l - SGR mouse mode
+ * - ESC[?1015h/l - urxvt mouse mode
+ */
+function filterMouseSequences(data: string): string {
+  // Regex to match mouse-related escape sequences
+  // Format: ESC [ ? <number> h  or  ESC [ ? <number> l
+  // Numbers: 1000, 1001, 1002, 1003, 1004, 1006, 1015
+  // eslint-disable-next-line no-control-regex
+  const mouseRegex = /\x1b\[\?100[0-4][hl]|\x1b\[\?1006[hl]|\x1b\[\?1015[hl]/g;
+  return data.replace(mouseRegex, '');
+}
+
+/**
+ * Output deduplication state - tracks content that has been displayed
+ * to filter out duplicate prompt renders from Claude Code's TUI
+ */
+interface DedupeState {
+  // Track recently seen prompt-like content to detect duplicates
+  lastPromptHash: string | null;
+  // Timestamp of last prompt to allow re-display after significant time
+  lastPromptTime: number;
+}
+
+/**
+ * Create a simple hash of text content for comparison
+ */
+function hashContent(text: string): string {
+  // Simple hash: first 100 chars of visible text
+  // eslint-disable-next-line no-control-regex
+  const ansiRegex = /\x1b\[[0-9;]*[A-Za-z]/g;
+  const visible = text.replace(ansiRegex, '').slice(0, 100);
+  return visible;
+}
+
+/**
+ * Detect and filter duplicate prompt content from Claude Code's TUI redraws
+ *
+ * Claude Code's TUI sometimes outputs the same prompt twice during screen redraws.
+ * This function detects when the task prompt appears multiple times in the same chunk
+ * and removes all but the first occurrence to prevent visual duplication.
+ */
+function filterDuplicatePrompts(data: string, state: DedupeState): string {
+  // The specific prompt pattern we're looking for
+  const promptMarker = 'Please work on this task:';
+
+  // Count occurrences of the prompt marker in this chunk
+  const promptCount = (data.match(new RegExp(promptMarker, 'g')) ?? []).length;
+
+  if (promptCount <= 1) {
+    // Single or no prompt - normal output, pass through
+    if (promptCount === 1) {
+      state.lastPromptHash = hashContent(data);
+      state.lastPromptTime = Date.now();
+    }
+    return data;
+  }
+
+  // Multiple prompts in one chunk - this is the duplicate render issue
+  // Find the first occurrence and remove everything from the second occurrence onwards
+  const firstPromptIndex = data.indexOf(promptMarker);
+  const secondPromptIndex = data.indexOf(promptMarker, firstPromptIndex + promptMarker.length);
+
+  if (secondPromptIndex > 0) {
+    // Keep only up to the second prompt (which is a duplicate)
+    // Find where to cut - look for the redraw sequence before the second prompt
+    // The redraw typically starts with cursor up commands before the duplicate
+    let cutPoint = secondPromptIndex;
+
+    // Look backwards from second prompt to find start of redraw sequence
+    // Pattern: multiple \x1b[1A (cursor up) and \x1b[2K (clear line) sequences
+    const searchStart = Math.max(firstPromptIndex + 100, secondPromptIndex - 500);
+    const betweenPrompts = data.slice(searchStart, secondPromptIndex);
+
+    // Find where the clear/redraw sequence begins
+    // eslint-disable-next-line no-control-regex
+    const redrawPattern = /\x1b\[2K\x1b\[1A/;
+    const match = betweenPrompts.match(redrawPattern);
+    if (match?.index !== undefined) {
+      cutPoint = searchStart + match.index;
+    }
+
+    return data.slice(0, cutPoint);
+  }
+
+  return data;
+}
+
+/**
+ * Create deduplication state for a new agent session
+ */
+function createDedupeState(): DedupeState {
+  return {
+    lastPromptHash: null,
+    lastPromptTime: 0,
+  };
+}
 
 /**
  * Create agent session record in database
@@ -315,11 +425,21 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
   } as Record<string, string>;
 
   try {
+    // Use provided dimensions or defaults
+    // Defaults are reasonable for most terminal sizes
+    const ptyCols = config?.cols ?? 120;
+    const ptyRows = config?.rows ?? 40;
+    if (process.env['DEBUG_TERMINAL'] === '1') {
+      console.log(
+        `[PTY DEBUG] Spawning PTY for task ${taskId} with cols=${ptyCols}, rows=${ptyRows}`
+      );
+    }
+
     // Spawn PTY process
     const ptyProcess = pty.spawn(command, args, {
       name: 'xterm-256color',
-      cols: 120,
-      rows: 40,
+      cols: ptyCols,
+      rows: ptyRows,
       cwd: worktreePath ?? project.local_path,
       env,
     });
@@ -336,6 +456,9 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
     // Create parser state for this agent
     const parserState = createParserState();
 
+    // Create deduplication state for filtering duplicate prompts
+    const dedupeState = createDedupeState();
+
     // Store agent process FIRST so getAgentEmitter() works when WebSocket reconnects
     const agentProcess: AgentProcess = {
       taskId,
@@ -343,6 +466,7 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
       pty: ptyProcess,
       emitter,
       parserState,
+      dedupeState,
     };
     runningAgents.set(taskId, agentProcess);
 
@@ -353,10 +477,26 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
     let lastProgressUpdate = 0;
     const PROGRESS_UPDATE_THRESHOLD = 5; // Only update DB if progress changes by 5%
 
+    // Track whether we've sent the initial clear screen
+    let sentInitialClear = false;
+
     // Register output handler AFTER storing agent and notifying WebSocket
     // This ensures WebSocket is subscribed before any data is emitted
     ptyProcess.onData((data) => {
-      emitter.emit('data', data);
+      // Filter out mouse tracking sequences - we only want keyboard navigation
+      let filteredData = filterMouseSequences(data);
+
+      // Filter duplicate prompts from Claude Code's TUI redraws
+      filteredData = filterDuplicatePrompts(filteredData, dedupeState);
+
+      // Send clear screen sequence before the very first output
+      // This ensures terminal starts fresh for Claude Code's TUI
+      if (!sentInitialClear) {
+        sentInitialClear = true;
+        emitter.emit('data', '\x1b[2J\x1b[H');
+      }
+
+      emitter.emit('data', filteredData);
 
       // Parse terminal output for progress events
       const events = parseTerminalOutput(data, parserState);
