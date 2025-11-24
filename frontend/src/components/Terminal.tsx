@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback, useState, memo } from "react";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
@@ -42,7 +42,8 @@ interface TerminalMessage {
   total?: number;
 }
 
-export function Terminal({
+// Memoized to prevent re-renders when parent state changes (e.g., file changes polling)
+export const Terminal = memo(function Terminal({
   taskId,
   wsUrl,
   onStatusChange,
@@ -389,6 +390,6 @@ export function Terminal({
       `}</style>
     </div>
   );
-}
+});
 
 export default Terminal;

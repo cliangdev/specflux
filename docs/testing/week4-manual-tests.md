@@ -6,12 +6,6 @@
 
 ## Terminal Output
 
-### Basic Terminal Functionality
-- [ ] Start an agent on a task
-- [ ] Verify terminal shows Claude Code output in real-time
-- [ ] Verify terminal scrolls automatically as new output arrives
-- [ ] Verify terminal can be scrolled manually to view history
-
 ### Agent Status Detection
 - [ ] Start an agent - status badge should show "running" with green pulse
 - [ ] Let agent complete - status should change to "completed" or "idle"
