@@ -297,6 +297,18 @@ export default function TaskDetailPage() {
     fetchFileChanges();
   }, [fetchTask, fetchAgentStatus, fetchFileChanges]);
 
+  // Poll for file changes while agent is running (git-based tracking)
+  useEffect(() => {
+    if (!isAgentRunning) return;
+
+    // Poll every 3 seconds while agent is running
+    const interval = setInterval(() => {
+      fetchFileChanges();
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [isAgentRunning, fetchFileChanges]);
+
   // Fetch diff when task is in pending_review
   useEffect(() => {
     if (task?.status === "pending_review") {
@@ -384,16 +396,17 @@ export default function TaskDetailPage() {
     (running: boolean) => {
       if (running !== isAgentRunning) {
         fetchAgentStatus();
-        // When agent stops, refresh task to get updated status (e.g., pending_review)
+        // When agent stops, refresh task and file changes
         if (!running) {
           // Small delay to allow backend to process completion
           setTimeout(() => {
             fetchTask();
+            fetchFileChanges();
           }, 500);
         }
       }
     },
-    [isAgentRunning, fetchAgentStatus, fetchTask],
+    [isAgentRunning, fetchAgentStatus, fetchTask, fetchFileChanges],
   );
 
   if (loading) {
