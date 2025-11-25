@@ -4,8 +4,16 @@ import TerminalPanel from "../TerminalPanel";
 
 // Mock the Terminal component
 vi.mock("../../Terminal", () => ({
-  default: ({ taskId }: { taskId: number }) => (
-    <div data-testid="terminal-mock">Terminal for task {taskId}</div>
+  default: ({
+    contextType,
+    contextId,
+  }: {
+    contextType: string;
+    contextId: number;
+  }) => (
+    <div data-testid="terminal-mock">
+      Terminal for {contextType} {contextId}
+    </div>
   ),
 }));
 
@@ -35,11 +43,15 @@ vi.mock("../NewSessionDialog", () => ({
     onCreated,
   }: {
     onClose: () => void;
-    onCreated: (taskId: number, taskTitle: string) => void;
+    onCreated: (context: { type: string; id: number; title: string }) => void;
   }) => (
     <div data-testid="new-session-dialog">
       <button onClick={onClose}>Close Dialog</button>
-      <button onClick={() => onCreated(99, "Test Task")}>Create Session</button>
+      <button
+        onClick={() => onCreated({ type: "task", id: 99, title: "Test Task" })}
+      >
+        Create Session
+      </button>
     </div>
   ),
 }));
@@ -50,10 +62,13 @@ const mockTerminalContext = {
   isCollapsed: false,
   sessions: [] as Array<{
     id: string;
+    contextType: "task" | "epic" | "project";
+    contextId: number;
+    contextTitle: string;
     taskId: number;
-    label: string;
+    taskTitle: string;
     isRunning: boolean;
-    createdAt: Date;
+    isConnected: boolean;
   }>,
   activeSessionId: null as string | null,
   togglePanel: vi.fn(),
@@ -61,6 +76,7 @@ const mockTerminalContext = {
   closePanel: vi.fn(),
   toggleCollapse: vi.fn(),
   openTerminalForTask: vi.fn(),
+  openTerminalForContext: vi.fn(),
   switchToSession: vi.fn(),
   closeSession: vi.fn(),
   updateSessionStatus: vi.fn(),
@@ -149,14 +165,17 @@ describe("TerminalPanel", () => {
   it("shows tab bar when sessions exist", () => {
     mockTerminalContext.sessions = [
       {
-        id: "session-1",
+        id: "task-42",
+        contextType: "task",
+        contextId: 42,
+        contextTitle: "My Test Task",
         taskId: 42,
-        label: "#42: My Test Task",
+        taskTitle: "My Test Task",
         isRunning: false,
-        createdAt: new Date(),
+        isConnected: true,
       },
     ];
-    mockTerminalContext.activeSessionId = "session-1";
+    mockTerminalContext.activeSessionId = "task-42";
 
     render(<TerminalPanel />);
 
@@ -166,14 +185,17 @@ describe("TerminalPanel", () => {
   it("renders Terminal component for active session", () => {
     mockTerminalContext.sessions = [
       {
-        id: "session-1",
+        id: "task-123",
+        contextType: "task",
+        contextId: 123,
+        contextTitle: "Active Task",
         taskId: 123,
-        label: "#123: Active Task",
+        taskTitle: "Active Task",
         isRunning: false,
-        createdAt: new Date(),
+        isConnected: true,
       },
     ];
-    mockTerminalContext.activeSessionId = "session-1";
+    mockTerminalContext.activeSessionId = "task-123";
 
     render(<TerminalPanel />);
 
@@ -185,14 +207,17 @@ describe("TerminalPanel", () => {
     mockTerminalContext.isCollapsed = true;
     mockTerminalContext.sessions = [
       {
-        id: "session-1",
+        id: "task-1",
+        contextType: "task",
+        contextId: 1,
+        contextTitle: "Task",
         taskId: 1,
-        label: "Task",
+        taskTitle: "Task",
         isRunning: false,
-        createdAt: new Date(),
+        isConnected: true,
       },
     ];
-    mockTerminalContext.activeSessionId = "session-1";
+    mockTerminalContext.activeSessionId = "task-1";
 
     render(<TerminalPanel />);
 
@@ -258,7 +283,7 @@ describe("TerminalPanel", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("calls openTerminalForTask and closes dialog when session is created", () => {
+    it("calls openTerminalForContext and closes dialog when session is created", () => {
       mockProjectContext.currentProject = { id: 1, name: "Test Project" };
 
       render(<TerminalPanel />);
@@ -266,7 +291,8 @@ describe("TerminalPanel", () => {
       fireEvent.click(screen.getByTestId("new-session-btn"));
       fireEvent.click(screen.getByText("Create Session"));
 
-      expect(mockTerminalContext.openTerminalForTask).toHaveBeenCalledWith({
+      expect(mockTerminalContext.openTerminalForContext).toHaveBeenCalledWith({
+        type: "task",
         id: 99,
         title: "Test Task",
       });

@@ -6,6 +6,9 @@ import type { TerminalSession } from "../../contexts/TerminalContext";
 const mockSessions: TerminalSession[] = [
   {
     id: "task-1",
+    contextType: "task",
+    contextId: 1,
+    contextTitle: "Fix login bug",
     taskId: 1,
     taskTitle: "Fix login bug",
     isRunning: false,
@@ -13,6 +16,9 @@ const mockSessions: TerminalSession[] = [
   },
   {
     id: "task-2",
+    contextType: "task",
+    contextId: 2,
+    contextTitle: "Add search feature",
     taskId: 2,
     taskTitle: "Add search feature",
     isRunning: true,
@@ -20,6 +26,9 @@ const mockSessions: TerminalSession[] = [
   },
   {
     id: "task-3",
+    contextType: "task",
+    contextId: 3,
+    contextTitle: "Refactor authentication module to use new OAuth flow",
     taskId: 3,
     taskTitle: "Refactor authentication module to use new OAuth flow",
     isRunning: false,

@@ -1,16 +1,15 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { api, type Task } from "../../api";
-
-type ContextMode = "task" | "epic" | "project";
+import type { ContextType, ContextInfo } from "../../contexts/TerminalContext";
 
 interface NewSessionDialogProps {
   projectId: number;
   onClose: () => void;
-  onCreated: (taskId: number, taskTitle: string) => void;
+  onCreated: (context: ContextInfo) => void;
 }
 
 const CONTEXT_MODE_OPTIONS: {
-  value: ContextMode;
+  value: ContextType;
   label: string;
   description: string;
   enabled: boolean;
@@ -40,7 +39,7 @@ export default function NewSessionDialog({
   onClose,
   onCreated,
 }: NewSessionDialogProps) {
-  const [contextMode, setContextMode] = useState<ContextMode>("task");
+  const [contextMode, setContextMode] = useState<ContextType>("task");
   const [selectedTaskId, setSelectedTaskId] = useState<number | undefined>();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,7 +77,11 @@ export default function NewSessionDialog({
 
       const selectedTask = tasks.find((t) => t.id === selectedTaskId);
       if (selectedTask) {
-        onCreated(selectedTask.id, selectedTask.title);
+        onCreated({
+          type: "task",
+          id: selectedTask.id,
+          title: selectedTask.title,
+        });
       }
     }
     // Epic and Project modes will be implemented in future tasks
@@ -154,7 +157,7 @@ export default function NewSessionDialog({
                       checked={contextMode === option.value}
                       onChange={(e) =>
                         option.enabled &&
-                        setContextMode(e.target.value as ContextMode)
+                        setContextMode(e.target.value as ContextType)
                       }
                       disabled={!option.enabled}
                       className="mt-0.5"
