@@ -14,6 +14,7 @@ import {
 } from "../api";
 import FileChanges from "../components/FileChanges";
 import { DependencyList, AddDependencyModal } from "../components/tasks";
+import { TaskEditModal } from "../components/ui";
 import { useTerminal } from "../contexts/TerminalContext";
 
 // Helper to open external URLs using Tauri command
@@ -246,6 +247,7 @@ export default function TaskDetailPage() {
   const [epicLoading, setEpicLoading] = useState(false);
   const [dependencies, setDependencies] = useState<TaskDependency[]>([]);
   const [showAddDependencyModal, setShowAddDependencyModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   // Check if terminal is showing this task
   const isTerminalShowingThisTask = activeTask?.id === Number(taskId);
@@ -576,6 +578,25 @@ export default function TaskDetailPage() {
         <h1 className="text-xl font-semibold text-system-900 dark:text-white truncate flex-1 min-w-0">
           {task.title}
         </h1>
+        <button
+          onClick={() => setShowEditModal(true)}
+          className="p-1.5 text-system-400 hover:text-system-600 dark:hover:text-white transition-colors rounded hover:bg-system-100 dark:hover:bg-system-700 flex-shrink-0"
+          title="Edit task"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+            />
+          </svg>
+        </button>
         <StatusBadge status={task.status} />
       </div>
 
@@ -978,6 +999,16 @@ export default function TaskDetailPage() {
           existingDependencyIds={dependencies.map((d) => d.dependsOnTaskId)}
           onClose={() => setShowAddDependencyModal(false)}
           onAdded={handleDependencyAdded}
+        />
+      )}
+
+      {/* Edit Task Modal */}
+      {showEditModal && (
+        <TaskEditModal
+          task={task}
+          projectId={task.projectId}
+          onClose={() => setShowEditModal(false)}
+          onUpdated={fetchTask}
         />
       )}
     </div>
