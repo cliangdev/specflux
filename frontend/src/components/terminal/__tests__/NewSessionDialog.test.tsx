@@ -7,6 +7,9 @@ vi.mock("../../../api", () => ({
     tasks: {
       listTasks: vi.fn(),
     },
+    epics: {
+      listEpics: vi.fn(),
+    },
   },
 }));
 
@@ -48,6 +51,27 @@ const mockTasks = [
   },
 ];
 
+const mockEpics = [
+  {
+    id: 1,
+    title: "Epic 1",
+    projectId: 1,
+    status: "planning",
+    createdByUserId: 1,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 2,
+    title: "Epic 2",
+    projectId: 1,
+    status: "in_progress",
+    createdByUserId: 1,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+
 describe("NewSessionDialog", () => {
   const mockOnClose = vi.fn();
   const mockOnCreated = vi.fn();
@@ -59,6 +83,10 @@ describe("NewSessionDialog", () => {
       success: true,
       data: mockTasks,
       pagination: { hasMore: false, total: 3 },
+    });
+    vi.mocked(api.epics.listEpics).mockResolvedValue({
+      success: true,
+      data: mockEpics,
     });
   });
 
@@ -89,7 +117,7 @@ describe("NewSessionDialog", () => {
       screen.getByText("Work on a specific task with its context"),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Work on an epic with PRD context"),
+      screen.getByText("Review epic planning, PRD, and task breakdown"),
     ).toBeInTheDocument();
     expect(screen.getByText("Work on project-level tasks")).toBeInTheDocument();
   });
@@ -104,7 +132,7 @@ describe("NewSessionDialog", () => {
     expect(taskRadio).toBeChecked();
   });
 
-  it("shows Epic and Project modes as disabled with 'Coming soon' badge", () => {
+  it("shows Epic mode as enabled and Project mode as disabled with 'Coming soon' badge", () => {
     renderDialog();
 
     const epicRadio = document.querySelector(
@@ -114,12 +142,12 @@ describe("NewSessionDialog", () => {
       'input[type="radio"][value="project"]',
     ) as HTMLInputElement;
 
-    expect(epicRadio).toBeDisabled();
+    expect(epicRadio).not.toBeDisabled();
     expect(projectRadio).toBeDisabled();
 
-    // Check for "Coming soon" badges
+    // Check for "Coming soon" badge (only on Project now)
     const comingSoonBadges = screen.getAllByText("Coming soon");
-    expect(comingSoonBadges).toHaveLength(2);
+    expect(comingSoonBadges).toHaveLength(1);
   });
 
   it("shows task dropdown when Task mode is selected", async () => {
@@ -282,6 +310,107 @@ describe("NewSessionDialog", () => {
       expect(
         screen.getByText("No active tasks found. Create a task first."),
       ).toBeInTheDocument();
+    });
+  });
+
+  describe("Epic Mode", () => {
+    it("shows epic dropdown when Epic mode is selected", async () => {
+      renderDialog();
+
+      const epicRadio = document.querySelector(
+        'input[type="radio"][value="epic"]',
+      ) as HTMLInputElement;
+      fireEvent.click(epicRadio);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Select Epic/)).toBeInTheDocument();
+      });
+    });
+
+    it("loads and displays epics in dropdown", async () => {
+      renderDialog();
+
+      const epicRadio = document.querySelector(
+        'input[type="radio"][value="epic"]',
+      ) as HTMLInputElement;
+      fireEvent.click(epicRadio);
+
+      await waitFor(() => {
+        expect(api.epics.listEpics).toHaveBeenCalledWith({ id: projectId });
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText(/#1: Epic 1/)).toBeInTheDocument();
+        expect(screen.getByText(/#2: Epic 2/)).toBeInTheDocument();
+      });
+    });
+
+    it("calls onCreated with epic context when epic is selected and submitted", async () => {
+      renderDialog();
+
+      const epicRadio = document.querySelector(
+        'input[type="radio"][value="epic"]',
+      ) as HTMLInputElement;
+      fireEvent.click(epicRadio);
+
+      await waitFor(() => {
+        expect(screen.getByText(/#1: Epic 1/)).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByLabelText(/Select Epic/), {
+        target: { value: "1" },
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: /Open Terminal/i }));
+
+      expect(mockOnCreated).toHaveBeenCalledWith({
+        type: "epic",
+        id: 1,
+        title: "Epic 1",
+      });
+    });
+
+    it("shows error when submitting without selecting an epic", async () => {
+      renderDialog();
+
+      const epicRadio = document.querySelector(
+        'input[type="radio"][value="epic"]',
+      ) as HTMLInputElement;
+      fireEvent.click(epicRadio);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Select Epic/)).toBeInTheDocument();
+      });
+
+      // Force submit
+      const form = document.querySelector("form");
+      fireEvent.submit(form!);
+
+      await waitFor(() => {
+        expect(screen.getByText("Please select an epic")).toBeInTheDocument();
+      });
+
+      expect(mockOnCreated).not.toHaveBeenCalled();
+    });
+
+    it("shows message when no epics are available", async () => {
+      vi.mocked(api.epics.listEpics).mockResolvedValue({
+        success: true,
+        data: [],
+      });
+
+      renderDialog();
+
+      const epicRadio = document.querySelector(
+        'input[type="radio"][value="epic"]',
+      ) as HTMLInputElement;
+      fireEvent.click(epicRadio);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText("No epics found. Create an epic first."),
+        ).toBeInTheDocument();
+      });
     });
   });
 });

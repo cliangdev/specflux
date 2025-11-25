@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from "react";
-import { api, type Task } from "../../api";
+import { api, type Task, type Epic } from "../../api";
 import type { ContextType, ContextInfo } from "../../contexts/TerminalContext";
 
 interface NewSessionDialogProps {
@@ -23,8 +23,8 @@ const CONTEXT_MODE_OPTIONS: {
   {
     value: "epic",
     label: "Epic",
-    description: "Work on an epic with PRD context",
-    enabled: false,
+    description: "Review epic planning, PRD, and task breakdown",
+    enabled: true,
   },
   {
     value: "project",
@@ -41,15 +41,18 @@ export default function NewSessionDialog({
 }: NewSessionDialogProps) {
   const [contextMode, setContextMode] = useState<ContextType>("task");
   const [selectedTaskId, setSelectedTaskId] = useState<number | undefined>();
+  const [selectedEpicId, setSelectedEpicId] = useState<number | undefined>();
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [epics, setEpics] = useState<Epic[]>([]);
+  const [loadingTasks, setLoadingTasks] = useState(true);
+  const [loadingEpics, setLoadingEpics] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch tasks for the dropdown
   useEffect(() => {
     const fetchTasks = async () => {
       try {
-        setLoading(true);
+        setLoadingTasks(true);
         const response = await api.tasks.listTasks({ id: projectId });
         // Filter to tasks that aren't done
         const activeTasks = (response.data ?? []).filter(
@@ -60,10 +63,27 @@ export default function NewSessionDialog({
         console.error("Failed to fetch tasks:", err);
         setError("Failed to load tasks");
       } finally {
-        setLoading(false);
+        setLoadingTasks(false);
       }
     };
     fetchTasks();
+  }, [projectId]);
+
+  // Fetch epics for the dropdown
+  useEffect(() => {
+    const fetchEpics = async () => {
+      try {
+        setLoadingEpics(true);
+        const response = await api.epics.listEpics({ id: projectId });
+        setEpics(response.data ?? []);
+      } catch (err) {
+        console.error("Failed to fetch epics:", err);
+        // Don't show error for epics - they may not exist yet
+      } finally {
+        setLoadingEpics(false);
+      }
+    };
+    fetchEpics();
   }, [projectId]);
 
   const handleSubmit = (e: FormEvent) => {
@@ -83,14 +103,32 @@ export default function NewSessionDialog({
           title: selectedTask.title,
         });
       }
+    } else if (contextMode === "epic") {
+      if (!selectedEpicId) {
+        setError("Please select an epic");
+        return;
+      }
+
+      const selectedEpic = epics.find((e) => e.id === selectedEpicId);
+      if (selectedEpic) {
+        onCreated({
+          type: "epic",
+          id: selectedEpic.id,
+          title: selectedEpic.title,
+        });
+      }
     }
-    // Epic and Project modes will be implemented in future tasks
+    // Project mode will be implemented in future tasks
   };
 
   const canSubmit =
     contextMode === "task"
       ? !!selectedTaskId
-      : CONTEXT_MODE_OPTIONS.find((o) => o.value === contextMode)?.enabled;
+      : contextMode === "epic"
+        ? !!selectedEpicId
+        : CONTEXT_MODE_OPTIONS.find((o) => o.value === contextMode)?.enabled;
+
+  const loading = loadingTasks || loadingEpics;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -200,10 +238,10 @@ export default function NewSessionDialog({
                     )
                   }
                   className="select"
-                  disabled={loading}
+                  disabled={loadingTasks}
                 >
                   <option value="">
-                    {loading ? "Loading tasks..." : "Select a task"}
+                    {loadingTasks ? "Loading tasks..." : "Select a task"}
                   </option>
                   {tasks.map((task) => (
                     <option key={task.id} value={task.id}>
@@ -211,11 +249,51 @@ export default function NewSessionDialog({
                     </option>
                   ))}
                 </select>
-                {tasks.length === 0 && !loading && (
+                {tasks.length === 0 && !loadingTasks && (
                   <p className="mt-1 text-xs text-system-500 dark:text-system-400">
                     No active tasks found. Create a task first.
                   </p>
                 )}
+              </div>
+            )}
+
+            {/* Epic Selector (shown when Epic mode is selected) */}
+            {contextMode === "epic" && (
+              <div>
+                <label
+                  htmlFor="epic"
+                  className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
+                >
+                  Select Epic <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="epic"
+                  value={selectedEpicId ?? ""}
+                  onChange={(e) =>
+                    setSelectedEpicId(
+                      e.target.value ? Number(e.target.value) : undefined,
+                    )
+                  }
+                  className="select"
+                  disabled={loadingEpics}
+                >
+                  <option value="">
+                    {loadingEpics ? "Loading epics..." : "Select an epic"}
+                  </option>
+                  {epics.map((epic) => (
+                    <option key={epic.id} value={epic.id}>
+                      #{epic.id}: {epic.title}
+                    </option>
+                  ))}
+                </select>
+                {epics.length === 0 && !loadingEpics && (
+                  <p className="mt-1 text-xs text-system-500 dark:text-system-400">
+                    No epics found. Create an epic first.
+                  </p>
+                )}
+                <p className="mt-1 text-xs text-system-500 dark:text-system-400">
+                  Claude will review the epic&apos;s PRD and task breakdown.
+                </p>
               </div>
             )}
           </div>

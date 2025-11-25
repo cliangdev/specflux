@@ -65,8 +65,8 @@ describe('File Tracking Service', () => {
     // Create test session
     const sessionResult = db
       .prepare(
-        `INSERT INTO agent_sessions (task_id, status, started_at)
-         VALUES (?, ?, datetime('now'))`
+        `INSERT INTO agent_sessions (context_type, context_id, status, started_at)
+         VALUES ('task', ?, ?, datetime('now'))`
       )
       .run(testTaskId, 'completed');
     testSessionId = Number(sessionResult.lastInsertRowid);
@@ -74,8 +74,8 @@ describe('File Tracking Service', () => {
     // Create second session for session tests
     const sessionResult2 = db
       .prepare(
-        `INSERT INTO agent_sessions (task_id, status, started_at)
-         VALUES (?, ?, datetime('now'))`
+        `INSERT INTO agent_sessions (context_type, context_id, status, started_at)
+         VALUES ('task', ?, ?, datetime('now'))`
       )
       .run(testTaskId, 'completed');
     testSessionId2 = Number(sessionResult2.lastInsertRowid);

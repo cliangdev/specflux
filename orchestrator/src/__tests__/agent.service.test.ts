@@ -58,8 +58,8 @@ describe('AgentService', () => {
       const db = getDatabase();
       const result = db
         .prepare(
-          `INSERT INTO agent_sessions (task_id, worktree_path, status, pid)
-           VALUES (?, ?, ?, ?)`
+          `INSERT INTO agent_sessions (context_type, context_id, worktree_path, status, pid)
+           VALUES ('task', ?, ?, ?, ?)`
         )
         .run(taskId, '/test/worktree', 'running', 12345);
       sessionId = result.lastInsertRowid as number;
@@ -99,14 +99,14 @@ describe('AgentService', () => {
 
       // Create a completed session (should not be returned)
       db.prepare(
-        `INSERT INTO agent_sessions (task_id, status, ended_at)
-         VALUES (?, 'completed', CURRENT_TIMESTAMP)`
+        `INSERT INTO agent_sessions (context_type, context_id, status, ended_at)
+         VALUES ('task', ?, 'completed', CURRENT_TIMESTAMP)`
       ).run(activeTaskId);
 
       // Create a running session (should be returned)
       db.prepare(
-        `INSERT INTO agent_sessions (task_id, status, pid)
-         VALUES (?, 'running', 54321)`
+        `INSERT INTO agent_sessions (context_type, context_id, status, pid)
+         VALUES ('task', ?, 'running', 54321)`
       ).run(activeTaskId);
     });
 
@@ -131,8 +131,8 @@ describe('AgentService', () => {
       const noActiveTaskId = taskResult.lastInsertRowid as number;
 
       db.prepare(
-        `INSERT INTO agent_sessions (task_id, status, ended_at)
-         VALUES (?, 'completed', CURRENT_TIMESTAMP)`
+        `INSERT INTO agent_sessions (context_type, context_id, status, ended_at)
+         VALUES ('task', ?, 'completed', CURRENT_TIMESTAMP)`
       ).run(noActiveTaskId);
 
       const session = getActiveSessionForTask(noActiveTaskId);
@@ -163,8 +163,8 @@ describe('AgentService', () => {
       statusTaskId = taskResult.lastInsertRowid as number;
 
       db.prepare(
-        `INSERT INTO agent_sessions (task_id, status, pid)
-         VALUES (?, 'running', 11111)`
+        `INSERT INTO agent_sessions (context_type, context_id, status, pid)
+         VALUES ('task', ?, 'running', 11111)`
       ).run(statusTaskId);
     });
 
@@ -194,13 +194,13 @@ describe('AgentService', () => {
 
       // Create multiple sessions
       db.prepare(
-        `INSERT INTO agent_sessions (task_id, status, ended_at)
-         VALUES (?, 'failed', CURRENT_TIMESTAMP)`
+        `INSERT INTO agent_sessions (context_type, context_id, status, ended_at)
+         VALUES ('task', ?, 'failed', CURRENT_TIMESTAMP)`
       ).run(historyTaskId);
 
       db.prepare(
-        `INSERT INTO agent_sessions (task_id, status, ended_at)
-         VALUES (?, 'completed', CURRENT_TIMESTAMP)`
+        `INSERT INTO agent_sessions (context_type, context_id, status, ended_at)
+         VALUES ('task', ?, 'completed', CURRENT_TIMESTAMP)`
       ).run(historyTaskId);
     });
 
@@ -242,13 +242,13 @@ describe('AgentService', () => {
 
       // Create sessions in various states
       db.prepare(
-        `INSERT INTO agent_sessions (task_id, status)
-         VALUES (?, 'running')`
+        `INSERT INTO agent_sessions (context_type, context_id, status)
+         VALUES ('task', ?, 'running')`
       ).run(staleTaskId);
 
       db.prepare(
-        `INSERT INTO agent_sessions (task_id, status)
-         VALUES (?, 'starting')`
+        `INSERT INTO agent_sessions (context_type, context_id, status)
+         VALUES ('task', ?, 'starting')`
       ).run(staleTaskId);
 
       // Run cleanup
@@ -258,7 +258,7 @@ describe('AgentService', () => {
       const sessions = db
         .prepare(
           `SELECT status FROM agent_sessions
-           WHERE task_id = ? AND status = 'failed'`
+           WHERE context_type = 'task' AND context_id = ? AND status = 'failed'`
         )
         .all(staleTaskId);
 
@@ -271,8 +271,8 @@ describe('AgentService', () => {
       // Create a completed session
       const result = db
         .prepare(
-          `INSERT INTO agent_sessions (task_id, status, ended_at)
-           VALUES (?, 'completed', CURRENT_TIMESTAMP)`
+          `INSERT INTO agent_sessions (context_type, context_id, status, ended_at)
+           VALUES ('task', ?, 'completed', CURRENT_TIMESTAMP)`
         )
         .run(staleTaskId);
       const completedId = result.lastInsertRowid as number;

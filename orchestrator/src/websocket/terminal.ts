@@ -3,11 +3,12 @@ import { IncomingMessage, Server } from 'http';
 import { parse } from 'url';
 import { EventEmitter } from 'events';
 import {
-  getAgentEmitter,
-  sendAgentInput,
-  resizeAgentPty,
-  isAgentRunning,
+  getAgentEmitterForContext,
+  sendAgentInputForContext,
+  resizeAgentPtyForContext,
+  isAgentRunningForContext,
   agentLifecycleEmitter,
+  ContextType as AgentContextType,
 } from '../services/agent.service';
 
 type ContextType = 'task' | 'epic' | 'project';
@@ -68,13 +69,12 @@ export function createTerminalWebSocketServer(server: Server): WebSocketServer {
  * Handle a new WebSocket connection for a context
  */
 function handleConnection(ws: WebSocket, contextType: ContextType, contextId: number): void {
-  // For now, only task context is supported
-  // Epic and project contexts will be implemented in Tasks #37/#38
-  if (contextType !== 'task') {
+  // Project context is not yet supported
+  if (contextType === 'project') {
     ws.send(
       JSON.stringify({
         type: 'error',
-        message: `Context type "${contextType}" is not yet supported. Only "task" is currently available.`,
+        message: `Context type "project" is not yet supported. Only "task" and "epic" are currently available.`,
       })
     );
     ws.close();
@@ -86,7 +86,7 @@ function handleConnection(ws: WebSocket, contextType: ContextType, contextId: nu
     ws,
     contextType,
     contextId,
-    taskId: contextId, // Backwards compat alias
+    taskId: contextId, // Backwards compat alias (for task context)
   };
 
   // Add to client set
@@ -95,15 +95,15 @@ function handleConnection(ws: WebSocket, contextType: ContextType, contextId: nu
   }
   clientsByContext.get(key)!.add(client);
 
-  // For task context, taskId === contextId
-  const taskId = contextId;
-
   // Send initial status
   ws.send(
     JSON.stringify({
       type: 'status',
-      running: isAgentRunning(taskId),
-      taskId,
+      running: isAgentRunningForContext(contextType as AgentContextType, contextId),
+      contextType,
+      contextId,
+      // Backwards compat for task context
+      ...(contextType === 'task' ? { taskId: contextId } : {}),
     })
   );
 
@@ -119,9 +119,11 @@ function handleConnection(ws: WebSocket, contextType: ContextType, contextId: nu
     if (ws.readyState === WebSocket.OPEN) {
       wsMessageCount++;
 
-      // DEBUG: Log WebSocket messages containing "Please work"
-      if (DEBUG_TERMINAL && data.includes('Please work')) {
-        console.log(`[WS DEBUG] Task ${taskId} sending msg #${wsMessageCount} with "Please work"`);
+      // DEBUG: Log WebSocket messages containing "Please work" or "review this epic"
+      if (DEBUG_TERMINAL && (data.includes('Please work') || data.includes('review this epic'))) {
+        console.log(
+          `[WS DEBUG] ${contextType} ${contextId} sending msg #${wsMessageCount} with prompt`
+        );
         console.log(`[WS DEBUG] Data length: ${data.length}`);
       }
 
@@ -200,16 +202,34 @@ function handleConnection(ws: WebSocket, contextType: ContextType, contextId: nu
   };
 
   // Subscribe to agent output if already running
-  const initialEmitter = getAgentEmitter(taskId);
+  const initialEmitter = getAgentEmitterForContext(contextType as AgentContextType, contextId);
   if (initialEmitter) {
     subscribeToEmitter(initialEmitter);
   }
 
   // Listen for agent lifecycle events (when agent starts after WS connection)
-  const agentStartedHandler = (event: { taskId: number; emitter: EventEmitter }) => {
-    if (event.taskId === taskId && ws.readyState === WebSocket.OPEN) {
+  const agentStartedHandler = (event: {
+    contextType?: AgentContextType;
+    contextId?: number;
+    taskId?: number;
+    emitter: EventEmitter;
+  }) => {
+    // Match on contextType and contextId, or fallback to taskId for backwards compat
+    const matches =
+      (event.contextType === contextType && event.contextId === contextId) ||
+      (contextType === 'task' && event.taskId === contextId);
+
+    if (matches && ws.readyState === WebSocket.OPEN) {
       // Send status update
-      ws.send(JSON.stringify({ type: 'status', running: true, taskId }));
+      ws.send(
+        JSON.stringify({
+          type: 'status',
+          running: true,
+          contextType,
+          contextId,
+          ...(contextType === 'task' ? { taskId: contextId } : {}),
+        })
+      );
       // Subscribe to the new emitter
       // Note: Clear screen is sent from agent.service.ts before first PTY output
       subscribeToEmitter(event.emitter);
@@ -226,7 +246,7 @@ function handleConnection(ws: WebSocket, contextType: ContextType, contextId: nu
         cols?: number;
         rows?: number;
       };
-      handleClientMessage(taskId, msg);
+      handleClientMessage(contextType as AgentContextType, contextId, msg);
     } catch {
       // Ignore invalid messages
     }
@@ -256,7 +276,7 @@ function handleConnection(ws: WebSocket, contextType: ContextType, contextId: nu
 
   // Handle errors
   ws.on('error', (error) => {
-    console.error(`WebSocket error for task ${taskId}:`, error.message);
+    console.error(`WebSocket error for ${contextType} ${contextId}:`, error.message);
   });
 }
 
@@ -293,12 +313,13 @@ function filterMouseInput(data: string): string {
  * Handle messages from WebSocket client
  */
 function handleClientMessage(
-  taskId: number,
+  contextType: AgentContextType,
+  contextId: number,
   msg: { type: string; data?: string; cols?: number; rows?: number }
 ): void {
   switch (msg.type) {
     case 'input':
-      if (msg.data && isAgentRunning(taskId)) {
+      if (msg.data && isAgentRunningForContext(contextType, contextId)) {
         // Filter out mouse sequences - we only want keyboard input
         const filteredData = filterMouseInput(msg.data);
 
@@ -307,13 +328,15 @@ function handleClientMessage(
           const original = JSON.stringify(msg.data);
           const filtered = JSON.stringify(filteredData);
           if (original !== filtered) {
-            console.log(`[WS INPUT] Task ${taskId} filtered mouse: ${original} -> ${filtered}`);
+            console.log(
+              `[WS INPUT] ${contextType} ${contextId} filtered mouse: ${original} -> ${filtered}`
+            );
           }
         }
 
         if (filteredData) {
           try {
-            sendAgentInput(taskId, filteredData);
+            sendAgentInputForContext(contextType, contextId, filteredData);
           } catch {
             // Agent might have stopped
           }
@@ -322,15 +345,15 @@ function handleClientMessage(
       break;
 
     case 'resize':
-      if (msg.cols && msg.rows && isAgentRunning(taskId)) {
+      if (msg.cols && msg.rows && isAgentRunningForContext(contextType, contextId)) {
         // DEBUG: Log resize requests
         if (process.env['DEBUG_TERMINAL'] === '1') {
           console.log(
-            `[WS DEBUG] Task ${taskId} resize request: cols=${msg.cols}, rows=${msg.rows}`
+            `[WS DEBUG] ${contextType} ${contextId} resize request: cols=${msg.cols}, rows=${msg.rows}`
           );
         }
         try {
-          resizeAgentPty(taskId, msg.cols, msg.rows);
+          resizeAgentPtyForContext(contextType, contextId, msg.cols, msg.rows);
         } catch {
           // Agent might have stopped
         }
