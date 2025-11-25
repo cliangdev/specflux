@@ -72,53 +72,129 @@ export interface TaskFilters {
   search?: string;
 }
 
+export type TaskSortField =
+  | 'created_at'
+  | 'updated_at'
+  | 'title'
+  | 'status'
+  | 'progress_percentage';
+export type SortOrder = 'asc' | 'desc';
+
+export interface CursorPaginationOptions {
+  cursor?: string;
+  limit: number;
+  sort: TaskSortField;
+  order: SortOrder;
+}
+
+export interface CursorPaginationResult<T> {
+  data: T[];
+  pagination: {
+    next_cursor: string | null;
+    prev_cursor: string | null;
+    has_more: boolean;
+    total: number;
+  };
+}
+
 /**
- * List tasks for a project with optional filters
+ * Encode cursor as base64 JSON
+ */
+function encodeCursor(id: number, sortValue: string | number): string {
+  return Buffer.from(JSON.stringify({ id, sortValue })).toString('base64');
+}
+
+/**
+ * Decode cursor from base64 JSON
+ */
+function decodeCursor(cursor: string): { id: number; sortValue: string | number } | null {
+  try {
+    const decoded = Buffer.from(cursor, 'base64').toString('utf-8');
+    const parsed = JSON.parse(decoded) as { id: number; sortValue: string | number };
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * List tasks for a project with optional filters (cursor-based pagination)
  */
 export function listTasks(
   projectId: number,
   filters?: TaskFilters,
-  pagination?: { page: number; limit: number }
-): { tasks: Task[]; total: number } {
+  paginationOpts?: CursorPaginationOptions
+): CursorPaginationResult<Task> {
   const db = getDatabase();
-  const conditions: string[] = ['project_id = ?'];
+  const conditions: string[] = ['t.project_id = ?'];
   const values: (string | number)[] = [projectId];
 
   if (filters?.status) {
-    conditions.push('status = ?');
+    conditions.push('t.status = ?');
     values.push(filters.status);
   }
 
   if (filters?.epic_id) {
-    conditions.push('epic_id = ?');
+    conditions.push('t.epic_id = ?');
     values.push(filters.epic_id);
   }
 
   if (filters?.assigned_to_user_id) {
-    conditions.push('assigned_to_user_id = ?');
+    conditions.push('t.assigned_to_user_id = ?');
     values.push(filters.assigned_to_user_id);
   }
 
   if (filters?.search) {
-    conditions.push('(title LIKE ? OR description LIKE ?)');
+    conditions.push('(t.title LIKE ? OR t.description LIKE ?)');
     const searchTerm = `%${filters.search}%`;
     values.push(searchTerm, searchTerm);
   }
 
+  // Sorting configuration
+  const sort = paginationOpts?.sort ?? 'created_at';
+  const order = paginationOpts?.order ?? 'desc';
+  const limit = Math.min(paginationOpts?.limit ?? 20, 100);
+
+  // Cursor handling
+  const cursor = paginationOpts?.cursor ? decodeCursor(paginationOpts.cursor) : null;
+
+  if (cursor) {
+    // For cursor pagination, add condition to get items after/before the cursor
+    const op = order === 'desc' ? '<' : '>';
+    conditions.push(`(t.${sort}, t.id) ${op} (?, ?)`);
+    values.push(cursor.sortValue, cursor.id);
+  }
+
   const whereClause = conditions.join(' AND ');
 
-  // Get total count
+  // Get total count (without cursor condition)
+  const countConditions: string[] = ['t.project_id = ?'];
+  const countValues: (string | number)[] = [projectId];
+
+  if (filters?.status) {
+    countConditions.push('t.status = ?');
+    countValues.push(filters.status);
+  }
+  if (filters?.epic_id) {
+    countConditions.push('t.epic_id = ?');
+    countValues.push(filters.epic_id);
+  }
+  if (filters?.assigned_to_user_id) {
+    countConditions.push('t.assigned_to_user_id = ?');
+    countValues.push(filters.assigned_to_user_id);
+  }
+  if (filters?.search) {
+    countConditions.push('(t.title LIKE ? OR t.description LIKE ?)');
+    const searchTerm = `%${filters.search}%`;
+    countValues.push(searchTerm, searchTerm);
+  }
+
   const countResult = db
-    .prepare(`SELECT COUNT(*) as count FROM tasks WHERE ${whereClause}`)
-    .get(...values) as {
-    count: number;
-  };
+    .prepare(`SELECT COUNT(*) as count FROM tasks t WHERE ${countConditions.join(' AND ')}`)
+    .get(...countValues) as { count: number };
 
-  // Get paginated results
-  const page = pagination?.page ?? 1;
-  const limit = pagination?.limit ?? 20;
-  const offset = (page - 1) * limit;
-
+  // Fetch one extra record to determine if there are more
+  const orderDir = order === 'desc' ? 'DESC' : 'ASC';
   const tasks = db
     .prepare(
       `
@@ -129,14 +205,49 @@ export function listTasks(
           WHERE td.task_id = t.id AND blocker.status NOT IN ('approved', 'done')
         ) as blocked_by_count
       FROM tasks t
-      WHERE ${whereClause.replace(/\b(project_id|epic_id|assigned_to_user_id|status|title|description)\b/g, 't.$1')}
-      ORDER BY t.created_at DESC
-      LIMIT ? OFFSET ?
+      WHERE ${whereClause}
+      ORDER BY t.${sort} ${orderDir}, t.id ${orderDir}
+      LIMIT ?
     `
     )
-    .all(...values, limit, offset) as Task[];
+    .all(...values, limit + 1) as Task[];
 
-  return { tasks, total: countResult.count };
+  // Determine if there are more records
+  const hasMore = tasks.length > limit;
+  if (hasMore) {
+    tasks.pop(); // Remove the extra record
+  }
+
+  // Generate cursors
+  let nextCursor: string | null = null;
+  let prevCursor: string | null = null;
+
+  if (tasks.length > 0) {
+    const lastTask = tasks[tasks.length - 1]!;
+    const firstTask = tasks[0]!;
+
+    // Next cursor (for pagination forward)
+    if (hasMore) {
+      const sortValue = lastTask[sort as keyof Task];
+      nextCursor = encodeCursor(lastTask.id, sortValue as string | number);
+    }
+
+    // Previous cursor (if we used a cursor to get here)
+    if (cursor) {
+      const sortValue = firstTask[sort as keyof Task];
+      prevCursor = encodeCursor(firstTask.id, sortValue as string | number);
+    }
+  }
+
+  return {
+    data: tasks,
+    pagination: {
+      next_cursor: nextCursor,
+      prev_cursor: prevCursor,
+      has_more: hasMore,
+      total: countResult.count,
+    },
+  };
 }
 
 /**

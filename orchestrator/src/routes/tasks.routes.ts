@@ -11,6 +11,8 @@ import {
   removeTaskDependency,
   submitTaskReview,
   isTaskBlocked,
+  TaskSortField,
+  SortOrder,
 } from '../services/task.service';
 import {
   userHasProjectAccess,
@@ -24,8 +26,18 @@ import { NotFoundError, ValidationError } from '../types';
 
 const router = Router();
 
+// Valid sort fields for tasks
+const VALID_SORT_FIELDS: TaskSortField[] = [
+  'created_at',
+  'updated_at',
+  'title',
+  'status',
+  'progress_percentage',
+];
+
 /**
  * GET /projects/:projectId/tasks - List tasks for a project
+ * Supports cursor-based pagination with sorting
  * Uses default user ID 1 if no auth header (development mode)
  */
 router.get('/projects/:projectId/tasks', (req: Request, res: Response, next: NextFunction) => {
@@ -42,7 +54,21 @@ router.get('/projects/:projectId/tasks', (req: Request, res: Response, next: Nex
       throw new NotFoundError('Project', projectId);
     }
 
-    const { status, epic_id, assigned_to_user_id, search, page, limit } = req.query;
+    const { status, epic_id, assigned_to_user_id, search, sort, order, cursor, limit } = req.query;
+
+    // Validate sort field
+    const sortField = (sort as string) || 'created_at';
+    if (!VALID_SORT_FIELDS.includes(sortField as TaskSortField)) {
+      throw new ValidationError(
+        `Invalid sort field. Must be one of: ${VALID_SORT_FIELDS.join(', ')}`
+      );
+    }
+
+    // Validate sort order
+    const sortOrder = (order as string) || 'desc';
+    if (!['asc', 'desc'].includes(sortOrder)) {
+      throw new ValidationError('Invalid sort order. Must be asc or desc');
+    }
 
     const filters = {
       status: status as string | undefined,
@@ -53,23 +79,20 @@ router.get('/projects/:projectId/tasks', (req: Request, res: Response, next: Nex
       search: search as string | undefined,
     };
 
-    const pagination = {
-      page: page ? parseInt(page as string, 10) : 1,
-      limit: limit ? parseInt(limit as string, 10) : 20,
+    const paginationOpts = {
+      sort: sortField as TaskSortField,
+      order: sortOrder as SortOrder,
+      cursor: cursor as string | undefined,
+      limit: limit ? Math.min(parseInt(limit as string, 10), 100) : 20,
     };
 
-    const { tasks, total } = listTasks(projectId, filters, pagination);
+    const result = listTasks(projectId, filters, paginationOpts);
 
-    // Response format matches OpenAPI spec: data is array, pagination at same level
+    // Response format matches OpenAPI spec with CursorPagination
     res.json({
       success: true,
-      data: tasks,
-      pagination: {
-        page: pagination.page,
-        limit: pagination.limit,
-        total,
-        pages: Math.ceil(total / pagination.limit),
-      },
+      data: result.data,
+      pagination: result.pagination,
     });
   } catch (error) {
     next(error);

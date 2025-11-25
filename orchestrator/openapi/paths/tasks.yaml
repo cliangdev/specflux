@@ -23,13 +23,25 @@ projects-id-tasks:
         schema:
           type: integer
         description: Filter by epic ID
-      - name: page
+      - name: sort
         in: query
         schema:
-          type: integer
-          default: 1
-          minimum: 1
-        description: Page number
+          type: string
+          enum: [created_at, updated_at, title, status, progress_percentage]
+          default: created_at
+        description: Field to sort by
+      - name: order
+        in: query
+        schema:
+          type: string
+          enum: [asc, desc]
+          default: desc
+        description: Sort order (ascending or descending)
+      - name: cursor
+        in: query
+        schema:
+          type: string
+        description: Cursor for pagination (base64 encoded). Omit for first page.
       - name: limit
         in: query
         schema:
@@ -37,7 +49,7 @@ projects-id-tasks:
           default: 20
           minimum: 1
           maximum: 100
-        description: Items per page
+        description: Maximum number of items to return
     responses:
       '200':
         description: List of tasks
@@ -53,10 +65,11 @@ projects-id-tasks:
                   items:
                     $ref: '../schemas/task.yaml#/Task'
                 pagination:
-                  $ref: '../schemas/common.yaml#/Pagination'
+                  $ref: '../schemas/common.yaml#/CursorPagination'
               required:
                 - success
                 - data
+                - pagination
       '404':
         description: Project not found
         content:

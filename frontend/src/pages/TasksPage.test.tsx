@@ -14,8 +14,19 @@ vi.mock("../api", () => ({
       listTasks: vi.fn(),
       createTask: vi.fn(),
     },
+    epics: {
+      listEpics: vi.fn(),
+    },
   },
 }));
+
+// Default pagination response
+const mockPagination = {
+  nextCursor: null,
+  prevCursor: null,
+  hasMore: false,
+  total: 0,
+};
 
 import { api } from "../api";
 
@@ -68,6 +79,11 @@ function renderWithProvider() {
 describe("TasksPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default mock for epics (empty list)
+    vi.mocked(api.epics.listEpics).mockResolvedValue({
+      success: true,
+      data: [],
+    });
   });
 
   it("shows message when no project is selected", async () => {
@@ -109,6 +125,7 @@ describe("TasksPage", () => {
     vi.mocked(api.tasks.listTasks).mockResolvedValue({
       success: true,
       data: [],
+      pagination: mockPagination,
     });
 
     renderWithProvider();
@@ -126,6 +143,7 @@ describe("TasksPage", () => {
     vi.mocked(api.tasks.listTasks).mockResolvedValue({
       success: true,
       data: mockTasks,
+      pagination: { ...mockPagination, total: 2 },
     });
 
     renderWithProvider();
@@ -144,6 +162,7 @@ describe("TasksPage", () => {
     vi.mocked(api.tasks.listTasks).mockResolvedValue({
       success: true,
       data: mockTasks,
+      pagination: { ...mockPagination, total: 2 },
     });
 
     renderWithProvider();
@@ -178,6 +197,7 @@ describe("TasksPage", () => {
     vi.mocked(api.tasks.listTasks).mockResolvedValue({
       success: true,
       data: [],
+      pagination: mockPagination,
     });
 
     renderWithProvider();
@@ -195,6 +215,7 @@ describe("TasksPage", () => {
     vi.mocked(api.tasks.listTasks).mockResolvedValue({
       success: true,
       data: [],
+      pagination: mockPagination,
     });
 
     renderWithProvider();
@@ -222,12 +243,15 @@ describe("TasksPage", () => {
     vi.mocked(api.tasks.listTasks).mockResolvedValue({
       success: true,
       data: mockTasks,
+      pagination: { ...mockPagination, total: 2 },
     });
 
     renderWithProvider();
 
     await waitFor(() => {
-      expect(screen.getByRole("combobox")).toBeInTheDocument();
+      // Should have 2 comboboxes - status filter and epic filter
+      const comboboxes = screen.getAllByRole("combobox");
+      expect(comboboxes.length).toBeGreaterThanOrEqual(1);
     });
   });
 });

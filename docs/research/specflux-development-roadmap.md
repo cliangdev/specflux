@@ -1173,20 +1173,24 @@ const tasks = await projectsApi.getProjectTasks({ id: 1 });
   - [x] Running indicator animation
 
 #### Additional Views
-- [ ] **Tasks View (/tasks)**
-  - [ ] Table view of all tasks
-  - [ ] Sortable columns (id, title, status, repo, progress)
-  - [ ] Filter by status
-  - [ ] Search functionality
-  - [ ] Pagination (20 per page)
-  - [ ] Quick actions (approve, view details)
+- [x] **Tasks View (/tasks)**
+  - [x] Table view of all tasks
+  - [x] Sortable columns (id, title, status, repo, progress, created)
+  - [x] Filter by status
+  - [x] Filter by epic
+  - [x] Server-side cursor-based pagination
+  - [x] Click row to view task details
 
-- [ ] **Epics View (/epics)**
-  - [ ] Epic cards with progress bars
-  - [ ] Show task count (total, done, in progress)
-  - [ ] Link to PRD
-  - [ ] Filter by status
-  - [ ] Create new epic button
+- [x] **Epics View (/epics)**
+  - [x] Epic cards with progress bars (responsive 1-3 column grid)
+  - [x] Show task count (total, done, in progress)
+  - [x] Link to PRD
+  - [x] Filter by status
+  - [x] Client-side search
+  - [x] Epic detail page (/epics/:id)
+  - [x] Create new epic modal with form
+  - [x] Add task to epic (button on epic detail + dropdown on task create)
+  - [x] Edit task's epic assignment (dropdown on task detail page)
 
 - [x] **Files View (/files)**
   - [x] Tree view of .specflux/ directory (recursive, unlimited depth)
