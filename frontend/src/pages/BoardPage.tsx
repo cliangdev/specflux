@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProject } from "../contexts";
+import { useTerminal } from "../contexts/TerminalContext";
 import { api, type Task } from "../api";
 import { KanbanBoard, WorkflowTemplate } from "../components/kanban";
 import TaskCreateModal from "../components/ui/TaskCreateModal";
@@ -8,6 +9,7 @@ import TaskCreateModal from "../components/ui/TaskCreateModal";
 export default function BoardPage() {
   const { currentProject } = useProject();
   const navigate = useNavigate();
+  const { openTerminalForTask } = useTerminal();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [workflowTemplate, setWorkflowTemplate] =
     useState<WorkflowTemplate>("startup-fast");
@@ -46,6 +48,10 @@ export default function BoardPage() {
     setRefreshKey((prev) => prev + 1);
   };
 
+  const handleOpenTerminal = (task: Task) => {
+    openTerminalForTask({ id: task.id, title: task.title });
+  };
+
   if (!currentProject) {
     return (
       <div className="text-center py-12">
@@ -67,6 +73,7 @@ export default function BoardPage() {
         workflowTemplate={workflowTemplate}
         onTaskClick={handleTaskClick}
         onTaskCreate={() => setShowCreateModal(true)}
+        onOpenTerminal={handleOpenTerminal}
       />
 
       {showCreateModal && (

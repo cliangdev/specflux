@@ -14,6 +14,7 @@ interface KanbanColumnProps {
   column: KanbanColumnType;
   tasks: Task[];
   onTaskClick?: (task: Task) => void;
+  onTaskContextMenu?: (task: Task, x: number, y: number) => void;
 }
 
 /**
@@ -29,6 +30,7 @@ export function KanbanColumn({
   column,
   tasks,
   onTaskClick,
+  onTaskContextMenu,
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
@@ -60,7 +62,12 @@ export function KanbanColumn({
       >
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (
-            <TaskCard key={task.id} task={task} onClick={onTaskClick} />
+            <TaskCard
+              key={task.id}
+              task={task}
+              onClick={onTaskClick}
+              onContextMenu={onTaskContextMenu}
+            />
           ))}
         </SortableContext>
 

@@ -6,6 +6,7 @@ import { getRepoColorClasses } from "./types";
 interface TaskCardProps {
   task: Task;
   onClick?: (task: Task) => void;
+  onContextMenu?: (task: Task, x: number, y: number) => void;
 }
 
 /**
@@ -98,7 +99,7 @@ const AGENT_STATUS_CONFIG: Record<
  * - Blocked indicator with count
  * - Progress bar (when running)
  */
-export function TaskCard({ task, onClick }: TaskCardProps) {
+export function TaskCard({ task, onClick, onContextMenu }: TaskCardProps) {
   const {
     attributes,
     listeners,
@@ -121,6 +122,12 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
     AGENT_STATUS_CONFIG[agentStatus] ?? AGENT_STATUS_CONFIG.idle;
   const repoColors = getRepoColorClasses(task.repoName);
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onContextMenu?.(task, e.clientX, e.clientY);
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -128,6 +135,7 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
       {...attributes}
       {...listeners}
       onClick={() => onClick?.(task)}
+      onContextMenu={handleContextMenu}
       className={`
         bg-white dark:bg-slate-800 p-4 rounded-lg border shadow-sm
         cursor-pointer transition-all relative overflow-hidden group
