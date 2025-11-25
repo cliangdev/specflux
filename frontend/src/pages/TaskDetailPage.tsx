@@ -12,9 +12,9 @@ import {
   ControlTaskAgentRequestActionEnum,
   AgentStatusStatusEnum,
 } from "../api";
-import Terminal from "../components/Terminal";
 import FileChanges from "../components/FileChanges";
 import { DependencyList, AddDependencyModal } from "../components/tasks";
+import { useTerminal } from "../contexts/TerminalContext";
 
 // Helper to open external URLs using Tauri command
 const openExternal = async (url: string) => {
@@ -224,6 +224,11 @@ function AgentStatusBadge({ status }: { status: string }) {
 export default function TaskDetailPage() {
   const { taskId } = useParams<{ taskId: string }>();
   const navigate = useNavigate();
+  const {
+    openTerminalForTask,
+    activeTask,
+    isRunning: terminalIsRunning,
+  } = useTerminal();
 
   const [task, setTask] = useState<Task | null>(null);
   const [agentStatus, setAgentStatus] = useState<AgentStatus | null>(null);
@@ -237,14 +242,13 @@ export default function TaskDetailPage() {
   const [prResult, setPRResult] = useState<ApproveAndPRResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hasFileChanges, setHasFileChanges] = useState(false);
-  const [terminalDimensions, setTerminalDimensions] = useState<{
-    cols: number;
-    rows: number;
-  } | null>(null);
   const [epics, setEpics] = useState<Epic[]>([]);
   const [epicLoading, setEpicLoading] = useState(false);
   const [dependencies, setDependencies] = useState<TaskDependency[]>([]);
   const [showAddDependencyModal, setShowAddDependencyModal] = useState(false);
+
+  // Check if terminal is showing this task
+  const isTerminalShowingThisTask = activeTask?.id === Number(taskId);
 
   const fetchTask = useCallback(async () => {
     if (!taskId) return;
@@ -441,23 +445,20 @@ export default function TaskDetailPage() {
   const handleAgentAction = async (
     action: ControlTaskAgentRequestActionEnum,
   ) => {
-    if (!taskId) return;
+    if (!taskId || !task) return;
 
     try {
       setActionLoading(true);
       setError(null);
-      // Include terminal dimensions when starting agent for correct PTY sizing
-      const requestBody =
-        action === ControlTaskAgentRequestActionEnum.Start && terminalDimensions
-          ? {
-              action,
-              cols: terminalDimensions.cols,
-              rows: terminalDimensions.rows,
-            }
-          : { action };
+
+      // When starting, also open terminal for this task
+      if (action === ControlTaskAgentRequestActionEnum.Start) {
+        openTerminalForTask({ id: task.id, title: task.title });
+      }
+
       const response = await api.tasks.controlTaskAgent({
         id: Number(taskId),
-        controlTaskAgentRequest: requestBody,
+        controlTaskAgentRequest: { action },
       });
       setAgentStatus(response.data ?? null);
       // Only refresh task when stopping agent (status might change)
@@ -474,7 +475,16 @@ export default function TaskDetailPage() {
     }
   };
 
-  const isAgentRunning = agentStatus?.status === AgentStatusStatusEnum.Running;
+  // Handle opening terminal for this task
+  const handleOpenInTerminal = () => {
+    if (task) {
+      openTerminalForTask({ id: task.id, title: task.title });
+    }
+  };
+
+  const isAgentRunning =
+    agentStatus?.status === AgentStatusStatusEnum.Running ||
+    (isTerminalShowingThisTask && terminalIsRunning);
   const isAgentPaused = agentStatus?.status === AgentStatusStatusEnum.Paused;
   const isAgentIdle =
     !agentStatus ||
@@ -482,23 +492,6 @@ export default function TaskDetailPage() {
     agentStatus.status === AgentStatusStatusEnum.Stopped ||
     agentStatus.status === AgentStatusStatusEnum.Completed ||
     agentStatus.status === AgentStatusStatusEnum.Failed;
-
-  // Memoize the onStatusChange callback to prevent unnecessary re-renders
-  const handleTerminalStatusChange = useCallback(
-    (running: boolean) => {
-      if (running !== isAgentRunning) {
-        fetchAgentStatus();
-        // When agent stops, refresh task
-        if (!running) {
-          // Small delay to allow backend to process completion
-          setTimeout(() => {
-            fetchTask();
-          }, 500);
-        }
-      }
-    },
-    [isAgentRunning, fetchAgentStatus, fetchTask],
-  );
 
   if (loading) {
     return (
@@ -927,14 +920,59 @@ export default function TaskDetailPage() {
           )}
         </div>
 
-        {/* Right Panel - Terminal */}
-        <div className="w-2/3 flex flex-col min-w-0">
-          <Terminal
-            taskId={task.id}
-            onStatusChange={handleTerminalStatusChange}
-            onRefresh={fetchAgentStatus}
-            onDimensionsReady={setTerminalDimensions}
-          />
+        {/* Right Panel - Terminal Placeholder / Open in Terminal */}
+        <div className="w-2/3 flex flex-col min-w-0 bg-slate-900">
+          {isTerminalShowingThisTask ? (
+            <div className="h-full flex items-center justify-center text-slate-400">
+              <div className="text-center">
+                <svg
+                  className="w-12 h-12 mx-auto mb-3 text-slate-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z"
+                  />
+                </svg>
+                <p className="text-sm font-medium">Terminal is open below</p>
+                <p className="text-xs mt-1 text-slate-500">
+                  Press Cmd+` to toggle the terminal panel
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="h-full flex items-center justify-center text-slate-400">
+              <div className="text-center">
+                <svg
+                  className="w-12 h-12 mx-auto mb-3 text-slate-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z"
+                  />
+                </svg>
+                <p className="text-sm font-medium mb-3">No terminal session</p>
+                <button
+                  onClick={handleOpenInTerminal}
+                  className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  Open in Terminal
+                </button>
+                <p className="text-xs mt-3 text-slate-500">
+                  Or press Cmd+` to toggle the terminal panel
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
