@@ -49,3 +49,4 @@ orchestrator/data/*.db-*
 
 # SpecFlux runtime artifacts (worktrees, context files)
 .specflux/
+.playwright-mcp/

@@ -1188,17 +1188,20 @@ const tasks = await projectsApi.getProjectTasks({ id: 1 });
   - [ ] Filter by status
   - [ ] Create new epic button
 
-- [ ] **Files View (/files)**
-  - [ ] Tree view of orchestrator/devflow/
-  - [ ] File browser (folders collapsible)
+- [x] **Files View (/files)**
+  - [x] Tree view of .specflux/ directory (recursive, unlimited depth)
+  - [x] File browser (folders collapsible with on-demand loading)
   - [ ] Quick links to PRDs, epics, tasks
   - [ ] Edit button (opens in default editor)
-  - [ ] Preview markdown files
+  - [x] Preview markdown files (with react-markdown + remark-gfm)
+  - [x] Plain text preview for non-markdown files
+  - [x] GitHub-like dark mode colors
 
-- [ ] **Settings View (/settings)**
-  - [ ] Project configuration
-  - [ ] Repository management
-  - [ ] Workflow selection
+- [x] **Settings View (/settings)**
+  - [x] Tabbed layout (General, Repositories, Workflow)
+  - [x] Project configuration (GeneralSettings component)
+  - [x] Repository management (RepositorySettings component)
+  - [x] Workflow selection (WorkflowSettings component)
   - [ ] Approval settings
   - [ ] Team members (future)
 

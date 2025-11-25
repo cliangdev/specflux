@@ -6,6 +6,7 @@ import {
   updateRepository,
   deleteRepository,
   syncRepository,
+  validateRepositoryPath,
 } from '../services/repository.service';
 import { userHasProjectAccess } from '../services/project.service';
 import { NotFoundError, ValidationError } from '../types';
@@ -195,6 +196,25 @@ router.post('/repositories/:id/sync', (req: Request, res: Response, next: NextFu
 
     const repository = syncRepository(repoId);
     res.json({ success: true, data: repository });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /repositories/validate - Validate a repository path
+ */
+router.post('/repositories/validate', (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const body = req.body as Record<string, unknown>;
+    const { path } = body;
+
+    if (!path || typeof path !== 'string') {
+      throw new ValidationError('path is required');
+    }
+
+    const result = validateRepositoryPath(path);
+    res.json({ success: true, data: result });
   } catch (error) {
     next(error);
   }

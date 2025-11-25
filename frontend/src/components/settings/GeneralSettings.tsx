@@ -1,0 +1,209 @@
+import { useState, useEffect } from "react";
+import { useProject } from "../../contexts/ProjectContext";
+import { api } from "../../api";
+
+export function GeneralSettings() {
+  const { currentProject, refreshProjects } = useProject();
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  const [formData, setFormData] = useState({
+    name: "",
+    localPath: "",
+    gitRemote: "",
+  });
+
+  // Load project data
+  useEffect(() => {
+    if (currentProject) {
+      setLoading(true);
+      api.projects
+        .getProject({ id: currentProject.id })
+        .then(async (response) => {
+          if (response.success && response.data) {
+            const projectData = response.data;
+
+            // Auto-detect git remote from localPath
+            let detectedGitRemote = "";
+            if (projectData.localPath) {
+              try {
+                const validationResponse =
+                  await api.repositories.validateRepository({
+                    validateRepositoryRequest: { path: projectData.localPath },
+                  });
+                if (validationResponse.success && validationResponse.data) {
+                  detectedGitRemote = validationResponse.data.gitUrl || "";
+                }
+              } catch (err) {
+                console.error("Failed to detect git remote:", err);
+              }
+            }
+
+            setFormData({
+              name: projectData.name || "",
+              localPath: projectData.localPath || "",
+              gitRemote: detectedGitRemote,
+            });
+          }
+        })
+        .catch((err) => {
+          setError("Failed to load project settings");
+          console.error(err);
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [currentProject]);
+
+  const handleSave = async () => {
+    if (!currentProject) return;
+
+    setSaving(true);
+    setError(null);
+    setSuccess(false);
+
+    try {
+      const response = await api.projects.updateProject({
+        id: currentProject.id,
+        updateProjectRequest: {
+          name: formData.name,
+        },
+      });
+
+      if (response.success) {
+        setSuccess(true);
+        await refreshProjects();
+        setTimeout(() => setSuccess(false), 3000);
+      } else {
+        setError("Failed to save settings");
+      }
+    } catch (err) {
+      setError("Failed to save settings");
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!currentProject) {
+    return (
+      <div className="text-gray-500 dark:text-gray-400">
+        No project selected
+      </div>
+    );
+  }
+
+  if (loading) {
+    return <div className="text-gray-500 dark:text-gray-400">Loading...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Project Name */}
+      <div>
+        <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
+          Project Name
+        </label>
+        <input
+          type="text"
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          className="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
+          placeholder="My SaaS Platform"
+        />
+      </div>
+
+      {/* Local Path (read-only with tooltip) */}
+      <div>
+        <label className="flex items-center gap-2 text-sm font-medium mb-2 text-gray-900 dark:text-white">
+          Local Path
+          <span className="group relative inline-flex">
+            <svg
+              className="w-4 h-4 text-gray-400 cursor-help"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <span className="absolute left-6 top-1/2 -translate-y-1/2 w-64 p-2 bg-gray-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+              SpecFlux project workspace (stores PRDs, tasks, context files).
+              Your code repos are linked separately in the Repositories tab.
+            </span>
+          </span>
+        </label>
+        <input
+          type="text"
+          value={formData.localPath}
+          disabled
+          readOnly
+          className="w-full bg-gray-100 dark:bg-slate-700 border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm text-gray-500 cursor-not-allowed"
+        />
+      </div>
+
+      {/* Git URL (read-only, auto-detected) */}
+      <div>
+        <label className="flex items-center gap-2 text-sm font-medium mb-2 text-gray-900 dark:text-white">
+          Git URL
+          <span className="group relative inline-flex">
+            <svg
+              className="w-4 h-4 text-gray-400 cursor-help"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <span className="absolute left-6 top-1/2 -translate-y-1/2 w-64 p-2 bg-gray-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+              Recommended: Initialize git in this directory to version control
+              PRDs and project specs.
+            </span>
+          </span>
+        </label>
+        <div className="px-3 py-2 bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded text-sm text-gray-600 dark:text-gray-400 min-h-[38px] flex items-center break-all font-mono">
+          {formData.gitRemote || (
+            <span className="text-gray-400 dark:text-gray-500 font-sans">
+              Not configured
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Error message */}
+      {error && (
+        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-sm text-red-800 dark:text-red-200">
+          {error}
+        </div>
+      )}
+
+      {/* Success message */}
+      {success && (
+        <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded text-sm text-emerald-800 dark:text-emerald-200">
+          Settings saved successfully
+        </div>
+      )}
+
+      {/* Actions */}
+      <div>
+        <button
+          onClick={handleSave}
+          disabled={saving || !formData.name}
+          className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
+        >
+          {saving ? "Saving..." : "Save Changes"}
+        </button>
+      </div>
+    </div>
+  );
+}
