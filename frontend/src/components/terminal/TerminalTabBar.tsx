@@ -60,7 +60,7 @@ export default function TerminalTabBar({
             `}
             onClick={() => onSwitchSession(session.id)}
             data-testid={`terminal-tab-${session.taskId}`}
-            title={`${session.taskTitle} (Cmd+${index + 1})`}
+            title={`${session.taskTitle} (⌘${index + 1})`}
           >
             {/* Running indicator */}
             {session.isRunning && (

@@ -175,7 +175,7 @@ describe("TerminalTabBar", () => {
     const tab1 = screen.getByTestId("terminal-tab-1");
     const tab2 = screen.getByTestId("terminal-tab-2");
 
-    expect(tab1.getAttribute("title")).toContain("Cmd+1");
-    expect(tab2.getAttribute("title")).toContain("Cmd+2");
+    expect(tab1.getAttribute("title")).toContain("⌘1");
+    expect(tab2.getAttribute("title")).toContain("⌘2");
   });
 });

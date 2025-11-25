@@ -1,7 +1,9 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useTerminal } from "../../contexts/TerminalContext";
+import { useProject } from "../../contexts";
 import Terminal from "../Terminal";
 import TerminalTabBar from "./TerminalTabBar";
+import NewSessionDialog from "./NewSessionDialog";
 
 // Inline SVG icons to avoid heroicons dependency
 const ChevronUpIcon = () => (
@@ -44,7 +46,20 @@ const XMarkIcon = () => (
   </svg>
 );
 
+const PlusIcon = () => (
+  <svg
+    className="w-4 h-4"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+  </svg>
+);
+
 export default function TerminalPanel() {
+  const { currentProject } = useProject();
   const {
     isCollapsed,
     sessions,
@@ -54,7 +69,10 @@ export default function TerminalPanel() {
     switchToSession,
     closeSession,
     updateSessionStatus,
+    openTerminalForTask,
   } = useTerminal();
+
+  const [showNewSessionDialog, setShowNewSessionDialog] = useState(false);
 
   // Create status change handler for a specific session
   const createStatusChangeHandler = useCallback(
@@ -77,6 +95,17 @@ export default function TerminalPanel() {
           <span className="text-sm font-medium text-slate-300 flex-shrink-0 pl-2">
             Terminal
           </span>
+          {/* New Session Button */}
+          {currentProject && (
+            <button
+              onClick={() => setShowNewSessionDialog(true)}
+              className="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors flex-shrink-0"
+              title="New session"
+              data-testid="new-session-btn"
+            >
+              <PlusIcon />
+            </button>
+          )}
           {sessions.length > 0 && (
             <>
               <span className="text-slate-600 flex-shrink-0">|</span>
@@ -105,7 +134,7 @@ export default function TerminalPanel() {
           <button
             onClick={closePanel}
             className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
-            title="Close terminal (Cmd+`)"
+            title="Close terminal (⌘T)"
             data-testid="terminal-close-btn"
           >
             <XMarkIcon />
@@ -142,6 +171,18 @@ export default function TerminalPanel() {
             </div>
           )}
         </div>
+      )}
+
+      {/* New Session Dialog */}
+      {showNewSessionDialog && currentProject && (
+        <NewSessionDialog
+          projectId={currentProject.id}
+          onClose={() => setShowNewSessionDialog(false)}
+          onCreated={(taskId, taskTitle) => {
+            openTerminalForTask({ id: taskId, title: taskTitle });
+            setShowNewSessionDialog(false);
+          }}
+        />
       )}
     </div>
   );
