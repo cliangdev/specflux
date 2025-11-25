@@ -189,7 +189,7 @@ export default function EpicDetailPage() {
           Epic not found
         </div>
         <Link to="/epics" className="mt-4 btn btn-primary inline-block">
-          Back to Epics
+          Back
         </Link>
       </div>
     );
@@ -208,7 +208,7 @@ export default function EpicDetailPage() {
     <div>
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
-        <button onClick={() => navigate("/epics")} className="btn btn-ghost">
+        <button onClick={() => navigate(-1)} className="btn btn-ghost">
           <svg
             className="w-5 h-5"
             fill="none"
@@ -222,7 +222,7 @@ export default function EpicDetailPage() {
               d="M10 19l-7-7m0 0l7-7m-7 7h18"
             />
           </svg>
-          Back to Epics
+          Back
         </button>
       </div>
 
