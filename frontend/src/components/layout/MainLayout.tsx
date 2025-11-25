@@ -7,19 +7,35 @@ import { TerminalProvider, useTerminal } from "../../contexts/TerminalContext";
 import TerminalPanel from "../terminal/TerminalPanel";
 
 function MainLayoutContent() {
-  const { isOpen, togglePanel } = useTerminal();
+  const { isOpen, togglePanel, sessions, switchToSession, openPanel } =
+    useTerminal();
 
-  // Global keyboard shortcut: Cmd+` to toggle terminal
+  // Global keyboard shortcuts: Cmd+` to toggle terminal, Cmd+1-9 to switch tabs
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "`") {
-        e.preventDefault();
-        togglePanel();
+      if (e.metaKey || e.ctrlKey) {
+        // Cmd+` to toggle terminal panel
+        if (e.key === "`") {
+          e.preventDefault();
+          togglePanel();
+          return;
+        }
+
+        // Cmd+1-9 to switch terminal tabs
+        const num = parseInt(e.key, 10);
+        if (num >= 1 && num <= 9) {
+          const tabIndex = num - 1;
+          if (sessions[tabIndex]) {
+            e.preventDefault();
+            openPanel();
+            switchToSession(sessions[tabIndex].id);
+          }
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [togglePanel]);
+  }, [togglePanel, sessions, switchToSession, openPanel]);
 
   return (
     <div className="h-screen bg-system-50 dark:bg-system-950 text-system-900 dark:text-system-100 flex flex-col overflow-hidden">

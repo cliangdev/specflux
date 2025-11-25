@@ -1,5 +1,7 @@
+import { useCallback } from "react";
 import { useTerminal } from "../../contexts/TerminalContext";
 import Terminal from "../Terminal";
+import TerminalTabBar from "./TerminalTabBar";
 
 // Inline SVG icons to avoid heroicons dependency
 const ChevronUpIcon = () => (
@@ -45,12 +47,22 @@ const XMarkIcon = () => (
 export default function TerminalPanel() {
   const {
     isCollapsed,
-    activeTask,
-    isRunning,
+    sessions,
+    activeSessionId,
     closePanel,
     toggleCollapse,
-    setIsRunning,
+    switchToSession,
+    closeSession,
+    updateSessionStatus,
   } = useTerminal();
+
+  // Create status change handler for a specific session
+  const createStatusChangeHandler = useCallback(
+    (sessionId: string) => (running: boolean) => {
+      updateSessionStatus(sessionId, { isRunning: running });
+    },
+    [updateSessionStatus],
+  );
 
   return (
     <div
@@ -60,26 +72,25 @@ export default function TerminalPanel() {
       data-testid="terminal-panel"
     >
       {/* Header */}
-      <div className="h-10 flex items-center justify-between px-3 bg-slate-800 border-b border-slate-700 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-slate-300">Terminal</span>
-          {activeTask && (
+      <div className="h-10 flex items-center justify-between px-1 bg-slate-800 border-b border-slate-700 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
+          <span className="text-sm font-medium text-slate-300 flex-shrink-0 pl-2">
+            Terminal
+          </span>
+          {sessions.length > 0 && (
             <>
-              <span className="text-slate-500">|</span>
-              <span className="text-sm text-slate-400">
-                #{activeTask.id}: {activeTask.title}
-              </span>
+              <span className="text-slate-600 flex-shrink-0">|</span>
+              <TerminalTabBar
+                sessions={sessions}
+                activeSessionId={activeSessionId}
+                onSwitchSession={switchToSession}
+                onCloseSession={closeSession}
+              />
             </>
-          )}
-          {isRunning && (
-            <span className="flex items-center gap-1.5 text-xs text-emerald-400">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              Running
-            </span>
           )}
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-shrink-0 pr-2">
           {/* Collapse/Expand button */}
           <button
             onClick={toggleCollapse}
@@ -102,11 +113,24 @@ export default function TerminalPanel() {
         </div>
       </div>
 
-      {/* Terminal content */}
+      {/* Terminal content - render all sessions, show/hide based on active */}
       {!isCollapsed && (
-        <div className="flex-1 overflow-hidden">
-          {activeTask ? (
-            <Terminal taskId={activeTask.id} onStatusChange={setIsRunning} />
+        <div className="flex-1 overflow-hidden relative">
+          {sessions.length > 0 ? (
+            sessions.map((session) => (
+              <div
+                key={session.id}
+                className={`absolute inset-0 ${
+                  session.id === activeSessionId ? "visible" : "invisible"
+                }`}
+                data-testid={`terminal-content-${session.taskId}`}
+              >
+                <Terminal
+                  taskId={session.taskId}
+                  onStatusChange={createStatusChangeHandler(session.id)}
+                />
+              </div>
+            ))
           ) : (
             <div className="h-full flex items-center justify-center text-slate-500">
               <div className="text-center">
