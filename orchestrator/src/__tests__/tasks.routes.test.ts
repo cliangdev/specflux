@@ -122,8 +122,9 @@ describe('Tasks API Routes', () => {
       expect(response.body.success).toBe(true);
       expect(Array.isArray(response.body.data)).toBe(true);
       expect(response.body.pagination).toHaveProperty('total');
-      expect(response.body.pagination).toHaveProperty('page');
-      expect(response.body.pagination).toHaveProperty('limit');
+      expect(response.body.pagination).toHaveProperty('has_more');
+      expect(response.body.pagination).toHaveProperty('next_cursor');
+      expect(response.body.pagination).toHaveProperty('prev_cursor');
     });
 
     it('should return 404 for non-existent project', async () => {
