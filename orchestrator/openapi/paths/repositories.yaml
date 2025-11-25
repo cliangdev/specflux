@@ -167,3 +167,29 @@ repositories-id-sync:
                   type: boolean
                 data:
                   $ref: '../schemas/repository.yaml#/Repository'
+
+repositories-validate:
+  post:
+    summary: Validate repository path
+    description: Validate if a path is a git repository and extract metadata
+    operationId: validateRepository
+    tags:
+      - Repositories
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/repository.yaml#/ValidateRepositoryRequest'
+    responses:
+      '200':
+        description: Validation result
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/repository.yaml#/ValidateRepositoryResponse'

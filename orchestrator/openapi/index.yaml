@@ -118,6 +118,8 @@ paths:
     $ref: './paths/repositories.yaml#/repositories-id'
   /repositories/{id}/sync:
     $ref: './paths/repositories.yaml#/repositories-id-sync'
+  /repositories/validate:
+    $ref: './paths/repositories.yaml#/repositories-validate'
 
   # Notifications (nested under projects)
   /projects/{id}/notifications:

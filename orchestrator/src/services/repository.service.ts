@@ -1,5 +1,8 @@
 import { getDatabase } from '../db';
 import { NotFoundError } from '../types';
+import * as fs from 'fs';
+import * as path from 'path';
+import { execSync } from 'child_process';
 
 export interface Repository {
   id: number;
@@ -149,4 +152,77 @@ export function syncRepository(id: number): Repository {
   ).run('ready', id);
 
   return getRepositoryById(id)!;
+}
+
+export interface ValidateRepositoryResult {
+  isValid: boolean;
+  isGitRepo: boolean;
+  repoName: string;
+  gitUrl: string | null;
+  error?: string;
+}
+
+/**
+ * Validate a repository path
+ */
+export function validateRepositoryPath(repositoryPath: string): ValidateRepositoryResult {
+  // Check if path exists
+  if (!fs.existsSync(repositoryPath)) {
+    return {
+      isValid: false,
+      isGitRepo: false,
+      repoName: '',
+      gitUrl: null,
+      error: 'Directory does not exist',
+    };
+  }
+
+  // Check if it's a directory
+  if (!fs.statSync(repositoryPath).isDirectory()) {
+    return {
+      isValid: false,
+      isGitRepo: false,
+      repoName: '',
+      gitUrl: null,
+      error: 'Path is not a directory',
+    };
+  }
+
+  // Extract repository name from path
+  const repoName = path.basename(repositoryPath);
+
+  // Check if .git directory exists
+  const gitDir = path.join(repositoryPath, '.git');
+  const isGitRepo = fs.existsSync(gitDir);
+
+  if (!isGitRepo) {
+    return {
+      isValid: false,
+      isGitRepo: false,
+      repoName,
+      gitUrl: null,
+      error: 'Directory is not a git repository',
+    };
+  }
+
+  // Try to get git remote URL
+  let gitUrl: string | null = null;
+  try {
+    const result = execSync('git config --get remote.origin.url', {
+      cwd: repositoryPath,
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    gitUrl = result.trim() || null;
+  } catch {
+    // No remote configured, that's okay
+    gitUrl = null;
+  }
+
+  return {
+    isValid: true,
+    isGitRepo: true,
+    repoName,
+    gitUrl,
+  };
 }

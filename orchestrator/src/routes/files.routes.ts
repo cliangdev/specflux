@@ -98,13 +98,13 @@ router.get('/projects/:projectId/files', (req: Request, res: Response, next: Nex
     const specfluxDir = path.join(project.local_path, '.specflux');
 
     if (!fs.existsSync(specfluxDir)) {
-      res.json({ success: true, data: { files: [] } });
+      res.json({ success: true, data: [] });
       return;
     }
 
     const files = listFilesRecursive(specfluxDir, specfluxDir);
 
-    res.json({ success: true, data: { files } });
+    res.json({ success: true, data: files });
   } catch (error) {
     next(error);
   }

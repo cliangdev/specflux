@@ -61,3 +61,38 @@ UpdateRepositoryRequest:
     default_agent:
       type: string
       nullable: true
+
+ValidateRepositoryRequest:
+  type: object
+  properties:
+    path:
+      type: string
+      description: Local filesystem path to validate
+  required:
+    - path
+
+ValidateRepositoryResponse:
+  type: object
+  properties:
+    isValid:
+      type: boolean
+      description: Whether the path is a valid git repository
+    isGitRepo:
+      type: boolean
+      description: Whether the directory contains a .git folder
+    repoName:
+      type: string
+      description: Extracted repository name from path
+    gitUrl:
+      type: string
+      nullable: true
+      description: Git remote origin URL if configured
+    error:
+      type: string
+      nullable: true
+      description: Error message if validation failed
+  required:
+    - isValid
+    - isGitRepo
+    - repoName
+    - gitUrl
