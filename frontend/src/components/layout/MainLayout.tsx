@@ -10,18 +10,19 @@ function MainLayoutContent() {
   const { isOpen, togglePanel, sessions, switchToSession, openPanel } =
     useTerminal();
 
-  // Global keyboard shortcuts: Cmd+` to toggle terminal, Cmd+1-9 to switch tabs
+  // Global keyboard shortcuts: Cmd+T to toggle terminal, Cmd+1-9 to switch tabs
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey) {
-        // Cmd+` to toggle terminal panel
-        if (e.key === "`") {
-          e.preventDefault();
-          togglePanel();
-          return;
-        }
+      // Cmd+T to toggle terminal panel
+      // Note: Cmd+` is reserved by macOS for window switching
+      if ((e.metaKey || e.ctrlKey) && e.key === "t") {
+        e.preventDefault();
+        togglePanel();
+        return;
+      }
 
-        // Cmd+1-9 to switch terminal tabs
+      // Cmd+1-9 to switch terminal tabs
+      if ((e.metaKey || e.ctrlKey) && !e.altKey) {
         const num = parseInt(e.key, 10);
         if (num >= 1 && num <= 9) {
           const tabIndex = num - 1;

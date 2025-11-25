@@ -955,7 +955,7 @@ export default function TaskDetailPage() {
                 </svg>
                 <p className="text-sm font-medium">Terminal is open below</p>
                 <p className="text-xs mt-1 text-slate-500">
-                  Press Cmd+` to toggle the terminal panel
+                  Press ⌘T to toggle the terminal panel
                 </p>
               </div>
             </div>
@@ -983,7 +983,7 @@ export default function TaskDetailPage() {
                   Open in Terminal
                 </button>
                 <p className="text-xs mt-3 text-slate-500">
-                  Or press Cmd+` to toggle the terminal panel
+                  Or press ⌘T to toggle the terminal panel
                 </p>
               </div>
             </div>
