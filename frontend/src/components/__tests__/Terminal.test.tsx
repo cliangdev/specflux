@@ -103,7 +103,7 @@ describe("Terminal", () => {
     render(<Terminal taskId={42} />);
 
     expect(wsInstances.length).toBeGreaterThan(0);
-    expect(wsInstances[0]?.url).toContain("/ws/terminal/42");
+    expect(wsInstances[0]?.url).toContain("/ws/terminal/task/42");
   });
 
   it("uses custom WebSocket URL when provided", () => {

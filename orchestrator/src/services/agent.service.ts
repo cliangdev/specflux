@@ -13,7 +13,8 @@ import {
   generateBranchName,
   cleanupWorktree,
 } from './worktree.service';
-import { writeContextFile } from './context.service';
+import { writeContextFile, writeEpicContextFile } from './context.service';
+import { getEpicById } from './epic.service';
 import { getWorktreeChanges, commitAndCreatePR, WorktreeChanges } from './git-workflow.service';
 import {
   parseTerminalOutput,
@@ -27,8 +28,13 @@ import { recordFileChange } from './file-tracking.service';
 // WebSocket handlers subscribe to this to know when to re-subscribe to task emitters
 export const agentLifecycleEmitter = new EventEmitter();
 
+export type ContextType = 'task' | 'epic' | 'project';
+
 export interface AgentSession {
   id: number;
+  contextType: ContextType;
+  contextId: number;
+  /** @deprecated Use contextId instead. Alias for backwards compatibility. */
   taskId: number;
   pid: number | null;
   worktreePath: string | null;
@@ -38,6 +44,9 @@ export interface AgentSession {
 }
 
 export interface AgentProcess {
+  contextType: ContextType;
+  contextId: number;
+  /** @deprecated Use contextId. Alias for task context backwards compatibility. */
   taskId: number;
   sessionId: number;
   pty: pty.IPty;
@@ -47,6 +56,7 @@ export interface AgentProcess {
 }
 
 export interface SpawnAgentConfig {
+  contextType?: ContextType;
   command?: string;
   args?: string[];
   env?: Record<string, string>;
@@ -54,8 +64,13 @@ export interface SpawnAgentConfig {
   rows?: number;
 }
 
-// In-memory tracking of running agent processes
-const runningAgents = new Map<number, AgentProcess>();
+// Helper to create context key for Map
+function contextKey(contextType: ContextType, contextId: number): string {
+  return `${contextType}-${contextId}`;
+}
+
+// In-memory tracking of running agent processes (keyed by "type-id")
+const runningAgents = new Map<string, AgentProcess>();
 
 /**
  * Filter out mouse tracking ANSI escape sequences from PTY output
@@ -167,14 +182,18 @@ function createDedupeState(): DedupeState {
 /**
  * Create agent session record in database
  */
-function createAgentSession(taskId: number, worktreePath: string | null): number {
+function createAgentSession(
+  contextType: ContextType,
+  contextId: number,
+  worktreePath: string | null
+): number {
   const db = getDatabase();
   const result = db
     .prepare(
-      `INSERT INTO agent_sessions (task_id, worktree_path, status)
-       VALUES (?, ?, 'starting')`
+      `INSERT INTO agent_sessions (context_type, context_id, worktree_path, status)
+       VALUES (?, ?, ?, 'starting')`
     )
-    .run(taskId, worktreePath);
+    .run(contextType, contextId, worktreePath);
   return result.lastInsertRowid as number;
 }
 
@@ -236,9 +255,14 @@ export function getAgentSession(sessionId: number): AgentSession | null {
 
   if (!row) return null;
 
+  const contextType = (row['context_type'] as ContextType) ?? 'task';
+  const contextId = row['context_id'] as number;
+
   return {
     id: row['id'] as number,
-    taskId: row['task_id'] as number,
+    contextType,
+    contextId,
+    taskId: contextId, // Backwards compat alias
     pid: row['pid'] as number | null,
     worktreePath: row['worktree_path'] as string | null,
     status: row['status'] as AgentSession['status'],
@@ -248,23 +272,31 @@ export function getAgentSession(sessionId: number): AgentSession | null {
 }
 
 /**
- * Get active session for a task
+ * Get active session for a context (generic)
  */
-export function getActiveSessionForTask(taskId: number): AgentSession | null {
+export function getActiveSessionForContext(
+  contextType: ContextType,
+  contextId: number
+): AgentSession | null {
   const db = getDatabase();
   const row = db
     .prepare(
       `SELECT * FROM agent_sessions
-       WHERE task_id = ? AND status IN ('starting', 'running')
+       WHERE context_type = ? AND context_id = ? AND status IN ('starting', 'running')
        ORDER BY started_at DESC LIMIT 1`
     )
-    .get(taskId) as Record<string, unknown> | undefined;
+    .get(contextType, contextId) as Record<string, unknown> | undefined;
 
   if (!row) return null;
 
+  const ctxType = (row['context_type'] as ContextType) ?? 'task';
+  const ctxId = row['context_id'] as number;
+
   return {
     id: row['id'] as number,
-    taskId: row['task_id'] as number,
+    contextType: ctxType,
+    contextId: ctxId,
+    taskId: ctxId, // Backwards compat alias
     pid: row['pid'] as number | null,
     worktreePath: row['worktree_path'] as string | null,
     status: row['status'] as AgentSession['status'],
@@ -274,10 +306,24 @@ export function getActiveSessionForTask(taskId: number): AgentSession | null {
 }
 
 /**
- * Check if agent is running for a task
+ * Get active session for a task (backwards compat)
+ */
+export function getActiveSessionForTask(taskId: number): AgentSession | null {
+  return getActiveSessionForContext('task', taskId);
+}
+
+/**
+ * Check if agent is running for a context
+ */
+export function isAgentRunningForContext(contextType: ContextType, contextId: number): boolean {
+  return runningAgents.has(contextKey(contextType, contextId));
+}
+
+/**
+ * Check if agent is running for a task (backwards compat)
  */
 export function isAgentRunning(taskId: number): boolean {
-  return runningAgents.has(taskId);
+  return isAgentRunningForContext('task', taskId);
 }
 
 /**
@@ -296,7 +342,7 @@ export interface AgentStatusResponse {
  * Get agent status for a task - returns format matching OpenAPI spec
  */
 export function getAgentStatus(taskId: number): AgentStatusResponse {
-  const isRunning = runningAgents.has(taskId);
+  const isRunning = isAgentRunning(taskId);
   const session = getActiveSessionForTask(taskId);
 
   // Map internal status to API status
@@ -336,83 +382,123 @@ export function getAgentStatus(taskId: number): AgentStatusResponse {
 }
 
 /**
- * Spawn Claude Code agent for a task
+ * Spawn Claude Code agent for a context (task or epic)
  */
-export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSession {
-  // Validate task exists
-  const task = getTaskById(taskId);
-  if (!task) {
-    throw new NotFoundError('Task', taskId);
+export function spawnAgentForContext(
+  contextType: ContextType,
+  contextId: number,
+  config?: SpawnAgentConfig
+): AgentSession {
+  // Validate context type is supported
+  if (contextType === 'project') {
+    throw new ValidationError('Project context is not yet supported');
   }
+
+  const key = contextKey(contextType, contextId);
 
   // Check if agent already running
-  if (runningAgents.has(taskId)) {
-    throw new ValidationError(`Agent already running for task ${taskId}`);
+  if (runningAgents.has(key)) {
+    throw new ValidationError(`Agent already running for ${contextType} ${contextId}`);
   }
 
-  // Get project for worktree path
-  const project = getProjectById(task.project_id);
+  // Get task or epic and determine project
+  let task: ReturnType<typeof getTaskById> | null = null;
+  let epic: ReturnType<typeof getEpicById> | null = null;
+  let projectId: number;
+
+  if (contextType === 'task') {
+    task = getTaskById(contextId);
+    if (!task) {
+      throw new NotFoundError('Task', contextId);
+    }
+    projectId = task.project_id;
+  } else {
+    // epic
+    epic = getEpicById(contextId);
+    if (!epic) {
+      throw new NotFoundError('Epic', contextId);
+    }
+    projectId = epic.project_id;
+  }
+
+  // Get project
+  const project = getProjectById(projectId);
   if (!project) {
-    throw new NotFoundError('Project', task.project_id);
+    throw new NotFoundError('Project', projectId);
   }
 
-  // Validate project path exists and is a git repo before attempting worktree
+  // Validate project path exists
   if (!fs.existsSync(project.local_path)) {
     throw new ValidationError(
       `Cannot start agent: Project path "${project.local_path}" does not exist. ` +
         `Please update the project's local_path to a valid directory.`
     );
   }
-  const gitDir = path.join(project.local_path, '.git');
-  if (!fs.existsSync(gitDir)) {
-    throw new ValidationError(
-      `Cannot start agent: Project path "${project.local_path}" is not a git repository. ` +
-        `The agent requires a git repository to create isolated worktrees for tasks.`
-    );
-  }
 
-  // Generate branch name and create worktree
-  const branchName = generateBranchName(taskId, task.title);
   let worktreePath: string | null = null;
 
-  // Get base branch from project config
-  const projectConfig = getProjectConfig(project.id);
-  const baseBranch = projectConfig?.default_pr_target_branch ?? 'main';
-
-  try {
-    const worktree = createWorktree(taskId, project.local_path, branchName, baseBranch);
-    worktreePath = worktree.path;
-  } catch (error) {
-    // Check if worktree already exists
-    const existingWorktree = getWorktree(taskId, project.local_path);
-    if (existingWorktree) {
-      worktreePath = existingWorktree.path;
-    } else {
-      // Re-throw with more context
-      if (error instanceof ValidationError) {
-        throw error;
-      }
+  // For task context, create worktree for isolated work
+  // For epic context, work directly in project path (review only, no code changes)
+  if (contextType === 'task' && task) {
+    const gitDir = path.join(project.local_path, '.git');
+    if (!fs.existsSync(gitDir)) {
       throw new ValidationError(
-        `Failed to create worktree for task ${taskId}: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `Cannot start agent: Project path "${project.local_path}" is not a git repository. ` +
+          `The agent requires a git repository to create isolated worktrees for tasks.`
       );
+    }
+
+    // Generate branch name and create worktree
+    const branchName = generateBranchName(contextId, task.title);
+
+    // Get base branch from project config
+    const projectConfig = getProjectConfig(project.id);
+    const baseBranch = projectConfig?.default_pr_target_branch ?? 'main';
+
+    try {
+      const worktree = createWorktree(contextId, project.local_path, branchName, baseBranch);
+      worktreePath = worktree.path;
+    } catch (error) {
+      // Check if worktree already exists
+      const existingWorktree = getWorktree(contextId, project.local_path);
+      if (existingWorktree) {
+        worktreePath = existingWorktree.path;
+      } else {
+        // Re-throw with more context
+        if (error instanceof ValidationError) {
+          throw error;
+        }
+        throw new ValidationError(
+          `Failed to create worktree for task ${contextId}: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      }
     }
   }
 
-  // Write context file
-  if (worktreePath) {
-    writeContextFile(worktreePath, taskId);
+  // Write appropriate context file
+  const agentWorkDir = worktreePath ?? project.local_path;
+  if (contextType === 'task') {
+    writeContextFile(agentWorkDir, contextId);
+  } else if (contextType === 'epic') {
+    writeEpicContextFile(agentWorkDir, contextId);
   }
 
   // Create session record
-  const sessionId = createAgentSession(taskId, worktreePath);
+  const sessionId = createAgentSession(contextType, contextId, worktreePath);
 
   // Determine command and args
-  // Pass task description as initial prompt so Claude starts working immediately
   const command = config?.command ?? 'claude';
   let args = config?.args;
   if (!args) {
-    // Build initial prompt from task details
-    const initialPrompt = `Please work on this task:\n\nTask #${task.id}: ${task.title}\n\n${task.description ?? 'No description provided.'}\n\nStart by understanding what needs to be done, then implement the changes.`;
+    // Build initial prompt based on context type
+    let initialPrompt: string;
+    if (contextType === 'task' && task) {
+      initialPrompt = `Please work on this task:\n\nTask #${task.id}: ${task.title}\n\n${task.description ?? 'No description provided.'}\n\nStart by understanding what needs to be done, then implement the changes.`;
+    } else if (contextType === 'epic' && epic) {
+      initialPrompt = `Please review this epic for planning quality.\n\nEpic: ${epic.title}\n\nRead the CLAUDE.md file in this directory - it contains the epic details, PRD, and all tasks. Then provide feedback on:\n1. PRD completeness\n2. Task sizing and scoping\n3. Task descriptions and context\n4. Dependencies\n5. Any missing tasks`;
+    } else {
+      initialPrompt = `Please start working. Read CLAUDE.md for context.`;
+    }
     args = [initialPrompt];
   }
 
@@ -420,7 +506,10 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
   const env: Record<string, string> = {
     ...process.env,
     ...config?.env,
-    SPECFLUX_TASK_ID: String(taskId),
+    SPECFLUX_CONTEXT_TYPE: contextType,
+    SPECFLUX_CONTEXT_ID: String(contextId),
+    // Backwards compat for task context
+    ...(contextType === 'task' ? { SPECFLUX_TASK_ID: String(contextId) } : {}),
     SPECFLUX_SESSION_ID: String(sessionId),
   } as Record<string, string>;
 
@@ -431,7 +520,7 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
     const ptyRows = config?.rows ?? 40;
     if (process.env['DEBUG_TERMINAL'] === '1') {
       console.log(
-        `[PTY DEBUG] Spawning PTY for task ${taskId} with cols=${ptyCols}, rows=${ptyRows}`
+        `[PTY DEBUG] Spawning PTY for ${contextType} ${contextId} with cols=${ptyCols}, rows=${ptyRows}`
       );
     }
 
@@ -442,7 +531,7 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
       name: 'xterm-256color',
       cols: ptyCols,
       rows: ptyRows,
-      cwd: worktreePath ?? project.local_path,
+      cwd: agentWorkDir,
       env,
       // Enable flow control for backpressure management (from research)
       // This pauses PTY output when buffer is full (XOFF) and resumes when cleared (XON)
@@ -455,8 +544,10 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
     // Update session with PID
     updateAgentSession(sessionId, { pid: ptyProcess.pid, status: 'running' });
 
-    // Update task status
-    updateTask(taskId, { status: 'in_progress' });
+    // Update task status (only for task context)
+    if (contextType === 'task' && task) {
+      updateTask(contextId, { status: 'in_progress' });
+    }
 
     // Create parser state for this agent
     const parserState = createParserState();
@@ -466,17 +557,25 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
 
     // Store agent process FIRST so getAgentEmitter() works when WebSocket reconnects
     const agentProcess: AgentProcess = {
-      taskId,
+      contextType,
+      contextId,
+      taskId: contextId, // Backwards compat alias
       sessionId,
       pty: ptyProcess,
       emitter,
       parserState,
       dedupeState,
     };
-    runningAgents.set(taskId, agentProcess);
+    runningAgents.set(key, agentProcess);
 
     // Notify WebSocket handlers that agent started (they can now subscribe to emitter)
-    agentLifecycleEmitter.emit('agent-started', { taskId, emitter });
+    // Include both new and old formats for backwards compatibility
+    agentLifecycleEmitter.emit('agent-started', {
+      contextType,
+      contextId,
+      taskId: contextType === 'task' ? contextId : undefined,
+      emitter,
+    });
 
     // Track last progress update to avoid database spam
     let lastProgressUpdate = 0;
@@ -542,32 +641,36 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
       for (const event of events) {
         emitter.emit('parsed', event);
 
-        // Update task progress in database (throttled)
-        if (event.type === 'progress') {
+        // Update task progress in database (throttled) - only for task context
+        if (event.type === 'progress' && contextType === 'task') {
           const progress = event.progress;
           if (Math.abs(progress - lastProgressUpdate) >= PROGRESS_UPDATE_THRESHOLD) {
             lastProgressUpdate = progress;
-            updateTask(taskId, { progress_percentage: progress });
-            emitter.emit('progress', { taskId, progress });
+            updateTask(contextId, { progress_percentage: progress });
+            emitter.emit('progress', { contextType, contextId, taskId: contextId, progress });
           }
         }
 
-        // Emit file events for tracking and record in database
+        // Emit file events for tracking and record in database (task context only)
         if (event.type === 'file') {
-          // Record file change in database
-          try {
-            recordFileChange({
-              taskId,
-              sessionId,
-              filePath: event.filePath,
-              changeType: event.action,
-            });
-          } catch {
-            // Ignore database errors - don't break terminal streaming
+          // Record file change in database (only for task context)
+          if (contextType === 'task') {
+            try {
+              recordFileChange({
+                taskId: contextId,
+                sessionId,
+                filePath: event.filePath,
+                changeType: event.action,
+              });
+            } catch {
+              // Ignore database errors - don't break terminal streaming
+            }
           }
 
           emitter.emit('file-change', {
-            taskId,
+            contextType,
+            contextId,
+            taskId: contextType === 'task' ? contextId : undefined,
             sessionId,
             action: event.action,
             filePath: event.filePath,
@@ -577,7 +680,9 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
         // Emit test events
         if (event.type === 'test') {
           emitter.emit('test-result', {
-            taskId,
+            contextType,
+            contextId,
+            taskId: contextType === 'task' ? contextId : undefined,
             passed: event.passed,
             failed: event.failed,
             total: event.total,
@@ -585,15 +690,22 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
         }
       }
 
-      // Periodically update estimated progress if no explicit progress
-      const estimatedProgress = estimateProgress(parserState);
-      if (
-        parserState.lastProgress === 0 &&
-        estimatedProgress > lastProgressUpdate + PROGRESS_UPDATE_THRESHOLD
-      ) {
-        lastProgressUpdate = estimatedProgress;
-        updateTask(taskId, { progress_percentage: estimatedProgress });
-        emitter.emit('progress', { taskId, progress: estimatedProgress });
+      // Periodically update estimated progress if no explicit progress (task context only)
+      if (contextType === 'task') {
+        const estimatedProgress = estimateProgress(parserState);
+        if (
+          parserState.lastProgress === 0 &&
+          estimatedProgress > lastProgressUpdate + PROGRESS_UPDATE_THRESHOLD
+        ) {
+          lastProgressUpdate = estimatedProgress;
+          updateTask(contextId, { progress_percentage: estimatedProgress });
+          emitter.emit('progress', {
+            contextType,
+            contextId,
+            taskId: contextId,
+            progress: estimatedProgress,
+          });
+        }
       }
     });
 
@@ -606,7 +718,7 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
         chunkFlushTimer = null;
       }
 
-      runningAgents.delete(taskId);
+      runningAgents.delete(key);
 
       const sessionStatus: AgentSession['status'] = exitCode === 0 ? 'completed' : 'failed';
       updateAgentSession(sessionId, {
@@ -615,18 +727,20 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
         exit_code: exitCode,
       });
 
-      // Handle completion flow
-      try {
-        const completionResult = handleAgentCompletion(
-          taskId,
-          exitCode,
-          worktreePath,
-          project.local_path,
-          task.requires_approval
-        );
-        emitter.emit('completion', completionResult);
-      } catch (error) {
-        emitter.emit('completion-error', error);
+      // Handle completion flow (task context only - epic has no completion workflow)
+      if (contextType === 'task' && task) {
+        try {
+          const completionResult = handleAgentCompletion(
+            contextId,
+            exitCode,
+            worktreePath,
+            project.local_path,
+            task.requires_approval
+          );
+          emitter.emit('completion', completionResult);
+        } catch (error) {
+          emitter.emit('completion-error', error);
+        }
       }
 
       emitter.emit('exit', exitCode);
@@ -641,10 +755,10 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
       error_message: error instanceof Error ? error.message : 'Unknown error',
     });
 
-    // Clean up worktree on failure
-    if (worktreePath) {
+    // Clean up worktree on failure (task context only)
+    if (worktreePath && contextType === 'task') {
       try {
-        removeWorktree(taskId, project.local_path);
+        removeWorktree(contextId, project.local_path);
       } catch {
         // Ignore cleanup errors
       }
@@ -655,11 +769,19 @@ export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSess
 }
 
 /**
- * Stop running agent for a task
+ * Spawn Claude Code agent for a task (backwards compatible wrapper)
+ */
+export function spawnAgent(taskId: number, config?: SpawnAgentConfig): AgentSession {
+  return spawnAgentForContext('task', taskId, config);
+}
+
+/**
+ * Stop running agent for a context
  * Idempotent - if no agent is running, silently returns
  */
-export function stopAgent(taskId: number): void {
-  const agentProcess = runningAgents.get(taskId);
+export function stopAgentForContext(contextType: ContextType, contextId: number): void {
+  const key = contextKey(contextType, contextId);
+  const agentProcess = runningAgents.get(key);
   if (!agentProcess) {
     // No agent running - that's fine, nothing to stop
     return;
@@ -675,70 +797,137 @@ export function stopAgent(taskId: number): void {
 }
 
 /**
+ * Stop running agent for a task (backwards compat)
+ */
+export function stopAgent(taskId: number): void {
+  stopAgentForContext('task', taskId);
+}
+
+/**
  * Send input to agent PTY
  */
-export function sendAgentInput(taskId: number, data: string): void {
-  const agentProcess = runningAgents.get(taskId);
+export function sendAgentInputForContext(
+  contextType: ContextType,
+  contextId: number,
+  data: string
+): void {
+  const key = contextKey(contextType, contextId);
+  const agentProcess = runningAgents.get(key);
   if (!agentProcess) {
-    throw new NotFoundError('AgentProcess', taskId);
+    throw new NotFoundError('AgentProcess', `${contextType}-${contextId}`);
   }
 
   agentProcess.pty.write(data);
 }
 
 /**
+ * Send input to agent PTY (backwards compat for task)
+ */
+export function sendAgentInput(taskId: number, data: string): void {
+  sendAgentInputForContext('task', taskId, data);
+}
+
+/**
  * Resize agent PTY
  */
-export function resizeAgentPty(taskId: number, cols: number, rows: number): void {
-  const agentProcess = runningAgents.get(taskId);
+export function resizeAgentPtyForContext(
+  contextType: ContextType,
+  contextId: number,
+  cols: number,
+  rows: number
+): void {
+  const key = contextKey(contextType, contextId);
+  const agentProcess = runningAgents.get(key);
   if (!agentProcess) {
-    throw new NotFoundError('AgentProcess', taskId);
+    throw new NotFoundError('AgentProcess', `${contextType}-${contextId}`);
   }
 
   agentProcess.pty.resize(cols, rows);
 }
 
 /**
+ * Resize agent PTY (backwards compat for task)
+ */
+export function resizeAgentPty(taskId: number, cols: number, rows: number): void {
+  resizeAgentPtyForContext('task', taskId, cols, rows);
+}
+
+/**
  * Get event emitter for agent output
  */
-export function getAgentEmitter(taskId: number): EventEmitter | null {
-  const agentProcess = runningAgents.get(taskId);
+export function getAgentEmitterForContext(
+  contextType: ContextType,
+  contextId: number
+): EventEmitter | null {
+  const key = contextKey(contextType, contextId);
+  const agentProcess = runningAgents.get(key);
   return agentProcess?.emitter ?? null;
+}
+
+/**
+ * Get event emitter for agent output (backwards compat for task)
+ */
+export function getAgentEmitter(taskId: number): EventEmitter | null {
+  return getAgentEmitterForContext('task', taskId);
 }
 
 /**
  * List all running agents
  */
-export function listRunningAgents(): { taskId: number; sessionId: number; pid: number }[] {
+export function listRunningAgents(): {
+  contextType: ContextType;
+  contextId: number;
+  taskId: number;
+  sessionId: number;
+  pid: number;
+}[] {
   return Array.from(runningAgents.values()).map((agent) => ({
-    taskId: agent.taskId,
+    contextType: agent.contextType,
+    contextId: agent.contextId,
+    taskId: agent.taskId, // Backwards compat
     sessionId: agent.sessionId,
     pid: agent.pty.pid,
   }));
 }
 
 /**
- * Get session history for a task
+ * Get session history for a context
  */
-export function getTaskSessionHistory(taskId: number): AgentSession[] {
+export function getContextSessionHistory(
+  contextType: ContextType,
+  contextId: number
+): AgentSession[] {
   const db = getDatabase();
   const rows = db
     .prepare(
       `SELECT * FROM agent_sessions
-       WHERE task_id = ?
+       WHERE context_type = ? AND context_id = ?
        ORDER BY started_at DESC`
     )
-    .all(taskId) as Record<string, unknown>[];
+    .all(contextType, contextId) as Record<string, unknown>[];
 
-  return rows.map((row) => ({
-    id: row['id'] as number,
-    taskId: row['task_id'] as number,
-    pid: row['pid'] as number | null,
-    worktreePath: row['worktree_path'] as string | null,
-    status: row['status'] as AgentSession['status'],
-    startedAt: row['started_at'] as string,
-    endedAt: row['ended_at'] as string | null,
-  }));
+  return rows.map((row) => {
+    const ctxType = (row['context_type'] as ContextType) ?? 'task';
+    const ctxId = row['context_id'] as number;
+    return {
+      id: row['id'] as number,
+      contextType: ctxType,
+      contextId: ctxId,
+      taskId: ctxId, // Backwards compat
+      pid: row['pid'] as number | null,
+      worktreePath: row['worktree_path'] as string | null,
+      status: row['status'] as AgentSession['status'],
+      startedAt: row['started_at'] as string,
+      endedAt: row['ended_at'] as string | null,
+    };
+  });
+}
+
+/**
+ * Get session history for a task (backwards compat)
+ */
+export function getTaskSessionHistory(taskId: number): AgentSession[] {
+  return getContextSessionHistory('task', taskId);
 }
 
 /**

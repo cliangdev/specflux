@@ -45,6 +45,24 @@ vi.mock("../components/FileChanges", () => ({
   default: () => <div data-testid="file-changes">File Changes</div>,
 }));
 
+// Mock the TerminalContext
+vi.mock("../contexts/TerminalContext", () => ({
+  useTerminal: () => ({
+    sessions: [],
+    activeSessionId: null,
+    showPanel: false,
+    createSession: vi.fn(),
+    closeSession: vi.fn(),
+    setActiveSession: vi.fn(),
+    togglePanel: vi.fn(),
+    openPanel: vi.fn(),
+    closePanel: vi.fn(),
+    resizePanel: vi.fn(),
+    panelSize: 300,
+  }),
+  TerminalProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 const mockTask: Task = {
   id: 1,
   title: "Test Task",

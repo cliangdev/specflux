@@ -71,8 +71,8 @@ describe('Agent API Routes', () => {
       // Create some session history
       const db = getDatabase();
       db.prepare(
-        `INSERT INTO agent_sessions (task_id, status, ended_at)
-         VALUES (?, 'completed', CURRENT_TIMESTAMP)`
+        `INSERT INTO agent_sessions (context_type, context_id, status, ended_at)
+         VALUES ('task', ?, 'completed', CURRENT_TIMESTAMP)`
       ).run(taskId);
     });
 
