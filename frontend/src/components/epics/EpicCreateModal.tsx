@@ -1,42 +1,22 @@
-import { useState, useEffect, type FormEvent } from "react";
-import { api, type CreateTaskRequest, type Epic } from "../../api";
+import { useState, type FormEvent } from "react";
+import { api, type CreateEpicRequest } from "../../api";
 
-interface TaskCreateModalProps {
+interface EpicCreateModalProps {
   projectId: number;
-  defaultEpicId?: number;
   onClose: () => void;
   onCreated: () => void;
 }
 
-export default function TaskCreateModal({
+export default function EpicCreateModal({
   projectId,
-  defaultEpicId,
   onClose,
   onCreated,
-}: TaskCreateModalProps) {
+}: EpicCreateModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [epicId, setEpicId] = useState<number | undefined>(defaultEpicId);
-  const [epics, setEpics] = useState<Epic[]>([]);
-  const [loadingEpics, setLoadingEpics] = useState(true);
+  const [prdFilePath, setPrdFilePath] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Fetch epics for the dropdown
-  useEffect(() => {
-    const fetchEpics = async () => {
-      try {
-        setLoadingEpics(true);
-        const response = await api.epics.listEpics({ id: projectId });
-        setEpics(response.data ?? []);
-      } catch (err) {
-        console.error("Failed to fetch epics:", err);
-      } finally {
-        setLoadingEpics(false);
-      }
-    };
-    fetchEpics();
-  }, [projectId]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -50,24 +30,24 @@ export default function TaskCreateModal({
       setSubmitting(true);
       setError(null);
 
-      const request: CreateTaskRequest = {
+      const request: CreateEpicRequest = {
         title: title.trim(),
         description: description.trim() || undefined,
-        epicId: epicId,
+        prdFilePath: prdFilePath.trim() || undefined,
       };
 
-      await api.tasks.createTask({
+      await api.epics.createEpic({
         id: projectId,
-        createTaskRequest: request,
+        createEpicRequest: request,
       });
 
       onCreated();
       onClose();
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Failed to create task";
+        err instanceof Error ? err.message : "Failed to create epic";
       setError(message);
-      console.error("Failed to create task:", err);
+      console.error("Failed to create epic:", err);
     } finally {
       setSubmitting(false);
     }
@@ -86,7 +66,7 @@ export default function TaskCreateModal({
       <div className="relative bg-white dark:bg-system-800 rounded-lg shadow-xl w-full max-w-md mx-4 border border-system-200 dark:border-system-700">
         <div className="flex items-center justify-between px-6 py-4 border-b border-system-200 dark:border-system-700">
           <h2 className="text-lg font-semibold text-system-900 dark:text-white">
-            Create Task
+            Create Epic
           </h2>
           <button
             onClick={onClose}
@@ -128,7 +108,7 @@ export default function TaskCreateModal({
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Enter task title"
+                placeholder="Enter epic title"
                 className="input"
                 autoFocus
               />
@@ -153,29 +133,21 @@ export default function TaskCreateModal({
 
             <div>
               <label
-                htmlFor="epic"
+                htmlFor="prdFilePath"
                 className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
               >
-                Epic
+                PRD File Path
               </label>
-              <select
-                id="epic"
-                value={epicId ?? ""}
-                onChange={(e) =>
-                  setEpicId(e.target.value ? Number(e.target.value) : undefined)
-                }
-                className="select"
-                disabled={loadingEpics}
-              >
-                <option value="">No Epic</option>
-                {epics.map((epic) => (
-                  <option key={epic.id} value={epic.id}>
-                    {epic.title}
-                  </option>
-                ))}
-              </select>
+              <input
+                id="prdFilePath"
+                type="text"
+                value={prdFilePath}
+                onChange={(e) => setPrdFilePath(e.target.value)}
+                placeholder="e.g., prds/feature-name.md"
+                className="input"
+              />
               <p className="mt-1 text-xs text-system-500 dark:text-system-400">
-                Optional - group this task under an epic
+                Optional path to the PRD file in your .specflux directory
               </p>
             </div>
           </div>
@@ -215,7 +187,7 @@ export default function TaskCreateModal({
                   />
                 </svg>
               )}
-              Create Task
+              Create Epic
             </button>
           </div>
         </form>

@@ -11,6 +11,10 @@ vi.mock("../api", () => ({
       getTask: vi.fn(),
       getTaskAgentStatus: vi.fn(),
       controlTaskAgent: vi.fn(),
+      updateTask: vi.fn(),
+    },
+    epics: {
+      listEpics: vi.fn(),
     },
   },
   ControlTaskAgentRequestActionEnum: {
@@ -36,11 +40,17 @@ vi.mock("../components/Terminal", () => ({
   ),
 }));
 
+// Mock the FileChanges component
+vi.mock("../components/FileChanges", () => ({
+  default: () => <div data-testid="file-changes">File Changes</div>,
+}));
+
 const mockTask: Task = {
   id: 1,
   title: "Test Task",
   description: "Test description",
   projectId: 1,
+  epicId: null,
   status: "in_progress",
   requiresApproval: false,
   progressPercentage: 50,
@@ -49,10 +59,36 @@ const mockTask: Task = {
   updatedAt: new Date(),
 };
 
+const mockTaskWithEpic: Task = {
+  ...mockTask,
+  epicId: 1,
+};
+
 const mockAgentStatus: AgentStatus = {
   taskId: 1,
   status: "idle",
 };
+
+const mockEpics = [
+  {
+    id: 1,
+    title: "Epic 1",
+    projectId: 1,
+    status: "active" as const,
+    createdByUserId: 1,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  {
+    id: 2,
+    title: "Epic 2",
+    projectId: 1,
+    status: "planning" as const,
+    createdByUserId: 1,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+];
 
 const mockNavigate = vi.fn();
 
@@ -85,6 +121,14 @@ describe("TaskDetailPage", () => {
       success: true,
       data: mockAgentStatus,
     });
+    vi.mocked(api.epics.listEpics).mockResolvedValue({
+      success: true,
+      data: mockEpics,
+    });
+    vi.mocked(api.tasks.updateTask).mockResolvedValue({
+      success: true,
+      data: mockTask,
+    });
   });
 
   it("renders task details correctly", async () => {
@@ -96,7 +140,6 @@ describe("TaskDetailPage", () => {
 
     expect(screen.getByText("Test Task")).toBeInTheDocument();
     expect(screen.getByText("Test description")).toBeInTheDocument();
-    expect(screen.getByText("50%")).toBeInTheDocument();
   });
 
   it("renders terminal component", async () => {
@@ -173,6 +216,105 @@ describe("TaskDetailPage", () => {
     await waitFor(() => {
       expect(screen.getByText("Pause")).toBeInTheDocument();
       expect(screen.getByText("Stop")).toBeInTheDocument();
+    });
+  });
+
+  describe("Epic editing", () => {
+    it("renders epic dropdown with epics loaded", async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(api.epics.listEpics).toHaveBeenCalledWith({ id: 1 });
+      });
+
+      // Check for epic options
+      await waitFor(() => {
+        expect(screen.getByText("No Epic")).toBeInTheDocument();
+        expect(screen.getByText("Epic 1")).toBeInTheDocument();
+        expect(screen.getByText("Epic 2")).toBeInTheDocument();
+      });
+    });
+
+    it("displays current epic selection when task has epic", async () => {
+      vi.mocked(api.tasks.getTask).mockResolvedValue({
+        success: true,
+        data: mockTaskWithEpic,
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        const epicSelect = screen.getByRole("combobox") as HTMLSelectElement;
+        expect(epicSelect.value).toBe("1");
+      });
+    });
+
+    it("calls updateTask when epic is changed", async () => {
+      renderPage();
+
+      // Wait for epics to load
+      await waitFor(() => {
+        expect(screen.getByText("Epic 2")).toBeInTheDocument();
+      });
+
+      const epicSelect = screen.getByRole("combobox");
+      fireEvent.change(epicSelect, { target: { value: "2" } });
+
+      await waitFor(() => {
+        expect(api.tasks.updateTask).toHaveBeenCalledWith({
+          id: 1,
+          updateTaskRequest: { epicId: 2 },
+        });
+      });
+    });
+
+    it("calls updateTask with null when removing epic", async () => {
+      vi.mocked(api.tasks.getTask).mockResolvedValue({
+        success: true,
+        data: mockTaskWithEpic,
+      });
+
+      renderPage();
+
+      // Wait for epics to load
+      await waitFor(() => {
+        expect(screen.getByText("No Epic")).toBeInTheDocument();
+      });
+
+      const epicSelect = screen.getByRole("combobox");
+      fireEvent.change(epicSelect, { target: { value: "" } });
+
+      await waitFor(() => {
+        expect(api.tasks.updateTask).toHaveBeenCalledWith({
+          id: 1,
+          updateTaskRequest: { epicId: null },
+        });
+      });
+    });
+
+    it("refreshes task after epic update", async () => {
+      renderPage();
+
+      // Wait for initial load
+      await waitFor(() => {
+        expect(api.tasks.getTask).toHaveBeenCalled();
+      });
+
+      // Clear the call count
+      vi.mocked(api.tasks.getTask).mockClear();
+
+      // Wait for epics to load
+      await waitFor(() => {
+        expect(screen.getByText("Epic 2")).toBeInTheDocument();
+      });
+
+      const epicSelect = screen.getByRole("combobox");
+      fireEvent.change(epicSelect, { target: { value: "2" } });
+
+      // Should refresh task after update
+      await waitFor(() => {
+        expect(api.tasks.getTask).toHaveBeenCalled();
+      });
     });
   });
 });

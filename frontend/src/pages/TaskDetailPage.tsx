@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   api,
   type Task,
+  type Epic,
   type AgentStatus,
   type TaskDiff,
   type ApproveAndPRResult,
@@ -238,6 +239,9 @@ export default function TaskDetailPage() {
     cols: number;
     rows: number;
   } | null>(null);
+  const [epics, setEpics] = useState<Epic[]>([]);
+  const [epicLoading, setEpicLoading] = useState(false);
+
   const fetchTask = useCallback(async () => {
     if (!taskId) return;
 
@@ -255,6 +259,38 @@ export default function TaskDetailPage() {
       setLoading(false);
     }
   }, [taskId]);
+
+  // Fetch epics for the project when task is loaded
+  const fetchEpics = useCallback(async (projectId: number) => {
+    try {
+      const response = await api.epics.listEpics({ id: projectId });
+      setEpics(response.data ?? []);
+    } catch (err) {
+      console.error("Failed to fetch epics:", err);
+    }
+  }, []);
+
+  // Update task's epic assignment
+  const handleEpicChange = async (newEpicId: number | null) => {
+    if (!task) return;
+
+    try {
+      setEpicLoading(true);
+      await api.tasks.updateTask({
+        id: task.id,
+        updateTaskRequest: { epicId: newEpicId },
+      });
+      // Refresh task data
+      fetchTask();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to update epic";
+      setError(message);
+      console.error("Failed to update epic:", err);
+    } finally {
+      setEpicLoading(false);
+    }
+  };
 
   const fetchAgentStatus = useCallback(async () => {
     if (!taskId) return;
@@ -297,6 +333,13 @@ export default function TaskDetailPage() {
       fetchDiff();
     }
   }, [task?.status, fetchDiff]);
+
+  // Fetch epics when task is loaded
+  useEffect(() => {
+    if (task?.projectId) {
+      fetchEpics(task.projectId);
+    }
+  }, [task?.projectId, fetchEpics]);
 
   const handleCreatePR = async () => {
     if (!taskId) return;
@@ -525,6 +568,28 @@ export default function TaskDetailPage() {
             <p className="text-sm text-system-600 dark:text-system-300 leading-relaxed">
               {task.description || "No description provided"}
             </p>
+          </div>
+
+          {/* Epic */}
+          <div className="mb-6">
+            <h3 className="text-xs font-bold text-system-400 uppercase tracking-wider mb-2">
+              Epic
+            </h3>
+            <select
+              value={task.epicId ?? ""}
+              onChange={(e) =>
+                handleEpicChange(e.target.value ? Number(e.target.value) : null)
+              }
+              disabled={epicLoading}
+              className="select text-sm"
+            >
+              <option value="">No Epic</option>
+              {epics.map((epic) => (
+                <option key={epic.id} value={epic.id}>
+                  {epic.title}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Agent Status - fixed height to prevent layout shift */}

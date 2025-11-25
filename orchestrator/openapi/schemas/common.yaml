@@ -36,6 +36,28 @@ Pagination:
     - total
     - total_pages
 
+CursorPagination:
+  type: object
+  properties:
+    next_cursor:
+      type: string
+      nullable: true
+      description: Cursor for the next page, null if no more results
+    prev_cursor:
+      type: string
+      nullable: true
+      description: Cursor for the previous page, null if at the beginning
+    has_more:
+      type: boolean
+      description: Whether there are more results after this page
+    total:
+      type: integer
+      minimum: 0
+      description: Total number of items matching the query
+  required:
+    - has_more
+    - total
+
 Error:
   type: object
   properties:

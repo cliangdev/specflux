@@ -1,9 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProject } from "../contexts";
-import { api, type Task } from "../api";
-import { ListTasksStatusEnum } from "../api/generated";
-import { TaskCreateModal } from "../components/ui";
+import { api, type Task, type Epic } from "../api";
+import {
+  ListTasksStatusEnum,
+  ListTasksSortEnum,
+  ListTasksOrderEnum,
+} from "../api/generated";
+import { TaskCreateModal, Pagination, ProgressBar } from "../components/ui";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
@@ -156,14 +160,52 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function ProgressBar({ percent }: { percent: number }) {
+// Sortable column header component
+interface SortableHeaderProps {
+  label: string;
+  field: ListTasksSortEnum;
+  currentSort: ListTasksSortEnum;
+  currentOrder: ListTasksOrderEnum;
+  onSort: (field: ListTasksSortEnum) => void;
+}
+
+function SortableHeader({
+  label,
+  field,
+  currentSort,
+  currentOrder,
+  onSort,
+}: SortableHeaderProps) {
+  const isActive = currentSort === field;
+
   return (
-    <div className="w-24 bg-system-200 dark:bg-system-700 rounded-full h-2">
-      <div
-        className="bg-brand-500 h-2 rounded-full transition-all"
-        style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}
-      />
-    </div>
+    <th
+      className="px-6 py-3 text-left text-xs font-medium text-system-500 dark:text-system-400 uppercase tracking-wider cursor-pointer hover:text-system-700 dark:hover:text-system-200 transition-colors select-none"
+      onClick={() => onSort(field)}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        <span className={`ml-1 ${isActive ? "opacity-100" : "opacity-0"}`}>
+          {currentOrder === ListTasksOrderEnum.Desc ? (
+            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                fillRule="evenodd"
+                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                clipRule="evenodd"
+              />
+            </svg>
+          ) : (
+            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                fillRule="evenodd"
+                d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"
+                clipRule="evenodd"
+              />
+            </svg>
+          )}
+        </span>
+      </div>
+    </th>
   );
 }
 
@@ -172,38 +214,126 @@ export default function TasksPage() {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Filters
   const [statusFilter, setStatusFilter] = useState("");
+  const [epicFilter, setEpicFilter] = useState<number | undefined>(undefined);
+  const [epics, setEpics] = useState<Epic[]>([]);
+
+  // Sorting
+  const [sortField, setSortField] = useState<ListTasksSortEnum>(
+    ListTasksSortEnum.CreatedAt,
+  );
+  const [sortOrder, setSortOrder] = useState<ListTasksOrderEnum>(
+    ListTasksOrderEnum.Desc,
+  );
+
+  // Pagination
+  const [pagination, setPagination] = useState({
+    nextCursor: null as string | null,
+    prevCursor: null as string | null,
+    hasMore: false,
+    total: 0,
+  });
+
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  const fetchTasks = useCallback(async () => {
-    if (!currentProject) {
-      setTasks([]);
-      setLoading(false);
-      return;
-    }
+  // Fetch epics for the filter dropdown
+  useEffect(() => {
+    if (!currentProject) return;
 
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await api.tasks.listTasks({
-        id: currentProject.id,
-        status: (statusFilter || undefined) as ListTasksStatusEnum | undefined,
+    api.epics
+      .listEpics({ id: currentProject.id })
+      .then((response) => {
+        setEpics(response.data ?? []);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch epics:", err);
       });
-      setTasks(response.data ?? []);
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to load tasks";
-      setError(message);
-      console.error("Failed to fetch tasks:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentProject, statusFilter]);
+  }, [currentProject]);
+
+  const fetchTasks = useCallback(
+    async (cursor?: string, append = false) => {
+      if (!currentProject) {
+        setTasks([]);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        if (append) {
+          setLoadingMore(true);
+        } else {
+          setLoading(true);
+        }
+        setError(null);
+
+        const response = await api.tasks.listTasks({
+          id: currentProject.id,
+          status: (statusFilter || undefined) as
+            | ListTasksStatusEnum
+            | undefined,
+          epicId: epicFilter,
+          sort: sortField,
+          order: sortOrder,
+          cursor,
+          limit: 20,
+        });
+
+        const newTasks = response.data ?? [];
+        const paginationData = response.pagination;
+
+        if (append) {
+          setTasks((prev) => [...prev, ...newTasks]);
+        } else {
+          setTasks(newTasks);
+        }
+
+        setPagination({
+          nextCursor: paginationData?.nextCursor ?? null,
+          prevCursor: paginationData?.prevCursor ?? null,
+          hasMore: paginationData?.hasMore ?? false,
+          total: paginationData?.total ?? 0,
+        });
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to load tasks";
+        setError(message);
+        console.error("Failed to fetch tasks:", err);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [currentProject, statusFilter, epicFilter, sortField, sortOrder],
+  );
 
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
+
+  const handleSort = (field: ListTasksSortEnum) => {
+    if (field === sortField) {
+      // Toggle order if same field
+      setSortOrder(
+        sortOrder === ListTasksOrderEnum.Desc
+          ? ListTasksOrderEnum.Asc
+          : ListTasksOrderEnum.Desc,
+      );
+    } else {
+      // New field, default to descending
+      setSortField(field);
+      setSortOrder(ListTasksOrderEnum.Desc);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (pagination.nextCursor && !loadingMore) {
+      fetchTasks(pagination.nextCursor, true);
+    }
+  };
 
   if (!currentProject) {
     return (
@@ -224,11 +354,12 @@ export default function TasksPage() {
         <h1 className="text-2xl font-semibold text-system-900 dark:text-white">
           Tasks
         </h1>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          {/* Status filter */}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="select w-[180px]"
+            className="select w-[160px]"
           >
             {STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -236,8 +367,26 @@ export default function TasksPage() {
               </option>
             ))}
           </select>
+
+          {/* Epic filter */}
+          <select
+            value={epicFilter ?? ""}
+            onChange={(e) =>
+              setEpicFilter(e.target.value ? Number(e.target.value) : undefined)
+            }
+            className="select w-[160px]"
+          >
+            <option value="">All Epics</option>
+            {epics.map((epic) => (
+              <option key={epic.id} value={epic.id}>
+                {epic.title}
+              </option>
+            ))}
+          </select>
+
+          {/* Refresh button */}
           <button
-            onClick={fetchTasks}
+            onClick={() => fetchTasks()}
             className="btn btn-ghost"
             title="Refresh"
           >
@@ -255,6 +404,8 @@ export default function TasksPage() {
               />
             </svg>
           </button>
+
+          {/* Create button */}
           <button
             onClick={() => setShowCreateModal(true)}
             className="btn btn-primary"
@@ -305,7 +456,7 @@ export default function TasksPage() {
             Error loading tasks
           </div>
           <p className="text-system-500 mt-2">{error}</p>
-          <button onClick={fetchTasks} className="mt-4 btn btn-primary">
+          <button onClick={() => fetchTasks()} className="mt-4 btn btn-primary">
             Try Again
           </button>
         </div>
@@ -328,8 +479,8 @@ export default function TasksPage() {
             No tasks
           </h3>
           <p className="mt-2 text-system-500">
-            {statusFilter
-              ? "No tasks match the selected filter."
+            {statusFilter || epicFilter
+              ? "No tasks match the selected filters."
               : "Get started by creating your first task."}
           </p>
         </div>
@@ -341,18 +492,37 @@ export default function TasksPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-system-500 dark:text-system-400 uppercase tracking-wider">
                   ID
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-system-500 dark:text-system-400 uppercase tracking-wider">
-                  Title
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-system-500 dark:text-system-400 uppercase tracking-wider">
-                  Status
-                </th>
+                <SortableHeader
+                  label="Title"
+                  field={ListTasksSortEnum.Title}
+                  currentSort={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                />
+                <SortableHeader
+                  label="Status"
+                  field={ListTasksSortEnum.Status}
+                  currentSort={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                />
                 <th className="px-6 py-3 text-left text-xs font-medium text-system-500 dark:text-system-400 uppercase tracking-wider">
                   Repository
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-system-500 dark:text-system-400 uppercase tracking-wider">
-                  Progress
-                </th>
+                <SortableHeader
+                  label="Progress"
+                  field={ListTasksSortEnum.ProgressPercentage}
+                  currentSort={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                />
+                <SortableHeader
+                  label="Created"
+                  field={ListTasksSortEnum.CreatedAt}
+                  currentSort={sortField}
+                  currentOrder={sortOrder}
+                  onSort={handleSort}
+                />
               </tr>
             </thead>
             <tbody className="divide-y divide-system-200 dark:divide-system-700">
@@ -382,17 +552,29 @@ export default function TasksPage() {
                     {task.repoName || "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <ProgressBar percent={task.progressPercentage} />
-                      <span className="text-sm text-system-500 dark:text-system-400">
-                        {task.progressPercentage}%
-                      </span>
-                    </div>
+                    <ProgressBar
+                      percent={task.progressPercentage}
+                      showLabel
+                      className="w-28"
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-system-500 dark:text-system-400">
+                    {new Date(task.createdAt).toLocaleDateString()}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+
+          <Pagination
+            total={pagination.total}
+            hasMore={pagination.hasMore}
+            nextCursor={pagination.nextCursor}
+            currentCount={tasks.length}
+            loading={loadingMore}
+            onLoadMore={handleLoadMore}
+            itemLabel="tasks"
+          />
         </div>
       )}
 
@@ -400,7 +582,7 @@ export default function TasksPage() {
         <TaskCreateModal
           projectId={currentProject.id}
           onClose={() => setShowCreateModal(false)}
-          onCreated={fetchTasks}
+          onCreated={() => fetchTasks()}
         />
       )}
     </div>

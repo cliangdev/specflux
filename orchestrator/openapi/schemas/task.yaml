@@ -116,6 +116,9 @@ UpdateTaskRequest:
     description:
       type: string
       nullable: true
+    epic_id:
+      type: integer
+      nullable: true
     status:
       type: string
       enum: [backlog, ready, in_progress, pending_review, approved, done]
