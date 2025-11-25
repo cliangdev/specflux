@@ -189,6 +189,11 @@ describe("TerminalContext", () => {
 
       expect(screen.getByTestId("is-running")).toHaveTextContent("idle");
 
+      // First open a task (required for setIsRunning to work in multi-tab model)
+      act(() => {
+        screen.getByTestId("open-for-task").click();
+      });
+
       act(() => {
         screen.getByTestId("set-running").click();
       });
@@ -254,7 +259,9 @@ describe("TerminalContext", () => {
       expect(typeof result.current.closePanel).toBe("function");
       expect(typeof result.current.toggleCollapse).toBe("function");
       expect(typeof result.current.openTerminalForTask).toBe("function");
-      expect(typeof result.current.setActiveTask).toBe("function");
+      expect(typeof result.current.closeSession).toBe("function");
+      expect(typeof result.current.switchToSession).toBe("function");
+      expect(typeof result.current.updateSessionStatus).toBe("function");
       expect(typeof result.current.setIsRunning).toBe("function");
     });
   });

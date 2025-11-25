@@ -7,9 +7,17 @@ import {
   type ReactNode,
 } from "react";
 
-interface TaskInfo {
+export interface TaskInfo {
   id: number;
   title: string;
+}
+
+export interface TerminalSession {
+  id: string; // e.g., "task-123"
+  taskId: number;
+  taskTitle: string;
+  isRunning: boolean;
+  isConnected: boolean;
 }
 
 interface TerminalContextValue {
@@ -21,12 +29,19 @@ interface TerminalContextValue {
   closePanel: () => void;
   toggleCollapse: () => void;
 
-  // Session state (single session for Phase 1)
-  activeTask: TaskInfo | null;
-  setActiveTask: (task: TaskInfo | null) => void;
+  // Multi-tab session state
+  sessions: TerminalSession[];
+  activeSessionId: string | null;
   openTerminalForTask: (task: TaskInfo) => void;
+  closeSession: (sessionId: string) => void;
+  switchToSession: (sessionId: string) => void;
+  updateSessionStatus: (
+    sessionId: string,
+    status: { isRunning?: boolean; isConnected?: boolean },
+  ) => void;
 
-  // Terminal status (passed up from Terminal component)
+  // Backwards compatibility - returns active session's task info
+  activeTask: TaskInfo | null;
   isRunning: boolean;
   setIsRunning: (running: boolean) => void;
 }
@@ -68,8 +83,9 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
     return false;
   });
 
-  const [activeTask, setActiveTask] = useState<TaskInfo | null>(null);
-  const [isRunning, setIsRunning] = useState(false);
+  // Multi-tab session state
+  const [sessions, setSessions] = useState<TerminalSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
   // Persist panel state to localStorage
   useEffect(() => {
@@ -95,10 +111,97 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const openTerminalForTask = useCallback((task: TaskInfo) => {
-    setActiveTask(task);
+    const sessionId = `task-${task.id}`;
+
+    setSessions((prev) => {
+      // Check if session already exists
+      const existingSession = prev.find((s) => s.id === sessionId);
+      if (existingSession) {
+        // Session exists, just switch to it
+        return prev;
+      }
+      // Create new session
+      return [
+        ...prev,
+        {
+          id: sessionId,
+          taskId: task.id,
+          taskTitle: task.title,
+          isRunning: false,
+          isConnected: false,
+        },
+      ];
+    });
+
+    setActiveSessionId(sessionId);
     setIsOpen(true);
     setIsCollapsed(false);
   }, []);
+
+  const closeSession = useCallback(
+    (sessionId: string) => {
+      setSessions((prev) => {
+        const newSessions = prev.filter((s) => s.id !== sessionId);
+        return newSessions;
+      });
+
+      setActiveSessionId((prevActive) => {
+        if (prevActive === sessionId) {
+          // Switch to another session or null
+          const remaining = sessions.filter((s) => s.id !== sessionId);
+          return remaining.length > 0
+            ? remaining[remaining.length - 1].id
+            : null;
+        }
+        return prevActive;
+      });
+    },
+    [sessions],
+  );
+
+  const switchToSession = useCallback((sessionId: string) => {
+    setActiveSessionId(sessionId);
+  }, []);
+
+  const updateSessionStatus = useCallback(
+    (
+      sessionId: string,
+      status: { isRunning?: boolean; isConnected?: boolean },
+    ) => {
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === sessionId
+            ? {
+                ...s,
+                ...(status.isRunning !== undefined && {
+                  isRunning: status.isRunning,
+                }),
+                ...(status.isConnected !== undefined && {
+                  isConnected: status.isConnected,
+                }),
+              }
+            : s,
+        ),
+      );
+    },
+    [],
+  );
+
+  // Backwards compatibility: derive activeTask from sessions
+  const activeSession = sessions.find((s) => s.id === activeSessionId);
+  const activeTask: TaskInfo | null = activeSession
+    ? { id: activeSession.taskId, title: activeSession.taskTitle }
+    : null;
+  const isRunning = activeSession?.isRunning ?? false;
+
+  const setIsRunning = useCallback(
+    (running: boolean) => {
+      if (activeSessionId) {
+        updateSessionStatus(activeSessionId, { isRunning: running });
+      }
+    },
+    [activeSessionId, updateSessionStatus],
+  );
 
   const value: TerminalContextValue = {
     isOpen,
@@ -107,9 +210,13 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
     openPanel,
     closePanel,
     toggleCollapse,
-    activeTask,
-    setActiveTask,
+    sessions,
+    activeSessionId,
     openTerminalForTask,
+    closeSession,
+    switchToSession,
+    updateSessionStatus,
+    activeTask,
     isRunning,
     setIsRunning,
   };
