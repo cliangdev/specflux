@@ -18,12 +18,19 @@ import {
 } from "./types";
 import { KanbanColumn } from "./KanbanColumn";
 import { TaskCard } from "./TaskCard";
+import {
+  ContextMenu,
+  ContextMenuItem,
+  TerminalIcon,
+  DocumentIcon,
+} from "../ui/ContextMenu";
 
 interface KanbanBoardProps {
   projectId: number;
   workflowTemplate?: WorkflowTemplate;
   onTaskClick?: (task: Task) => void;
   onTaskCreate?: () => void;
+  onOpenTerminal?: (task: Task) => void;
 }
 
 /**
@@ -40,11 +47,19 @@ export function KanbanBoard({
   workflowTemplate = "startup-fast",
   onTaskClick,
   onTaskCreate,
+  onOpenTerminal,
 }: KanbanBoardProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{
+    task: Task;
+    x: number;
+    y: number;
+  } | null>(null);
 
   // Get columns for the workflow template
   const columns = useMemo(
@@ -98,6 +113,32 @@ export function KanbanBoard({
     },
     [columns],
   );
+
+  // Context menu handlers
+  const handleTaskContextMenu = useCallback(
+    (task: Task, x: number, y: number) => {
+      setContextMenu({ task, x, y });
+    },
+    [],
+  );
+
+  const handleCloseContextMenu = useCallback(() => {
+    setContextMenu(null);
+  }, []);
+
+  const handleOpenTerminal = useCallback(() => {
+    if (contextMenu) {
+      onOpenTerminal?.(contextMenu.task);
+      setContextMenu(null);
+    }
+  }, [contextMenu, onOpenTerminal]);
+
+  const handleViewDetails = useCallback(() => {
+    if (contextMenu) {
+      onTaskClick?.(contextMenu.task);
+      setContextMenu(null);
+    }
+  }, [contextMenu, onTaskClick]);
 
   // Handle drag start
   const handleDragStart = (event: DragStartEvent) => {
@@ -225,6 +266,7 @@ export function KanbanBoard({
                 column={column}
                 tasks={tasksByColumn[column.id] ?? []}
                 onTaskClick={onTaskClick}
+                onTaskContextMenu={handleTaskContextMenu}
               />
             ))}
           </div>
@@ -239,6 +281,26 @@ export function KanbanBoard({
           </DragOverlay>
         </DndContext>
       </div>
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={handleCloseContextMenu}
+        >
+          <ContextMenuItem
+            icon={<TerminalIcon />}
+            label="Open in Terminal"
+            onClick={handleOpenTerminal}
+          />
+          <ContextMenuItem
+            icon={<DocumentIcon />}
+            label="View Details"
+            onClick={handleViewDetails}
+          />
+        </ContextMenu>
+      )}
     </div>
   );
 }
