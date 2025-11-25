@@ -526,11 +526,8 @@ export default function TaskDetailPage() {
           Error loading task
         </div>
         <p className="text-system-500 mt-2">{error}</p>
-        <button
-          onClick={() => navigate("/tasks")}
-          className="btn btn-secondary mt-4"
-        >
-          Back to Tasks
+        <button onClick={() => navigate(-1)} className="btn btn-secondary mt-4">
+          Back
         </button>
       </div>
     );
@@ -542,11 +539,8 @@ export default function TaskDetailPage() {
         <div className="text-system-500 dark:text-system-400 text-lg">
           Task not found
         </div>
-        <button
-          onClick={() => navigate("/tasks")}
-          className="btn btn-secondary mt-4"
-        >
-          Back to Tasks
+        <button onClick={() => navigate(-1)} className="btn btn-secondary mt-4">
+          Back
         </button>
       </div>
     );
@@ -557,7 +551,7 @@ export default function TaskDetailPage() {
       {/* Header */}
       <div className="flex items-center gap-3 mb-4 flex-shrink-0">
         <button
-          onClick={() => navigate("/tasks")}
+          onClick={() => navigate(-1)}
           className="flex items-center gap-1 text-system-500 hover:text-system-700 dark:text-system-400 dark:hover:text-white transition-colors flex-shrink-0"
         >
           <svg
@@ -573,7 +567,7 @@ export default function TaskDetailPage() {
               d="M15 19l-7-7 7-7"
             />
           </svg>
-          Back to Tasks
+          Back
         </button>
         <div className="h-6 w-px bg-system-200 dark:bg-system-700 flex-shrink-0" />
         <span className="text-system-500 dark:text-system-400 text-sm flex-shrink-0">
