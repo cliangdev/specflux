@@ -1228,14 +1228,16 @@ const tasks = await projectsApi.getProjectTasks({ id: 1 });
 - [ ] Task detail modal component
   - [ ] Full description
   - [ ] File references (PRD, Epic)
-  - [ ] Dependencies list
+  - [x] Dependencies list
   - [ ] Agent configuration
   - [ ] Start/Stop buttons
   - [ ] **Approval controls** (when status = pending-review)
-- [ ] Dependency visualization
-  - [ ] Show blocking tasks
-  - [ ] Show blocked tasks
-  - [ ] Visual indicators (✓ approved, ⏳ in progress, 🔒 blocked)
+- [x] Dependency visualization
+  - [x] Show blocking tasks (DependencyList component)
+  - [x] Show blocked tasks warning banner
+  - [x] Visual indicators (✓ approved, ⏳ in progress, 🔒 blocked)
+  - [x] Add dependency modal with task picker
+  - [x] Remove dependency functionality
 
 #### Approval System
 - [ ] Approval UI component
@@ -1280,11 +1282,11 @@ async function onTaskComplete(task: Task) {
 ```
 
 #### Dependency Management
-- [ ] Add dependency UI
-- [ ] Remove dependency UI
+- [x] Add dependency UI (AddDependencyModal component)
+- [x] Remove dependency UI (DependencyList with remove buttons)
 - [ ] **Auto-unblock logic on approval** (not just completion)
-- [ ] Validation (prevent circular dependencies)
-- [ ] Visual blocked indicators on Kanban
+- [x] Validation (prevent circular dependencies - backend validates)
+- [x] Visual blocked indicators on Kanban (blockedByCount badge on TaskCard)
 
 **Wireframe: Task Detail with Review (Week 6)**
 ```

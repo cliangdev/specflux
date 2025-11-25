@@ -8,11 +8,13 @@ import {
   type AgentStatus,
   type TaskDiff,
   type ApproveAndPRResult,
+  type TaskDependency,
   ControlTaskAgentRequestActionEnum,
   AgentStatusStatusEnum,
 } from "../api";
 import Terminal from "../components/Terminal";
 import FileChanges from "../components/FileChanges";
+import { DependencyList, AddDependencyModal } from "../components/tasks";
 
 // Helper to open external URLs using Tauri command
 const openExternal = async (url: string) => {
@@ -241,6 +243,8 @@ export default function TaskDetailPage() {
   } | null>(null);
   const [epics, setEpics] = useState<Epic[]>([]);
   const [epicLoading, setEpicLoading] = useState(false);
+  const [dependencies, setDependencies] = useState<TaskDependency[]>([]);
+  const [showAddDependencyModal, setShowAddDependencyModal] = useState(false);
 
   const fetchTask = useCallback(async () => {
     if (!taskId) return;
@@ -270,6 +274,19 @@ export default function TaskDetailPage() {
     }
   }, []);
 
+  // Fetch task dependencies
+  const fetchDependencies = useCallback(async () => {
+    if (!taskId) return;
+    try {
+      const response = await api.tasks.listTaskDependencies({
+        id: Number(taskId),
+      });
+      setDependencies(response.data ?? []);
+    } catch (err) {
+      console.error("Failed to fetch dependencies:", err);
+    }
+  }, [taskId]);
+
   // Update task's epic assignment
   const handleEpicChange = async (newEpicId: number | null) => {
     if (!task) return;
@@ -290,6 +307,31 @@ export default function TaskDetailPage() {
     } finally {
       setEpicLoading(false);
     }
+  };
+
+  // Remove dependency
+  const handleRemoveDependency = async (dependencyId: number) => {
+    if (!taskId) return;
+    try {
+      await api.tasks.removeTaskDependency({
+        id: Number(taskId),
+        depId: dependencyId,
+      });
+      // Refresh dependencies and task (blocked_by_count may change)
+      fetchDependencies();
+      fetchTask();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to remove dependency";
+      setError(message);
+      console.error("Failed to remove dependency:", err);
+    }
+  };
+
+  // Handle dependency added from modal
+  const handleDependencyAdded = () => {
+    fetchDependencies();
+    fetchTask(); // Refresh task to update blocked_by_count
   };
 
   const fetchAgentStatus = useCallback(async () => {
@@ -325,7 +367,8 @@ export default function TaskDetailPage() {
   useEffect(() => {
     fetchTask();
     fetchAgentStatus();
-  }, [fetchTask, fetchAgentStatus]);
+    fetchDependencies();
+  }, [fetchTask, fetchAgentStatus, fetchDependencies]);
 
   // Fetch diff when task is in pending_review
   useEffect(() => {
@@ -556,6 +599,33 @@ export default function TaskDetailPage() {
         </div>
       )}
 
+      {/* Blocked warning banner */}
+      {(task.blockedByCount ?? 0) > 0 && (
+        <div className="px-4 py-3 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg text-amber-700 dark:text-amber-300 text-sm mb-4 flex-shrink-0 flex items-center gap-2">
+          <svg
+            className="w-5 h-5 flex-shrink-0"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+            />
+          </svg>
+          <span>
+            This task is blocked by{" "}
+            <strong>
+              {task.blockedByCount} incomplete{" "}
+              {task.blockedByCount === 1 ? "dependency" : "dependencies"}
+            </strong>
+            . Complete the blocking tasks below before starting.
+          </span>
+        </div>
+      )}
+
       {/* Content - Split Pane */}
       <div className="flex flex-1 min-h-0 overflow-hidden rounded-lg border border-system-200 dark:border-system-800">
         {/* Left Panel - Task Details */}
@@ -590,6 +660,26 @@ export default function TaskDetailPage() {
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Dependencies */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-bold text-system-400 uppercase tracking-wider">
+                Dependencies
+              </h3>
+              <button
+                onClick={() => setShowAddDependencyModal(true)}
+                className="text-xs text-brand-500 hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300 font-medium"
+              >
+                + Add
+              </button>
+            </div>
+            <DependencyList
+              dependencies={dependencies}
+              onRemove={handleRemoveDependency}
+              emptyMessage="No dependencies - this task can start anytime"
+            />
           </div>
 
           {/* Agent Status - fixed height to prevent layout shift */}
@@ -847,6 +937,17 @@ export default function TaskDetailPage() {
           />
         </div>
       </div>
+
+      {/* Add Dependency Modal */}
+      {showAddDependencyModal && (
+        <AddDependencyModal
+          taskId={task.id}
+          projectId={task.projectId}
+          existingDependencyIds={dependencies.map((d) => d.dependsOnTaskId)}
+          onClose={() => setShowAddDependencyModal(false)}
+          onAdded={handleDependencyAdded}
+        />
+      )}
     </div>
   );
 }
