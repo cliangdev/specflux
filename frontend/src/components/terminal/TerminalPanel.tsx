@@ -69,7 +69,7 @@ export default function TerminalPanel() {
     switchToSession,
     closeSession,
     updateSessionStatus,
-    openTerminalForTask,
+    openTerminalForContext,
   } = useTerminal();
 
   const [showNewSessionDialog, setShowNewSessionDialog] = useState(false);
@@ -152,10 +152,11 @@ export default function TerminalPanel() {
                 className={`absolute inset-0 ${
                   session.id === activeSessionId ? "visible" : "invisible"
                 }`}
-                data-testid={`terminal-content-${session.taskId}`}
+                data-testid={`terminal-content-${session.contextId}`}
               >
                 <Terminal
-                  taskId={session.taskId}
+                  contextType={session.contextType}
+                  contextId={session.contextId}
                   onStatusChange={createStatusChangeHandler(session.id)}
                 />
               </div>
@@ -178,8 +179,8 @@ export default function TerminalPanel() {
         <NewSessionDialog
           projectId={currentProject.id}
           onClose={() => setShowNewSessionDialog(false)}
-          onCreated={(taskId, taskTitle) => {
-            openTerminalForTask({ id: taskId, title: taskTitle });
+          onCreated={(context) => {
+            openTerminalForContext(context);
             setShowNewSessionDialog(false);
           }}
         />

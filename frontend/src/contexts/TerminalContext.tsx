@@ -12,8 +12,20 @@ export interface TaskInfo {
   title: string;
 }
 
+export type ContextType = "task" | "epic" | "project";
+
+export interface ContextInfo {
+  type: ContextType;
+  id: number;
+  title: string;
+}
+
 export interface TerminalSession {
-  id: string; // e.g., "task-123"
+  id: string; // e.g., "task-123", "epic-5", "project-2"
+  contextType: ContextType;
+  contextId: number;
+  contextTitle: string;
+  // Backwards compatibility aliases
   taskId: number;
   taskTitle: string;
   isRunning: boolean;
@@ -32,7 +44,8 @@ interface TerminalContextValue {
   // Multi-tab session state
   sessions: TerminalSession[];
   activeSessionId: string | null;
-  openTerminalForTask: (task: TaskInfo) => void;
+  openTerminalForContext: (context: ContextInfo) => void;
+  openTerminalForTask: (task: TaskInfo) => void; // Backwards compat
   closeSession: (sessionId: string) => void;
   switchToSession: (sessionId: string) => void;
   updateSessionStatus: (
@@ -110,8 +123,8 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
     setIsCollapsed((prev) => !prev);
   }, []);
 
-  const openTerminalForTask = useCallback((task: TaskInfo) => {
-    const sessionId = `task-${task.id}`;
+  const openTerminalForContext = useCallback((context: ContextInfo) => {
+    const sessionId = `${context.type}-${context.id}`;
 
     setSessions((prev) => {
       // Check if session already exists
@@ -125,8 +138,12 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
         ...prev,
         {
           id: sessionId,
-          taskId: task.id,
-          taskTitle: task.title,
+          contextType: context.type,
+          contextId: context.id,
+          contextTitle: context.title,
+          // Backwards compat aliases
+          taskId: context.id,
+          taskTitle: context.title,
           isRunning: false,
           isConnected: false,
         },
@@ -137,6 +154,14 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
     setIsOpen(true);
     setIsCollapsed(false);
   }, []);
+
+  // Backwards compatibility wrapper
+  const openTerminalForTask = useCallback(
+    (task: TaskInfo) => {
+      openTerminalForContext({ type: "task", id: task.id, title: task.title });
+    },
+    [openTerminalForContext],
+  );
 
   const closeSession = useCallback(
     (sessionId: string) => {
@@ -212,6 +237,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
     toggleCollapse,
     sessions,
     activeSessionId,
+    openTerminalForContext,
     openTerminalForTask,
     closeSession,
     switchToSession,

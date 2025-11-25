@@ -15,8 +15,12 @@ interface TerminalDimensions {
   rows: number;
 }
 
+type ContextType = "task" | "epic" | "project";
+
 interface TerminalProps {
-  taskId: number;
+  contextType?: ContextType;
+  contextId?: number;
+  taskId?: number; // Deprecated: use contextType + contextId instead
   wsUrl?: string;
   onStatusChange?: (running: boolean) => void;
   onExit?: (exitCode: number) => void;
@@ -56,7 +60,9 @@ interface TerminalMessage {
  * - Simplified mouse handling via xterm options
  */
 export function Terminal({
-  taskId,
+  contextType = "task",
+  contextId,
+  taskId, // Deprecated
   wsUrl,
   onStatusChange,
   onExit,
@@ -65,6 +71,9 @@ export function Terminal({
   onProgress,
   onDimensionsReady,
 }: TerminalProps) {
+  // Support backwards compat: use taskId if contextId not provided
+  const effectiveContextId = contextId ?? taskId;
+  const effectiveContextType = contextType;
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -107,8 +116,8 @@ export function Terminal({
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = window.location.hostname;
     const port = import.meta.env.VITE_API_PORT ?? "3000";
-    return `${protocol}//${host}:${port}/ws/terminal/${taskId}`;
-  }, [taskId, wsUrl]);
+    return `${protocol}//${host}:${port}/ws/terminal/${effectiveContextType}/${effectiveContextId}`;
+  }, [effectiveContextType, effectiveContextId, wsUrl]);
 
   // Initialize terminal with WebGL
   useEffect(() => {
@@ -209,7 +218,7 @@ export function Terminal({
       webglAddon?.dispose();
       term.dispose();
     };
-  }, [taskId]);
+  }, [effectiveContextType, effectiveContextId]);
 
   // Connect WebSocket
   useEffect(() => {

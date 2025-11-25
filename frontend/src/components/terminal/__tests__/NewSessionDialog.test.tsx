@@ -58,6 +58,7 @@ describe("NewSessionDialog", () => {
     vi.mocked(api.tasks.listTasks).mockResolvedValue({
       success: true,
       data: mockTasks,
+      pagination: { hasMore: false, total: 3 },
     });
   });
 
@@ -197,7 +198,7 @@ describe("NewSessionDialog", () => {
     expect(submitButton).not.toBeDisabled();
   });
 
-  it("calls onCreated with task info when submitted", async () => {
+  it("calls onCreated with context info when submitted", async () => {
     renderDialog();
 
     await waitFor(() => {
@@ -210,7 +211,11 @@ describe("NewSessionDialog", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Open Terminal/i }));
 
-    expect(mockOnCreated).toHaveBeenCalledWith(1, "Task 1");
+    expect(mockOnCreated).toHaveBeenCalledWith({
+      type: "task",
+      id: 1,
+      title: "Task 1",
+    });
   });
 
   it("shows error when submitting without selecting a task", async () => {
@@ -252,6 +257,7 @@ describe("NewSessionDialog", () => {
               resolve({
                 success: true,
                 data: mockTasks,
+                pagination: { hasMore: false, total: 3 },
               }),
             100,
           ),
@@ -267,6 +273,7 @@ describe("NewSessionDialog", () => {
     vi.mocked(api.tasks.listTasks).mockResolvedValue({
       success: true,
       data: [mockTasks[2]], // Only the "done" task
+      pagination: { hasMore: false, total: 1 },
     });
 
     renderDialog();

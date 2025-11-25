@@ -10,13 +10,23 @@ import {
   agentLifecycleEmitter,
 } from '../services/agent.service';
 
+type ContextType = 'task' | 'epic' | 'project';
+
 interface TerminalClient {
   ws: WebSocket;
+  contextType: ContextType;
+  contextId: number;
+  // Backwards compat alias
   taskId: number;
 }
 
-// Track connected clients per task
-const clientsByTask = new Map<number, Set<TerminalClient>>();
+// Track connected clients per context (key format: "type-id", e.g., "task-123")
+const clientsByContext = new Map<string, Set<TerminalClient>>();
+
+// Helper to create context key
+function contextKey(type: ContextType, id: number): string {
+  return `${type}-${id}`;
+}
 
 /**
  * Create WebSocket server for terminal streaming
@@ -28,13 +38,14 @@ export function createTerminalWebSocketServer(server: Server): WebSocketServer {
   server.on('upgrade', (request: IncomingMessage, socket, head) => {
     const { pathname } = parse(request.url ?? '', true);
 
-    // Match /ws/terminal/:taskId
-    const match = pathname?.match(/^\/ws\/terminal\/(\d+)$/);
-    if (match?.[1]) {
-      const taskId = parseInt(match[1], 10);
+    // Match /ws/terminal/:contextType/:contextId
+    const match = pathname?.match(/^\/ws\/terminal\/(task|epic|project)\/(\d+)$/);
+    if (match?.[1] && match?.[2]) {
+      const contextType = match[1] as ContextType;
+      const contextId = parseInt(match[2], 10);
 
       wss.handleUpgrade(request, socket, head, (ws) => {
-        wss.emit('connection', ws, request, taskId);
+        wss.emit('connection', ws, request, contextType, contextId);
       });
     } else {
       // Not a terminal WebSocket request
@@ -43,24 +54,49 @@ export function createTerminalWebSocketServer(server: Server): WebSocketServer {
   });
 
   // Handle new connections
-  wss.on('connection', (ws: WebSocket, _request: IncomingMessage, taskId: number) => {
-    handleConnection(ws, taskId);
-  });
+  wss.on(
+    'connection',
+    (ws: WebSocket, _request: IncomingMessage, contextType: ContextType, contextId: number) => {
+      handleConnection(ws, contextType, contextId);
+    }
+  );
 
   return wss;
 }
 
 /**
- * Handle a new WebSocket connection for a task
+ * Handle a new WebSocket connection for a context
  */
-function handleConnection(ws: WebSocket, taskId: number): void {
-  const client: TerminalClient = { ws, taskId };
+function handleConnection(ws: WebSocket, contextType: ContextType, contextId: number): void {
+  // For now, only task context is supported
+  // Epic and project contexts will be implemented in Tasks #37/#38
+  if (contextType !== 'task') {
+    ws.send(
+      JSON.stringify({
+        type: 'error',
+        message: `Context type "${contextType}" is not yet supported. Only "task" is currently available.`,
+      })
+    );
+    ws.close();
+    return;
+  }
+
+  const key = contextKey(contextType, contextId);
+  const client: TerminalClient = {
+    ws,
+    contextType,
+    contextId,
+    taskId: contextId, // Backwards compat alias
+  };
 
   // Add to client set
-  if (!clientsByTask.has(taskId)) {
-    clientsByTask.set(taskId, new Set());
+  if (!clientsByContext.has(key)) {
+    clientsByContext.set(key, new Set());
   }
-  clientsByTask.get(taskId)!.add(client);
+  clientsByContext.get(key)!.add(client);
+
+  // For task context, taskId === contextId
+  const taskId = contextId;
 
   // Send initial status
   ws.send(
@@ -198,11 +234,11 @@ function handleConnection(ws: WebSocket, taskId: number): void {
 
   // Handle disconnect
   ws.on('close', () => {
-    clientsByTask.get(taskId)?.delete(client);
+    clientsByContext.get(key)?.delete(client);
 
-    // Clean up empty task sets
-    if (clientsByTask.get(taskId)?.size === 0) {
-      clientsByTask.delete(taskId);
+    // Clean up empty context sets
+    if (clientsByContext.get(key)?.size === 0) {
+      clientsByContext.delete(key);
     }
 
     // Remove listeners from current emitter
@@ -311,7 +347,20 @@ function handleClientMessage(
  * Broadcast message to all clients connected to a task
  */
 export function broadcastToTask(taskId: number, message: object): void {
-  const clients = clientsByTask.get(taskId);
+  // For backwards compat, broadcast to task context
+  broadcastToContext('task', taskId, message);
+}
+
+/**
+ * Broadcast message to all clients connected to a context
+ */
+export function broadcastToContext(
+  contextType: ContextType,
+  contextId: number,
+  message: object
+): void {
+  const key = contextKey(contextType, contextId);
+  const clients = clientsByContext.get(key);
   if (!clients) return;
 
   const data = JSON.stringify(message);
@@ -326,12 +375,39 @@ export function broadcastToTask(taskId: number, message: object): void {
  * Get count of connected clients for a task
  */
 export function getClientCount(taskId: number): number {
-  return clientsByTask.get(taskId)?.size ?? 0;
+  return getContextClientCount('task', taskId);
+}
+
+/**
+ * Get count of connected clients for a context
+ */
+export function getContextClientCount(contextType: ContextType, contextId: number): number {
+  const key = contextKey(contextType, contextId);
+  return clientsByContext.get(key)?.size ?? 0;
 }
 
 /**
  * Get all task IDs with active connections
  */
 export function getActiveTaskIds(): number[] {
-  return Array.from(clientsByTask.keys());
+  // Filter to task contexts only and extract IDs
+  return Array.from(clientsByContext.keys())
+    .filter((key) => key.startsWith('task-'))
+    .map((key) => {
+      const idPart = key.split('-')[1];
+      return idPart ? parseInt(idPart, 10) : 0;
+    })
+    .filter((id) => id > 0);
+}
+
+/**
+ * Get all context keys with active connections
+ */
+export function getActiveContexts(): Array<{ type: ContextType; id: number }> {
+  return Array.from(clientsByContext.keys()).map((key) => {
+    const parts = key.split('-');
+    const type = parts[0] ?? 'task';
+    const id = parts[1] ? parseInt(parts[1], 10) : 0;
+    return { type: type as ContextType, id };
+  });
 }

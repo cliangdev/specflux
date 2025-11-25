@@ -1,4 +1,7 @@
-import type { TerminalSession } from "../../contexts/TerminalContext";
+import type {
+  TerminalSession,
+  ContextType,
+} from "../../contexts/TerminalContext";
 
 interface TerminalTabBarProps {
   sessions: TerminalSession[];
@@ -24,6 +27,66 @@ const XIcon = () => (
   </svg>
 );
 
+// Context type icons
+const TaskIcon = () => (
+  <svg
+    className="w-3 h-3 flex-shrink-0"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+    />
+  </svg>
+);
+
+const EpicIcon = () => (
+  <svg
+    className="w-3 h-3 flex-shrink-0"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"
+    />
+  </svg>
+);
+
+const ProjectIcon = () => (
+  <svg
+    className="w-3 h-3 flex-shrink-0"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+    />
+  </svg>
+);
+
+function ContextIcon({ type }: { type: ContextType }) {
+  switch (type) {
+    case "task":
+      return <TaskIcon />;
+    case "epic":
+      return <EpicIcon />;
+    case "project":
+      return <ProjectIcon />;
+  }
+}
+
 export default function TerminalTabBar({
   sessions,
   activeSessionId,
@@ -41,10 +104,13 @@ export default function TerminalTabBar({
     >
       {sessions.map((session, index) => {
         const isActive = session.id === activeSessionId;
+        const contextType = session.contextType ?? "task";
+        const contextId = session.contextId ?? session.taskId;
+        const contextTitle = session.contextTitle ?? session.taskTitle;
         const truncatedTitle =
-          session.taskTitle.length > 20
-            ? session.taskTitle.substring(0, 20) + "..."
-            : session.taskTitle;
+          contextTitle.length > 20
+            ? contextTitle.substring(0, 20) + "..."
+            : contextTitle;
 
         return (
           <div
@@ -59,20 +125,23 @@ export default function TerminalTabBar({
               }
             `}
             onClick={() => onSwitchSession(session.id)}
-            data-testid={`terminal-tab-${session.taskId}`}
-            title={`${session.taskTitle} (⌘${index + 1})`}
+            data-testid={`terminal-tab-${contextId}`}
+            title={`${contextTitle} (⌘${index + 1})`}
           >
+            {/* Context type icon */}
+            <ContextIcon type={contextType} />
+
             {/* Running indicator */}
             {session.isRunning && (
               <span
                 className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0"
-                data-testid={`terminal-tab-running-${session.taskId}`}
+                data-testid={`terminal-tab-running-${contextId}`}
               />
             )}
 
             {/* Tab label */}
             <span className="truncate">
-              #{session.taskId}: {truncatedTitle}
+              #{contextId}: {truncatedTitle}
             </span>
 
             {/* Close button */}
@@ -87,7 +156,7 @@ export default function TerminalTabBar({
                 ${isActive ? "text-slate-400 hover:text-slate-200" : "text-slate-500 hover:text-slate-300"}
               `}
               title="Close tab"
-              data-testid={`terminal-tab-close-${session.taskId}`}
+              data-testid={`terminal-tab-close-${contextId}`}
             >
               <XIcon />
             </button>
