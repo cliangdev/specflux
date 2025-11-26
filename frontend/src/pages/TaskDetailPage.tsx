@@ -14,7 +14,11 @@ import {
   AgentStatusStatusEnum,
 } from "../api";
 import FileChanges from "../components/FileChanges";
-import { DependencyList, AddDependencyModal } from "../components/tasks";
+import {
+  DependencyList,
+  AddDependencyModal,
+  ReadinessChecklist,
+} from "../components/tasks";
 import TaskDetailHeader from "../components/tasks/TaskDetailHeader";
 import { TaskEditModal } from "../components/ui";
 import { useTerminal } from "../contexts/TerminalContext";
@@ -517,6 +521,19 @@ export default function TaskDetailPage() {
             </p>
           </div>
 
+          {/* Definition of Ready Checklist */}
+          <div className="mb-6">
+            <h3 className="text-xs font-bold text-system-400 uppercase tracking-wider mb-2">
+              Definition of Ready
+            </h3>
+            <ReadinessChecklist
+              readiness={readiness}
+              onAddCriteria={() => setShowEditModal(true)}
+              onAssignExecutor={() => setShowEditModal(true)}
+              onAssignRepo={() => setShowEditModal(true)}
+            />
+          </div>
+
           {/* Epic */}
           <div className="mb-6">
             <h3 className="text-xs font-bold text-system-400 uppercase tracking-wider mb-2">
@@ -847,10 +864,25 @@ export default function TaskDetailPage() {
                 <p className="text-sm font-medium mb-3">No terminal session</p>
                 <button
                   onClick={handleOpenInTerminal}
-                  className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  disabled={!readiness.isReady}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    readiness.isReady
+                      ? "bg-brand-600 hover:bg-brand-700 text-white"
+                      : "bg-slate-700 text-slate-400 cursor-not-allowed"
+                  }`}
+                  title={
+                    readiness.isReady
+                      ? "Start agent in terminal"
+                      : `Task not ready (${readiness.score}% complete)`
+                  }
                 >
                   Open in Terminal
                 </button>
+                {!readiness.isReady && (
+                  <p className="text-xs mt-2 text-amber-400">
+                    Complete Definition of Ready ({readiness.score}%) to enable
+                  </p>
+                )}
                 <p className="text-xs mt-3 text-slate-500">
                   Or press ⌘T to toggle the terminal panel
                 </p>
