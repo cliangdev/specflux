@@ -29,8 +29,8 @@ const CONTEXT_MODE_OPTIONS: {
   {
     value: "project",
     label: "Project",
-    description: "Work on project-level tasks",
-    enabled: false,
+    description: "Coordinate across epics, review project health",
+    enabled: true,
   },
 ];
 
@@ -117,8 +117,13 @@ export default function NewSessionDialog({
           title: selectedEpic.title,
         });
       }
+    } else if (contextMode === "project") {
+      onCreated({
+        type: "project",
+        id: projectId,
+        title: "Project",
+      });
     }
-    // Project mode will be implemented in future tasks
   };
 
   const canSubmit =
@@ -126,7 +131,9 @@ export default function NewSessionDialog({
       ? !!selectedTaskId
       : contextMode === "epic"
         ? !!selectedEpicId
-        : CONTEXT_MODE_OPTIONS.find((o) => o.value === contextMode)?.enabled;
+        : contextMode === "project"
+          ? true // Project uses current project automatically
+          : CONTEXT_MODE_OPTIONS.find((o) => o.value === contextMode)?.enabled;
 
   const loading = loadingTasks || loadingEpics;
 
@@ -293,6 +300,20 @@ export default function NewSessionDialog({
                 )}
                 <p className="mt-1 text-xs text-system-500 dark:text-system-400">
                   Claude will review the epic&apos;s PRD and task breakdown.
+                </p>
+              </div>
+            )}
+
+            {/* Project Mode Info */}
+            {contextMode === "project" && (
+              <div className="p-3 bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-700 rounded-lg">
+                <p className="text-sm text-brand-700 dark:text-brand-300">
+                  Claude will analyze the project overview, including all epics,
+                  task statistics, and repositories.
+                </p>
+                <p className="mt-1 text-xs text-brand-600 dark:text-brand-400">
+                  Use this mode for cross-epic coordination and project
+                  planning.
                 </p>
               </div>
             )}

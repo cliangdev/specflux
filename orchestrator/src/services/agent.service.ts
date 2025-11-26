@@ -13,7 +13,7 @@ import {
   generateBranchName,
   cleanupWorktree,
 } from './worktree.service';
-import { writeContextFile, writeEpicContextFile } from './context.service';
+import { writeContextFile, writeEpicContextFile, writeProjectContextFile } from './context.service';
 import { getEpicById } from './epic.service';
 import { getWorktreeChanges, commitAndCreatePR, WorktreeChanges } from './git-workflow.service';
 import {
@@ -389,11 +389,6 @@ export function spawnAgentForContext(
   contextId: number,
   config?: SpawnAgentConfig
 ): AgentSession {
-  // Validate context type is supported
-  if (contextType === 'project') {
-    throw new ValidationError('Project context is not yet supported');
-  }
-
   const key = contextKey(contextType, contextId);
 
   // Check if agent already running
@@ -412,13 +407,19 @@ export function spawnAgentForContext(
       throw new NotFoundError('Task', contextId);
     }
     projectId = task.project_id;
-  } else {
-    // epic
+  } else if (contextType === 'epic') {
     epic = getEpicById(contextId);
     if (!epic) {
       throw new NotFoundError('Epic', contextId);
     }
     projectId = epic.project_id;
+  } else {
+    // project context - contextId is the project ID
+    const project = getProjectById(contextId);
+    if (!project) {
+      throw new NotFoundError('Project', contextId);
+    }
+    projectId = project.id;
   }
 
   // Get project
@@ -481,6 +482,8 @@ export function spawnAgentForContext(
     writeContextFile(agentWorkDir, contextId);
   } else if (contextType === 'epic') {
     writeEpicContextFile(agentWorkDir, contextId);
+  } else if (contextType === 'project') {
+    writeProjectContextFile(agentWorkDir, contextId);
   }
 
   // Create session record
@@ -496,6 +499,8 @@ export function spawnAgentForContext(
       initialPrompt = `Please work on this task:\n\nTask #${task.id}: ${task.title}\n\n${task.description ?? 'No description provided.'}\n\nStart by understanding what needs to be done, then implement the changes.`;
     } else if (contextType === 'epic' && epic) {
       initialPrompt = `Please review this epic for planning quality.\n\nEpic: ${epic.title}\n\nRead the CLAUDE.md file in this directory - it contains the epic details, PRD, and all tasks. Then provide feedback on:\n1. PRD completeness\n2. Task sizing and scoping\n3. Task descriptions and context\n4. Dependencies\n5. Any missing tasks`;
+    } else if (contextType === 'project') {
+      initialPrompt = `Please review this project and help with coordination, planning, or cross-epic analysis as needed.\n\nRead the CLAUDE.md file in this directory - it contains project statistics, repositories, epics overview, and recent tasks.`;
     } else {
       initialPrompt = `Please start working. Read CLAUDE.md for context.`;
     }
