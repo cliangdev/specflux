@@ -41,6 +41,8 @@ tags:
     description: User profile management
   - name: Projects
     description: Project management
+  - name: Releases
+    description: Release management for roadmap planning
   - name: Epics
     description: Epic management (groups of related tasks)
   - name: Tasks
@@ -72,6 +74,14 @@ paths:
     $ref: './paths/projects.yaml#/projects-id-dashboard'
   /projects/{id}/stats:
     $ref: './paths/projects.yaml#/projects-id-stats'
+
+  # Releases (nested under projects)
+  /projects/{id}/releases:
+    $ref: './paths/releases.yaml#/projects-id-releases'
+  /releases/{id}:
+    $ref: './paths/releases.yaml#/releases-id'
+  /releases/{id}/roadmap:
+    $ref: './paths/releases.yaml#/releases-id-roadmap'
 
   # Epics (nested under projects)
   /projects/{id}/epics:

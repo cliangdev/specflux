@@ -28,6 +28,18 @@ DashboardResponse:
 ProjectStats:
   $ref: './project.yaml#/ProjectStats'
 
+# Release schemas
+Release:
+  $ref: './release.yaml#/Release'
+CreateReleaseRequest:
+  $ref: './release.yaml#/CreateReleaseRequest'
+UpdateReleaseRequest:
+  $ref: './release.yaml#/UpdateReleaseRequest'
+ReleaseWithEpics:
+  $ref: './release.yaml#/ReleaseWithEpics'
+ReleasePhase:
+  $ref: './release.yaml#/ReleasePhase'
+
 # Epic schemas
 Epic:
   $ref: './epic.yaml#/Epic'

@@ -1,0 +1,127 @@
+Release:
+  type: object
+  properties:
+    id:
+      type: integer
+    project_id:
+      type: integer
+    name:
+      type: string
+      description: Release name (e.g., "v1.0 MVP")
+    target_date:
+      type: string
+      format: date
+      nullable: true
+      description: Target release date
+    status:
+      type: string
+      enum: [planned, in_progress, released]
+      description: Release status
+    description:
+      type: string
+      nullable: true
+    epic_count:
+      type: integer
+      description: Number of epics in this release
+    progress_percentage:
+      type: integer
+      minimum: 0
+      maximum: 100
+      description: Overall progress calculated from epic completion
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+  required:
+    - id
+    - project_id
+    - name
+    - status
+    - created_at
+    - updated_at
+
+CreateReleaseRequest:
+  type: object
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 100
+      description: Release name (e.g., "v1.0 MVP")
+    target_date:
+      type: string
+      format: date
+      nullable: true
+      description: Target release date
+    description:
+      type: string
+      nullable: true
+      maxLength: 1000
+  required:
+    - name
+
+UpdateReleaseRequest:
+  type: object
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 100
+    target_date:
+      type: string
+      format: date
+      nullable: true
+    status:
+      type: string
+      enum: [planned, in_progress, released]
+    description:
+      type: string
+      nullable: true
+      maxLength: 1000
+
+ReleaseWithEpics:
+  type: object
+  properties:
+    release:
+      $ref: '#/Release'
+    epics:
+      type: array
+      items:
+        $ref: './epic.yaml#/Epic'
+    phases:
+      type: array
+      items:
+        $ref: '#/ReleasePhase'
+  required:
+    - release
+    - epics
+    - phases
+
+ReleasePhase:
+  type: object
+  properties:
+    phase_number:
+      type: integer
+      minimum: 1
+      description: Phase number (1 = no dependencies, 2+ based on dependency depth)
+    status:
+      type: string
+      enum: [ready, in_progress, blocked, completed]
+      description: Phase status based on epic statuses
+    epic_ids:
+      type: array
+      items:
+        type: integer
+      description: IDs of epics in this phase
+    completed_count:
+      type: integer
+    total_count:
+      type: integer
+  required:
+    - phase_number
+    - status
+    - epic_ids
+    - completed_count
+    - total_count
