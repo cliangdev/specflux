@@ -19,6 +19,8 @@ import {
   ReadinessChecklist,
   TaskOverviewTab,
   TaskContextTab,
+  TerminalIntegrationBanner,
+  type BannerState,
 } from "../components/tasks";
 import TaskDetailHeader from "../components/tasks/TaskDetailHeader";
 import { TaskEditModal, TabNavigation } from "../components/ui";
@@ -137,7 +139,9 @@ export default function TaskDetailPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const {
     openTerminalForTask,
+    openPanel,
     activeTask,
+    sessions,
     isRunning: terminalIsRunning,
   } = useTerminal();
 
@@ -168,6 +172,28 @@ export default function TaskDetailPage() {
 
   // Check if terminal is showing this task
   const isTerminalShowingThisTask = activeTask?.id === Number(taskId);
+
+  // Check if there's any session for this task
+  const taskSessionId = `task-${taskId}`;
+  const hasSessionForTask = sessions.some((s) => s.id === taskSessionId);
+  const taskSession = sessions.find((s) => s.id === taskSessionId);
+
+  // Derive banner state based on terminal/PR status
+  const deriveBannerState = (): BannerState => {
+    // PR created takes priority
+    if (prResult?.prUrl || task?.githubPrUrl) {
+      return "pr_created";
+    }
+    // Check if there's an active session for this task
+    if (hasSessionForTask && taskSession?.isRunning) {
+      // TODO: In future, detect "needs_input" state from agent status
+      return "session_active";
+    }
+    if (hasSessionForTask) {
+      return "session_active";
+    }
+    return "no_session";
+  };
 
   // Calculate readiness when task changes
   const readiness = useMemo(() => {
@@ -443,6 +469,26 @@ export default function TaskDetailPage() {
   const handleOpenInTerminal = () => {
     if (task) {
       openTerminalForTask({ id: task.id, title: task.title });
+    }
+  };
+
+  // Handle viewing terminal (just open the panel)
+  const handleViewTerminal = () => {
+    if (task) {
+      // If session exists, open panel; otherwise open terminal for task
+      if (hasSessionForTask) {
+        openPanel();
+      } else {
+        openTerminalForTask({ id: task.id, title: task.title });
+      }
+    }
+  };
+
+  // Handle opening PR in browser
+  const handleOpenPR = () => {
+    const url = prResult?.prUrl || task?.githubPrUrl;
+    if (url) {
+      openExternal(url);
     }
   };
 
@@ -754,74 +800,18 @@ export default function TaskDetailPage() {
           </div>
         </div>
 
-        {/* Right Panel - Terminal Placeholder / Open in Terminal */}
+        {/* Right Panel - Terminal Integration Banner */}
         <div className="w-2/3 flex flex-col min-w-0 bg-slate-900">
-          {isTerminalShowingThisTask ? (
-            <div className="h-full flex items-center justify-center text-slate-400">
-              <div className="text-center">
-                <svg
-                  className="w-12 h-12 mx-auto mb-3 text-slate-600"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={1.5}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z"
-                  />
-                </svg>
-                <p className="text-sm font-medium">Terminal is open below</p>
-                <p className="text-xs mt-1 text-slate-500">
-                  Press ⌘T to toggle the terminal panel
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="h-full flex items-center justify-center text-slate-400">
-              <div className="text-center">
-                <svg
-                  className="w-12 h-12 mx-auto mb-3 text-slate-600"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={1.5}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z"
-                  />
-                </svg>
-                <p className="text-sm font-medium mb-3">No terminal session</p>
-                <button
-                  onClick={handleOpenInTerminal}
-                  disabled={!readiness.isReady}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    readiness.isReady
-                      ? "bg-brand-600 hover:bg-brand-700 text-white"
-                      : "bg-slate-700 text-slate-400 cursor-not-allowed"
-                  }`}
-                  title={
-                    readiness.isReady
-                      ? "Start agent in terminal"
-                      : `Task not ready (${readiness.score}% complete)`
-                  }
-                >
-                  Open in Terminal
-                </button>
-                {!readiness.isReady && (
-                  <p className="text-xs mt-2 text-amber-400">
-                    Complete Definition of Ready ({readiness.score}%) to enable
-                  </p>
-                )}
-                <p className="text-xs mt-3 text-slate-500">
-                  Or press ⌘T to toggle the terminal panel
-                </p>
-              </div>
-            </div>
-          )}
+          <TerminalIntegrationBanner
+            state={deriveBannerState()}
+            readiness={readiness}
+            isTerminalShowingThisTask={isTerminalShowingThisTask}
+            prUrl={prResult?.prUrl || task.githubPrUrl}
+            prNumber={prResult?.prNumber || task.githubPrNumber}
+            onOpenInTerminal={handleOpenInTerminal}
+            onViewTerminal={handleViewTerminal}
+            onOpenPR={handleOpenPR}
+          />
         </div>
       </div>
 
