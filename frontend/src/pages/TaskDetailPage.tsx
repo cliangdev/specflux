@@ -19,8 +19,6 @@ import {
   ReadinessChecklist,
   TaskOverviewTab,
   TaskContextTab,
-  TerminalIntegrationBanner,
-  type BannerState,
 } from "../components/tasks";
 import TaskDetailHeader from "../components/tasks/TaskDetailHeader";
 import { TaskEditModal, TabNavigation } from "../components/ui";
@@ -139,9 +137,7 @@ export default function TaskDetailPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const {
     openTerminalForTask,
-    openPanel,
     activeTask,
-    sessions,
     isRunning: terminalIsRunning,
   } = useTerminal();
 
@@ -172,28 +168,6 @@ export default function TaskDetailPage() {
 
   // Check if terminal is showing this task
   const isTerminalShowingThisTask = activeTask?.id === Number(taskId);
-
-  // Check if there's any session for this task
-  const taskSessionId = `task-${taskId}`;
-  const hasSessionForTask = sessions.some((s) => s.id === taskSessionId);
-  const taskSession = sessions.find((s) => s.id === taskSessionId);
-
-  // Derive banner state based on terminal/PR status
-  const deriveBannerState = (): BannerState => {
-    // PR created takes priority
-    if (prResult?.prUrl || task?.githubPrUrl) {
-      return "pr_created";
-    }
-    // Check if there's an active session for this task
-    if (hasSessionForTask && taskSession?.isRunning) {
-      // TODO: In future, detect "needs_input" state from agent status
-      return "session_active";
-    }
-    if (hasSessionForTask) {
-      return "session_active";
-    }
-    return "no_session";
-  };
 
   // Calculate readiness when task changes
   const readiness = useMemo(() => {
@@ -472,26 +446,6 @@ export default function TaskDetailPage() {
     }
   };
 
-  // Handle viewing terminal (just open the panel)
-  const handleViewTerminal = () => {
-    if (task) {
-      // If session exists, open panel; otherwise open terminal for task
-      if (hasSessionForTask) {
-        openPanel();
-      } else {
-        openTerminalForTask({ id: task.id, title: task.title });
-      }
-    }
-  };
-
-  // Handle opening PR in browser
-  const handleOpenPR = () => {
-    const url = prResult?.prUrl || task?.githubPrUrl;
-    if (url) {
-      openExternal(url);
-    }
-  };
-
   const isAgentRunning =
     agentStatus?.status === AgentStatusStatusEnum.Running ||
     (isTerminalShowingThisTask && terminalIsRunning);
@@ -603,10 +557,10 @@ export default function TaskDetailPage() {
         </div>
       )}
 
-      {/* Content - Split Pane */}
-      <div className="flex flex-1 min-h-0 overflow-hidden rounded-lg border border-system-200 dark:border-system-800">
-        {/* Left Panel - Tabbed Task Details */}
-        <div className="w-1/3 border-r border-system-200 dark:border-system-800 flex flex-col bg-white dark:bg-system-900">
+      {/* Content - Main area with sidebar */}
+      <div className="flex flex-1 min-h-0 overflow-hidden rounded-lg border border-system-200 dark:border-system-800 bg-white dark:bg-system-900">
+        {/* Main Content - Tabbed Task Details */}
+        <div className="flex-1 flex flex-col min-w-0">
           {/* Tab Navigation */}
           <TabNavigation
             tabs={TABS}
@@ -616,25 +570,7 @@ export default function TaskDetailPage() {
 
           {/* Tab Content */}
           <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
-            {activeTab === "overview" && (
-              <div className="space-y-6">
-                {/* Overview Tab Content */}
-                <TaskOverviewTab task={task} />
-
-                {/* Definition of Ready Checklist */}
-                <div>
-                  <h3 className="text-sm font-semibold text-system-900 dark:text-white mb-2">
-                    Definition of Ready
-                  </h3>
-                  <ReadinessChecklist
-                    readiness={readiness}
-                    onAddCriteria={() => setShowEditModal(true)}
-                    onAssignExecutor={() => setShowEditModal(true)}
-                    onAssignRepo={() => setShowEditModal(true)}
-                  />
-                </div>
-              </div>
-            )}
+            {activeTab === "overview" && <TaskOverviewTab task={task} />}
 
             {activeTab === "context" && (
               <TaskContextTab
@@ -646,114 +582,150 @@ export default function TaskDetailPage() {
               />
             )}
           </div>
+        </div>
 
-          {/* Sidebar - Agent Controls & Actions (always visible) */}
-          <div className="border-t border-system-200 dark:border-system-700 p-4 space-y-4 bg-system-50 dark:bg-system-800/50">
-            {/* Agent Status */}
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-system-500 dark:text-system-400 uppercase">
-                Agent
-              </span>
-              {agentLoading ? (
-                <span className="text-system-500 text-sm">Loading...</span>
-              ) : (
-                <AgentStatusBadge status={agentStatus?.status ?? "idle"} />
-              )}
+        {/* Right Sidebar */}
+        <div className="w-72 flex-shrink-0 border-l border-system-200 dark:border-system-700 bg-system-50 dark:bg-system-800/50 flex flex-col overflow-y-auto">
+          <div className="p-4 space-y-6">
+            {/* Definition of Ready */}
+            <div>
+              <h3 className="text-xs font-semibold text-system-500 dark:text-system-400 uppercase mb-3">
+                Definition of Ready
+              </h3>
+              <ReadinessChecklist
+                readiness={readiness}
+                onAddCriteria={() => setShowEditModal(true)}
+                onAssignExecutor={() => setShowEditModal(true)}
+                onAssignRepo={() => setShowEditModal(true)}
+              />
             </div>
 
-            {/* Agent Controls */}
-            <div className="flex gap-2">
+            {/* Agent Section */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs font-semibold text-system-500 dark:text-system-400 uppercase">
+                  Agent
+                </h3>
+                {agentLoading ? (
+                  <span className="text-system-500 text-xs">Loading...</span>
+                ) : (
+                  <AgentStatusBadge status={agentStatus?.status ?? "idle"} />
+                )}
+              </div>
+
+              {/* Agent Controls */}
+              <div className="flex gap-2">
+                {isAgentIdle && (
+                  <button
+                    onClick={() =>
+                      handleAgentAction(ControlTaskAgentRequestActionEnum.Start)
+                    }
+                    disabled={
+                      actionLoading ||
+                      task.status === "done" ||
+                      task.status === "approved"
+                    }
+                    className="btn btn-primary flex-1 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {actionLoading ? (
+                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                          fill="none"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                        />
+                      </svg>
+                    ) : (
+                      <svg
+                        className="w-4 h-4"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                      </svg>
+                    )}
+                    Start Agent
+                  </button>
+                )}
+                {isAgentRunning && (
+                  <>
+                    <button
+                      onClick={() =>
+                        handleAgentAction(
+                          ControlTaskAgentRequestActionEnum.Pause,
+                        )
+                      }
+                      disabled={actionLoading}
+                      className="btn btn-secondary flex-1 text-sm disabled:opacity-50"
+                    >
+                      Pause
+                    </button>
+                    <button
+                      onClick={() =>
+                        handleAgentAction(
+                          ControlTaskAgentRequestActionEnum.Stop,
+                        )
+                      }
+                      disabled={actionLoading}
+                      className="btn btn-danger text-sm disabled:opacity-50"
+                    >
+                      Stop
+                    </button>
+                  </>
+                )}
+                {isAgentPaused && (
+                  <>
+                    <button
+                      onClick={() =>
+                        handleAgentAction(
+                          ControlTaskAgentRequestActionEnum.Resume,
+                        )
+                      }
+                      disabled={actionLoading}
+                      className="btn btn-secondary flex-1 text-sm disabled:opacity-50"
+                    >
+                      Resume
+                    </button>
+                    <button
+                      onClick={() =>
+                        handleAgentAction(
+                          ControlTaskAgentRequestActionEnum.Stop,
+                        )
+                      }
+                      disabled={actionLoading}
+                      className="btn btn-danger text-sm disabled:opacity-50"
+                    >
+                      Stop
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Open in Terminal link */}
               {isAgentIdle && (
                 <button
-                  onClick={() =>
-                    handleAgentAction(ControlTaskAgentRequestActionEnum.Start)
-                  }
-                  disabled={
-                    actionLoading ||
-                    task.status === "done" ||
-                    task.status === "approved"
-                  }
-                  className="btn btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={handleOpenInTerminal}
+                  className="mt-2 text-xs text-brand-500 dark:text-brand-400 hover:underline"
                 >
-                  {actionLoading ? (
-                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                        fill="none"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                      />
-                    </svg>
-                  ) : (
-                    <svg
-                      className="w-4 h-4"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                    </svg>
-                  )}
-                  Start Agent
+                  Open in Terminal (⌘T)
                 </button>
-              )}
-              {isAgentRunning && (
-                <>
-                  <button
-                    onClick={() =>
-                      handleAgentAction(ControlTaskAgentRequestActionEnum.Pause)
-                    }
-                    disabled={actionLoading}
-                    className="btn btn-secondary flex-1 disabled:opacity-50"
-                  >
-                    Pause
-                  </button>
-                  <button
-                    onClick={() =>
-                      handleAgentAction(ControlTaskAgentRequestActionEnum.Stop)
-                    }
-                    disabled={actionLoading}
-                    className="btn btn-danger disabled:opacity-50"
-                  >
-                    Stop
-                  </button>
-                </>
-              )}
-              {isAgentPaused && (
-                <>
-                  <button
-                    onClick={() =>
-                      handleAgentAction(
-                        ControlTaskAgentRequestActionEnum.Resume,
-                      )
-                    }
-                    disabled={actionLoading}
-                    className="btn btn-secondary flex-1 disabled:opacity-50"
-                  >
-                    Resume
-                  </button>
-                  <button
-                    onClick={() =>
-                      handleAgentAction(ControlTaskAgentRequestActionEnum.Stop)
-                    }
-                    disabled={actionLoading}
-                    className="btn btn-danger disabled:opacity-50"
-                  >
-                    Stop
-                  </button>
-                </>
               )}
             </div>
 
-            {/* File Changes Summary */}
+            {/* File Changes */}
             <div>
+              <h3 className="text-xs font-semibold text-system-500 dark:text-system-400 uppercase mb-3">
+                File Changes
+              </h3>
               <FileChanges
                 taskId={task.id}
                 isAgentRunning={isAgentRunning}
@@ -761,57 +733,63 @@ export default function TaskDetailPage() {
               />
             </div>
 
-            {/* PR Actions */}
-            {hasFileChanges &&
-              !prResult?.prUrl &&
-              !task.githubPrUrl &&
-              task.status !== "done" && (
-                <button
-                  onClick={handleCreatePR}
-                  disabled={createPRLoading}
-                  className="btn btn-primary w-full disabled:opacity-50"
-                >
-                  {createPRLoading ? "Creating PR..." : "Create PR"}
-                </button>
-              )}
+            {/* PR Section */}
+            {(hasFileChanges || prResult?.prUrl || task.githubPrUrl) && (
+              <div>
+                <h3 className="text-xs font-semibold text-system-500 dark:text-system-400 uppercase mb-3">
+                  Pull Request
+                </h3>
 
-            {/* PR Link & Approve */}
-            {(prResult?.prUrl || task.githubPrUrl) && (
-              <div className="space-y-2">
-                <button
-                  onClick={() =>
-                    openExternal(prResult?.prUrl || task.githubPrUrl || "")
-                  }
-                  className="text-brand-500 dark:text-brand-400 text-sm hover:underline"
-                >
-                  View PR #{prResult?.prNumber || task.githubPrNumber}
-                </button>
-                {task.status !== "done" && (
-                  <button
-                    onClick={handleApprove}
-                    disabled={approveLoading}
-                    className="btn btn-success w-full disabled:opacity-50"
-                  >
-                    {approveLoading ? "Approving..." : "Approve & Complete"}
-                  </button>
+                {/* Create PR button */}
+                {hasFileChanges &&
+                  !prResult?.prUrl &&
+                  !task.githubPrUrl &&
+                  task.status !== "done" && (
+                    <button
+                      onClick={handleCreatePR}
+                      disabled={createPRLoading}
+                      className="btn btn-primary w-full text-sm disabled:opacity-50"
+                    >
+                      {createPRLoading ? "Creating PR..." : "Create PR"}
+                    </button>
+                  )}
+
+                {/* PR Link & Approve */}
+                {(prResult?.prUrl || task.githubPrUrl) && (
+                  <div className="space-y-2">
+                    <a
+                      href={prResult?.prUrl || task.githubPrUrl || ""}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-brand-500 dark:text-brand-400 hover:underline"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      PR #{prResult?.prNumber || task.githubPrNumber}
+                    </a>
+                    {task.status !== "done" && (
+                      <button
+                        onClick={handleApprove}
+                        disabled={approveLoading}
+                        className="btn btn-success w-full text-sm disabled:opacity-50"
+                      >
+                        {approveLoading ? "Approving..." : "Approve & Complete"}
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             )}
           </div>
-        </div>
-
-        {/* Right Panel - Terminal Integration Banner */}
-        <div className="w-2/3 flex flex-col min-w-0 bg-slate-900">
-          <TerminalIntegrationBanner
-            state={deriveBannerState()}
-            readiness={readiness}
-            isTerminalShowingThisTask={isTerminalShowingThisTask}
-            prUrl={prResult?.prUrl || task.githubPrUrl}
-            prNumber={prResult?.prNumber || task.githubPrNumber}
-            onOpenInTerminal={handleOpenInTerminal}
-            onViewTerminal={handleViewTerminal}
-            onOpenPR={handleOpenPR}
-          />
         </div>
       </div>
 
