@@ -31,8 +31,8 @@ const mockTask: Task = {
   estimatedDuration: 60,
   progressPercentage: 0,
   createdByUserId: 1,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
+  createdAt: new Date(),
+  updatedAt: new Date(),
 };
 
 const mockEpics = [
@@ -297,8 +297,8 @@ describe("TaskEditModal", () => {
       requiresApproval: false,
       progressPercentage: 0,
       createdByUserId: 1,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
     renderModal(taskWithoutOptionals);

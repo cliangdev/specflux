@@ -131,11 +131,26 @@ export default function TerminalTabBar({
             {/* Context type icon */}
             <ContextIcon type={contextType} />
 
-            {/* Running indicator */}
+            {/* Status indicator */}
+            {!session.isConnected && (
+              <span
+                className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0"
+                title="Disconnected"
+                data-testid={`terminal-tab-disconnected-${contextId}`}
+              />
+            )}
             {session.isRunning && (
               <span
                 className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0"
+                title="Running"
                 data-testid={`terminal-tab-running-${contextId}`}
+              />
+            )}
+            {session.isConnected && !session.isRunning && (
+              <span
+                className="w-1.5 h-1.5 rounded-full bg-slate-500 flex-shrink-0"
+                title="Connected"
+                data-testid={`terminal-tab-connected-${contextId}`}
               />
             )}
 

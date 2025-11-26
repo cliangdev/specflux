@@ -60,6 +60,8 @@ vi.mock("../NewSessionDialog", () => ({
 const mockTerminalContext = {
   isOpen: true,
   isCollapsed: false,
+  panelHeight: 320,
+  isMaximized: false,
   sessions: [] as Array<{
     id: string;
     contextType: "task" | "epic" | "project";
@@ -75,6 +77,8 @@ const mockTerminalContext = {
   openPanel: vi.fn(),
   closePanel: vi.fn(),
   toggleCollapse: vi.fn(),
+  setPanelHeight: vi.fn(),
+  toggleMaximize: vi.fn(),
   openTerminalForTask: vi.fn(),
   openTerminalForContext: vi.fn(),
   switchToSession: vi.fn(),
@@ -226,10 +230,11 @@ describe("TerminalPanel", () => {
   });
 
   it("has correct height when expanded", () => {
+    mockTerminalContext.panelHeight = 320;
     render(<TerminalPanel />);
 
     const panel = screen.getByTestId("terminal-panel");
-    expect(panel).toHaveClass("h-80");
+    expect(panel).toHaveStyle({ height: "320px" });
   });
 
   it("has correct height when collapsed", () => {
@@ -238,7 +243,7 @@ describe("TerminalPanel", () => {
     render(<TerminalPanel />);
 
     const panel = screen.getByTestId("terminal-panel");
-    expect(panel).toHaveClass("h-10");
+    expect(panel).toHaveStyle({ height: "40px" });
   });
 
   describe("New Session Button", () => {
