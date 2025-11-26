@@ -44,7 +44,7 @@ function RoadmapSkeleton() {
   return (
     <div className="animate-pulse">
       {/* Release header skeleton */}
-      <div className="card mb-6">
+      <div className="card mb-6 p-5">
         <div className="flex items-start justify-between mb-4">
           <div>
             <div className="flex items-center gap-3">
@@ -115,7 +115,7 @@ function ReleaseHeader({ release }: ReleaseHeaderProps) {
   const progress = release.progressPercentage ?? 0;
 
   return (
-    <div className="card mb-6">
+    <div className="card mb-6 p-5">
       <div className="flex items-start justify-between mb-4">
         <div>
           <div className="flex items-center gap-3">
