@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { api, type Epic, type Task } from "../api";
 import { ProgressBar, TaskCreateModal } from "../components/ui";
+import { EpicEditModal } from "../components/epics";
 
 // Epic status badge configuration
 const EPIC_STATUS_CONFIG: Record<
@@ -113,6 +114,8 @@ export default function EpicDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [allEpics, setAllEpics] = useState<Epic[]>([]);
 
   const fetchEpicData = useCallback(async () => {
     if (!id) return;
@@ -126,8 +129,17 @@ export default function EpicDetailPage() {
         api.epics.getEpicTasks({ id: parseInt(id, 10) }),
       ]);
 
-      setEpic(epicResponse.data ?? null);
+      const epicData = epicResponse.data ?? null;
+      setEpic(epicData);
       setTasks(tasksResponse.data ?? []);
+
+      // Fetch all epics for the project (for dependency selection in edit modal)
+      if (epicData?.projectId) {
+        const allEpicsResponse = await api.epics.listEpics({
+          id: epicData.projectId,
+        });
+        setAllEpics(allEpicsResponse.data ?? []);
+      }
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to load epic";
@@ -244,6 +256,25 @@ export default function EpicDetailPage() {
             {epic.title}
           </h1>
         </div>
+        <button
+          onClick={() => setShowEditModal(true)}
+          className="btn btn-secondary"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+            />
+          </svg>
+          Edit
+        </button>
       </div>
 
       {/* Progress Summary Card */}
@@ -441,6 +472,20 @@ export default function EpicDetailPage() {
           defaultEpicId={epic.id}
           onClose={() => setShowCreateTaskModal(false)}
           onCreated={fetchEpicData}
+        />
+      )}
+
+      {/* Edit Epic Modal */}
+      {showEditModal && epic && (
+        <EpicEditModal
+          epic={epic}
+          projectId={epic.projectId}
+          allEpics={allEpics}
+          onClose={() => setShowEditModal(false)}
+          onUpdated={() => {
+            setShowEditModal(false);
+            fetchEpicData();
+          }}
         />
       )}
     </div>

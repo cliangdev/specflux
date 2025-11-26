@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpecFlux - Agent Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                            950: '#172554',
+                        },
+                        slate: {
+                            850: '#151e2e', // Custom deep background
+                            900: '#0f172a',
+                            950: '#020617',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+        body { font-family: 'Inter', sans-serif; }
+
+        /* Custom scrollbar for cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #475569;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Smooth transitions */
+        .transition-all-300 {
+            transition: all 0.3s ease-in-out;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.2s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 dark:bg-slate-900 dark:text-gray-100 font-sans antialiased h-screen flex overflow-hidden selection:bg-brand-500 selection:text-white transition-colors duration-300">
+
+<!-- Sidebar -->
+<aside class="w-64 bg-white dark:bg-slate-850 border-r border-gray-200 dark:border-slate-700 flex-shrink-0 flex flex-col transition-colors duration-300">
+    <!-- Logo -->
+    <div class="h-14 flex items-center px-6 border-b border-gray-200 dark:border-slate-700">
+        <div class="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center mr-3 shadow-lg shadow-brand-500/30">
+            <i data-lucide="zap" class="text-white w-5 h-5"></i>
+        </div>
+        <span class="font-bold text-lg tracking-tight">SpecFlux</span>
+    </div>
+
+    <!-- Nav Links -->
+    <nav class="flex-1 overflow-y-auto py-6 px-3 space-y-1">
+        <div class="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Workspace</div>
+
+        <button onclick="switchMainView('taskBoard')" id="nav-taskBoard" class="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-gray-100 group transition-colors">
+            <i data-lucide="layout-kanban" class="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500 dark:text-gray-500 dark:group-hover:text-gray-300"></i>
+            Task Board
+        </button>
+
+        <button class="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-gray-100 group transition-colors">
+            <i data-lucide="terminal" class="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500 dark:text-gray-500 dark:group-hover:text-gray-300"></i>
+            Terminal Sessions
+        </button>
+
+        <div class="px-3 mt-8 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Configuration</div>
+
+        <button onclick="switchMainView('settings')" id="nav-settings" class="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 group transition-colors">
+            <i data-lucide="settings" class="mr-3 h-5 w-5 text-brand-500 dark:text-brand-400"></i>
+            Settings
+        </button>
+
+        <!-- Settings Submenu -->
+        <div class="ml-8 space-y-1 mt-1 border-l-2 border-gray-200 dark:border-slate-700 pl-3">
+            <button class="w-full flex items-center px-2 py-1.5 text-sm font-medium rounded text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200">General</button>
+            <button class="w-full flex items-center px-2 py-1.5 text-sm font-medium rounded text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200">Repositories</button>
+            <button onclick="switchSettingsTab('agents')" id="sub-agents" class="w-full flex items-center px-2 py-1.5 text-sm font-medium rounded text-brand-600 dark:text-brand-400 bg-brand-50/50 dark:bg-slate-800">Agents</button>
+            <button onclick="switchSettingsTab('skills')" id="sub-skills" class="w-full flex items-center px-2 py-1.5 text-sm font-medium rounded text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200">Skills</button>
+            <button onclick="switchSettingsTab('mcp')" id="sub-mcp" class="w-full flex items-center px-2 py-1.5 text-sm font-medium rounded text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200">MCP Services</button>
+        </div>
+    </nav>
+
+    <!-- User Profile -->
+    <div class="border-t border-gray-200 dark:border-slate-700 p-4">
+        <div class="flex items-center">
+            <div class="h-9 w-9 rounded-full bg-gradient-to-tr from-brand-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm">JD</div>
+            <div class="ml-3">
+                <p class="text-sm font-medium text-gray-700 dark:text-gray-200">John Doe</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">Admin Workspace</p>
+            </div>
+        </div>
+    </div>
+</aside>
+
+<!-- Main Content -->
+<main class="flex-1 flex flex-col h-screen overflow-hidden relative bg-white dark:bg-slate-900">
+    <!-- Top Bar -->
+    <header class="h-14 bg-white dark:bg-slate-850 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between px-8 flex-shrink-0 transition-colors duration-300">
+        <h1 id="page-title" class="text-lg font-semibold text-gray-800 dark:text-white">Agent Configuration</h1>
+
+        <div class="flex items-center space-x-4">
+            <div class="relative hidden md:block">
+                <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400"></i>
+                <input type="text" placeholder="Search..." class="pl-9 pr-4 py-1.5 w-64 rounded-md border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:text-gray-200 transition-colors placeholder-gray-500 dark:placeholder-gray-400">
+            </div>
+
+            <!-- Theme Toggle -->
+            <button onclick="toggleTheme()" class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-500 dark:text-gray-400 transition-colors">
+                <i id="theme-icon" data-lucide="moon" class="h-5 w-5"></i>
+            </button>
+
+            <button class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-500 dark:text-gray-400 relative">
+                <i data-lucide="bell" class="h-5 w-5"></i>
+                <span class="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500 border-2 border-white dark:border-slate-850"></span>
+            </button>
+        </div>
+    </header>
+
+    <!-- View: Settings (Agents, Skills, MCP) -->
+    <div id="view-settings" class="flex-1 overflow-y-auto p-8 fade-in bg-gray-50 dark:bg-slate-900">
+
+        <!-- Tab Navigation (Mobile) -->
+        <div class="md:hidden flex space-x-1 bg-gray-100 dark:bg-slate-800 p-1 rounded-lg mb-6 w-fit">
+            <button class="px-4 py-1.5 rounded-md bg-white dark:bg-slate-700 shadow-sm text-sm font-medium text-gray-900 dark:text-white">Agents</button>
+            <button class="px-4 py-1.5 rounded-md text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700">Skills</button>
+            <button class="px-4 py-1.5 rounded-md text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700">MCP</button>
+        </div>
+
+        <!-- TAB: AGENTS -->
+        <div id="tab-agents" class="space-y-8">
+            <!-- Project Default Header -->
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Project Default Agent</h2>
+                    <div class="relative w-64">
+                        <select class="w-full appearance-none bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-gray-200 py-2.5 px-4 pr-8 rounded-lg leading-tight focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500 transition-colors shadow-sm">
+                            <option>🔧 backend-dev</option>
+                            <option>🎨 frontend-dev</option>
+                            <option>⚡ fullstack-dev</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                            <i data-lucide="chevron-down" class="h-4 w-4"></i>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="toggleModal('create-agent-modal')" class="flex items-center px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-md shadow-sm transition-all">
+                    <i data-lucide="plus" class="h-4 w-4 mr-2"></i>
+                    Add New Agent
+                </button>
+            </div>
+
+            <div class="h-px bg-gray-200 dark:bg-slate-800"></div>
+
+            <!-- Agents Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+
+                <!-- Agent Card: Backend -->
+                <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-6 shadow-sm hover:border-brand-400 dark:hover:border-brand-600 transition-all relative group">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex items-center">
+                            <div class="w-12 h-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-2xl mr-4 border border-blue-200 dark:border-blue-800/50">
+                                🔧
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-gray-900 dark:text-white text-lg">backend-dev</h3>
+                                <span class="text-xs font-mono text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-slate-700 px-2 py-0.5 rounded">.claude/agents/backend-dev.md</span>
+                            </div>
+                        </div>
+                        <div class="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button class="text-gray-400 hover:text-brand-500 p-1"><i data-lucide="edit-2" class="h-4 w-4"></i></button>
+                        </div>
+                    </div>
+                    <p class="text-gray-600 dark:text-gray-300 text-sm mb-5 leading-relaxed">
+                        Backend developer specializing in Node.js, Express, and database design. Focuses on API reliability and strict typing.
+                    </p>
+
+                    <div class="flex flex-wrap gap-2 mb-6">
+                        <span class="px-2.5 py-1 rounded-md bg-gray-100 dark:bg-slate-700 text-xs font-medium text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-600">nodejs</span>
+                        <span class="px-2.5 py-1 rounded-md bg-gray-100 dark:bg-slate-700 text-xs font-medium text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-600">typescript</span>
+                        <span class="px-2.5 py-1 rounded-md bg-gray-100 dark:bg-slate-700 text-xs font-medium text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-600">sql</span>
+                        <span class="px-2.5 py-1 rounded-md bg-gray-100 dark:bg-slate-700 text-xs font-medium text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-600">api</span>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-slate-700">
+                        <div class="flex space-x-4 text-xs text-gray-500 dark:text-gray-400">
+                            <span class="flex items-center"><i data-lucide="check-circle" class="h-3 w-3 mr-1"></i> 12 Assigned</span>
+                            <span class="flex items-center text-emerald-600 dark:text-emerald-400"><i data-lucide="star" class="h-3 w-3 mr-1 fill-current"></i> Default: backend</span>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button class="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400 hover:text-brand-600 transition-colors" title="View Code"><i data-lucide="code" class="h-4 w-4"></i></button>
+                            <button class="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400 hover:text-red-600 transition-colors" title="Delete"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Agent Card: Frontend -->
+                <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-6 shadow-sm hover:border-brand-400 dark:hover:border-brand-600 transition-all relative group">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex items-center">
+                            <div class="w-12 h-12 rounded-lg bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center text-2xl mr-4 border border-pink-200 dark:border-pink-800/50">
+                                🎨
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-gray-900 dark:text-white text-lg">frontend-dev</h3>
+                                <span class="text-xs font-mono text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-slate-700 px-2 py-0.5 rounded">.claude/agents/frontend-dev.md</span>
+                            </div>
+                        </div>
+                        <div class="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button class="text-gray-400 hover:text-brand-500 p-1"><i data-lucide="edit-2" class="h-4 w-4"></i></button>
+                        </div>
+                    </div>
+                    <p class="text-gray-600 dark:text-gray-300 text-sm mb-5 leading-relaxed">
+                        Frontend developer for React, TypeScript, and Tauri desktop applications. Prioritizes UX and accessibility.
+                    </p>
+
+                    <div class="flex flex-wrap gap-2 mb-6">
+                        <span class="px-2.5 py-1 rounded-md bg-gray-100 dark:bg-slate-700 text-xs font-medium text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-600">react</span>
+                        <span class="px-2.5 py-1 rounded-md bg-gray-100 dark:bg-slate-700 text-xs font-medium text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-600">tailwind</span>
+                        <span class="px-2.5 py-1 rounded-md bg-gray-100 dark:bg-slate-700 text-xs font-medium text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-600">tauri</span>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-slate-700">
+                        <div class="flex space-x-4 text-xs text-gray-500 dark:text-gray-400">
+                            <span class="flex items-center"><i data-lucide="check-circle" class="h-3 w-3 mr-1"></i> 8 Assigned</span>
+                            <span class="flex items-center text-emerald-600 dark:text-emerald-400"><i data-lucide="star" class="h-3 w-3 mr-1 fill-current"></i> Default: frontend</span>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button class="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400 hover:text-brand-600 transition-colors"><i data-lucide="code" class="h-4 w-4"></i></button>
+                            <button class="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400 hover:text-red-600 transition-colors"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Agent Card: Fullstack -->
+                <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-6 shadow-sm hover:border-brand-400 dark:hover:border-brand-600 transition-all relative group">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex items-center">
+                            <div class="w-12 h-12 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-2xl mr-4 border border-amber-200 dark:border-amber-800/50">
+                                ⚡
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-gray-900 dark:text-white text-lg">fullstack-dev</h3>
+                                <span class="text-xs font-mono text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-slate-700 px-2 py-0.5 rounded">.claude/agents/fullstack.md</span>
+                            </div>
+                        </div>
+                        <div class="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button class="text-gray-400 hover:text-brand-500 p-1"><i data-lucide="edit-2" class="h-4 w-4"></i></button>
+                        </div>
+                    </div>
+                    <p class="text-gray-600 dark:text-gray-300 text-sm mb-5 leading-relaxed">
+                        Full-stack developer for cross-cutting features that span frontend and backend logic.
+                    </p>
+
+                    <div class="flex flex-wrap gap-2 mb-6">
+                        <span class="px-2.5 py-1 rounded-md bg-gray-100 dark:bg-slate-700 text-xs font-medium text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-600">nodejs</span>
+                        <span class="px-2.5 py-1 rounded-md bg-gray-100 dark:bg-slate-700 text-xs font-medium text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-600">react</span>
+                        <span class="px-2.5 py-1 rounded-md bg-gray-100 dark:bg-slate-700 text-xs font-medium text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-600">e2e-test</span>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-slate-700">
+                        <div class="flex space-x-4 text-xs text-gray-500 dark:text-gray-400">
+                            <span class="flex items-center"><i data-lucide="check-circle" class="h-3 w-3 mr-1"></i> 3 Assigned</span>
+                            <span class="flex items-center text-gray-400"><i data-lucide="minus-circle" class="h-3 w-3 mr-1"></i> No Default</span>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button class="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400 hover:text-brand-600 transition-colors"><i data-lucide="code" class="h-4 w-4"></i></button>
+                            <button class="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400 hover:text-red-600 transition-colors"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add New Card (Dashed) -->
+                <button onclick="toggleModal('create-agent-modal')" class="border-2 border-dashed border-gray-300 dark:border-slate-700 rounded-xl p-6 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 hover:border-brand-500 dark:hover:border-brand-400 hover:text-brand-600 dark:hover:text-brand-400 transition-all group h-full">
+                    <div class="w-12 h-12 rounded-full bg-gray-100 dark:bg-slate-800 group-hover:bg-brand-50 dark:group-hover:bg-brand-900/30 flex items-center justify-center mb-3 transition-colors">
+                        <i data-lucide="plus" class="h-6 w-6"></i>
+                    </div>
+                    <span class="font-medium">Add New Agent</span>
+                    <span class="text-xs mt-1 text-gray-400 dark:text-gray-500 text-center px-4">Generate with AI, use template, or import</span>
+                </button>
+            </div>
+
+            <!-- Repo Defaults Table -->
+            <div class="mt-12">
+                <h2 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">Repository Defaults</h2>
+                <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+                        <thead class="bg-gray-50 dark:bg-slate-900/50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Repository</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Default Agent</th>
+                            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody class="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-slate-700">
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <i data-lucide="folder" class="h-4 w-4 text-gray-400 mr-2"></i>
+                                    <span class="text-sm font-medium text-gray-900 dark:text-white">backend</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
+                                            🔧 backend-dev
+                                        </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <a href="#" class="text-brand-600 hover:text-brand-900 dark:hover:text-brand-400">Edit</a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <i data-lucide="folder" class="h-4 w-4 text-gray-400 mr-2"></i>
+                                    <span class="text-sm font-medium text-gray-900 dark:text-white">frontend</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-pink-100 dark:bg-pink-900/30 text-pink-800 dark:text-pink-300">
+                                            🎨 frontend-dev
+                                        </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <a href="#" class="text-brand-600 hover:text-brand-900 dark:hover:text-brand-400">Edit</a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <i data-lucide="folder" class="h-4 w-4 text-gray-400 mr-2"></i>
+                                    <span class="text-sm font-medium text-gray-900 dark:text-white">shared</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300">
+                                            ⚡ fullstack-dev
+                                        </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <a href="#" class="text-brand-600 hover:text-brand-900 dark:hover:text-brand-400">Edit</a>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: SKILLS (Hidden by default) -->
+        <div id="tab-skills" class="hidden space-y-8">
+            <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 p-4 mb-6">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i data-lucide="info" class="h-5 w-5 text-blue-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-blue-700 dark:text-blue-300">
+                            <span class="font-bold">Skills vs Agents:</span> Agents are assigned to tasks. Skills are auto-invoked by Claude Code based on file patterns (e.g., editing .tsx files loads ui-patterns skill).
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Skill Card 1 -->
+                <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-6 shadow-sm">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center space-x-3">
+                            <span class="text-2xl">📐</span>
+                            <h3 class="font-bold text-gray-900 dark:text-white">api-design</h3>
+                        </div>
+                        <button class="text-gray-400 hover:text-brand-500"><i data-lucide="settings-2" class="h-4 w-4"></i></button>
+                    </div>
+                    <p class="text-xs text-gray-500 mb-4 font-mono">.claude/skills/api-design/</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-300 mb-4">REST API design patterns, OpenAPI specs, request/response schemas.</p>
+                    <div class="bg-gray-100 dark:bg-slate-900 rounded p-2 text-xs font-mono text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-slate-700">
+                        Auto-invoked for: /routes/**, *.routes.ts
+                    </div>
+                </div>
+
+                <!-- Skill Card 2 -->
+                <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-6 shadow-sm">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center space-x-3">
+                            <span class="text-2xl">🎨</span>
+                            <h3 class="font-bold text-gray-900 dark:text-white">ui-patterns</h3>
+                        </div>
+                        <button class="text-gray-400 hover:text-brand-500"><i data-lucide="settings-2" class="h-4 w-4"></i></button>
+                    </div>
+                    <p class="text-xs text-gray-500 mb-4 font-mono">.claude/skills/ui-patterns/</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-300 mb-4">UI design patterns including dark mode, components, colors, and Tailwind.</p>
+                    <div class="bg-gray-100 dark:bg-slate-900 rounded p-2 text-xs font-mono text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-slate-700">
+                        Auto-invoked for: /components/**, *.tsx
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: MCP (Hidden by default) -->
+        <div id="tab-mcp" class="hidden space-y-8">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h2 class="text-lg font-medium text-gray-900 dark:text-white">Active MCP Servers</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Manage external tools and data sources for Claude.</p>
+                </div>
+                <button class="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800">
+                    + Add Server
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <!-- MCP Server Item -->
+                <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-5 shadow-sm">
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-start">
+                            <div class="h-10 w-10 bg-gray-100 dark:bg-slate-700 rounded-lg flex items-center justify-center text-xl mr-4">
+                                🔌
+                            </div>
+                            <div>
+                                <div class="flex items-center">
+                                    <h3 class="font-bold text-gray-900 dark:text-white mr-3">github</h3>
+                                    <span class="flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
+                                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
+                                            Connected
+                                        </span>
+                                </div>
+                                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 font-mono">@modelcontextprotocol/server-github</p>
+                                <p class="text-sm text-gray-600 dark:text-gray-300 mt-2">Provides: Repository access, PR management, issue tracking</p>
+                            </div>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button class="px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 rounded-md hover:bg-gray-200 dark:hover:bg-slate-600">Test Connection</button>
+                            <button class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><i data-lucide="more-vertical" class="h-5 w-5"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MCP Server Item -->
+                <div class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-5 shadow-sm">
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-start">
+                            <div class="h-10 w-10 bg-gray-100 dark:bg-slate-700 rounded-lg flex items-center justify-center text-xl mr-4">
+                                📁
+                            </div>
+                            <div>
+                                <div class="flex items-center">
+                                    <h3 class="font-bold text-gray-900 dark:text-white mr-3">filesystem</h3>
+                                    <span class="flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
+                                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
+                                            Connected
+                                        </span>
+                                </div>
+                                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 font-mono">@modelcontextprotocol/server-filesystem</p>
+                                <p class="text-sm text-gray-600 dark:text-gray-300 mt-2">Provides: File system operations within project directory</p>
+                            </div>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button class="px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 rounded-md hover:bg-gray-200 dark:hover:bg-slate-600">Test Connection</button>
+                            <button class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><i data-lucide="more-vertical" class="h-5 w-5"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- View: Task Detail (For demonstration of usage) -->
+    <div id="view-taskBoard" class="hidden flex-1 overflow-y-auto p-8 fade-in bg-gray-50 dark:bg-slate-900">
+        <div class="mb-6">
+            <button onclick="switchMainView('settings')" class="flex items-center text-sm text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 mb-4 transition-colors">
+                <i data-lucide="arrow-left" class="h-4 w-4 mr-1"></i> Back to Settings
+            </button>
+            <div class="flex items-center justify-between">
+                <div>
+                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Task #123</span>
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white mt-1">Implement user authentication</h1>
+                </div>
+                <div class="flex items-center space-x-3">
+                         <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300">
+                            In Progress
+                        </span>
+                    <button class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-md text-sm font-medium shadow-sm flex items-center">
+                        <i data-lucide="play" class="h-4 w-4 mr-2"></i> Start Agent
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2 space-y-6">
+                <div class="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-slate-700">
+                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Description</h3>
+                    <div class="prose prose-sm dark:prose-invert max-w-none text-gray-600 dark:text-gray-300">
+                        <p>Add JWT-based authentication with refresh tokens to the backend API. The implementation should follow the OAuth2 standard flow.</p>
+                        <ul>
+                            <li>Create User model in PostgreSQL</li>
+                            <li>Implement /auth/login and /auth/register endpoints</li>
+                            <li>Setup JWT middleware</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agent Assignment Panel -->
+            <div class="space-y-6">
+                <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
+                    <div class="p-4 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 flex justify-between items-center">
+                        <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Agent Assignment</h3>
+                        <span class="text-xs text-brand-600 dark:text-brand-400 font-medium">Auto-assigned</span>
+                    </div>
+                    <div class="p-5">
+                        <div class="relative mb-4">
+                            <button class="w-full flex items-center justify-between bg-white dark:bg-slate-700 border border-brand-200 dark:border-brand-500/30 rounded-lg px-3 py-2 text-left shadow-sm ring-1 ring-brand-500/20">
+                                <div class="flex items-center">
+                                    <span class="text-xl mr-3">🔧</span>
+                                    <span class="font-medium text-gray-900 dark:text-white">backend-dev</span>
+                                </div>
+                                <i data-lucide="chevron-down" class="h-4 w-4 text-gray-400"></i>
+                            </button>
+                        </div>
+
+                        <div class="bg-gray-50 dark:bg-slate-900/50 rounded-lg p-4 mb-4">
+                            <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Capabilities</p>
+                            <ul class="space-y-2">
+                                <li class="flex items-center text-sm text-gray-600 dark:text-gray-300">
+                                    <i data-lucide="check" class="h-3 w-3 text-green-500 mr-2"></i> TypeScript/Node.js
+                                </li>
+                                <li class="flex items-center text-sm text-gray-600 dark:text-gray-300">
+                                    <i data-lucide="check" class="h-3 w-3 text-green-500 mr-2"></i> REST API Design
+                                </li>
+                                <li class="flex items-center text-sm text-gray-600 dark:text-gray-300">
+                                    <i data-lucide="check" class="h-3 w-3 text-green-500 mr-2"></i> PostgreSQL
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div class="text-xs text-gray-400 dark:text-gray-500 text-center">
+                            Based on repository <span class="font-mono text-gray-500 dark:text-gray-400">backend</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Modal: Create Agent -->
+<div id="create-agent-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm transition-opacity opacity-0">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl transform transition-all scale-95 opacity-0 modal-content overflow-hidden border border-gray-200 dark:border-slate-700">
+        <!-- Modal Header -->
+        <div class="px-6 py-4 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center bg-gray-50 dark:bg-slate-800/50">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Create New Agent</h3>
+            <button onclick="toggleModal('create-agent-modal')" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+                <i data-lucide="x" class="h-5 w-5"></i>
+            </button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-8">
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-6 uppercase tracking-wider font-semibold">How would you like to create your agent?</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <!-- Option 1 -->
+                <button onclick="selectCreationMethod(this)" class="creation-option ring-2 ring-brand-500 bg-brand-50 dark:bg-brand-900/20 rounded-xl p-4 text-left hover:bg-brand-100 dark:hover:bg-brand-900/40 transition-all group relative">
+                    <div class="absolute top-3 right-3 text-brand-500">
+                        <i data-lucide="check-circle-2" class="h-5 w-5 fill-current text-brand-200 dark:text-brand-800"></i>
+                    </div>
+                    <div class="text-3xl mb-3">🤖</div>
+                    <h4 class="font-bold text-gray-900 dark:text-white mb-1">Generate with AI</h4>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">Describe your agent and let AI create the definition.</p>
+                    <div class="mt-3 inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-brand-200 dark:bg-brand-800 text-brand-800 dark:text-brand-200">RECOMMENDED</div>
+                </button>
+
+                <!-- Option 2 -->
+                <button onclick="selectCreationMethod(this)" class="creation-option border border-gray-200 dark:border-slate-700 rounded-xl p-4 text-left hover:border-brand-300 dark:hover:border-brand-700 hover:bg-gray-50 dark:hover:bg-slate-800 transition-all group">
+                    <div class="text-3xl mb-3">📋</div>
+                    <h4 class="font-bold text-gray-900 dark:text-white mb-1">Use Template</h4>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">Start from a pre-built agent template.</p>
+                </button>
+
+                <!-- Option 3 -->
+                <button onclick="selectCreationMethod(this)" class="creation-option border border-gray-200 dark:border-slate-700 rounded-xl p-4 text-left hover:border-brand-300 dark:hover:border-brand-700 hover:bg-gray-50 dark:hover:bg-slate-800 transition-all group">
+                    <div class="text-3xl mb-3">📝</div>
+                    <h4 class="font-bold text-gray-900 dark:text-white mb-1">Paste/Import</h4>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">Paste markdown definition or import file.</p>
+                </button>
+            </div>
+
+            <!-- Input Section (Dynamic based on selection - simplified for mock) -->
+            <div class="space-y-4 animate-fade-in-up">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Agent Name</label>
+                    <input type="text" value="devops-agent" class="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-2 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description / Prompt</label>
+                    <textarea rows="3" class="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-2 text-gray-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:outline-none resize-none">This agent handles DevOps tasks including CI/CD pipelines, Docker containerization, and infrastructure configuration.</textarea>
+                </div>
+
+                <div class="flex items-center pt-2">
+                    <input type="checkbox" checked class="h-4 w-4 text-brand-600 focus:ring-brand-500 border-gray-300 rounded">
+                    <label class="ml-2 block text-sm text-gray-600 dark:text-gray-400">Analyze project structure for context</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="px-6 py-4 bg-gray-50 dark:bg-slate-800/50 border-t border-gray-100 dark:border-slate-800 flex justify-end space-x-3">
+            <button onclick="toggleModal('create-agent-modal')" class="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors">Cancel</button>
+            <button onclick="toggleModal('create-agent-modal')" class="px-4 py-2 rounded-lg text-sm font-medium bg-brand-600 text-white hover:bg-brand-700 shadow-md hover:shadow-lg transition-all">Generate Agent Definition</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // Theme Toggle Logic
+    function toggleTheme() {
+        const html = document.documentElement;
+        const isDark = html.classList.toggle('dark');
+        const icon = document.getElementById('theme-icon');
+
+        if (isDark) {
+            icon.setAttribute('data-lucide', 'sun');
+            localStorage.setItem('theme', 'dark');
+        } else {
+            icon.setAttribute('data-lucide', 'moon');
+            localStorage.setItem('theme', 'light');
+        }
+        lucide.createIcons();
+    }
+
+    // Check LocalStorage for theme
+    if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+        document.getElementById('theme-icon').setAttribute('data-lucide', 'sun');
+    } else {
+        document.documentElement.classList.remove('dark');
+    }
+
+    // Navigation Logic (Sidebar)
+    function switchMainView(viewName) {
+        // Update Sidebar Active States
+        document.querySelectorAll('aside nav button').forEach(btn => {
+            // Reset styles (simplified for mock clarity)
+            if(btn.id !== 'sub-agents' && btn.id !== 'sub-skills' && btn.id !== 'sub-mcp') {
+                 btn.className = "w-full flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-gray-100 group transition-colors";
+                 const icon = btn.querySelector('i');
+                 if(icon) icon.className = "mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500 dark:text-gray-500 dark:group-hover:text-gray-300";
+            }
+        });
+
+        // Set Active Sidebar Item
+        const activeBtn = document.getElementById(`nav-${viewName}`);
+        if(activeBtn) {
+            activeBtn.className = "w-full flex items-center px-3 py-2 text-sm font-medium rounded-md bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 group transition-colors";
+            const icon = activeBtn.querySelector('i');
+            if(icon) icon.className = "mr-3 h-5 w-5 text-brand-500 dark:text-brand-400";
+        }
+
+        // Toggle Content Views
+        const settingsView = document.getElementById('view-settings');
+        const taskView = document.getElementById('view-taskBoard');
+        const title = document.getElementById('page-title');
+
+        if (viewName === 'settings') {
+            settingsView.classList.remove('hidden');
+            taskView.classList.add('hidden');
+            title.innerText = "Agent Configuration";
+        } else {
+            settingsView.classList.add('hidden');
+            taskView.classList.remove('hidden');
+            title.innerText = "Task Board";
+        }
+        lucide.createIcons();
+    }
+
+    // Settings Tab Logic
+    function switchSettingsTab(tabName) {
+        // Update Submenu Active State
+        const tabs = ['agents', 'skills', 'mcp'];
+        tabs.forEach(t => {
+            const btn = document.getElementById(`sub-${t}`);
+            const div = document.getElementById(`tab-${t}`);
+
+            if (t === tabName) {
+                // Active State
+                btn.className = "w-full flex items-center px-2 py-1.5 text-sm font-medium rounded text-brand-600 dark:text-brand-400 bg-brand-50/50 dark:bg-slate-800";
+                div.classList.remove('hidden');
+                div.classList.add('fade-in');
+            } else {
+                // Inactive State
+                btn.className = "w-full flex items-center px-2 py-1.5 text-sm font-medium rounded text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200";
+                div.classList.add('hidden');
+                div.classList.remove('fade-in');
+            }
+        });
+        switchMainView('settings'); // Ensure we are on settings view
+    }
+
+    // Modal Logic
+    function toggleModal(modalID) {
+        const modal = document.getElementById(modalID);
+        const content = modal.querySelector('.modal-content');
+
+        if (modal.classList.contains('hidden')) {
+            // Open
+            modal.classList.remove('hidden');
+            // Small delay to allow display:block to apply before opacity transition
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        } else {
+            // Close
+            modal.classList.add('opacity-0');
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300); // Wait for transition
+        }
+    }
+
+    // Modal Selection Logic (Visual only)
+    function selectCreationMethod(btn) {
+        document.querySelectorAll('.creation-option').forEach(opt => {
+            // Reset to default
+            opt.className = "creation-option border border-gray-200 dark:border-slate-700 rounded-xl p-4 text-left hover:border-brand-300 dark:hover:border-brand-700 hover:bg-gray-50 dark:hover:bg-slate-800 transition-all group";
+            const check = opt.querySelector('.absolute');
+            if(check) check.remove();
+        });
+
+        // Set Active
+        btn.className = "creation-option ring-2 ring-brand-500 bg-brand-50 dark:bg-brand-900/20 rounded-xl p-4 text-left hover:bg-brand-100 dark:hover:bg-brand-900/40 transition-all group relative";
+        const checkIcon = document.createElement('div');
+        checkIcon.className = "absolute top-3 right-3 text-brand-500";
+        checkIcon.innerHTML = '<i data-lucide="check-circle-2" class="h-5 w-5 fill-current text-brand-200 dark:text-brand-800"></i>';
+        btn.appendChild(checkIcon);
+        lucide.createIcons();
+    }
+
+</script>
+</body>
+</html>
