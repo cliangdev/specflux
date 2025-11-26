@@ -16,31 +16,31 @@
 }
 
 @layer components {
-  /* Custom scrollbar styles */
-  .scrollbar-thin {
-    scrollbar-width: thin;
-    scrollbar-color: theme('colors.system.300') transparent;
+  /* Hide scrollbars but keep scroll functionality */
+  .scrollbar-thin,
+  .custom-scrollbar {
+    /* Firefox */
+    scrollbar-width: none;
+    /* IE/Edge */
+    -ms-overflow-style: none;
   }
 
-  .dark .scrollbar-thin {
-    scrollbar-color: theme('colors.system.700') transparent;
+  /* WebKit (Chrome, Safari, Tauri) - hide scrollbar */
+  .scrollbar-thin::-webkit-scrollbar,
+  .custom-scrollbar::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
   }
 
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+  /* Hide scrollbar completely option */
+  .scrollbar-hidden {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
 
-  .scrollbar-thin::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    @apply bg-system-300 dark:bg-system-700 rounded-full;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    @apply bg-system-400 dark:bg-system-600;
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
   }
 
   /* Status badge styles */

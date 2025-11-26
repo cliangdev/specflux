@@ -212,24 +212,41 @@ export function Terminal({
     xtermRef.current = term;
     fitAddonRef.current = fitAddon;
 
-    // Handle window resize
+    // Handle resize - use ResizeObserver for container size changes
     const handleResize = () => {
-      fitAddon.fit();
-      onDimensionsReadyRef.current?.({ cols: term.cols, rows: term.rows });
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(
-          JSON.stringify({
-            type: "resize",
-            cols: term.cols,
-            rows: term.rows,
-          }),
-        );
-      }
+      // Use requestAnimationFrame to batch resize operations
+      requestAnimationFrame(() => {
+        if (!terminalRef.current || !fitAddon) return;
+        try {
+          fitAddon.fit();
+          onDimensionsReadyRef.current?.({ cols: term.cols, rows: term.rows });
+          if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(
+              JSON.stringify({
+                type: "resize",
+                cols: term.cols,
+                rows: term.rows,
+              }),
+            );
+          }
+        } catch (e) {
+          // Ignore resize errors during component unmount
+        }
+      });
     };
+
+    // Use ResizeObserver to detect container size changes (e.g., panel resizing)
+    const resizeObserver = new ResizeObserver(() => {
+      handleResize();
+    });
+    resizeObserver.observe(terminalRef.current);
+
+    // Also listen to window resize as a fallback
     window.addEventListener("resize", handleResize);
 
     // Cleanup
     return () => {
+      resizeObserver.disconnect();
       window.removeEventListener("resize", handleResize);
       webglAddon?.dispose();
       term.dispose();
@@ -629,7 +646,8 @@ export function Terminal({
         .terminal-content {
           flex: 1;
           padding: 8px;
-          min-height: 300px;
+          min-height: 0;
+          overflow: hidden;
         }
         /* Hide xterm cursor completely */
         .terminal-content .xterm-cursor-layer {
