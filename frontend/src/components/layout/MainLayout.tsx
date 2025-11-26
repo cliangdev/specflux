@@ -38,18 +38,19 @@ function MainLayoutContent() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [togglePanel, sessions, switchToSession, openPanel]);
 
+  // Layout: TopBar -> (Sidebar + Content) -> Terminal (full width at bottom)
   return (
     <div className="h-screen bg-system-50 dark:bg-system-950 text-system-900 dark:text-system-100 flex flex-col overflow-hidden">
       <TopBar />
-      <div className="flex flex-1 overflow-hidden">
+      {/* Main area with sidebar and content - shrinks when terminal opens */}
+      <div className="flex flex-1 overflow-hidden min-h-0">
         <Sidebar />
-        <main className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-auto p-6 scrollbar-thin">
-            <Outlet />
-          </div>
-          {isOpen && <TerminalPanel />}
+        <main className="flex-1 overflow-auto p-6 scrollbar-thin">
+          <Outlet />
         </main>
       </div>
+      {/* Terminal panel spans full width at bottom */}
+      {isOpen && <TerminalPanel />}
     </div>
   );
 }

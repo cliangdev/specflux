@@ -5,7 +5,8 @@ import Terminal from "../Terminal";
 import TerminalTabBar from "./TerminalTabBar";
 import NewSessionDialog from "./NewSessionDialog";
 
-const COLLAPSED_HEIGHT = 40;
+const HEADER_HEIGHT = 40;
+const COLLAPSED_HEIGHT = HEADER_HEIGHT;
 
 // Inline SVG icons to avoid heroicons dependency
 const ChevronUpIcon = () => (
@@ -112,6 +113,7 @@ export default function TerminalPanel() {
 
   const [showNewSessionDialog, setShowNewSessionDialog] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
   const startYRef = useRef(0);
   const startHeightRef = useRef(0);
 
@@ -131,13 +133,17 @@ export default function TerminalPanel() {
     [updateSessionStatus],
   );
 
-  // Resize handlers
+  // Resize handlers - use requestAnimationFrame for smoother resizing
   const handleResizeStart = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
+      e.stopPropagation();
       setIsResizing(true);
       startYRef.current = e.clientY;
       startHeightRef.current = panelHeight;
+      // Add class to body to prevent text selection during resize
+      document.body.style.cursor = "ns-resize";
+      document.body.style.userSelect = "none";
     },
     [panelHeight],
   );
@@ -145,45 +151,73 @@ export default function TerminalPanel() {
   useEffect(() => {
     if (!isResizing) return;
 
+    let rafId: number;
+
     const handleMouseMove = (e: MouseEvent) => {
-      // Dragging up increases height (clientY decreases)
-      const deltaY = startYRef.current - e.clientY;
-      const newHeight = startHeightRef.current + deltaY;
-      setPanelHeight(newHeight);
+      // Cancel any pending animation frame
+      if (rafId) cancelAnimationFrame(rafId);
+
+      rafId = requestAnimationFrame(() => {
+        // Dragging up increases height (clientY decreases)
+        const deltaY = startYRef.current - e.clientY;
+        const newHeight = startHeightRef.current + deltaY;
+        setPanelHeight(newHeight);
+      });
     };
 
     const handleMouseUp = () => {
+      if (rafId) cancelAnimationFrame(rafId);
       setIsResizing(false);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
     };
 
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
 
     return () => {
+      if (rafId) cancelAnimationFrame(rafId);
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
     };
   }, [isResizing, setPanelHeight]);
 
-  // Calculate actual height
+  // Calculate actual height - use flex-basis for better layout stability
   const actualHeight = isCollapsed ? COLLAPSED_HEIGHT : panelHeight;
 
   return (
     <div
-      className="relative border-t border-slate-200 dark:border-slate-700 bg-slate-900 flex flex-col transition-all duration-200"
-      style={{ height: `${actualHeight}px` }}
+      ref={panelRef}
+      className={`relative border-t border-slate-200 dark:border-slate-700 bg-slate-900 flex flex-col flex-shrink-0 ${
+        isResizing ? "" : "transition-[height] duration-150"
+      }`}
+      style={{
+        height: `${actualHeight}px`,
+        minHeight: `${COLLAPSED_HEIGHT}px`,
+      }}
       data-testid="terminal-panel"
     >
       {/* Resize Handle - only show when expanded */}
       {!isCollapsed && (
         <div
-          className={`absolute top-0 left-0 right-0 h-1 cursor-ns-resize z-10 transition-colors ${
-            isResizing ? "bg-brand-500" : "bg-transparent hover:bg-brand-500/50"
+          className={`absolute -top-1 left-0 right-0 h-3 cursor-ns-resize z-20 flex items-center justify-center group ${
+            isResizing ? "" : ""
           }`}
           onMouseDown={handleResizeStart}
           onDoubleClick={toggleMaximize}
           data-testid="terminal-resize-handle"
-        />
+        >
+          {/* Visual indicator */}
+          <div
+            className={`w-12 h-1 rounded-full transition-colors ${
+              isResizing
+                ? "bg-brand-500"
+                : "bg-slate-600 group-hover:bg-brand-500/70"
+            }`}
+          />
+        </div>
       )}
 
       {/* Header */}

@@ -253,7 +253,7 @@ export function KanbanBoard({
       </div>
 
       {/* Kanban Columns */}
-      <div className="flex-1 overflow-x-auto overflow-y-hidden">
+      <div className="flex-1 overflow-x-auto overflow-y-hidden custom-scrollbar">
         <DndContext
           sensors={sensors}
           collisionDetection={rectIntersection}
