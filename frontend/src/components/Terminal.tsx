@@ -3,6 +3,7 @@ import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { WebglAddon } from "@xterm/addon-webgl";
+import { SearchAddon } from "@xterm/addon-search";
 import "@xterm/xterm/css/xterm.css";
 
 interface FileChangeEvent {
@@ -23,6 +24,7 @@ interface TerminalProps {
   taskId?: number; // Deprecated: use contextType + contextId instead
   wsUrl?: string;
   onStatusChange?: (running: boolean) => void;
+  onConnectionChange?: (connected: boolean) => void;
   onExit?: (exitCode: number) => void;
   onRefresh?: () => void;
   onFileChange?: (event: FileChangeEvent) => void;
@@ -65,6 +67,7 @@ export function Terminal({
   taskId, // Deprecated
   wsUrl,
   onStatusChange,
+  onConnectionChange,
   onExit,
   onRefresh,
   onFileChange,
@@ -78,13 +81,18 @@ export function Terminal({
   const xtermRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const webglAddonRef = useRef<WebglAddon | null>(null);
+  const searchAddonRef = useRef<SearchAddon | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [connected, setConnected] = useState(false);
   const [running, setRunning] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Use refs for callbacks to avoid reconnection loops
   const runningRef = useRef(running);
   const onStatusChangeRef = useRef(onStatusChange);
+  const onConnectionChangeRef = useRef(onConnectionChange);
   const onExitRef = useRef(onExit);
   const onFileChangeRef = useRef(onFileChange);
   const onProgressRef = useRef(onProgress);
@@ -97,6 +105,9 @@ export function Terminal({
   useEffect(() => {
     onStatusChangeRef.current = onStatusChange;
   }, [onStatusChange]);
+  useEffect(() => {
+    onConnectionChangeRef.current = onConnectionChange;
+  }, [onConnectionChange]);
   useEffect(() => {
     onExitRef.current = onExit;
   }, [onExit]);
@@ -169,6 +180,11 @@ export function Terminal({
     const webLinksAddon = new WebLinksAddon();
     term.loadAddon(webLinksAddon);
 
+    // Add SearchAddon for Cmd+F search
+    const searchAddon = new SearchAddon();
+    term.loadAddon(searchAddon);
+    searchAddonRef.current = searchAddon;
+
     // Open terminal in container
     term.open(terminalRef.current);
     fitAddon.fit();
@@ -231,6 +247,7 @@ export function Terminal({
 
     ws.onopen = () => {
       setConnected(true);
+      onConnectionChangeRef.current?.(true);
       ws.send(
         JSON.stringify({
           type: "resize",
@@ -309,6 +326,7 @@ export function Terminal({
     ws.onclose = () => {
       setConnected(false);
       setRunning(false);
+      onConnectionChangeRef.current?.(false);
       term.writeln("\x1b[90mDisconnected\x1b[0m");
     };
 
@@ -343,6 +361,64 @@ export function Terminal({
     xtermRef.current?.clear();
   }, []);
 
+  // Search functions
+  const openSearch = useCallback(() => {
+    setShowSearch(true);
+    // Focus the input after a brief delay to ensure it's rendered
+    setTimeout(() => searchInputRef.current?.focus(), 50);
+  }, []);
+
+  const closeSearch = useCallback(() => {
+    setShowSearch(false);
+    setSearchQuery("");
+    xtermRef.current?.focus();
+  }, []);
+
+  const findNext = useCallback(() => {
+    if (searchQuery && searchAddonRef.current) {
+      searchAddonRef.current.findNext(searchQuery);
+    }
+  }, [searchQuery]);
+
+  const findPrevious = useCallback(() => {
+    if (searchQuery && searchAddonRef.current) {
+      searchAddonRef.current.findPrevious(searchQuery);
+    }
+  }, [searchQuery]);
+
+  // Handle search input key events
+  const handleSearchKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (e.shiftKey) {
+          findPrevious();
+        } else {
+          findNext();
+        }
+      } else if (e.key === "Escape") {
+        closeSearch();
+      }
+    },
+    [findNext, findPrevious, closeSearch],
+  );
+
+  // Handle Cmd+F keyboard shortcut
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "f") {
+        e.preventDefault();
+        openSearch();
+      }
+    };
+
+    const container = terminalRef.current;
+    if (container) {
+      container.addEventListener("keydown", handleKeyDown);
+      return () => container.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [openSearch]);
+
   return (
     <div className="terminal-container">
       <div className="terminal-header">
@@ -364,6 +440,25 @@ export function Terminal({
                 strokeLinejoin="round"
                 strokeWidth={2}
                 d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
+          </button>
+          <button
+            onClick={openSearch}
+            className="terminal-btn"
+            title="Search (⌘F)"
+          >
+            <svg
+              className="terminal-icon"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
               />
             </svg>
           </button>
@@ -395,6 +490,78 @@ export function Terminal({
           </span>
         </div>
       </div>
+      {/* Search bar */}
+      {showSearch && (
+        <div className="terminal-search-bar">
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
+            placeholder="Search..."
+            className="terminal-search-input"
+            data-testid="terminal-search-input"
+          />
+          <button
+            onClick={findPrevious}
+            className="terminal-search-btn"
+            title="Previous (Shift+Enter)"
+          >
+            <svg
+              className="terminal-icon"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 15l7-7 7 7"
+              />
+            </svg>
+          </button>
+          <button
+            onClick={findNext}
+            className="terminal-search-btn"
+            title="Next (Enter)"
+          >
+            <svg
+              className="terminal-icon"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
+          <button
+            onClick={closeSearch}
+            className="terminal-search-btn"
+            title="Close (Esc)"
+          >
+            <svg
+              className="terminal-icon"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+      )}
       <div
         ref={terminalRef}
         className="terminal-content"
@@ -463,6 +630,45 @@ export function Terminal({
           flex: 1;
           padding: 8px;
           min-height: 300px;
+        }
+        .terminal-search-bar {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 6px 12px;
+          background: #252526;
+          border-bottom: 1px solid #3d3d3d;
+        }
+        .terminal-search-input {
+          flex: 1;
+          background: #3c3c3c;
+          border: 1px solid #4d4d4d;
+          border-radius: 4px;
+          padding: 4px 8px;
+          font-size: 13px;
+          color: #d4d4d4;
+          outline: none;
+        }
+        .terminal-search-input:focus {
+          border-color: #007acc;
+        }
+        .terminal-search-input::placeholder {
+          color: #888;
+        }
+        .terminal-search-btn {
+          background: none;
+          border: none;
+          padding: 4px;
+          cursor: pointer;
+          color: #888;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .terminal-search-btn:hover {
+          color: #d4d4d4;
+          background: #3d3d3d;
         }
       `}</style>
     </div>

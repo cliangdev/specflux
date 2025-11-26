@@ -56,19 +56,19 @@ const mockEpics = [
     id: 1,
     title: "Epic 1",
     projectId: 1,
-    status: "planning",
+    status: "planning" as const,
     createdByUserId: 1,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
   },
   {
     id: 2,
     title: "Epic 2",
     projectId: 1,
-    status: "in_progress",
+    status: "active" as const,
     createdByUserId: 1,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
   },
 ];
 
@@ -119,7 +119,9 @@ describe("NewSessionDialog", () => {
     expect(
       screen.getByText("Review epic planning, PRD, and task breakdown"),
     ).toBeInTheDocument();
-    expect(screen.getByText("Work on project-level tasks")).toBeInTheDocument();
+    expect(
+      screen.getByText("Coordinate across epics, review project health"),
+    ).toBeInTheDocument();
   });
 
   it("has Task mode selected by default", () => {
@@ -143,11 +145,10 @@ describe("NewSessionDialog", () => {
     ) as HTMLInputElement;
 
     expect(epicRadio).not.toBeDisabled();
-    expect(projectRadio).toBeDisabled();
+    expect(projectRadio).not.toBeDisabled();
 
-    // Check for "Coming soon" badge (only on Project now)
-    const comingSoonBadges = screen.getAllByText("Coming soon");
-    expect(comingSoonBadges).toHaveLength(1);
+    // All modes are now enabled, so no "Coming soon" badges
+    expect(screen.queryByText("Coming soon")).not.toBeInTheDocument();
   });
 
   it("shows task dropdown when Task mode is selected", async () => {

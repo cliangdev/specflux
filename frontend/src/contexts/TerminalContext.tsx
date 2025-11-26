@@ -36,10 +36,14 @@ interface TerminalContextValue {
   // Panel state
   isOpen: boolean;
   isCollapsed: boolean;
+  panelHeight: number;
+  isMaximized: boolean;
   togglePanel: () => void;
   openPanel: () => void;
   closePanel: () => void;
   toggleCollapse: () => void;
+  setPanelHeight: (height: number) => void;
+  toggleMaximize: () => void;
 
   // Multi-tab session state
   sessions: TerminalSession[];
@@ -63,48 +67,110 @@ const TerminalContext = createContext<TerminalContextValue | null>(null);
 
 const STORAGE_KEY = "specflux-terminal-panel";
 
+// Panel height constants
+const DEFAULT_PANEL_HEIGHT = 320;
+const MIN_PANEL_HEIGHT = 100;
+const MAX_PANEL_HEIGHT_PERCENT = 0.8;
+
+interface StoredSession {
+  id: string;
+  contextType: ContextType;
+  contextId: number;
+  contextTitle: string;
+}
+
 interface StoredState {
   isOpen: boolean;
   isCollapsed: boolean;
+  panelHeight: number;
+  isMaximized: boolean;
+  sessions: StoredSession[];
+  activeSessionId: string | null;
 }
 
 export function TerminalProvider({ children }: { children: ReactNode }) {
-  // Initialize from localStorage
-  const [isOpen, setIsOpen] = useState(() => {
+  // Helper to get stored state
+  const getStoredState = (): Partial<StoredState> => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        const parsed: StoredState = JSON.parse(stored);
-        return parsed.isOpen ?? false;
+        return JSON.parse(stored);
       }
     } catch {
       // Ignore parse errors
     }
-    return false;
+    return {};
+  };
+
+  // Initialize from localStorage
+  const [isOpen, setIsOpen] = useState(() => {
+    return getStoredState().isOpen ?? false;
   });
 
   const [isCollapsed, setIsCollapsed] = useState(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed: StoredState = JSON.parse(stored);
-        return parsed.isCollapsed ?? false;
-      }
-    } catch {
-      // Ignore parse errors
-    }
-    return false;
+    return getStoredState().isCollapsed ?? false;
   });
 
-  // Multi-tab session state
-  const [sessions, setSessions] = useState<TerminalSession[]>([]);
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [panelHeight, setPanelHeightState] = useState(() => {
+    return getStoredState().panelHeight ?? DEFAULT_PANEL_HEIGHT;
+  });
+
+  const [isMaximized, setIsMaximized] = useState(() => {
+    return getStoredState().isMaximized ?? false;
+  });
+
+  // Track pre-maximize height for restore
+  const [preMaximizeHeight, setPreMaximizeHeight] =
+    useState(DEFAULT_PANEL_HEIGHT);
+
+  // Multi-tab session state - restore from localStorage
+  const [sessions, setSessions] = useState<TerminalSession[]>(() => {
+    const stored = getStoredState();
+    if (stored.sessions && Array.isArray(stored.sessions)) {
+      return stored.sessions.map((s) => ({
+        id: s.id,
+        contextType: s.contextType,
+        contextId: s.contextId,
+        contextTitle: s.contextTitle,
+        taskId: s.contextId,
+        taskTitle: s.contextTitle,
+        isRunning: false,
+        isConnected: false,
+      }));
+    }
+    return [];
+  });
+
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(() => {
+    return getStoredState().activeSessionId ?? null;
+  });
 
   // Persist panel state to localStorage
   useEffect(() => {
-    const state: StoredState = { isOpen, isCollapsed };
+    const storedSessions: StoredSession[] = sessions.map((s) => ({
+      id: s.id,
+      contextType: s.contextType,
+      contextId: s.contextId,
+      contextTitle: s.contextTitle,
+    }));
+
+    const state: StoredState = {
+      isOpen,
+      isCollapsed,
+      panelHeight,
+      isMaximized,
+      sessions: storedSessions,
+      activeSessionId,
+    };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [isOpen, isCollapsed]);
+  }, [
+    isOpen,
+    isCollapsed,
+    panelHeight,
+    isMaximized,
+    sessions,
+    activeSessionId,
+  ]);
 
   const togglePanel = useCallback(() => {
     setIsOpen((prev) => !prev);
@@ -122,6 +188,41 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
   const toggleCollapse = useCallback(() => {
     setIsCollapsed((prev) => !prev);
   }, []);
+
+  const setPanelHeight = useCallback(
+    (height: number) => {
+      const maxHeight =
+        typeof window !== "undefined"
+          ? window.innerHeight * MAX_PANEL_HEIGHT_PERCENT
+          : 600;
+      const clampedHeight = Math.min(
+        Math.max(height, MIN_PANEL_HEIGHT),
+        maxHeight,
+      );
+      setPanelHeightState(clampedHeight);
+      if (isMaximized) {
+        setIsMaximized(false);
+      }
+    },
+    [isMaximized],
+  );
+
+  const toggleMaximize = useCallback(() => {
+    if (isMaximized) {
+      // Restore to previous height
+      setPanelHeightState(preMaximizeHeight);
+      setIsMaximized(false);
+    } else {
+      // Save current height and maximize
+      setPreMaximizeHeight(panelHeight);
+      const maxHeight =
+        typeof window !== "undefined"
+          ? window.innerHeight * MAX_PANEL_HEIGHT_PERCENT
+          : 600;
+      setPanelHeightState(maxHeight);
+      setIsMaximized(true);
+    }
+  }, [isMaximized, panelHeight, preMaximizeHeight]);
 
   const openTerminalForContext = useCallback((context: ContextInfo) => {
     const sessionId = `${context.type}-${context.id}`;
@@ -231,10 +332,14 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
   const value: TerminalContextValue = {
     isOpen,
     isCollapsed,
+    panelHeight,
+    isMaximized,
     togglePanel,
     openPanel,
     closePanel,
     toggleCollapse,
+    setPanelHeight,
+    toggleMaximize,
     sessions,
     activeSessionId,
     openTerminalForContext,
