@@ -3,5 +3,6 @@ export { default as TasksPage } from "./TasksPage";
 export { default as TaskDetailPage } from "./TaskDetailPage";
 export { default as EpicsPage } from "./EpicsPage";
 export { default as EpicDetailPage } from "./EpicDetailPage";
+export { default as RoadmapPage } from "./RoadmapPage";
 export { default as FilesPage } from "./FilesPage";
 export { default as SettingsPage } from "./SettingsPage";

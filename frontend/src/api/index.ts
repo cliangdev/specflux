@@ -15,6 +15,7 @@ export {
   HealthApi,
   NotificationsApi,
   ProjectsApi,
+  ReleasesApi,
   RepositoriesApi,
   TasksApi,
   UsersApi,
@@ -39,6 +40,10 @@ export type {
   TerminalOutput,
   Pagination,
   ApproveAndPRResult,
+  // Release types
+  Release,
+  ReleaseWithEpics,
+  ReleasePhase,
   // File tracking types
   GetTaskFileChanges200ResponseData as TaskFileChanges,
   GetTaskFileChanges200ResponseDataChangesInner as TrackedFileChange,
@@ -55,6 +60,8 @@ export type {
   UpdateTaskRequest,
   CreateRepositoryRequest,
   UpdateRepositoryRequest,
+  CreateReleaseRequest,
+  UpdateReleaseRequest,
   ReviewRequest,
   UpdateUserRequest,
 } from "./generated";

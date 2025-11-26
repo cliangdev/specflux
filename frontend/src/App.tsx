@@ -7,6 +7,7 @@ import {
   TaskDetailPage,
   EpicsPage,
   EpicDetailPage,
+  RoadmapPage,
   FilesPage,
   SettingsPage,
 } from "./pages";
@@ -21,6 +22,7 @@ function App() {
             <Route path="board" element={<BoardPage />} />
             <Route path="tasks" element={<TasksPage />} />
             <Route path="tasks/:taskId" element={<TaskDetailPage />} />
+            <Route path="roadmap" element={<RoadmapPage />} />
             <Route path="epics" element={<EpicsPage />} />
             <Route path="epics/:id" element={<EpicDetailPage />} />
             <Route path="files" element={<FilesPage />} />

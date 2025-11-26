@@ -1,30 +1,33 @@
 import { useState, type FormEvent } from "react";
-import { api, type CreateEpicRequest } from "../../api";
+import { api, type CreateReleaseRequest } from "../../api";
 
-interface EpicCreateModalProps {
+interface ReleaseCreateModalProps {
   projectId: number;
-  releaseId?: number;
   onClose: () => void;
   onCreated: () => void;
 }
 
-export default function EpicCreateModal({
+export default function ReleaseCreateModal({
   projectId,
-  releaseId,
   onClose,
   onCreated,
-}: EpicCreateModalProps) {
-  const [title, setTitle] = useState("");
+}: ReleaseCreateModalProps) {
+  const [name, setName] = useState("");
+  const [targetDate, setTargetDate] = useState("");
   const [description, setDescription] = useState("");
-  const [prdFilePath, setPrdFilePath] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Check if target date is in the past
+  const isPastDate = targetDate
+    ? new Date(targetDate) < new Date(new Date().toDateString())
+    : false;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    if (!title.trim()) {
-      setError("Title is required");
+    if (!name.trim()) {
+      setError("Name is required");
       return;
     }
 
@@ -32,25 +35,24 @@ export default function EpicCreateModal({
       setSubmitting(true);
       setError(null);
 
-      const request: CreateEpicRequest = {
-        title: title.trim(),
-        description: description.trim() || undefined,
-        prdFilePath: prdFilePath.trim() || undefined,
-        releaseId: releaseId ?? undefined,
+      const request: CreateReleaseRequest = {
+        name: name.trim(),
+        targetDate: targetDate ? new Date(targetDate) : null,
+        description: description.trim() || null,
       };
 
-      await api.epics.createEpic({
+      await api.releases.createRelease({
         id: projectId,
-        createEpicRequest: request,
+        createReleaseRequest: request,
       });
 
       onCreated();
       onClose();
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Failed to create epic";
+        err instanceof Error ? err.message : "Failed to create release";
       setError(message);
-      console.error("Failed to create epic:", err);
+      console.error("Failed to create release:", err);
     } finally {
       setSubmitting(false);
     }
@@ -69,7 +71,7 @@ export default function EpicCreateModal({
       <div className="relative bg-white dark:bg-system-800 rounded-lg shadow-xl w-full max-w-md mx-4 border border-system-200 dark:border-system-700">
         <div className="flex items-center justify-between px-6 py-4 border-b border-system-200 dark:border-system-700">
           <h2 className="text-lg font-semibold text-system-900 dark:text-white">
-            Create Epic
+            Create Release
           </h2>
           <button
             onClick={onClose}
@@ -101,20 +103,54 @@ export default function EpicCreateModal({
 
             <div>
               <label
-                htmlFor="title"
+                htmlFor="name"
                 className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
               >
-                Title <span className="text-red-500">*</span>
+                Name <span className="text-red-500">*</span>
               </label>
               <input
-                id="title"
+                id="name"
                 type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Enter epic title"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g., v1.0 MVP"
                 className="input"
                 autoFocus
               />
+            </div>
+
+            <div>
+              <label
+                htmlFor="targetDate"
+                className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
+              >
+                Target Date
+              </label>
+              <input
+                id="targetDate"
+                type="date"
+                value={targetDate}
+                onChange={(e) => setTargetDate(e.target.value)}
+                className="input"
+              />
+              {isPastDate && (
+                <p className="mt-1 text-xs text-semantic-warning flex items-center gap-1">
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                  This date is in the past
+                </p>
+              )}
             </div>
 
             <div>
@@ -128,30 +164,10 @@ export default function EpicCreateModal({
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional description"
+                placeholder="Optional description of this release"
                 rows={3}
                 className="input resize-none"
               />
-            </div>
-
-            <div>
-              <label
-                htmlFor="prdFilePath"
-                className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
-              >
-                PRD File Path
-              </label>
-              <input
-                id="prdFilePath"
-                type="text"
-                value={prdFilePath}
-                onChange={(e) => setPrdFilePath(e.target.value)}
-                placeholder="e.g., prds/feature-name.md"
-                className="input"
-              />
-              <p className="mt-1 text-xs text-system-500 dark:text-system-400">
-                Optional path to the PRD file in your .specflux directory
-              </p>
             </div>
           </div>
 
@@ -166,7 +182,7 @@ export default function EpicCreateModal({
             </button>
             <button
               type="submit"
-              disabled={submitting || !title.trim()}
+              disabled={submitting || !name.trim()}
               className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting && (
@@ -190,7 +206,7 @@ export default function EpicCreateModal({
                   />
                 </svg>
               )}
-              Create Epic
+              Create Release
             </button>
           </div>
         </form>

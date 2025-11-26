@@ -4,17 +4,22 @@ import { NotFoundError } from '../types';
 export interface Epic {
   id: number;
   project_id: number;
+  release_id: number | null;
   title: string;
   description: string | null;
   prd_file_path: string | null;
   epic_file_path: string | null;
   status: string;
+  depends_on: string | null; // JSON array of epic IDs
+  target_date: string | null;
   created_by_user_id: number;
   created_at: string;
   updated_at: string;
 }
 
 export interface EpicWithStats extends Epic {
+  depends_on_parsed: number[]; // Parsed array from JSON
+  phase: number; // Computed phase based on dependencies
   task_stats: {
     total: number;
     backlog: number;
@@ -30,6 +35,9 @@ export interface CreateEpicInput {
   prd_file_path?: string;
   epic_file_path?: string;
   status?: string;
+  release_id?: number | null;
+  depends_on?: number[];
+  target_date?: string | null;
 }
 
 export interface UpdateEpicInput {
@@ -38,6 +46,23 @@ export interface UpdateEpicInput {
   prd_file_path?: string | null;
   epic_file_path?: string | null;
   status?: string;
+  release_id?: number | null;
+  depends_on?: number[];
+  target_date?: string | null;
+}
+
+/**
+ * Calculate phase for an epic based on its dependencies
+ */
+function calculatePhase(epicId: number, epics: Map<number, { depends_on: number[] }>): number {
+  const epic = epics.get(epicId);
+  if (!epic) return 1;
+
+  const deps = epic.depends_on;
+  if (!deps || deps.length === 0) return 1;
+
+  const depPhases = deps.map((depId) => calculatePhase(depId, epics));
+  return Math.max(...depPhases) + 1;
 }
 
 /**
@@ -55,7 +80,14 @@ export function listEpics(projectId: number): EpicWithStats[] {
     )
     .all(projectId) as Epic[];
 
-  return epics.map((epic) => addEpicStats(epic));
+  // Build a map for phase calculation
+  const epicMap = new Map<number, { depends_on: number[] }>();
+  for (const epic of epics) {
+    const dependsOn: number[] = epic.depends_on ? (JSON.parse(epic.depends_on) as number[]) : [];
+    epicMap.set(epic.id, { depends_on: dependsOn });
+  }
+
+  return epics.map((epic) => addEpicStats(epic, epicMap));
 }
 
 /**
@@ -71,15 +103,28 @@ export function getEpicById(id: number): Epic | null {
  * Get epic with stats
  */
 export function getEpicWithStats(id: number): EpicWithStats | null {
+  const db = getDatabase();
   const epic = getEpicById(id);
   if (!epic) return null;
-  return addEpicStats(epic);
+
+  // Get all epics in the same project to calculate phase
+  const projectEpics = db
+    .prepare('SELECT id, depends_on FROM epics WHERE project_id = ?')
+    .all(epic.project_id) as { id: number; depends_on: string | null }[];
+
+  const epicMap = new Map<number, { depends_on: number[] }>();
+  for (const e of projectEpics) {
+    const dependsOn: number[] = e.depends_on ? (JSON.parse(e.depends_on) as number[]) : [];
+    epicMap.set(e.id, { depends_on: dependsOn });
+  }
+
+  return addEpicStats(epic, epicMap);
 }
 
 /**
  * Add task stats to an epic
  */
-function addEpicStats(epic: Epic): EpicWithStats {
+function addEpicStats(epic: Epic, epicMap: Map<number, { depends_on: number[] }>): EpicWithStats {
   const db = getDatabase();
 
   const stats = db
@@ -116,8 +161,16 @@ function addEpicStats(epic: Epic): EpicWithStats {
   const progressPercentage =
     taskStats.total > 0 ? Math.round((taskStats.done / taskStats.total) * 100) : 0;
 
+  // Parse depends_on and calculate phase
+  const dependsOnParsed: number[] = epic.depends_on
+    ? (JSON.parse(epic.depends_on) as number[])
+    : [];
+  const phase = calculatePhase(epic.id, epicMap);
+
   return {
     ...epic,
+    depends_on_parsed: dependsOnParsed,
+    phase,
     task_stats: taskStats,
     progress_percentage: progressPercentage,
   };
@@ -133,12 +186,13 @@ export function createEpic(
 ): Epic {
   const db = getDatabase();
   const status = input.status ?? 'planning';
+  const dependsOn = input.depends_on ? JSON.stringify(input.depends_on) : null;
 
   const result = db
     .prepare(
       `
-      INSERT INTO epics (project_id, title, description, prd_file_path, epic_file_path, status, created_by_user_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO epics (project_id, title, description, prd_file_path, epic_file_path, status, release_id, depends_on, target_date, created_by_user_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
     )
     .run(
@@ -148,6 +202,9 @@ export function createEpic(
       input.prd_file_path ?? null,
       input.epic_file_path ?? null,
       status,
+      input.release_id ?? null,
+      dependsOn,
+      input.target_date ?? null,
       createdByUserId
     );
 
@@ -166,7 +223,7 @@ export function updateEpic(id: number, input: UpdateEpicInput): Epic {
   }
 
   const updates: string[] = [];
-  const values: (string | null)[] = [];
+  const values: (string | number | null)[] = [];
 
   if (input.title !== undefined) {
     updates.push('title = ?');
@@ -191,6 +248,21 @@ export function updateEpic(id: number, input: UpdateEpicInput): Epic {
   if (input.status !== undefined) {
     updates.push('status = ?');
     values.push(input.status);
+  }
+
+  if (input.release_id !== undefined) {
+    updates.push('release_id = ?');
+    values.push(input.release_id);
+  }
+
+  if (input.depends_on !== undefined) {
+    updates.push('depends_on = ?');
+    values.push(input.depends_on ? JSON.stringify(input.depends_on) : null);
+  }
+
+  if (input.target_date !== undefined) {
+    updates.push('target_date = ?');
+    values.push(input.target_date);
   }
 
   if (updates.length > 0) {

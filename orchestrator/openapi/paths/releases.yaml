@@ -1,0 +1,192 @@
+projects-id-releases:
+  get:
+    summary: List releases
+    description: Get all releases for a project
+    operationId: listReleases
+    tags:
+      - Releases
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum: [planned, in_progress, released]
+    responses:
+      '200':
+        description: List of releases
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  type: array
+                  items:
+                    $ref: '../schemas/release.yaml#/Release'
+
+  post:
+    summary: Create release
+    description: Create a new release in a project
+    operationId: createRelease
+    tags:
+      - Releases
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/release.yaml#/CreateReleaseRequest'
+    responses:
+      '201':
+        description: Release created
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/release.yaml#/Release'
+      '400':
+        description: Invalid request
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+releases-id:
+  get:
+    summary: Get release
+    description: Get release details by ID
+    operationId: getRelease
+    tags:
+      - Releases
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Release details
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/release.yaml#/Release'
+      '404':
+        description: Release not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+  put:
+    summary: Update release
+    description: Update release details
+    operationId: updateRelease
+    tags:
+      - Releases
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/release.yaml#/UpdateReleaseRequest'
+    responses:
+      '200':
+        description: Updated release
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/release.yaml#/Release'
+      '404':
+        description: Release not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+  delete:
+    summary: Delete release
+    description: Delete a release (epics are unassigned, not deleted)
+    operationId: deleteRelease
+    tags:
+      - Releases
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '204':
+        description: Release deleted
+      '404':
+        description: Release not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+releases-id-roadmap:
+  get:
+    summary: Get release roadmap
+    description: Get release with epics grouped by phase
+    operationId: getReleaseRoadmap
+    tags:
+      - Releases
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Release roadmap with phase-grouped epics
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/release.yaml#/ReleaseWithEpics'
+      '404':
+        description: Release not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'

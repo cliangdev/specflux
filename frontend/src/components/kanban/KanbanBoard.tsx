@@ -81,7 +81,8 @@ export function KanbanBoard({
     try {
       setLoading(true);
       setError(null);
-      const response = await api.tasks.listTasks({ id: projectId });
+      // Fetch all tasks with a high limit to avoid pagination issues on the board
+      const response = await api.tasks.listTasks({ id: projectId, limit: 200 });
       if (response.success && response.data) {
         setTasks(response.data);
       }

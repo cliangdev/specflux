@@ -52,7 +52,16 @@ router.post('/projects/:projectId/epics', (req: Request, res: Response, next: Ne
     }
 
     const body = req.body as Record<string, unknown>;
-    const { title, description, prd_file_path, epic_file_path, status } = body;
+    const {
+      title,
+      description,
+      prd_file_path,
+      epic_file_path,
+      status,
+      release_id,
+      depends_on,
+      target_date,
+    } = body;
 
     if (!title || typeof title !== 'string') {
       throw new ValidationError('title is required');
@@ -66,6 +75,9 @@ router.post('/projects/:projectId/epics', (req: Request, res: Response, next: Ne
         prd_file_path: prd_file_path as string | undefined,
         epic_file_path: epic_file_path as string | undefined,
         status: status as string | undefined,
+        release_id: release_id as number | null | undefined,
+        depends_on: depends_on as number[] | undefined,
+        target_date: target_date as string | null | undefined,
       },
       req.userId!
     );
@@ -125,7 +137,16 @@ router.put('/epics/:id', (req: Request, res: Response, next: NextFunction) => {
     }
 
     const body = req.body as Record<string, unknown>;
-    const { title, description, prd_file_path, epic_file_path, status } = body;
+    const {
+      title,
+      description,
+      prd_file_path,
+      epic_file_path,
+      status,
+      release_id,
+      depends_on,
+      target_date,
+    } = body;
 
     const epic = updateEpic(epicId, {
       title: title as string | undefined,
@@ -133,6 +154,9 @@ router.put('/epics/:id', (req: Request, res: Response, next: NextFunction) => {
       prd_file_path: prd_file_path as string | null | undefined,
       epic_file_path: epic_file_path as string | null | undefined,
       status: status as string | undefined,
+      release_id: release_id as number | null | undefined,
+      depends_on: depends_on as number[] | undefined,
+      target_date: target_date as string | null | undefined,
     });
 
     res.json({ success: true, data: epic });

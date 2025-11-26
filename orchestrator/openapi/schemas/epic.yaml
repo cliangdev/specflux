@@ -5,6 +5,10 @@ Epic:
       type: integer
     project_id:
       type: integer
+    release_id:
+      type: integer
+      nullable: true
+      description: ID of the release this epic belongs to
     title:
       type: string
     description:
@@ -19,6 +23,20 @@ Epic:
     status:
       type: string
       enum: [planning, active, completed]
+    depends_on:
+      type: array
+      items:
+        type: integer
+      description: IDs of epics this epic depends on
+    target_date:
+      type: string
+      format: date
+      nullable: true
+      description: Target completion date for this epic
+    phase:
+      type: integer
+      minimum: 1
+      description: Computed phase number based on dependencies (1 = no deps)
     created_by_user_id:
       type: integer
     task_stats:
@@ -62,6 +80,19 @@ CreateEpicRequest:
     prd_file_path:
       type: string
       nullable: true
+    release_id:
+      type: integer
+      nullable: true
+      description: ID of the release to assign this epic to
+    depends_on:
+      type: array
+      items:
+        type: integer
+      description: IDs of epics this epic depends on
+    target_date:
+      type: string
+      format: date
+      nullable: true
   required:
     - title
 
@@ -81,6 +112,19 @@ UpdateEpicRequest:
     status:
       type: string
       enum: [planning, active, completed]
+    release_id:
+      type: integer
+      nullable: true
+      description: ID of the release to assign this epic to
+    depends_on:
+      type: array
+      items:
+        type: integer
+      description: IDs of epics this epic depends on
+    target_date:
+      type: string
+      format: date
+      nullable: true
 
 EpicProgress:
   type: object

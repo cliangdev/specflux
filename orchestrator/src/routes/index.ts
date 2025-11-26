@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { optionalAuthMiddleware } from '../middleware/auth.middleware';
 import projectRoutes from './projects.routes';
+import releaseRoutes from './releases.routes';
 import epicRoutes from './epics.routes';
 import taskRoutes from './tasks.routes';
 import repositoryRoutes from './repositories.routes';
@@ -32,6 +33,9 @@ router.use('/users', userRoutes);
 
 // Project routes
 router.use('/projects', projectRoutes);
+
+// Release routes (mixed - some under /projects, some under /releases)
+router.use(releaseRoutes);
 
 // Epic routes (mixed - some under /projects, some under /epics)
 router.use(epicRoutes);

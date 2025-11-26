@@ -23,7 +23,7 @@ describe("App", () => {
     render(<App />);
     expect(screen.getByRole("link", { name: /board/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /tasks/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /epics/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /roadmap/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /files/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /settings/i })).toBeInTheDocument();
   });
