@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import {
   api,
@@ -15,12 +15,13 @@ import {
 } from "../api";
 import FileChanges from "../components/FileChanges";
 import {
-  DependencyList,
   AddDependencyModal,
   ReadinessChecklist,
+  TaskOverviewTab,
+  TaskContextTab,
 } from "../components/tasks";
 import TaskDetailHeader from "../components/tasks/TaskDetailHeader";
-import { TaskEditModal } from "../components/ui";
+import { TaskEditModal, TabNavigation } from "../components/ui";
 import { useTerminal } from "../contexts/TerminalContext";
 import { calculateReadiness } from "../utils/readiness";
 
@@ -88,14 +89,63 @@ function AgentStatusBadge({ status }: { status: string }) {
   );
 }
 
+// Tab definitions
+const TABS = [
+  {
+    id: "overview",
+    label: "Overview",
+    icon: (
+      <svg
+        className="w-4 h-4"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+        />
+      </svg>
+    ),
+  },
+  {
+    id: "context",
+    label: "Context",
+    icon: (
+      <svg
+        className="w-4 h-4"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+        />
+      </svg>
+    ),
+  },
+];
+
 export default function TaskDetailPage() {
   const { taskId } = useParams<{ taskId: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const {
     openTerminalForTask,
     activeTask,
     isRunning: terminalIsRunning,
   } = useTerminal();
+
+  // Tab state from URL
+  const activeTab = searchParams.get("tab") || "overview";
+  const setActiveTab = (tab: string) => {
+    setSearchParams({ tab }, { replace: true });
+  };
 
   const [task, setTask] = useState<Task | null>(null);
   const [agentStatus, setAgentStatus] = useState<AgentStatus | null>(null);
@@ -509,111 +559,63 @@ export default function TaskDetailPage() {
 
       {/* Content - Split Pane */}
       <div className="flex flex-1 min-h-0 overflow-hidden rounded-lg border border-system-200 dark:border-system-800">
-        {/* Left Panel - Task Details */}
-        <div className="w-1/3 border-r border-system-200 dark:border-system-800 p-6 overflow-y-auto bg-white dark:bg-system-900 scrollbar-thin">
-          {/* Description */}
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-system-900 dark:text-white mb-2">
-              Description
-            </h2>
-            <p className="text-sm text-system-600 dark:text-system-300 leading-relaxed">
-              {task.description || "No description provided"}
-            </p>
+        {/* Left Panel - Tabbed Task Details */}
+        <div className="w-1/3 border-r border-system-200 dark:border-system-800 flex flex-col bg-white dark:bg-system-900">
+          {/* Tab Navigation */}
+          <TabNavigation
+            tabs={TABS}
+            activeTab={activeTab}
+            onChange={setActiveTab}
+          />
+
+          {/* Tab Content */}
+          <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
+            {activeTab === "overview" && (
+              <div className="space-y-6">
+                {/* Overview Tab Content */}
+                <TaskOverviewTab task={task} />
+
+                {/* Definition of Ready Checklist */}
+                <div>
+                  <h3 className="text-sm font-semibold text-system-900 dark:text-white mb-2">
+                    Definition of Ready
+                  </h3>
+                  <ReadinessChecklist
+                    readiness={readiness}
+                    onAddCriteria={() => setShowEditModal(true)}
+                    onAssignExecutor={() => setShowEditModal(true)}
+                    onAssignRepo={() => setShowEditModal(true)}
+                  />
+                </div>
+              </div>
+            )}
+
+            {activeTab === "context" && (
+              <TaskContextTab
+                task={task}
+                dependencies={dependencies}
+                epic={currentEpic}
+                onAddDependency={() => setShowAddDependencyModal(true)}
+                onRemoveDependency={handleRemoveDependency}
+              />
+            )}
           </div>
 
-          {/* Definition of Ready Checklist */}
-          <div className="mb-6">
-            <h3 className="text-xs font-bold text-system-400 uppercase tracking-wider mb-2">
-              Definition of Ready
-            </h3>
-            <ReadinessChecklist
-              readiness={readiness}
-              onAddCriteria={() => setShowEditModal(true)}
-              onAssignExecutor={() => setShowEditModal(true)}
-              onAssignRepo={() => setShowEditModal(true)}
-            />
-          </div>
-
-          {/* Epic */}
-          <div className="mb-6">
-            <h3 className="text-xs font-bold text-system-400 uppercase tracking-wider mb-2">
-              Epic
-            </h3>
-            <select
-              value={task.epicId ?? ""}
-              onChange={(e) =>
-                handleEpicChange(e.target.value ? Number(e.target.value) : null)
-              }
-              disabled={epicLoading}
-              className="select text-sm"
-            >
-              <option value="">No Epic</option>
-              {epics.map((epic) => (
-                <option key={epic.id} value={epic.id}>
-                  {epic.title}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Dependencies */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs font-bold text-system-400 uppercase tracking-wider">
-                Dependencies
-              </h3>
-              <button
-                onClick={() => setShowAddDependencyModal(true)}
-                className="text-xs text-brand-500 hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300 font-medium"
-              >
-                + Add
-              </button>
-            </div>
-            <DependencyList
-              dependencies={dependencies}
-              onRemove={handleRemoveDependency}
-              emptyMessage="No dependencies - this task can start anytime"
-            />
-          </div>
-
-          {/* Agent Status - fixed height to prevent layout shift */}
-          <div className="mb-6">
-            <h3 className="text-xs font-bold text-system-400 uppercase tracking-wider mb-2">
-              Agent Status
-            </h3>
-            <div className="flex items-center gap-3">
+          {/* Sidebar - Agent Controls & Actions (always visible) */}
+          <div className="border-t border-system-200 dark:border-system-700 p-4 space-y-4 bg-system-50 dark:bg-system-800/50">
+            {/* Agent Status */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-system-500 dark:text-system-400 uppercase">
+                Agent
+              </span>
               {agentLoading ? (
                 <span className="text-system-500 text-sm">Loading...</span>
               ) : (
-                <>
-                  <AgentStatusBadge status={agentStatus?.status ?? "idle"} />
-                  {agentStatus?.errorMessage && (
-                    <span className="text-xs text-red-500 dark:text-red-400">
-                      {agentStatus.errorMessage}
-                    </span>
-                  )}
-                </>
+                <AgentStatusBadge status={agentStatus?.status ?? "idle"} />
               )}
             </div>
-          </div>
 
-          {/* Repository */}
-          {task.repoName && (
-            <div className="mb-6">
-              <h3 className="text-xs font-bold text-system-400 uppercase tracking-wider mb-2">
-                Repository
-              </h3>
-              <p className="text-sm text-system-700 dark:text-system-300">
-                {task.repoName}
-              </p>
-            </div>
-          )}
-
-          {/* Agent Controls - in a card */}
-          <div className="p-4 bg-system-50 dark:bg-system-800 rounded-lg border border-system-200 dark:border-system-700">
-            <h3 className="text-sm font-medium text-system-900 dark:text-white mb-3">
-              Agent Controls
-            </h3>
+            {/* Agent Controls */}
             <div className="flex gap-2">
               {isAgentIdle && (
                 <button
@@ -625,7 +627,7 @@ export default function TaskDetailPage() {
                     task.status === "done" ||
                     task.status === "approved"
                   }
-                  className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="btn btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {actionLoading ? (
                     <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
@@ -653,7 +655,7 @@ export default function TaskDetailPage() {
                       <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
                     </svg>
                   )}
-                  Start
+                  Start Agent
                 </button>
               )}
               {isAgentRunning && (
@@ -663,7 +665,7 @@ export default function TaskDetailPage() {
                       handleAgentAction(ControlTaskAgentRequestActionEnum.Pause)
                     }
                     disabled={actionLoading}
-                    className="btn btn-secondary disabled:opacity-50"
+                    className="btn btn-secondary flex-1 disabled:opacity-50"
                   >
                     Pause
                   </button>
@@ -687,7 +689,7 @@ export default function TaskDetailPage() {
                       )
                     }
                     disabled={actionLoading}
-                    className="btn btn-secondary disabled:opacity-50"
+                    className="btn btn-secondary flex-1 disabled:opacity-50"
                   >
                     Resume
                   </button>
@@ -703,20 +705,17 @@ export default function TaskDetailPage() {
                 </>
               )}
             </div>
-          </div>
 
-          {/* File Changes - isolated component with its own state/polling */}
-          <div className="mt-6">
-            <h3 className="text-xs font-bold text-system-400 uppercase tracking-wider mb-2">
-              File Changes
-            </h3>
-            <FileChanges
-              taskId={task.id}
-              isAgentRunning={isAgentRunning}
-              onHasChanges={(has) => setHasFileChanges(has)}
-            />
+            {/* File Changes Summary */}
+            <div>
+              <FileChanges
+                taskId={task.id}
+                isAgentRunning={isAgentRunning}
+                onHasChanges={(has) => setHasFileChanges(has)}
+              />
+            </div>
 
-            {/* Create PR button - show when there are file changes and no PR yet */}
+            {/* PR Actions */}
             {hasFileChanges &&
               !prResult?.prUrl &&
               !task.githubPrUrl &&
@@ -724,101 +723,35 @@ export default function TaskDetailPage() {
                 <button
                   onClick={handleCreatePR}
                   disabled={createPRLoading}
-                  className="mt-3 btn btn-primary disabled:opacity-50"
+                  className="btn btn-primary w-full disabled:opacity-50"
                 >
-                  {createPRLoading ? (
-                    <>
-                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                          fill="none"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                        />
-                      </svg>
-                      Creating PR...
-                    </>
-                  ) : (
-                    "Create PR"
-                  )}
+                  {createPRLoading ? "Creating PR..." : "Create PR"}
                 </button>
               )}
-          </div>
 
-          {/* Review Section - shown when pending_review or has PR */}
-          {(task.status === "pending_review" ||
-            task.status === "done" ||
-            task.status === "approved" ||
-            prResult?.prUrl ||
-            task.githubPrUrl) && (
-            <div className="mt-6">
-              <h3 className="text-xs font-bold text-system-400 uppercase tracking-wider mb-3">
-                Review & Approve
-              </h3>
-
-              {/* PR Link - prefer prResult (fresh) over task (from DB) */}
-              {(prResult?.prUrl || task.githubPrUrl) && (
+            {/* PR Link & Approve */}
+            {(prResult?.prUrl || task.githubPrUrl) && (
+              <div className="space-y-2">
                 <button
                   onClick={() =>
                     openExternal(prResult?.prUrl || task.githubPrUrl || "")
                   }
-                  className="inline-block mb-3 text-brand-500 dark:text-brand-400 text-sm hover:underline text-left"
+                  className="text-brand-500 dark:text-brand-400 text-sm hover:underline"
                 >
-                  {prResult?.prNumber || task.githubPrNumber
-                    ? `View PR #${prResult?.prNumber || task.githubPrNumber}`
-                    : "View PR"}
+                  View PR #{prResult?.prNumber || task.githubPrNumber}
                 </button>
-              )}
-
-              {/* Action buttons - show when there's a PR and task not done */}
-              {(prResult?.prUrl || task.githubPrUrl) &&
-                task.status !== "done" && (
-                  <div className="flex gap-2">
-                    {/* Approve button */}
-                    <button
-                      onClick={handleApprove}
-                      disabled={approveLoading}
-                      className="btn btn-success disabled:opacity-50"
-                    >
-                      {approveLoading ? (
-                        <>
-                          <svg
-                            className="animate-spin w-4 h-4"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                              fill="none"
-                            />
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                            />
-                          </svg>
-                          Approving...
-                        </>
-                      ) : (
-                        "Approve & Complete"
-                      )}
-                    </button>
-                  </div>
+                {task.status !== "done" && (
+                  <button
+                    onClick={handleApprove}
+                    disabled={approveLoading}
+                    className="btn btn-success w-full disabled:opacity-50"
+                  >
+                    {approveLoading ? "Approving..." : "Approve & Complete"}
+                  </button>
                 )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right Panel - Terminal Placeholder / Open in Terminal */}
