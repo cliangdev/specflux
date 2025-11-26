@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useProject } from "../contexts";
-import { api, type Release, type ReleaseWithEpics } from "../api";
+import { api, type Release, type ReleaseWithEpics, type Epic } from "../api";
 import { PhaseSection } from "../components/roadmap";
+import { EpicEditModal } from "../components/epics";
 
 function formatDate(date: Date | null | undefined): string {
   if (!date) return "No target date";
@@ -104,6 +105,7 @@ export default function RoadmapPage() {
   const [roadmapData, setRoadmapData] = useState<ReleaseWithEpics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editingEpic, setEditingEpic] = useState<Epic | null>(null);
 
   // Fetch all releases for the project
   const fetchReleases = useCallback(async () => {
@@ -353,11 +355,27 @@ export default function RoadmapPage() {
                         | "completed"
                     }
                     epics={phaseEpics}
+                    allEpics={roadmapData.epics}
                     completedCount={phase.completedCount}
                     totalCount={phase.totalCount}
+                    onEditEpic={setEditingEpic}
                   />
                 );
               })
+          )}
+
+          {/* Epic Edit Modal */}
+          {editingEpic && currentProject && (
+            <EpicEditModal
+              epic={editingEpic}
+              projectId={currentProject.id}
+              allEpics={roadmapData.epics}
+              onClose={() => setEditingEpic(null)}
+              onUpdated={() => {
+                setEditingEpic(null);
+                fetchRoadmap();
+              }}
+            />
           )}
         </>
       ) : null}
