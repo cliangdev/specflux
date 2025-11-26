@@ -457,7 +457,7 @@ export default function RoadmapPage() {
 
           {/* Filter controls */}
           {totalEpicsCount > 0 && (
-            <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-4 mb-6">
               {/* Search input */}
               <div className="relative flex-1 max-w-xs">
                 <svg

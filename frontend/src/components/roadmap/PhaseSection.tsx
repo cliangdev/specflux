@@ -386,7 +386,7 @@ export function PhaseSection({
   const statusLabel = getPhaseStatusLabel(status);
 
   return (
-    <div className="mb-4">
+    <div className="mb-5">
       {/* Phase Header - Clickable to expand/collapse */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
