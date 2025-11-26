@@ -3,6 +3,7 @@ import { useProject } from "../contexts";
 import { api, type Release, type ReleaseWithEpics, type Epic } from "../api";
 import { PhaseSection } from "../components/roadmap";
 import { EpicEditModal } from "../components/epics";
+import { ReleaseCreateModal } from "../components/releases";
 
 function formatDate(date: Date | null | undefined): string {
   if (!date) return "No target date";
@@ -106,6 +107,7 @@ export default function RoadmapPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingEpic, setEditingEpic] = useState<Epic | null>(null);
+  const [showCreateRelease, setShowCreateRelease] = useState(false);
 
   // Fetch all releases for the project
   const fetchReleases = useCallback(async () => {
@@ -235,7 +237,10 @@ export default function RoadmapPage() {
           </button>
 
           {/* Create Release button */}
-          <button className="btn btn-primary">
+          <button
+            onClick={() => setShowCreateRelease(true)}
+            className="btn btn-primary"
+          >
             <svg
               className="w-4 h-4"
               fill="none"
@@ -307,7 +312,10 @@ export default function RoadmapPage() {
           <p className="mt-2 text-system-500">
             Create your first release to start planning your roadmap.
           </p>
-          <button className="mt-4 btn btn-primary">
+          <button
+            onClick={() => setShowCreateRelease(true)}
+            className="mt-4 btn btn-primary"
+          >
             <svg
               className="w-4 h-4 mr-2"
               fill="none"
@@ -379,6 +387,18 @@ export default function RoadmapPage() {
           )}
         </>
       ) : null}
+
+      {/* Create Release Modal */}
+      {showCreateRelease && currentProject && (
+        <ReleaseCreateModal
+          projectId={currentProject.id}
+          onClose={() => setShowCreateRelease(false)}
+          onCreated={() => {
+            setShowCreateRelease(false);
+            fetchReleases();
+          }}
+        />
+      )}
     </div>
   );
 }

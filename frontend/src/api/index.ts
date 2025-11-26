@@ -60,6 +60,8 @@ export type {
   UpdateTaskRequest,
   CreateRepositoryRequest,
   UpdateRepositoryRequest,
+  CreateReleaseRequest,
+  UpdateReleaseRequest,
   ReviewRequest,
   UpdateUserRequest,
 } from "./generated";
