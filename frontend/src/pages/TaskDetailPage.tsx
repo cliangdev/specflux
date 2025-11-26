@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
 import {
@@ -9,13 +9,16 @@ import {
   type TaskDiff,
   type ApproveAndPRResult,
   type TaskDependency,
+  type User,
   ControlTaskAgentRequestActionEnum,
   AgentStatusStatusEnum,
 } from "../api";
 import FileChanges from "../components/FileChanges";
 import { DependencyList, AddDependencyModal } from "../components/tasks";
+import TaskDetailHeader from "../components/tasks/TaskDetailHeader";
 import { TaskEditModal } from "../components/ui";
 import { useTerminal } from "../contexts/TerminalContext";
+import { calculateReadiness } from "../utils/readiness";
 
 // Helper to open external URLs using Tauri command
 const openExternal = async (url: string) => {
@@ -26,147 +29,6 @@ const openExternal = async (url: string) => {
     window.open(url, "_blank");
   }
 };
-
-// Status badge configuration matching the mock design
-const STATUS_CONFIG: Record<
-  string,
-  { label: string; icon: string; classes: string }
-> = {
-  backlog: {
-    label: "Backlog",
-    icon: "inbox",
-    classes:
-      "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
-  },
-  ready: {
-    label: "Ready",
-    icon: "circle-dashed",
-    classes:
-      "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
-  },
-  in_progress: {
-    label: "In Progress",
-    icon: "timer",
-    classes:
-      "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 border-brand-200 dark:border-brand-800",
-  },
-  pending_review: {
-    label: "Pending Review",
-    icon: "eye",
-    classes:
-      "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800",
-  },
-  approved: {
-    label: "Approved",
-    icon: "check-circle",
-    classes:
-      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
-  },
-  done: {
-    label: "Done",
-    icon: "check-circle",
-    classes:
-      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
-  },
-};
-
-// SVG icons for status badges
-const StatusIcons: Record<string, JSX.Element> = {
-  inbox: (
-    <svg
-      className="w-3.5 h-3.5"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-      />
-    </svg>
-  ),
-  "circle-dashed": (
-    <svg
-      className="w-3.5 h-3.5"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-    >
-      <circle cx="12" cy="12" r="10" strokeDasharray="4 2" />
-    </svg>
-  ),
-  timer: (
-    <svg
-      className="w-3.5 h-3.5"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-      />
-    </svg>
-  ),
-  eye: (
-    <svg
-      className="w-3.5 h-3.5"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-      />
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-      />
-    </svg>
-  ),
-  "check-circle": (
-    <svg
-      className="w-3.5 h-3.5"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-      />
-    </svg>
-  ),
-};
-
-function StatusBadge({ status }: { status: string }) {
-  const config = STATUS_CONFIG[status] || {
-    label: status.replace(/_/g, " "),
-    icon: "circle-dashed",
-    classes:
-      "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
-  };
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap flex-shrink-0 ${config.classes}`}
-    >
-      {StatusIcons[config.icon]}
-      {config.label}
-    </span>
-  );
-}
 
 // Agent status badge configuration
 // "running" means the process is alive - could be working or waiting for input
@@ -248,9 +110,28 @@ export default function TaskDetailPage() {
   const [dependencies, setDependencies] = useState<TaskDependency[]>([]);
   const [showAddDependencyModal, setShowAddDependencyModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [ownerUser, setOwnerUser] = useState<User | null>(null);
 
   // Check if terminal is showing this task
   const isTerminalShowingThisTask = activeTask?.id === Number(taskId);
+
+  // Calculate readiness when task changes
+  const readiness = useMemo(() => {
+    if (!task)
+      return {
+        score: 0,
+        isReady: false,
+        criteria: {} as any,
+        criteriaLabels: [],
+      };
+    return calculateReadiness(task);
+  }, [task]);
+
+  // Get current epic from the epics list
+  const currentEpic = useMemo(() => {
+    if (!task?.epicId) return null;
+    return epics.find((e) => e.id === task.epicId) ?? null;
+  }, [task?.epicId, epics]);
 
   const fetchTask = useCallback(async () => {
     if (!taskId) return;
@@ -312,6 +193,33 @@ export default function TaskDetailPage() {
       console.error("Failed to update epic:", err);
     } finally {
       setEpicLoading(false);
+    }
+  };
+
+  // Update task status
+  const handleStatusChange = async (newStatus: string) => {
+    if (!task) return;
+
+    try {
+      await api.tasks.updateTask({
+        id: task.id,
+        updateTaskRequest: {
+          status: newStatus as
+            | "backlog"
+            | "ready"
+            | "in_progress"
+            | "pending_review"
+            | "approved"
+            | "done",
+        },
+      });
+      // Refresh task data
+      fetchTask();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to update status";
+      setError(message);
+      console.error("Failed to update status:", err);
     }
   };
 
@@ -550,55 +458,16 @@ export default function TaskDetailPage() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-4 flex-shrink-0">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-1 text-system-500 hover:text-system-700 dark:text-system-400 dark:hover:text-white transition-colors flex-shrink-0"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
-          Back
-        </button>
-        <div className="h-6 w-px bg-system-200 dark:bg-system-700 flex-shrink-0" />
-        <span className="text-system-500 dark:text-system-400 text-sm flex-shrink-0">
-          #{task.id}
-        </span>
-        <h1 className="text-xl font-semibold text-system-900 dark:text-white truncate flex-1 min-w-0">
-          {task.title}
-        </h1>
-        <button
-          onClick={() => setShowEditModal(true)}
-          className="p-1.5 text-system-400 hover:text-system-600 dark:hover:text-white transition-colors rounded hover:bg-system-100 dark:hover:bg-system-700 flex-shrink-0"
-          title="Edit task"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-            />
-          </svg>
-        </button>
-        <StatusBadge status={task.status} />
-      </div>
+      {/* Header with Status, Epic, Owner/Executor, and Readiness */}
+      <TaskDetailHeader
+        task={task}
+        epic={currentEpic}
+        owner={ownerUser}
+        readiness={readiness}
+        onStatusChange={handleStatusChange}
+        onEdit={() => setShowEditModal(true)}
+        onBack={() => navigate(-1)}
+      />
 
       {/* Error banner */}
       {error && (
