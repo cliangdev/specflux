@@ -3,6 +3,8 @@ import path from 'path';
 import { getDatabase } from '../db';
 import { Task, getTaskById, getTaskDependencies } from './task.service';
 import { getEpicWithStats, EpicWithStats } from './epic.service';
+import { getProjectById, getProjectStats, Project } from './project.service';
+import { listRepositories, Repository } from './repository.service';
 
 export interface TaskContext {
   task: Task;
@@ -342,6 +344,254 @@ export function writeEpicContextFile(worktreePath: string, epicId: number): stri
   if (!context) return null;
 
   const content = generateEpicContextMarkdown(context);
+
+  // Write to CLAUDE.md for Claude Code to read automatically
+  const claudeMdPath = path.join(worktreePath, 'CLAUDE.md');
+  fs.writeFileSync(claudeMdPath, content, 'utf-8');
+
+  // Also write to .specflux/context.md for reference
+  const contextDir = path.join(worktreePath, '.specflux');
+  if (!fs.existsSync(contextDir)) {
+    fs.mkdirSync(contextDir, { recursive: true });
+  }
+  const contextPath = path.join(contextDir, 'context.md');
+  fs.writeFileSync(contextPath, content, 'utf-8');
+
+  return claudeMdPath;
+}
+
+// ============================================================================
+// Project Context
+// ============================================================================
+
+export interface ProjectContext {
+  project: Project;
+  stats: {
+    totalTasks: number;
+    tasksByStatus: Record<string, number>;
+    completionRate: number;
+    epicsCount: number;
+    repositoriesCount: number;
+  };
+  repositories: Repository[];
+  epics: Array<{
+    id: number;
+    title: string;
+    status: string;
+    taskCount: number;
+    progressPercentage: number;
+  }>;
+  recentTasks: Array<{
+    id: number;
+    title: string;
+    status: string;
+    epicId: number | null;
+    epicTitle: string | null;
+  }>;
+}
+
+/**
+ * Get full context for a project including stats, repos, epics, and recent tasks
+ */
+export function getProjectContext(projectId: number): ProjectContext | null {
+  const project = getProjectById(projectId);
+  if (!project) return null;
+
+  const db = getDatabase();
+
+  // Get project stats
+  const rawStats = getProjectStats(projectId);
+  const totalTasks = Object.values(rawStats.tasks_by_status).reduce((a, b) => a + b, 0);
+  const stats = {
+    totalTasks,
+    tasksByStatus: rawStats.tasks_by_status,
+    completionRate: rawStats.completion_rate,
+    epicsCount: rawStats.epics_count,
+    repositoriesCount: rawStats.repositories_count,
+  };
+
+  // Get repositories
+  const repositories = listRepositories(projectId);
+
+  // Get epics with task counts and calculated progress
+  const epics = db
+    .prepare(
+      `
+      SELECT
+        e.id,
+        e.title,
+        e.status,
+        COUNT(t.id) as task_count,
+        SUM(CASE WHEN t.status = 'done' THEN 1 ELSE 0 END) as done_count
+      FROM epics e
+      LEFT JOIN tasks t ON t.epic_id = e.id
+      WHERE e.project_id = ?
+      GROUP BY e.id
+      ORDER BY e.id ASC
+    `
+    )
+    .all(projectId) as {
+    id: number;
+    title: string;
+    status: string;
+    task_count: number;
+    done_count: number;
+  }[];
+
+  const formattedEpics = epics.map((e) => ({
+    id: e.id,
+    title: e.title,
+    status: e.status,
+    taskCount: e.task_count,
+    progressPercentage: e.task_count > 0 ? Math.round((e.done_count / e.task_count) * 100) : 0,
+  }));
+
+  // Get recent tasks (last 20)
+  const recentTasks = db
+    .prepare(
+      `
+      SELECT
+        t.id,
+        t.title,
+        t.status,
+        t.epic_id,
+        e.title as epic_title
+      FROM tasks t
+      LEFT JOIN epics e ON e.id = t.epic_id
+      WHERE t.project_id = ?
+      ORDER BY t.updated_at DESC
+      LIMIT 20
+    `
+    )
+    .all(projectId) as {
+    id: number;
+    title: string;
+    status: string;
+    epic_id: number | null;
+    epic_title: string | null;
+  }[];
+
+  const formattedTasks = recentTasks.map((t) => ({
+    id: t.id,
+    title: t.title,
+    status: t.status,
+    epicId: t.epic_id,
+    epicTitle: t.epic_title,
+  }));
+
+  return {
+    project,
+    stats,
+    repositories,
+    epics: formattedEpics,
+    recentTasks: formattedTasks,
+  };
+}
+
+/**
+ * Generate markdown content for project context file
+ */
+export function generateProjectContextMarkdown(context: ProjectContext): string {
+  const lines: string[] = [];
+
+  // Header
+  lines.push(`# Project: ${context.project.name}`);
+  lines.push('');
+  lines.push(`**Local Path:** ${context.project.local_path}`);
+  lines.push(`**Git Remote:** ${context.project.git_remote ?? 'Not configured'}`);
+  lines.push(`**Workflow:** ${context.project.workflow_template ?? 'Default'}`);
+  lines.push('');
+
+  // Project Statistics
+  lines.push('## Project Statistics');
+  lines.push('');
+  lines.push(`- **Total Tasks:** ${context.stats.totalTasks}`);
+  lines.push(`- **Completion Rate:** ${context.stats.completionRate}%`);
+  lines.push(`- **Epics:** ${context.stats.epicsCount}`);
+  lines.push(`- **Repositories:** ${context.stats.repositoriesCount}`);
+  lines.push('');
+
+  // Tasks by Status
+  if (Object.keys(context.stats.tasksByStatus).length > 0) {
+    lines.push('### Tasks by Status');
+    lines.push('');
+    lines.push('| Status | Count |');
+    lines.push('|--------|-------|');
+    for (const [status, count] of Object.entries(context.stats.tasksByStatus)) {
+      lines.push(`| ${status} | ${count} |`);
+    }
+    lines.push('');
+  }
+
+  // Repositories
+  lines.push('## Repositories');
+  lines.push('');
+  if (context.repositories.length === 0) {
+    lines.push('_No repositories configured._');
+  } else {
+    for (const repo of context.repositories) {
+      lines.push(`### ${repo.name}`);
+      lines.push(`- **Path:** ${repo.path}`);
+      lines.push(`- **Git URL:** ${repo.git_url ?? 'Not configured'}`);
+      lines.push(`- **Status:** ${repo.status}`);
+      lines.push('');
+    }
+  }
+  lines.push('');
+
+  // Epics Overview
+  lines.push('## Epics Overview');
+  lines.push('');
+  if (context.epics.length === 0) {
+    lines.push('_No epics created yet._');
+  } else {
+    for (const epic of context.epics) {
+      lines.push(`### Epic #${epic.id}: ${epic.title}`);
+      lines.push(`- **Status:** ${epic.status}`);
+      lines.push(`- **Tasks:** ${epic.taskCount}`);
+      lines.push(`- **Progress:** ${epic.progressPercentage}%`);
+      lines.push('');
+    }
+  }
+  lines.push('');
+
+  // Recent Tasks
+  lines.push('## Recent Tasks (Last 20)');
+  lines.push('');
+  if (context.recentTasks.length === 0) {
+    lines.push('_No tasks created yet._');
+  } else {
+    for (const task of context.recentTasks) {
+      const epicInfo = task.epicTitle ? ` (Epic: ${task.epicTitle})` : '';
+      lines.push(`- **#${task.id}:** ${task.title} [${task.status}]${epicInfo}`);
+    }
+  }
+  lines.push('');
+
+  // Coordination Instructions
+  lines.push('## Coordination Instructions');
+  lines.push('');
+  lines.push('You are reviewing this project at a high level. You can:');
+  lines.push('');
+  lines.push('1. **Analyze Progress:** Review overall project health and identify blockers');
+  lines.push('2. **Cross-Epic Work:** Coordinate work that spans multiple epics');
+  lines.push('3. **Project Planning:** Help with roadmap and prioritization decisions');
+  lines.push('4. **Architecture Review:** Analyze cross-cutting technical concerns');
+  lines.push('');
+  lines.push('This is a coordination context - for implementation work, use Task context.');
+  lines.push('');
+
+  return lines.join('\n');
+}
+
+/**
+ * Write project context file to a directory
+ */
+export function writeProjectContextFile(worktreePath: string, projectId: number): string | null {
+  const context = getProjectContext(projectId);
+  if (!context) return null;
+
+  const content = generateProjectContextMarkdown(context);
 
   // Write to CLAUDE.md for Claude Code to read automatically
   const claudeMdPath = path.join(worktreePath, 'CLAUDE.md');

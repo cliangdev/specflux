@@ -8,6 +8,9 @@ import {
   readContextFile,
   deleteContextFile,
   TaskContext,
+  getProjectContext,
+  generateProjectContextMarkdown,
+  writeProjectContextFile,
 } from '../services/context.service';
 
 describe('ContextService', () => {
@@ -238,6 +241,106 @@ describe('ContextService', () => {
       expect(() => {
         deleteContextFile(path.join(__dirname, '../../non-existent-dir'));
       }).not.toThrow();
+    });
+  });
+
+  describe('getProjectContext', () => {
+    it('should return project context with stats', () => {
+      const context = getProjectContext(projectId);
+
+      expect(context).not.toBeNull();
+      expect(context?.project.id).toBe(projectId);
+      expect(context?.project.name).toBe('Context Test Project');
+      expect(context?.stats).toBeDefined();
+      expect(context?.stats.totalTasks).toBeGreaterThanOrEqual(2); // Our test tasks
+    });
+
+    it('should include task statistics by status', () => {
+      const context = getProjectContext(projectId);
+
+      expect(context?.stats.tasksByStatus).toBeDefined();
+      expect(typeof context?.stats.completionRate).toBe('number');
+    });
+
+    it('should include recent tasks', () => {
+      const context = getProjectContext(projectId);
+
+      expect(Array.isArray(context?.recentTasks)).toBe(true);
+      expect(context?.recentTasks.length).toBeGreaterThan(0);
+      // Check task structure
+      const task = context?.recentTasks[0];
+      expect(task).toHaveProperty('id');
+      expect(task).toHaveProperty('title');
+      expect(task).toHaveProperty('status');
+    });
+
+    it('should return null for non-existent project', () => {
+      const context = getProjectContext(99999);
+      expect(context).toBeNull();
+    });
+  });
+
+  describe('generateProjectContextMarkdown', () => {
+    it('should generate markdown with project name', () => {
+      const context = getProjectContext(projectId)!;
+      const markdown = generateProjectContextMarkdown(context);
+
+      expect(markdown).toContain('# Project: Context Test Project');
+    });
+
+    it('should include project statistics section', () => {
+      const context = getProjectContext(projectId)!;
+      const markdown = generateProjectContextMarkdown(context);
+
+      expect(markdown).toContain('## Project Statistics');
+      expect(markdown).toContain('**Total Tasks:**');
+      expect(markdown).toContain('**Completion Rate:**');
+    });
+
+    it('should include tasks by status table', () => {
+      const context = getProjectContext(projectId)!;
+      const markdown = generateProjectContextMarkdown(context);
+
+      expect(markdown).toContain('### Tasks by Status');
+      expect(markdown).toContain('| Status | Count |');
+    });
+
+    it('should include recent tasks section', () => {
+      const context = getProjectContext(projectId)!;
+      const markdown = generateProjectContextMarkdown(context);
+
+      expect(markdown).toContain('## Recent Tasks');
+    });
+
+    it('should include coordination instructions', () => {
+      const context = getProjectContext(projectId)!;
+      const markdown = generateProjectContextMarkdown(context);
+
+      expect(markdown).toContain('## Coordination Instructions');
+      expect(markdown).toContain('high level');
+    });
+  });
+
+  describe('writeProjectContextFile', () => {
+    it('should create CLAUDE.md file for project context', () => {
+      const contextPath = writeProjectContextFile(testDir, projectId);
+
+      expect(contextPath).not.toBeNull();
+      expect(fs.existsSync(contextPath!)).toBe(true);
+      expect(contextPath).toContain('CLAUDE.md');
+    });
+
+    it('should write correct project content to file', () => {
+      writeProjectContextFile(testDir, projectId);
+      const content = fs.readFileSync(path.join(testDir, 'CLAUDE.md'), 'utf-8');
+
+      expect(content).toContain('# Project: Context Test Project');
+      expect(content).toContain('## Project Statistics');
+    });
+
+    it('should return null for non-existent project', () => {
+      const contextPath = writeProjectContextFile(testDir, 99999);
+      expect(contextPath).toBeNull();
     });
   });
 });

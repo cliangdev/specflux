@@ -69,18 +69,6 @@ export function createTerminalWebSocketServer(server: Server): WebSocketServer {
  * Handle a new WebSocket connection for a context
  */
 function handleConnection(ws: WebSocket, contextType: ContextType, contextId: number): void {
-  // Project context is not yet supported
-  if (contextType === 'project') {
-    ws.send(
-      JSON.stringify({
-        type: 'error',
-        message: `Context type "project" is not yet supported. Only "task" and "epic" are currently available.`,
-      })
-    );
-    ws.close();
-    return;
-  }
-
   const key = contextKey(contextType, contextId);
   const client: TerminalClient = {
     ws,
