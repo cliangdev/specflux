@@ -22,6 +22,13 @@ export interface Task {
   file_path: string | null;
   created_by_user_id: number;
   assigned_to_user_id: number | null;
+  // Definition of Ready (DoR) fields
+  acceptance_criteria: string | null;
+  scope_in: string | null;
+  scope_out: string | null;
+  // Owner + Executor model
+  owner_user_id: number | null;
+  executor_type: 'human' | 'agent';
   created_at: string;
   updated_at: string;
 }
@@ -45,6 +52,13 @@ export interface CreateTaskInput {
   repo_name?: string;
   agent_name?: string;
   estimated_duration?: number;
+  // Definition of Ready (DoR) fields
+  acceptance_criteria?: string;
+  scope_in?: string;
+  scope_out?: string;
+  // Owner + Executor model
+  owner_user_id?: number;
+  executor_type?: 'human' | 'agent';
 }
 
 export interface UpdateTaskInput {
@@ -63,6 +77,13 @@ export interface UpdateTaskInput {
   github_pr_number?: number | null;
   github_pr_url?: string | null;
   file_path?: string | null;
+  // Definition of Ready (DoR) fields
+  acceptance_criteria?: string | null;
+  scope_in?: string | null;
+  scope_out?: string | null;
+  // Owner + Executor model
+  owner_user_id?: number | null;
+  executor_type?: 'human' | 'agent';
 }
 
 export interface TaskFilters {
@@ -287,9 +308,10 @@ export function createTask(
       `
       INSERT INTO tasks (
         project_id, epic_id, title, description, requires_approval,
-        repo_name, agent_name, estimated_duration, created_by_user_id, assigned_to_user_id
+        repo_name, agent_name, estimated_duration, created_by_user_id, assigned_to_user_id,
+        acceptance_criteria, scope_in, scope_out, owner_user_id, executor_type
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
     )
     .run(
@@ -302,7 +324,12 @@ export function createTask(
       input.agent_name ?? null,
       input.estimated_duration ?? null,
       createdByUserId,
-      createdByUserId // Default assign to creator
+      createdByUserId, // Default assign to creator
+      input.acceptance_criteria ?? null,
+      input.scope_in ?? null,
+      input.scope_out ?? null,
+      input.owner_user_id ?? null,
+      input.executor_type ?? 'agent'
     );
 
   return getTaskById(result.lastInsertRowid as number)!;
@@ -338,6 +365,13 @@ export function updateTask(id: number, input: UpdateTaskInput): Task {
     'github_pr_number',
     'github_pr_url',
     'file_path',
+    // Definition of Ready (DoR) fields
+    'acceptance_criteria',
+    'scope_in',
+    'scope_out',
+    // Owner + Executor model
+    'owner_user_id',
+    'executor_type',
   ];
 
   for (const field of fields) {

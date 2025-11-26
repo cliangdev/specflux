@@ -204,6 +204,168 @@ describe('Tasks API Routes', () => {
     });
   });
 
+  describe('Definition of Ready (DoR) fields', () => {
+    let taskId: number;
+
+    beforeAll(async () => {
+      const response = await request(app)
+        .post(`/api/projects/${projectId}/tasks`)
+        .send({ title: 'DoR Test Task' })
+        .set('Content-Type', 'application/json');
+      taskId = response.body.data.id;
+    });
+
+    it('should create task with DoR fields', async () => {
+      const response = await request(app)
+        .post(`/api/projects/${projectId}/tasks`)
+        .send({
+          title: 'Task with DoR fields',
+          acceptance_criteria: '- [ ] Unit tests pass\n- [ ] Integration tests pass',
+          scope_in: 'Backend API changes only',
+          scope_out: 'Frontend UI, documentation',
+          owner_user_id: 1,
+          executor_type: 'agent',
+        })
+        .set('Content-Type', 'application/json');
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.acceptance_criteria).toBe(
+        '- [ ] Unit tests pass\n- [ ] Integration tests pass'
+      );
+      expect(response.body.data.scope_in).toBe('Backend API changes only');
+      expect(response.body.data.scope_out).toBe('Frontend UI, documentation');
+      expect(response.body.data.owner_user_id).toBe(1);
+      expect(response.body.data.executor_type).toBe('agent');
+    });
+
+    it('should default executor_type to agent', async () => {
+      const response = await request(app)
+        .post(`/api/projects/${projectId}/tasks`)
+        .send({ title: 'Task with default executor' })
+        .set('Content-Type', 'application/json');
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.executor_type).toBe('agent');
+    });
+
+    it('should allow executor_type to be human', async () => {
+      const response = await request(app)
+        .post(`/api/projects/${projectId}/tasks`)
+        .send({
+          title: 'Human executed task',
+          executor_type: 'human',
+        })
+        .set('Content-Type', 'application/json');
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.executor_type).toBe('human');
+    });
+
+    it('should update acceptance_criteria via PATCH', async () => {
+      const response = await request(app)
+        .patch(`/api/tasks/${taskId}`)
+        .send({
+          acceptance_criteria: '- [x] Migration created\n- [ ] Tests pass',
+        })
+        .set('Content-Type', 'application/json');
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.acceptance_criteria).toBe(
+        '- [x] Migration created\n- [ ] Tests pass'
+      );
+    });
+
+    it('should update scope fields via PATCH', async () => {
+      const response = await request(app)
+        .patch(`/api/tasks/${taskId}`)
+        .send({
+          scope_in: 'Database schema changes',
+          scope_out: 'API endpoints, Frontend',
+        })
+        .set('Content-Type', 'application/json');
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.scope_in).toBe('Database schema changes');
+      expect(response.body.data.scope_out).toBe('API endpoints, Frontend');
+    });
+
+    it('should update owner_user_id via PATCH', async () => {
+      const response = await request(app)
+        .patch(`/api/tasks/${taskId}`)
+        .send({ owner_user_id: 1 })
+        .set('Content-Type', 'application/json');
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.owner_user_id).toBe(1);
+    });
+
+    it('should update executor_type via PATCH', async () => {
+      const response = await request(app)
+        .patch(`/api/tasks/${taskId}`)
+        .send({ executor_type: 'human' })
+        .set('Content-Type', 'application/json');
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.executor_type).toBe('human');
+
+      // Change back to agent
+      const response2 = await request(app)
+        .patch(`/api/tasks/${taskId}`)
+        .send({ executor_type: 'agent' })
+        .set('Content-Type', 'application/json');
+
+      expect(response2.status).toBe(200);
+      expect(response2.body.data.executor_type).toBe('agent');
+    });
+
+    it('should clear DoR fields when set to null', async () => {
+      // First set some values
+      await request(app)
+        .patch(`/api/tasks/${taskId}`)
+        .send({
+          acceptance_criteria: 'Some criteria',
+          scope_in: 'Some scope',
+        })
+        .set('Content-Type', 'application/json');
+
+      // Then clear them
+      const response = await request(app)
+        .patch(`/api/tasks/${taskId}`)
+        .send({
+          acceptance_criteria: null,
+          scope_in: null,
+        })
+        .set('Content-Type', 'application/json');
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.acceptance_criteria).toBeNull();
+      expect(response.body.data.scope_in).toBeNull();
+    });
+
+    it('should return DoR fields in GET response', async () => {
+      // Set DoR fields first
+      await request(app)
+        .patch(`/api/tasks/${taskId}`)
+        .send({
+          acceptance_criteria: '- [ ] Test criteria',
+          scope_in: 'Test scope in',
+          scope_out: 'Test scope out',
+          owner_user_id: 1,
+          executor_type: 'agent',
+        })
+        .set('Content-Type', 'application/json');
+
+      const response = await request(app).get(`/api/tasks/${taskId}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toHaveProperty('acceptance_criteria');
+      expect(response.body.data).toHaveProperty('scope_in');
+      expect(response.body.data).toHaveProperty('scope_out');
+      expect(response.body.data).toHaveProperty('owner_user_id');
+      expect(response.body.data).toHaveProperty('executor_type');
+    });
+  });
+
   describe('DELETE /api/tasks/:id', () => {
     it('should delete a task', async () => {
       // Create a task to delete

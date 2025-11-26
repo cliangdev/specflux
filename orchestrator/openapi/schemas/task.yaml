@@ -58,6 +58,26 @@ Task:
     assigned_to_user_id:
       type: integer
       nullable: true
+    acceptance_criteria:
+      type: string
+      nullable: true
+      description: Testable acceptance criteria (markdown checklist)
+    scope_in:
+      type: string
+      nullable: true
+      description: What is explicitly in scope for this task
+    scope_out:
+      type: string
+      nullable: true
+      description: What is explicitly out of scope
+    owner_user_id:
+      type: integer
+      nullable: true
+      description: User ID of the human owner accountable for quality
+    executor_type:
+      type: string
+      enum: [human, agent]
+      description: Whether executor is a human developer or AI agent
     created_at:
       type: string
       format: date-time
@@ -103,6 +123,26 @@ CreateTaskRequest:
       items:
         type: integer
       description: Array of task IDs this task depends on
+    acceptance_criteria:
+      type: string
+      nullable: true
+      description: Testable acceptance criteria (markdown checklist)
+    scope_in:
+      type: string
+      nullable: true
+      description: What is explicitly in scope for this task
+    scope_out:
+      type: string
+      nullable: true
+      description: What is explicitly out of scope
+    owner_user_id:
+      type: integer
+      nullable: true
+      description: User ID of the human owner accountable for quality
+    executor_type:
+      type: string
+      enum: [human, agent]
+      description: Whether executor is a human developer or AI agent
   required:
     - title
 
@@ -130,6 +170,26 @@ UpdateTaskRequest:
     estimated_duration:
       type: integer
       nullable: true
+    acceptance_criteria:
+      type: string
+      nullable: true
+      description: Testable acceptance criteria (markdown checklist)
+    scope_in:
+      type: string
+      nullable: true
+      description: What is explicitly in scope for this task
+    scope_out:
+      type: string
+      nullable: true
+      description: What is explicitly out of scope
+    owner_user_id:
+      type: integer
+      nullable: true
+      description: User ID of the human owner accountable for quality
+    executor_type:
+      type: string
+      enum: [human, agent]
+      description: Whether executor is a human developer or AI agent
 
 TaskDependency:
   type: object
