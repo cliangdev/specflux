@@ -12,6 +12,7 @@ import {
   HealthApi,
   NotificationsApi,
   ProjectsApi,
+  ReleasesApi,
   RepositoriesApi,
   TasksApi,
   UsersApi,
@@ -66,6 +67,9 @@ export const api = {
   get projects() {
     return new ProjectsApi(createConfiguration());
   },
+  get releases() {
+    return new ReleasesApi(createConfiguration());
+  },
   get repositories() {
     return new RepositoriesApi(createConfiguration());
   },
@@ -85,6 +89,7 @@ export {
   HealthApi,
   NotificationsApi,
   ProjectsApi,
+  ReleasesApi,
   RepositoriesApi,
   TasksApi,
   UsersApi,
