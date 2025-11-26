@@ -127,7 +127,11 @@ export function getEpicWithStats(id: number): EpicWithStats | null {
  * - 'active': At least one task is in progress/pending_review
  * - 'planning': No tasks or all tasks are in backlog/ready states
  */
-function computeEpicStatus(taskStats: { total: number; in_progress: number; done: number }): string {
+function computeEpicStatus(taskStats: {
+  total: number;
+  in_progress: number;
+  done: number;
+}): string {
   if (taskStats.total > 0 && taskStats.done === taskStats.total) {
     return 'completed';
   }
