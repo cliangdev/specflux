@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useProject } from "../contexts";
+import { useSearchParams } from "react-router-dom";
 import { api, type Release, type ReleaseWithEpics, type Epic } from "../api";
 import { PhaseSection } from "../components/roadmap";
-import { EpicEditModal } from "../components/epics";
+import { EpicEditModal, EpicCreateModal } from "../components/epics";
 import { ReleaseCreateModal } from "../components/releases";
 
 function formatDate(date: Date | null | undefined): string {
@@ -36,6 +37,73 @@ function getReleaseStatusBadge(status: string): {
           "bg-system-200 dark:bg-system-700 text-system-600 dark:text-system-400",
       };
   }
+}
+
+// Loading skeleton for roadmap
+function RoadmapSkeleton() {
+  return (
+    <div className="animate-pulse">
+      {/* Release header skeleton */}
+      <div className="card mb-6">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <div className="flex items-center gap-3">
+              <div className="h-7 w-32 bg-system-200 dark:bg-system-700 rounded" />
+              <div className="h-5 w-16 bg-system-200 dark:bg-system-700 rounded-full" />
+            </div>
+            <div className="h-4 w-48 bg-system-200 dark:bg-system-700 rounded mt-2" />
+          </div>
+          <div className="text-right">
+            <div className="h-4 w-20 bg-system-200 dark:bg-system-700 rounded mb-1" />
+            <div className="h-5 w-24 bg-system-200 dark:bg-system-700 rounded" />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <div className="flex justify-between">
+            <div className="h-4 w-16 bg-system-200 dark:bg-system-700 rounded" />
+            <div className="h-4 w-20 bg-system-200 dark:bg-system-700 rounded" />
+          </div>
+          <div className="h-2 bg-system-200 dark:bg-system-700 rounded-full" />
+        </div>
+      </div>
+
+      {/* Phase sections skeleton */}
+      {[1, 2].map((i) => (
+        <div key={i} className="mb-4">
+          <div className="flex items-center justify-between p-3 rounded-lg bg-system-50 dark:bg-system-800">
+            <div className="flex items-center gap-3">
+              <div className="w-4 h-4 bg-system-200 dark:bg-system-700 rounded" />
+              <div className="h-6 w-20 bg-system-200 dark:bg-system-700 rounded-full" />
+              <div className="h-4 w-16 bg-system-200 dark:bg-system-700 rounded" />
+            </div>
+            <div className="h-4 w-24 bg-system-200 dark:bg-system-700 rounded" />
+          </div>
+          <div className="mt-3 space-y-2 pl-7">
+            {[1, 2].map((j) => (
+              <div key={j} className="card p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3 flex-1">
+                    <div className="w-4 h-4 bg-system-200 dark:bg-system-700 rounded mt-1" />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="h-4 w-8 bg-system-200 dark:bg-system-700 rounded" />
+                        <div className="h-5 w-48 bg-system-200 dark:bg-system-700 rounded" />
+                      </div>
+                      <div className="h-4 w-64 bg-system-200 dark:bg-system-700 rounded" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="h-4 w-16 bg-system-200 dark:bg-system-700 rounded" />
+                    <div className="h-5 w-16 bg-system-200 dark:bg-system-700 rounded" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 interface ReleaseHeaderProps {
@@ -99,6 +167,7 @@ function ReleaseHeader({ release }: ReleaseHeaderProps) {
 
 export default function RoadmapPage() {
   const { currentProject } = useProject();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [releases, setReleases] = useState<Release[]>([]);
   const [selectedReleaseId, setSelectedReleaseId] = useState<number | null>(
     null,
@@ -108,6 +177,31 @@ export default function RoadmapPage() {
   const [error, setError] = useState<string | null>(null);
   const [editingEpic, setEditingEpic] = useState<Epic | null>(null);
   const [showCreateRelease, setShowCreateRelease] = useState(false);
+  const [showCreateEpic, setShowCreateEpic] = useState(false);
+
+  // Filter state from URL params
+  const statusFilter = searchParams.get("status") || "all";
+  const searchQuery = searchParams.get("q") || "";
+
+  const setStatusFilter = (status: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (status === "all") {
+      newParams.delete("status");
+    } else {
+      newParams.set("status", status);
+    }
+    setSearchParams(newParams);
+  };
+
+  const setSearchQuery = (query: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (!query) {
+      newParams.delete("q");
+    } else {
+      newParams.set("q", query);
+    }
+    setSearchParams(newParams);
+  };
 
   // Fetch all releases for the project
   const fetchReleases = useCallback(async () => {
@@ -175,6 +269,51 @@ export default function RoadmapPage() {
     fetchReleases();
     fetchRoadmap();
   };
+
+  // Filter epics based on status and search query
+  const filteredEpics = useMemo(() => {
+    if (!roadmapData?.epics) return [];
+
+    return roadmapData.epics.filter((epic) => {
+      // Status filter
+      if (statusFilter !== "all" && epic.status !== statusFilter) {
+        return false;
+      }
+
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesTitle = epic.title.toLowerCase().includes(query);
+        const matchesDescription = epic.description
+          ?.toLowerCase()
+          .includes(query);
+        const matchesId = epic.id.toString().includes(query);
+        if (!matchesTitle && !matchesDescription && !matchesId) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [roadmapData?.epics, statusFilter, searchQuery]);
+
+  // Compute filtered phases (only phases containing filtered epics)
+  const filteredPhases = useMemo(() => {
+    if (!roadmapData?.phases) return [];
+
+    const filteredEpicIds = new Set(filteredEpics.map((e) => e.id));
+
+    return roadmapData.phases
+      .map((phase) => ({
+        ...phase,
+        epicIds: phase.epicIds.filter((id) => filteredEpicIds.has(id)),
+      }))
+      .filter((phase) => phase.epicIds.length > 0);
+  }, [roadmapData?.phases, filteredEpics]);
+
+  const totalEpicsCount = roadmapData?.epics.length ?? 0;
+  const filteredEpicsCount = filteredEpics.length;
+  const hasActiveFilters = statusFilter !== "all" || searchQuery !== "";
 
   if (!currentProject) {
     return (
@@ -260,27 +399,7 @@ export default function RoadmapPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <svg
-            className="animate-spin w-8 h-8 text-brand-500"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-              fill="none"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            />
-          </svg>
-        </div>
+        <RoadmapSkeleton />
       ) : error ? (
         <div className="text-center py-12">
           <div className="text-red-500 dark:text-red-400 text-lg">
@@ -336,18 +455,141 @@ export default function RoadmapPage() {
         <>
           <ReleaseHeader release={roadmapData.release} />
 
+          {/* Filter controls */}
+          {totalEpicsCount > 0 && (
+            <div className="flex items-center gap-4 mb-4">
+              {/* Search input */}
+              <div className="relative flex-1 max-w-xs">
+                <svg
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-system-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search epics..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="input pl-10 w-full"
+                />
+              </div>
+
+              {/* Status filter */}
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="select"
+              >
+                <option value="all">All Statuses</option>
+                <option value="planning">Planning</option>
+                <option value="active">Active</option>
+                <option value="completed">Completed</option>
+              </select>
+
+              {/* Result count */}
+              <div className="text-sm text-system-500 dark:text-system-400">
+                {hasActiveFilters ? (
+                  <>
+                    Showing {filteredEpicsCount} of {totalEpicsCount} epics
+                    <button
+                      onClick={() => {
+                        setSearchParams(new URLSearchParams());
+                      }}
+                      className="ml-2 text-brand-600 dark:text-brand-400 hover:underline"
+                    >
+                      Clear filters
+                    </button>
+                  </>
+                ) : (
+                  <>{totalEpicsCount} epics</>
+                )}
+              </div>
+            </div>
+          )}
+
           {roadmapData.phases.length === 0 ? (
-            <div className="text-center py-8 card">
-              <p className="text-system-500 dark:text-system-400">
-                No epics assigned to this release yet.
+            <div className="text-center py-12 card">
+              <svg
+                className="mx-auto h-12 w-12 text-system-400 dark:text-system-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                />
+              </svg>
+              <h3 className="mt-4 text-lg font-medium text-system-700 dark:text-system-300">
+                No epics in this release
+              </h3>
+              <p className="mt-2 text-system-500">
+                Add epics to start building your roadmap.
               </p>
+              <button
+                onClick={() => setShowCreateEpic(true)}
+                className="mt-4 btn btn-primary"
+              >
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+                Create Epic
+              </button>
+            </div>
+          ) : filteredPhases.length === 0 && hasActiveFilters ? (
+            <div className="text-center py-12 card">
+              <svg
+                className="mx-auto h-12 w-12 text-system-400 dark:text-system-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+              <h3 className="mt-4 text-lg font-medium text-system-700 dark:text-system-300">
+                No epics match your filters
+              </h3>
+              <p className="mt-2 text-system-500">
+                Try adjusting your search or filters.
+              </p>
+              <button
+                onClick={() => setSearchParams(new URLSearchParams())}
+                className="mt-4 btn btn-ghost"
+              >
+                Clear filters
+              </button>
             </div>
           ) : (
-            roadmapData.phases
+            filteredPhases
               .sort((a, b) => a.phaseNumber - b.phaseNumber)
               .map((phase) => {
                 // Filter epics for this phase
-                const phaseEpics = roadmapData.epics.filter((e) =>
+                const phaseEpics = filteredEpics.filter((e) =>
                   phase.epicIds.includes(e.id),
                 );
 
@@ -396,6 +638,19 @@ export default function RoadmapPage() {
           onCreated={() => {
             setShowCreateRelease(false);
             fetchReleases();
+          }}
+        />
+      )}
+
+      {/* Create Epic Modal */}
+      {showCreateEpic && currentProject && selectedReleaseId && (
+        <EpicCreateModal
+          projectId={currentProject.id}
+          releaseId={selectedReleaseId}
+          onClose={() => setShowCreateEpic(false)}
+          onCreated={() => {
+            setShowCreateEpic(false);
+            fetchRoadmap();
           }}
         />
       )}

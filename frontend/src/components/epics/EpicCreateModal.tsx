@@ -3,12 +3,14 @@ import { api, type CreateEpicRequest } from "../../api";
 
 interface EpicCreateModalProps {
   projectId: number;
+  releaseId?: number;
   onClose: () => void;
   onCreated: () => void;
 }
 
 export default function EpicCreateModal({
   projectId,
+  releaseId,
   onClose,
   onCreated,
 }: EpicCreateModalProps) {
@@ -34,6 +36,7 @@ export default function EpicCreateModal({
         title: title.trim(),
         description: description.trim() || undefined,
         prdFilePath: prdFilePath.trim() || undefined,
+        releaseId: releaseId ?? undefined,
       };
 
       await api.epics.createEpic({
