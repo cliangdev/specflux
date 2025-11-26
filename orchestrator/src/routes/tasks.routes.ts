@@ -126,6 +126,13 @@ router.post('/projects/:projectId/tasks', (req: Request, res: Response, next: Ne
       repo_name,
       agent_name,
       estimated_duration,
+      // Definition of Ready (DoR) fields
+      acceptance_criteria,
+      scope_in,
+      scope_out,
+      // Owner + Executor model
+      owner_user_id,
+      executor_type,
     } = body;
 
     if (!title || typeof title !== 'string') {
@@ -142,6 +149,13 @@ router.post('/projects/:projectId/tasks', (req: Request, res: Response, next: Ne
         repo_name: repo_name as string | undefined,
         agent_name: agent_name as string | undefined,
         estimated_duration: estimated_duration as number | undefined,
+        // Definition of Ready (DoR) fields
+        acceptance_criteria: acceptance_criteria as string | undefined,
+        scope_in: scope_in as string | undefined,
+        scope_out: scope_out as string | undefined,
+        // Owner + Executor model
+        owner_user_id: owner_user_id as number | undefined,
+        executor_type: executor_type as 'human' | 'agent' | undefined,
       },
       userId
     );
