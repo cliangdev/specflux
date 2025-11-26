@@ -122,6 +122,22 @@ export function getEpicWithStats(id: number): EpicWithStats | null {
 }
 
 /**
+ * Compute epic status dynamically based on task stats
+ * - 'completed': All tasks are done/approved
+ * - 'active': At least one task is in progress/pending_review
+ * - 'planning': No tasks or all tasks are in backlog/ready states
+ */
+function computeEpicStatus(taskStats: { total: number; in_progress: number; done: number }): string {
+  if (taskStats.total > 0 && taskStats.done === taskStats.total) {
+    return 'completed';
+  }
+  if (taskStats.in_progress > 0) {
+    return 'active';
+  }
+  return 'planning';
+}
+
+/**
  * Add task stats to an epic
  */
 function addEpicStats(epic: Epic, epicMap: Map<number, { depends_on: number[] }>): EpicWithStats {
@@ -167,8 +183,12 @@ function addEpicStats(epic: Epic, epicMap: Map<number, { depends_on: number[] }>
     : [];
   const phase = calculatePhase(epic.id, epicMap);
 
+  // Compute status dynamically based on task stats
+  const computedStatus = computeEpicStatus(taskStats);
+
   return {
     ...epic,
+    status: computedStatus,
     depends_on_parsed: dependsOnParsed,
     phase,
     task_stats: taskStats,

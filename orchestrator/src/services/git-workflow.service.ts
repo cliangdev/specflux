@@ -5,6 +5,18 @@ import { getProjectById, getProjectConfig } from './project.service';
 import { ValidationError } from '../types';
 import { createPullRequest as createPRViaGitHub, pushBranch } from './github.service';
 
+// Patterns for files to exclude from file changes display (AI context files)
+const EXCLUDED_FILE_PATTERNS = [
+  /^CLAUDE\.md$/i, // CLAUDE.md at root
+  /\/CLAUDE\.md$/i, // CLAUDE.md in subdirectories
+  /^\.specflux\//i, // .specflux/ directory
+  /^\.claude\//i, // .claude/ directory
+];
+
+function shouldExcludeFile(filePath: string): boolean {
+  return EXCLUDED_FILE_PATTERNS.some((pattern) => pattern.test(filePath));
+}
+
 export interface WorktreeChanges {
   hasChanges: boolean;
   filesChanged: string[];
@@ -140,12 +152,18 @@ export function getWorktreeChanges(
       }
     }
 
+    // Filter out excluded files (AI context files like CLAUDE.md, .specflux/, .claude/)
+    const filteredFilesChanged = filesChanged.filter((f) => !shouldExcludeFile(f));
+    const filteredNewFiles = newFiles.filter((f) => !shouldExcludeFile(f));
+    const filteredModifiedFiles = modifiedFiles.filter((f) => !shouldExcludeFile(f));
+    const filteredDeletedFiles = deletedFiles.filter((f) => !shouldExcludeFile(f));
+
     return {
-      hasChanges: filesChanged.length > 0,
-      filesChanged,
-      newFiles,
-      modifiedFiles,
-      deletedFiles,
+      hasChanges: filteredFilesChanged.length > 0,
+      filesChanged: filteredFilesChanged,
+      newFiles: filteredNewFiles,
+      modifiedFiles: filteredModifiedFiles,
+      deletedFiles: filteredDeletedFiles,
       insertions,
       deletions,
     };
@@ -246,15 +264,40 @@ export function commitWorktreeChanges(taskId: number): CommitResult {
     };
   }
 
-  // Count files for logging
-  const uncommittedFiles = gitStatus.split('\n').filter(Boolean).length;
+  // Parse git status and filter out excluded files (AI context files)
+  const statusLines = gitStatus.split('\n').filter(Boolean);
+  const filesToStage: string[] = [];
+
+  for (const line of statusLines) {
+    const filePath = line.substring(3).trim();
+    if (filePath && !shouldExcludeFile(filePath)) {
+      filesToStage.push(filePath);
+    }
+  }
+
+  if (filesToStage.length === 0) {
+    console.log(
+      '[commitWorktreeChanges] No non-excluded files to commit (only AI context files changed)'
+    );
+    return {
+      success: false,
+      commitHash: null,
+      message: 'No changes to commit (only AI context files changed)',
+    };
+  }
+
+  console.log(
+    `[commitWorktreeChanges] Staging ${filesToStage.length} files (excluded ${statusLines.length - filesToStage.length} AI context files)`
+  );
 
   try {
-    // Stage all changes
-    execSync('git add -A', {
-      cwd: worktree.path,
-      stdio: 'pipe',
-    });
+    // Stage only non-excluded files
+    for (const file of filesToStage) {
+      execSync(`git add -- "${file.replace(/"/g, '\\"')}"`, {
+        cwd: worktree.path,
+        stdio: 'pipe',
+      });
+    }
 
     // Build commit message (task already fetched above)
     const commitMessage = `feat(task-${taskId}): ${task.title ?? 'Complete task'}\n\nTask #${taskId} completed via SpecFlux agent.\n\n🤖 Generated with SpecFlux`;
@@ -274,7 +317,7 @@ export function commitWorktreeChanges(taskId: number): CommitResult {
     return {
       success: true,
       commitHash,
-      message: `Committed ${uncommittedFiles} file(s)`,
+      message: `Committed ${filesToStage.length} file(s)`,
     };
   } catch (error) {
     return {
