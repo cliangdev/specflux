@@ -1,13 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import { useProject } from "../contexts";
-import {
-  api,
-  type Release,
-  type ReleaseWithEpics,
-  type ReleasePhase,
-  type Epic,
-} from "../api";
+import { api, type Release, type ReleaseWithEpics } from "../api";
+import { PhaseSection } from "../components/roadmap";
 
 function formatDate(date: Date | null | undefined): string {
   if (!date) return "No target date";
@@ -16,19 +10,6 @@ function formatDate(date: Date | null | undefined): string {
     day: "numeric",
     year: "numeric",
   });
-}
-
-function getPhaseStatusColor(status: string): string {
-  switch (status) {
-    case "completed":
-      return "bg-semantic-success/20 text-semantic-success border-semantic-success/30";
-    case "in_progress":
-      return "bg-brand-500/20 text-brand-600 dark:text-brand-400 border-brand-500/30";
-    case "blocked":
-      return "bg-semantic-warning/20 text-semantic-warning border-semantic-warning/30";
-    default:
-      return "bg-system-200 dark:bg-system-700 text-system-600 dark:text-system-400 border-system-300 dark:border-system-600";
-  }
 }
 
 function getReleaseStatusBadge(status: string): {
@@ -55,36 +36,11 @@ function getReleaseStatusBadge(status: string): {
   }
 }
 
-function getEpicStatusBadge(status: string): {
-  label: string;
-  className: string;
-} {
-  switch (status) {
-    case "completed":
-      return {
-        label: "Completed",
-        className: "bg-semantic-success/20 text-semantic-success",
-      };
-    case "active":
-      return {
-        label: "Active",
-        className: "bg-brand-500/20 text-brand-600 dark:text-brand-400",
-      };
-    default:
-      return {
-        label: "Planning",
-        className:
-          "bg-system-200 dark:bg-system-700 text-system-600 dark:text-system-400",
-      };
-  }
-}
-
 interface ReleaseHeaderProps {
   release: Release;
-  onRefresh: () => void;
 }
 
-function ReleaseHeader({ release, onRefresh }: ReleaseHeaderProps) {
+function ReleaseHeader({ release }: ReleaseHeaderProps) {
   const statusBadge = getReleaseStatusBadge(release.status);
   const progress = release.progressPercentage ?? 0;
 
@@ -139,64 +95,8 @@ function ReleaseHeader({ release, onRefresh }: ReleaseHeaderProps) {
   );
 }
 
-interface PhaseGroupProps {
-  phase: ReleasePhase;
-  epics: Epic[];
-  onEpicClick: (epicId: number) => void;
-}
-
-function PhaseGroup({ phase, epics, onEpicClick }: PhaseGroupProps) {
-  const statusColor = getPhaseStatusColor(phase.status);
-  const phaseEpics = epics.filter((e) => phase.epicIds.includes(e.id));
-
-  return (
-    <div className="mb-6">
-      <div className="flex items-center gap-3 mb-3">
-        <div
-          className={`px-3 py-1 rounded-full text-sm font-medium border ${statusColor}`}
-        >
-          Phase {phase.phaseNumber}
-        </div>
-        <span className="text-sm text-system-500 dark:text-system-400">
-          {phase.completedCount}/{phase.totalCount} complete
-        </span>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {phaseEpics.map((epic) => {
-          const statusBadge = getEpicStatusBadge(epic.status);
-          return (
-            <button
-              key={epic.id}
-              onClick={() => onEpicClick(epic.id)}
-              className="card text-left hover:border-brand-500 dark:hover:border-brand-400 transition-colors cursor-pointer"
-            >
-              <div className="flex items-start justify-between mb-2">
-                <h3 className="font-medium text-system-900 dark:text-white line-clamp-2">
-                  {epic.title}
-                </h3>
-                <span
-                  className={`ml-2 px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap ${statusBadge.className}`}
-                >
-                  {statusBadge.label}
-                </span>
-              </div>
-              {epic.description && (
-                <p className="text-sm text-system-600 dark:text-system-400 line-clamp-2">
-                  {epic.description}
-                </p>
-              )}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 export default function RoadmapPage() {
   const { currentProject } = useProject();
-  const navigate = useNavigate();
   const [releases, setReleases] = useState<Release[]>([]);
   const [selectedReleaseId, setSelectedReleaseId] = useState<number | null>(
     null,
@@ -266,10 +166,6 @@ export default function RoadmapPage() {
       fetchRoadmap();
     }
   }, [selectedReleaseId, fetchRoadmap]);
-
-  const handleEpicClick = (epicId: number) => {
-    navigate(`/epics/${epicId}`);
-  };
 
   const handleRefresh = () => {
     fetchReleases();
@@ -428,10 +324,7 @@ export default function RoadmapPage() {
         </div>
       ) : roadmapData ? (
         <>
-          <ReleaseHeader
-            release={roadmapData.release}
-            onRefresh={handleRefresh}
-          />
+          <ReleaseHeader release={roadmapData.release} />
 
           {roadmapData.phases.length === 0 ? (
             <div className="text-center py-8 card">
@@ -442,14 +335,29 @@ export default function RoadmapPage() {
           ) : (
             roadmapData.phases
               .sort((a, b) => a.phaseNumber - b.phaseNumber)
-              .map((phase) => (
-                <PhaseGroup
-                  key={phase.phaseNumber}
-                  phase={phase}
-                  epics={roadmapData.epics}
-                  onEpicClick={handleEpicClick}
-                />
-              ))
+              .map((phase) => {
+                // Filter epics for this phase
+                const phaseEpics = roadmapData.epics.filter((e) =>
+                  phase.epicIds.includes(e.id),
+                );
+
+                return (
+                  <PhaseSection
+                    key={phase.phaseNumber}
+                    phaseNumber={phase.phaseNumber}
+                    status={
+                      phase.status as
+                        | "ready"
+                        | "in_progress"
+                        | "blocked"
+                        | "completed"
+                    }
+                    epics={phaseEpics}
+                    completedCount={phase.completedCount}
+                    totalCount={phase.totalCount}
+                  />
+                );
+              })
           )}
         </>
       ) : null}
