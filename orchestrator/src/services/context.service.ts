@@ -32,15 +32,31 @@ export function getTaskContext(taskId: number): TaskContext | null {
     | { name: string }
     | undefined;
 
-  // Get epic title and PRD if exists
+  // Get epic title and PRD file path if exists
   let epicTitle: string | undefined;
   let epicPrd: string | undefined;
   if (task.epic_id) {
     const epic = db
-      .prepare('SELECT title, prd_content FROM epics WHERE id = ?')
-      .get(task.epic_id) as { title: string; prd_content: string | null } | undefined;
+      .prepare('SELECT title, prd_file_path FROM epics WHERE id = ?')
+      .get(task.epic_id) as { title: string; prd_file_path: string | null } | undefined;
     epicTitle = epic?.title;
-    epicPrd = epic?.prd_content ?? undefined;
+    // If PRD file path exists, try to read the content
+    if (epic?.prd_file_path) {
+      try {
+        // Get project root to resolve relative path
+        const projectResult = db
+          .prepare('SELECT root_path FROM projects WHERE id = ?')
+          .get(task.project_id) as { root_path: string } | undefined;
+        if (projectResult?.root_path) {
+          const prdPath = path.join(projectResult.root_path, '.specflux', epic.prd_file_path);
+          if (fs.existsSync(prdPath)) {
+            epicPrd = fs.readFileSync(prdPath, 'utf-8');
+          }
+        }
+      } catch {
+        // Ignore errors reading PRD file
+      }
+    }
   }
 
   // Get dependencies

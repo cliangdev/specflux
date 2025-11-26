@@ -631,6 +631,13 @@ export function Terminal({
           padding: 8px;
           min-height: 300px;
         }
+        /* Hide xterm cursor completely */
+        .terminal-content .xterm-cursor-layer {
+          display: none !important;
+        }
+        .terminal-content .xterm-helper-textarea {
+          opacity: 0 !important;
+        }
         .terminal-search-bar {
           display: flex;
           align-items: center;
