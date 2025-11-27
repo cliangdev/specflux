@@ -71,6 +71,12 @@ ApproveAndPRResult:
   $ref: './task.yaml#/ApproveAndPRResult'
 ReviewRequest:
   $ref: './task.yaml#/ReviewRequest'
+AcceptanceCriterion:
+  $ref: './task.yaml#/AcceptanceCriterion'
+CreateCriterionRequest:
+  $ref: './task.yaml#/CreateCriterionRequest'
+UpdateCriterionRequest:
+  $ref: './task.yaml#/UpdateCriterionRequest'
 
 # Repository schemas
 Repository:

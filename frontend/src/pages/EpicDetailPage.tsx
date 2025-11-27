@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { api, type Epic, type Task } from "../api";
+import type { AcceptanceCriterion } from "../api/generated";
 import { ProgressBar, TaskCreateModal } from "../components/ui";
 import { EpicEditModal } from "../components/epics";
+import { AcceptanceCriteriaList } from "../components/ui/AcceptanceCriteriaList";
 
 // Epic status badge configuration
 const EPIC_STATUS_CONFIG: Record<
@@ -111,7 +113,9 @@ export default function EpicDetailPage() {
   const navigate = useNavigate();
   const [epic, setEpic] = useState<Epic | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [criteria, setCriteria] = useState<AcceptanceCriterion[]>([]);
   const [loading, setLoading] = useState(true);
+  const [criteriaLoading, setCriteriaLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -150,9 +154,25 @@ export default function EpicDetailPage() {
     }
   }, [id]);
 
+  const fetchCriteria = useCallback(async () => {
+    if (!id) return;
+    try {
+      setCriteriaLoading(true);
+      const response = await api.epics.listEpicCriteria({
+        id: parseInt(id, 10),
+      });
+      setCriteria(response.data ?? []);
+    } catch (err) {
+      console.error("Failed to fetch criteria:", err);
+    } finally {
+      setCriteriaLoading(false);
+    }
+  }, [id]);
+
   useEffect(() => {
     fetchEpicData();
-  }, [fetchEpicData]);
+    fetchCriteria();
+  }, [fetchEpicData, fetchCriteria]);
 
   if (loading) {
     return (
@@ -333,6 +353,27 @@ export default function EpicDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Acceptance Criteria Section */}
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold text-system-900 dark:text-white mb-3">
+          Acceptance Criteria
+        </h2>
+        <div className="card p-5">
+          {criteriaLoading ? (
+            <div className="text-sm text-system-400 dark:text-system-500">
+              Loading...
+            </div>
+          ) : (
+            <AcceptanceCriteriaList
+              entityType="epic"
+              entityId={epic.id}
+              criteria={criteria}
+              onUpdate={fetchCriteria}
+            />
+          )}
+        </div>
+      </div>
 
       {/* PRD Link */}
       {epic.prdFilePath && (

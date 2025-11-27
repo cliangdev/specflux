@@ -427,11 +427,170 @@ sequenceDiagram
 
 | Feature | Description |
 |---------|-------------|
+| **Dependency Graph View** | Interactive DAG visualization using React Flow |
 | Timeline view | Gantt-style horizontal bars |
 | Initiatives | Group epics by theme within release |
 | Drag-drop reorder | Manual phase/priority override |
 | Critical path | Highlight longest dependency chain |
 | Export | PNG/PDF for stakeholders |
+
+---
+
+## Dependency Graph View (Phase 5)
+
+### Overview
+
+Add an interactive dependency graph visualization as an alternative to the phase-based list. Users can toggle between "List View" (default) and "Graph View" to see epic relationships spatially.
+
+**Why add this?**
+- Visual understanding of complex dependency chains
+- Easier to spot bottlenecks and critical paths
+- More intuitive for users thinking about "what blocks what"
+
+### Technology Choice: React Flow + Dagre
+
+| Option | Complexity | Verdict |
+|--------|------------|---------|
+| React Flow + Dagre | Low | **Recommended** - Drop-in DAG layout, minimal config |
+| React Flow + ELK.js | Medium | Overkill for 10-50 epics |
+| d3-dag | Medium | Lower-level, more work |
+| Custom SVG | High | Not worth the effort |
+
+**React Flow advantages:**
+- Built-in pan/zoom, node selection
+- Custom node rendering (show progress bars, status icons)
+- Good TypeScript support
+- Active maintenance
+
+### Wireframes
+
+#### Graph View Toggle
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Roadmap                          [List ▾] [Graph]  [+ Epic]     │
+├─────────────────────────────────────────────────────────────────┤
+```
+
+When "Graph" is selected:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Roadmap                          [List] [Graph ▾]  [+ Epic]     │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   ┌─────────────┐                                               │
+│   │ Task CRUD   │──────┐                                        │
+│   │ ✅ 100%     │      │                                        │
+│   └─────────────┘      │      ┌─────────────┐                   │
+│                        ├─────▶│ Terminal    │──────┐            │
+│   ┌─────────────┐      │      │ 🔄 66%      │      │            │
+│   │ User Auth   │──────┘      └─────────────┘      │            │
+│   │ ✅ 100%     │                    │             │            │
+│   └─────────────┘                    │             │            │
+│                                      ▼             ▼            │
+│                              ┌─────────────┐ ┌─────────────┐    │
+│                              │ Task Detail │ │ Context     │    │
+│                              │ 📋 0%       │ │ ⏸️ Blocked   │    │
+│                              └─────────────┘ └─────────────┘    │
+│                                      │             │            │
+│                                      └──────┬──────┘            │
+│                                             ▼                   │
+│                                      ┌─────────────┐            │
+│                                      │ Approval    │            │
+│                                      │ ⏸️ Blocked   │            │
+│                                      └─────────────┘            │
+│                                                                 │
+│   [Fit to Screen]  [Reset Zoom]                    Zoom: 100%   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Epic Node Design
+
+```
+┌─────────────────────────┐
+│ Terminal Integration    │  ← Title (truncated if long)
+│ ████████░░░░ 66%        │  ← Progress bar
+│ 🔄 In Progress          │  ← Status with icon
+└─────────────────────────┘
+```
+
+Node colors by status:
+- ✅ Done = Green border
+- 🔄 In Progress = Blue border
+- 📋 Ready = Default border
+- ⏸️ Blocked = Gray border, dimmed
+
+#### Click Interaction
+
+Clicking a node shows a popup with details:
+
+```
+┌─────────────────────────────────────┐
+│ Terminal Integration            ✕   │
+├─────────────────────────────────────┤
+│ Status: 🔄 In Progress              │
+│ Progress: 66% (4/6 tasks)           │
+│                                     │
+│ Depends on:                         │
+│   ✅ Task CRUD & Board              │
+│   ✅ User Auth                      │
+│                                     │
+│ Blocks:                             │
+│   📋 Task Detail Redesign           │
+│   ⏸️ Context Injection              │
+│                                     │
+│ [View Tasks]  [Edit Epic]           │
+└─────────────────────────────────────┘
+```
+
+### Implementation Tasks
+
+#### Task 1: Install React Flow & Dagre
+- Add `reactflow` and `dagre` dependencies
+- Create basic graph component scaffold
+
+#### Task 2: Epic Graph Data Transformation
+- Transform epic list to React Flow nodes/edges
+- Calculate positions using dagre layout algorithm
+- Handle epics with no dependencies (leftmost column)
+
+#### Task 3: Custom Epic Node Component
+- Render epic title, progress bar, status icon
+- Apply status-based styling (colors, borders)
+- Handle node selection state
+
+#### Task 4: Graph Interactions
+- Click node to show detail popup
+- Pan and zoom controls
+- "Fit to screen" and "Reset zoom" buttons
+- Navigate to epic detail on double-click
+
+#### Task 5: View Toggle & Persistence
+- Add List/Graph toggle to Roadmap header
+- Persist view preference in localStorage
+- Smooth transition between views
+
+### Scaling Considerations
+
+| # of Epics | Behavior |
+|------------|----------|
+| 1-15 | Show all, auto-fit to screen |
+| 15-30 | Show all, may need to zoom out |
+| 30+ | Filter by release, warn about complexity |
+
+For large graphs:
+- Collapse completed epics to single "Done" group
+- Filter to single release at a time
+- Consider minimap for navigation
+
+### Success Metrics
+
+| Metric | Target |
+|--------|--------|
+| Understand dependency chain | < 10 seconds |
+| Find what's blocking an epic | 1 click |
+| Switch between List/Graph | < 1 second |
 
 ---
 

@@ -12,6 +12,10 @@ export const SPECFLUX_DIRS = {
   TASKS: '.specflux/tasks',
   CHAIN_OUTPUTS: '.specflux/chain-outputs',
   WORKTREES: '.specflux/worktrees',
+  // Task state files for runtime state management
+  TASK_STATES: '.specflux/task-states',
+  // Archived task histories (when state files exceed size limits)
+  ARCHIVES: '.specflux/archives',
 } as const;
 
 export interface MarkdownFile<T extends Record<string, unknown> = Record<string, unknown>> {
@@ -64,6 +68,27 @@ export function initializeSpecfluxStructure(projectPath: string): void {
   for (const dir of dirs.slice(1)) {
     // Skip ROOT
     const gitkeepPath = path.join(projectPath, dir, '.gitkeep');
+    if (!fs.existsSync(gitkeepPath)) {
+      fs.writeFileSync(gitkeepPath, '');
+    }
+  }
+}
+
+/**
+ * Ensure task state directories exist (task-states and archives)
+ * Use this when starting a task to ensure directories exist without full initialization
+ */
+export function ensureTaskStateDirectories(projectPath: string): void {
+  const taskStateDirs = [SPECFLUX_DIRS.TASK_STATES, SPECFLUX_DIRS.ARCHIVES];
+
+  for (const dir of taskStateDirs) {
+    const fullPath = path.join(projectPath, dir);
+    if (!fs.existsSync(fullPath)) {
+      fs.mkdirSync(fullPath, { recursive: true });
+    }
+
+    // Create .gitkeep to preserve empty directory
+    const gitkeepPath = path.join(fullPath, '.gitkeep');
     if (!fs.existsSync(gitkeepPath)) {
       fs.writeFileSync(gitkeepPath, '');
     }

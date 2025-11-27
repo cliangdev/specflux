@@ -1,28 +1,40 @@
-import type { Task } from "../../api/generated";
+import { useState, useEffect, useCallback } from "react";
+import type { Task, AcceptanceCriterion } from "../../api/generated";
+import { api } from "../../api";
+import { AcceptanceCriteriaList } from "../ui/AcceptanceCriteriaList";
 
 interface TaskOverviewTabProps {
   task: Task;
+  onTaskUpdate?: () => void;
 }
 
-// Parse markdown checklist items from acceptance criteria
-function parseChecklist(
-  text: string | null | undefined,
-): { text: string; checked: boolean }[] {
-  if (!text) return [];
-  const lines = text.split("\n");
-  return lines
-    .filter((line) => line.trim().match(/^-\s*\[[ x]\]/i))
-    .map((line) => {
-      const checked = line.includes("[x]") || line.includes("[X]");
-      const text = line.replace(/^-\s*\[[ xX]\]\s*/, "").trim();
-      return { text, checked };
-    });
-}
+export default function TaskOverviewTab({
+  task,
+  onTaskUpdate,
+}: TaskOverviewTabProps) {
+  const [criteria, setCriteria] = useState<AcceptanceCriterion[]>([]);
+  const [criteriaLoading, setCriteriaLoading] = useState(true);
 
-export default function TaskOverviewTab({ task }: TaskOverviewTabProps) {
-  const acceptanceCriteriaItems = parseChecklist(task.acceptanceCriteria);
-  const hasAcceptanceCriteria =
-    acceptanceCriteriaItems.length > 0 || task.acceptanceCriteria?.trim();
+  const fetchCriteria = useCallback(async () => {
+    try {
+      setCriteriaLoading(true);
+      const response = await api.tasks.listTaskCriteria({ id: task.id });
+      setCriteria(response.data ?? []);
+    } catch (err) {
+      console.error("Failed to fetch criteria:", err);
+    } finally {
+      setCriteriaLoading(false);
+    }
+  }, [task.id]);
+
+  useEffect(() => {
+    fetchCriteria();
+  }, [fetchCriteria]);
+
+  const handleCriteriaUpdate = () => {
+    fetchCriteria();
+    onTaskUpdate?.();
+  };
 
   return (
     <div className="space-y-6">
@@ -45,49 +57,17 @@ export default function TaskOverviewTab({ task }: TaskOverviewTabProps) {
         <h3 className="text-sm font-semibold text-system-900 dark:text-white mb-2">
           Acceptance Criteria
         </h3>
-        {acceptanceCriteriaItems.length > 0 ? (
-          <ul className="space-y-2">
-            {acceptanceCriteriaItems.map((item, index) => (
-              <li key={index} className="flex items-start gap-2">
-                <span
-                  className={`flex-shrink-0 w-5 h-5 rounded border flex items-center justify-center mt-0.5 ${
-                    item.checked
-                      ? "bg-emerald-100 border-emerald-300 dark:bg-emerald-900/30 dark:border-emerald-700"
-                      : "border-system-300 dark:border-system-600"
-                  }`}
-                >
-                  {item.checked && (
-                    <svg
-                      className="w-3 h-3 text-emerald-600 dark:text-emerald-400"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={3}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  )}
-                </span>
-                <span
-                  className={`text-sm ${item.checked ? "text-system-500 dark:text-system-400 line-through" : "text-system-700 dark:text-system-300"}`}
-                >
-                  {item.text}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : task.acceptanceCriteria?.trim() ? (
-          <div className="text-sm text-system-600 dark:text-system-300 whitespace-pre-wrap">
-            {task.acceptanceCriteria}
+        {criteriaLoading ? (
+          <div className="text-sm text-system-400 dark:text-system-500">
+            Loading...
           </div>
         ) : (
-          <p className="text-sm text-system-400 dark:text-system-500 italic">
-            No acceptance criteria defined
-          </p>
+          <AcceptanceCriteriaList
+            entityType="task"
+            entityId={task.id}
+            criteria={criteria}
+            onUpdate={handleCriteriaUpdate}
+          />
         )}
       </div>
 

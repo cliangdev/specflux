@@ -98,6 +98,10 @@ paths:
     $ref: './paths/epics.yaml#/epics-id-tasks'
   /epics/{id}/progress:
     $ref: './paths/epics.yaml#/epics-id-progress'
+  /epics/{id}/criteria:
+    $ref: './paths/epics.yaml#/epics-id-criteria'
+  /epics/{id}/criteria/{criterionId}:
+    $ref: './paths/epics.yaml#/epics-id-criteria-criterion-id'
 
   # Tasks (nested under projects)
   /projects/{id}/tasks:
@@ -126,6 +130,10 @@ paths:
     $ref: './paths/tasks.yaml#/tasks-id-approve'
   /tasks/{id}/file-changes:
     $ref: './paths/tasks.yaml#/tasks-id-file-changes'
+  /tasks/{id}/criteria:
+    $ref: './paths/tasks.yaml#/tasks-id-criteria'
+  /tasks/{id}/criteria/{criterionId}:
+    $ref: './paths/tasks.yaml#/tasks-id-criteria-criterion-id'
 
   # Repositories (nested under projects)
   /projects/{id}/repositories:

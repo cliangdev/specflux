@@ -13,6 +13,8 @@
     "test:all": "npm run test --workspaces --if-present",
     "build:all": "npm run build --workspaces --if-present",
     "lint:all": "npm run lint --workspaces --if-present",
+    "typecheck:all": "npm run typecheck --workspaces --if-present",
+    "validate": "npm run typecheck:all && npm run lint:all && npm run test:all",
     "migrate": "npm run migrate --workspace=orchestrator",
     "generate:client": "npm run generate:client --workspace=orchestrator && cp -r orchestrator/generated-client frontend/src/api/generated",
     "prepare": "husky"

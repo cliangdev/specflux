@@ -419,3 +419,69 @@ TaskFileChangesResponse:
   required:
     - changes
     - summary
+
+AcceptanceCriterion:
+  type: object
+  description: An acceptance criterion for a task or epic
+  properties:
+    id:
+      type: integer
+    entity_type:
+      type: string
+      enum: [epic, task]
+      description: Type of entity this criterion belongs to
+    entity_id:
+      type: integer
+      description: ID of the parent entity (epic or task)
+    text:
+      type: string
+      description: The criterion text
+    checked:
+      type: boolean
+      description: Whether this criterion has been satisfied
+    checked_at:
+      type: string
+      format: date-time
+      nullable: true
+      description: When the criterion was checked/satisfied
+    position:
+      type: integer
+      description: Display order position (0-indexed)
+    created_at:
+      type: string
+      format: date-time
+  required:
+    - id
+    - entity_type
+    - entity_id
+    - text
+    - checked
+    - position
+    - created_at
+
+CreateCriterionRequest:
+  type: object
+  properties:
+    text:
+      type: string
+      minLength: 1
+      description: The criterion text
+    position:
+      type: integer
+      description: Optional display order position
+  required:
+    - text
+
+UpdateCriterionRequest:
+  type: object
+  properties:
+    text:
+      type: string
+      minLength: 1
+      description: Updated criterion text
+    checked:
+      type: boolean
+      description: Whether the criterion is satisfied
+    position:
+      type: integer
+      description: Display order position
