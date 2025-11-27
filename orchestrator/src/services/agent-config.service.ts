@@ -6,6 +6,9 @@
 
 import { getDatabase } from '../db';
 import { NotFoundError, ValidationError } from '../types';
+import { getProjectById } from './project.service';
+import path from 'path';
+import fs from 'fs';
 
 export interface Agent {
   id: number;
@@ -231,4 +234,115 @@ export function countTasksWithAgent(agentId: number): number {
   const stmt = db.prepare('SELECT COUNT(*) as count FROM tasks WHERE assigned_agent_id = ?');
   const result = stmt.get(agentId) as { count: number };
   return result.count;
+}
+
+/**
+ * Parse YAML frontmatter from markdown file
+ */
+function parseFrontmatter(content: string): { frontmatter: Record<string, string>; body: string } {
+  const frontmatterRegex = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
+  const match = content.match(frontmatterRegex);
+
+  if (!match) {
+    return { frontmatter: {}, body: content };
+  }
+
+  const frontmatterStr = match[1] ?? '';
+  const body = match[2] ?? '';
+
+  // Simple YAML parsing for key: value pairs
+  const frontmatter: Record<string, string> = {};
+  for (const line of frontmatterStr.split('\n')) {
+    const colonIndex = line.indexOf(':');
+    if (colonIndex > 0) {
+      const key = line.slice(0, colonIndex).trim();
+      const value = line.slice(colonIndex + 1).trim();
+      frontmatter[key] = value;
+    }
+  }
+
+  return { frontmatter, body };
+}
+
+/**
+ * Sync agents from .claude/agents/ directory
+ * Scans for agent markdown files and creates/updates agent entries
+ */
+export function syncAgentsFromFilesystem(projectId: number): {
+  created: number;
+  updated: number;
+  deleted: number;
+} {
+  const project = getProjectById(projectId);
+  if (!project) {
+    throw new NotFoundError('Project', projectId);
+  }
+
+  const agentsDir = path.join(project.local_path, '.claude', 'agents');
+
+  if (!fs.existsSync(agentsDir)) {
+    return { created: 0, updated: 0, deleted: 0 };
+  }
+
+  const entries = fs.readdirSync(agentsDir, { withFileTypes: true });
+  const foundAgentNames = new Set<string>();
+
+  let created = 0;
+  let updated = 0;
+
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith('.md')) continue;
+
+    const agentFilePath = path.join(agentsDir, entry.name);
+    const configPath = `.claude/agents/${entry.name}`;
+    const content = fs.readFileSync(agentFilePath, 'utf-8');
+
+    const { frontmatter, body } = parseFrontmatter(content);
+
+    // Use frontmatter name or derive from filename
+    const agentName = frontmatter['name'] ?? entry.name.replace(/\.md$/, '');
+    const description = frontmatter['description'] ?? null;
+    const systemPrompt = body.trim() || null;
+
+    foundAgentNames.add(agentName);
+
+    const existingAgent = getAgentByName(projectId, agentName);
+    if (existingAgent) {
+      // Update if content changed
+      if (
+        existingAgent.config_file_path !== configPath ||
+        existingAgent.description !== description ||
+        existingAgent.system_prompt !== systemPrompt
+      ) {
+        updateAgent(existingAgent.id, {
+          config_file_path: configPath,
+          description,
+          system_prompt: systemPrompt,
+        });
+        updated++;
+      }
+    } else {
+      // Create new agent
+      createAgent(projectId, {
+        name: agentName,
+        description,
+        system_prompt: systemPrompt,
+        config_file_path: configPath,
+      });
+      created++;
+    }
+  }
+
+  // Remove agents that no longer exist on filesystem (only those that have config_file_path)
+  const existingAgents = listAgents(projectId);
+  let deleted = 0;
+  for (const agent of existingAgents) {
+    // Only delete agents that were synced from filesystem (have config_file_path)
+    if (agent.config_file_path && !foundAgentNames.has(agent.name)) {
+      deleteAgent(agent.id);
+      deleted++;
+    }
+  }
+
+  return { created, updated, deleted };
 }

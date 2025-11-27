@@ -11,6 +11,7 @@ import {
   updateMcpServer,
   deleteMcpServer,
   toggleMcpServer,
+  syncMcpServersFromFilesystem,
   CreateMcpServerInput,
   UpdateMcpServerInput,
 } from '../services/mcp-server.service';
@@ -104,6 +105,36 @@ router.post(
             : null,
           is_active: Boolean(server.is_active),
         },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /projects/:projectId/mcp-servers/sync
+ * Sync MCP servers from filesystem (.claude/.mcp.json file)
+ */
+router.post(
+  '/projects/:projectId/mcp-servers/sync',
+  (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const projectId = parseInt(req.params['projectId']!, 10);
+
+      if (isNaN(projectId)) {
+        throw new ValidationError('Invalid project id');
+      }
+
+      if (!userHasProjectAccess(projectId, req.userId!)) {
+        throw new NotFoundError('Project', projectId);
+      }
+
+      const result = syncMcpServersFromFilesystem(projectId);
+
+      res.json({
+        success: true,
+        data: result,
       });
     } catch (error) {
       next(error);

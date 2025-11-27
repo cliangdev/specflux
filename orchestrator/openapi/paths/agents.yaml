@@ -72,6 +72,37 @@ projects-id-agents:
             schema:
               $ref: '../schemas/common.yaml#/Error'
 
+projects-id-agents-sync:
+  post:
+    summary: Sync agents from filesystem
+    description: Scan .claude/agents/ directory and sync agent definitions
+    tags:
+      - Agents
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Sync result
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/common.yaml#/SyncResult'
+      '404':
+        description: Project not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
 agents-id:
   get:
     summary: Get an agent

@@ -12,6 +12,7 @@ import {
   deleteAgent,
   setProjectDefaultAgent,
   countTasksWithAgent,
+  syncAgentsFromFilesystem,
   CreateAgentInput,
   UpdateAgentInput,
 } from '../services/agent-config.service';
@@ -93,6 +94,36 @@ router.post('/projects/:projectId/agents', (req: Request, res: Response, next: N
     next(error);
   }
 });
+
+/**
+ * POST /projects/:projectId/agents/sync
+ * Sync agents from filesystem (.claude/agents/ directory)
+ */
+router.post(
+  '/projects/:projectId/agents/sync',
+  (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const projectId = parseInt(req.params['projectId']!, 10);
+
+      if (isNaN(projectId)) {
+        throw new ValidationError('Invalid project id');
+      }
+
+      if (!userHasProjectAccess(projectId, req.userId!)) {
+        throw new NotFoundError('Project', projectId);
+      }
+
+      const result = syncAgentsFromFilesystem(projectId);
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 /**
  * GET /agents/:id

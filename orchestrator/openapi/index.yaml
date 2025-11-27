@@ -154,6 +154,8 @@ paths:
   # Agents (nested under projects)
   /projects/{id}/agents:
     $ref: './paths/agents.yaml#/projects-id-agents'
+  /projects/{id}/agents/sync:
+    $ref: './paths/agents.yaml#/projects-id-agents-sync'
   /projects/{id}/default-agent:
     $ref: './paths/agents.yaml#/projects-id-default-agent'
   /agents/{id}:
@@ -170,6 +172,8 @@ paths:
   # MCP Servers (nested under projects)
   /projects/{id}/mcp-servers:
     $ref: './paths/mcp-servers.yaml#/projects-id-mcp-servers'
+  /projects/{id}/mcp-servers/sync:
+    $ref: './paths/mcp-servers.yaml#/projects-id-mcp-servers-sync'
   /mcp-servers/{id}:
     $ref: './paths/mcp-servers.yaml#/mcp-servers-id'
   /mcp-servers/{id}/toggle:

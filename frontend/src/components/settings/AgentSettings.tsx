@@ -29,6 +29,12 @@ export function AgentSettings() {
     tools: [],
   });
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{
+    created: number;
+    updated: number;
+    deleted: number;
+  } | null>(null);
 
   // Load agents
   useEffect(() => {
@@ -175,6 +181,38 @@ export function AgentSettings() {
     setDeletingAgent(null);
   };
 
+  const handleSync = async () => {
+    if (!currentProject) return;
+
+    setSyncing(true);
+    setError(null);
+    setSyncResult(null);
+
+    try {
+      const response = await api.agents.projectsIdAgentsSyncPost({
+        id: currentProject.id,
+      });
+
+      if (response.success && response.data) {
+        setSyncResult(
+          response.data as {
+            created: number;
+            updated: number;
+            deleted: number;
+          },
+        );
+        await loadAgents();
+      } else {
+        setError("Failed to sync agents from filesystem");
+      }
+    } catch (err) {
+      setError("Failed to sync agents from filesystem");
+      console.error(err);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   if (!currentProject) {
     return (
       <div className="text-gray-500 dark:text-gray-400">
@@ -199,13 +237,31 @@ export function AgentSettings() {
             Configure specialized Claude Code agents for different tasks
           </p>
         </div>
-        <button
-          onClick={handleAddClick}
-          className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
-        >
-          Create Agent
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-600 disabled:opacity-50"
+            title="Sync agents from .claude/agents/ directory"
+          >
+            {syncing ? "Syncing..." : "Sync from Filesystem"}
+          </button>
+          <button
+            onClick={handleAddClick}
+            className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
+          >
+            Create Agent
+          </button>
+        </div>
       </div>
+
+      {/* Sync result message */}
+      {syncResult && (
+        <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded text-sm text-green-800 dark:text-green-200">
+          Synced from .claude/agents/: {syncResult.created} created,{" "}
+          {syncResult.updated} updated, {syncResult.deleted} deleted
+        </div>
+      )}
 
       {/* Error message */}
       {error && (

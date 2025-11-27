@@ -72,6 +72,37 @@ projects-id-mcp-servers:
             schema:
               $ref: '../schemas/common.yaml#/Error'
 
+projects-id-mcp-servers-sync:
+  post:
+    summary: Sync MCP servers from filesystem
+    description: Scan .claude/.mcp.json file and sync server configurations
+    tags:
+      - MCP Servers
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Sync result
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/common.yaml#/SyncResult'
+      '404':
+        description: Project not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
 mcp-servers-id:
   get:
     summary: Get an MCP server

@@ -6,6 +6,9 @@
 
 import { getDatabase } from '../db';
 import { NotFoundError, ValidationError } from '../types';
+import { getProjectById } from './project.service';
+import path from 'path';
+import fs from 'fs';
 
 export interface McpServer {
   id: number;
@@ -200,4 +203,105 @@ export function getActiveMcpServers(projectId: number): McpServer[] {
     ORDER BY name ASC
   `);
   return stmt.all(projectId) as McpServer[];
+}
+
+/**
+ * MCP config file structure
+ */
+interface McpConfigFile {
+  mcpServers?: Record<
+    string,
+    {
+      command: string;
+      args?: string[];
+      env?: Record<string, string>;
+    }
+  >;
+}
+
+/**
+ * Sync MCP servers from .claude/.mcp.json file
+ * Parses the MCP config and creates/updates server entries
+ */
+export function syncMcpServersFromFilesystem(projectId: number): {
+  created: number;
+  updated: number;
+  deleted: number;
+} {
+  const project = getProjectById(projectId);
+  if (!project) {
+    throw new NotFoundError('Project', projectId);
+  }
+
+  const mcpConfigPath = path.join(project.local_path, '.claude', '.mcp.json');
+
+  if (!fs.existsSync(mcpConfigPath)) {
+    return { created: 0, updated: 0, deleted: 0 };
+  }
+
+  let config: McpConfigFile;
+  try {
+    const content = fs.readFileSync(mcpConfigPath, 'utf-8');
+    config = JSON.parse(content) as McpConfigFile;
+  } catch {
+    // Invalid JSON or read error
+    return { created: 0, updated: 0, deleted: 0 };
+  }
+
+  const servers = config.mcpServers ?? {};
+  const foundServerNames = new Set<string>();
+
+  let created = 0;
+  let updated = 0;
+
+  for (const [serverName, serverConfig] of Object.entries(servers)) {
+    foundServerNames.add(serverName);
+
+    const existingServer = getMcpServerByName(projectId, serverName);
+    const args = serverConfig.args ?? [];
+    const envVars = serverConfig.env ?? null;
+
+    if (existingServer) {
+      // Check if anything changed
+      const existingArgs = JSON.parse(existingServer.args) as string[];
+      const existingEnvVars = existingServer.env_vars
+        ? (JSON.parse(existingServer.env_vars) as Record<string, string>)
+        : null;
+
+      const argsChanged = JSON.stringify(args) !== JSON.stringify(existingArgs);
+      const envChanged = JSON.stringify(envVars) !== JSON.stringify(existingEnvVars);
+      const commandChanged = existingServer.command !== serverConfig.command;
+
+      if (argsChanged || envChanged || commandChanged) {
+        updateMcpServer(existingServer.id, {
+          command: serverConfig.command,
+          args,
+          env_vars: envVars,
+        });
+        updated++;
+      }
+    } else {
+      // Create new server
+      createMcpServer(projectId, {
+        name: serverName,
+        command: serverConfig.command,
+        args,
+        env_vars: envVars,
+        is_active: true,
+      });
+      created++;
+    }
+  }
+
+  // Remove servers that no longer exist in config
+  const existingServers = listMcpServers(projectId);
+  let deleted = 0;
+  for (const server of existingServers) {
+    if (!foundServerNames.has(server.name)) {
+      deleteMcpServer(server.id);
+      deleted++;
+    }
+  }
+
+  return { created, updated, deleted };
 }
