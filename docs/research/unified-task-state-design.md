@@ -8,11 +8,11 @@
 ## Table of Contents
 
 1. [Architecture Overview](#1-architecture-overview)
-2. [Task State File Format](#2-task-state-file-format)
-3. [Examples by Use Case](#3-examples-by-use-case)
-4. [Agent Session Protocol](#4-agent-session-protocol)
-5. [File Size Management](#5-file-size-management)
-6. [Token Optimization](#6-token-optimization)
+2. [Data Model Changes](#2-data-model-changes)
+3. [Task State File Format](#3-task-state-file-format)
+4. [Examples by Use Case](#4-examples-by-use-case)
+5. [Agent Session Protocol](#5-agent-session-protocol)
+6. [File Size Management](#6-file-size-management)
 7. [Implementation Guide](#7-implementation-guide)
 8. [Appendix: Background & Comparisons](#appendix-background--comparisons)
 
@@ -22,28 +22,36 @@
 
 ### Core Concept
 
-One file per task that evolves through its lifecycle, enabling session continuity and task handoffs.
+Separate **static task definition** (in database) from **runtime state** (in state file).
 
 ```mermaid
 flowchart TB
-    subgraph "Task Lifecycle"
-        direction LR
-        CREATE[SpecFlux creates task] --> SESSION[Agent sessions]
-        SESSION --> COMPLETE[Task complete]
+    subgraph "Database (Static)"
+        TASK[Task<br/>title, description, acceptance_criteria]
+        EPIC[Epic<br/>title, description, acceptance_criteria]
     end
 
-    subgraph "Task State File"
+    subgraph "State File (Runtime)"
         direction TB
-        META[0. Metadata]
-        CTX[1. Context<br/>Requirements + Acceptance Criteria]
-        CHAIN_IN[2. Chain Inputs<br/>Only if has dependencies]
-        PROGRESS[3. Progress Log<br/>Updated each session]
-        CHAIN_OUT[4. Chain Output<br/>Finalized when complete]
+        META[0. Metadata<br/>session count, timestamps]
+        CHAIN_IN[1. Chain Inputs<br/>Only if has dependencies]
+        PROGRESS[2. Progress Log<br/>Updated each session]
+        CHAIN_OUT[3. Chain Output<br/>Finalized when complete]
     end
 
-    CREATE --> META
-    SESSION --> PROGRESS
-    COMPLETE --> CHAIN_OUT
+    subgraph "Agent Session"
+        READ_API[Read task from API]
+        READ_STATE[Read state file]
+        WORK[Implement]
+        UPDATE_API[Check off criteria via API]
+        UPDATE_STATE[Update progress log]
+    end
+
+    TASK --> READ_API
+    READ_API --> WORK
+    READ_STATE --> WORK
+    WORK --> UPDATE_API
+    WORK --> UPDATE_STATE
 
     style PROGRESS fill:#E8F5E9
     style CHAIN_OUT fill:#F3E5F5
@@ -53,10 +61,10 @@ flowchart TB
 
 | Principle | Description |
 |-----------|-------------|
-| **One file per task** | All state in `task-{id}-state.md` |
-| **Minimal context** | Only include what agent needs |
+| **Separation of concerns** | Static definition in DB, runtime state in file |
+| **Acceptance criteria required** | Both Epic and Task must have ≥1 criterion |
+| **State file is minimal** | Only chain context + progress + output |
 | **Chain inputs only when needed** | Tasks without dependencies skip this section |
-| **Acceptance criteria as checkboxes** | Agent checks off as features are verified |
 | **Progress log is critical** | Enables session continuity across context resets |
 | **Size-aware** | Auto-archive when file exceeds 75 KB |
 
@@ -74,17 +82,91 @@ flowchart TB
 
 ---
 
-## 2. Task State File Format
+## 2. Data Model Changes
+
+### Epic Model
+
+Add `acceptance_criteria` field (required, minimum 1 item):
+
+```typescript
+interface Epic {
+  id: number;
+  title: string;
+  description: string;
+  acceptance_criteria: AcceptanceCriterion[];  // NEW - required, min 1
+  // ... other fields
+}
+
+interface AcceptanceCriterion {
+  id: number;
+  text: string;
+  checked: boolean;
+  checked_at?: string;  // ISO timestamp when checked
+}
+```
+
+### Task Model
+
+Add `acceptance_criteria` field (required, minimum 1 item):
+
+```typescript
+interface Task {
+  id: number;
+  title: string;
+  description: string;
+  acceptance_criteria: AcceptanceCriterion[];  // NEW - required, min 1
+  // ... other fields
+}
+```
+
+### Database Schema
+
+```sql
+-- New table for acceptance criteria (shared by epics and tasks)
+CREATE TABLE acceptance_criteria (
+  id INTEGER PRIMARY KEY,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('epic', 'task')),
+  entity_id INTEGER NOT NULL,
+  text TEXT NOT NULL,
+  checked INTEGER DEFAULT 0,
+  checked_at TEXT,
+  position INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_ac_entity ON acceptance_criteria(entity_type, entity_id);
+```
+
+### API Endpoints
+
+```
+GET  /tasks/:id                    → includes acceptance_criteria[]
+PUT  /tasks/:id/criteria/:criterionId  → { checked: true/false }
+GET  /epics/:id                    → includes acceptance_criteria[]
+PUT  /epics/:id/criteria/:criterionId  → { checked: true/false }
+```
+
+### Validation Rules
+
+- Epic: Must have ≥1 acceptance criterion before creating tasks
+- Task: Must have ≥1 acceptance criterion before starting work
+- Criterion text: Non-empty, max 500 characters
+
+---
+
+## 3. Task State File Format
 
 ### Sections Overview
 
 | Section | Required | When to Include |
 |---------|----------|-----------------|
 | **0. Metadata** | Yes | Always (JSON) |
-| **1. Context** | Yes | Always - requirements + acceptance criteria |
-| **2. Chain Inputs** | No | Only if task has dependencies |
-| **3. Progress Log** | Yes | Agent updates each session |
-| **4. Chain Output** | Yes | Agent finalizes when complete |
+| **1. Chain Inputs** | No | Only if task has dependencies |
+| **2. Progress Log** | Yes | Agent updates each session |
+| **3. Chain Output** | Yes | Agent finalizes when complete |
+
+> **Note:** Task definition and acceptance criteria are in the database, not the state file.
+> Agent reads task from API and updates criteria via API calls.
 
 ### Full Format Template
 
@@ -96,38 +178,26 @@ flowchart TB
 {
   "task_id": 101,
   "epic_id": 10,
-  "status": "in_progress",
-  "total_sessions": 3
+  "total_sessions": 3,
+  "started_at": "2024-11-26T10:00:00Z",
+  "last_session_at": "2024-11-26T14:00:00Z"
 }
 ```
 
-## 1. Context
-
-**Epic:** {epic_title} (#{epic_id})
-**Repository:** {repo_name}
-
-### Requirements
-{brief task requirements - 2-5 sentences}
-
-### Acceptance Criteria
-- [ ] Criterion 1
-- [ ] Criterion 2
-- [ ] Criterion 3
-
-## 2. Chain Inputs
+## 1. Chain Inputs
 (Only if this task depends on other tasks)
 
 ### From Task #{dep_id}: {dep_title}
 > {summary of what upstream task produced}
 
-## 3. Progress Log
+## 2. Progress Log
 
 ### Session 1 - {timestamp}
 **Did:** {bullet points}
 **Issues:** {any blockers}
 **Next:** {clear next steps}
 
-## 4. Chain Output
+## 3. Chain Output
 (Agent fills when task is complete)
 
 ### Summary
@@ -139,12 +209,28 @@ flowchart TB
 
 ---
 
-## 3. Examples by Use Case
+## 4. Examples by Use Case
 
 ### Example A: Simple Task (No Dependencies)
 
-A self-contained task with clear requirements. **Most common case.**
+A self-contained task. State file is minimal - just metadata and progress.
 
+**Task in database:**
+```json
+{
+  "id": 201,
+  "title": "Add dark mode toggle",
+  "epic_id": 15,
+  "description": "Add a dark mode toggle to settings page. Use existing theme context.",
+  "acceptance_criteria": [
+    { "id": 1, "text": "Toggle switch in Settings > General", "checked": false },
+    { "id": 2, "text": "Persists preference to localStorage", "checked": false },
+    { "id": 3, "text": "Applies theme immediately without reload", "checked": false }
+  ]
+}
+```
+
+**State file (`task-201-state.md`):**
 ````markdown
 # Task #201: Add dark mode toggle
 
@@ -153,42 +239,47 @@ A self-contained task with clear requirements. **Most common case.**
 {
   "task_id": 201,
   "epic_id": 15,
-  "status": "in_progress",
-  "total_sessions": 0
+  "total_sessions": 0,
+  "started_at": null
 }
 ```
 
-## 1. Context
-
-**Epic:** UI Polish (#15)
-**Repository:** frontend
-
-### Requirements
-Add a dark mode toggle to the settings page. Use existing theme context.
-Follow the ui-patterns skill for styling.
-
-### Acceptance Criteria
-- [ ] Toggle switch in Settings > General
-- [ ] Persists preference to localStorage
-- [ ] Applies theme immediately without reload
-
-## 3. Progress Log
+## 2. Progress Log
 
 (No sessions yet)
 
-## 4. Chain Output
+## 3. Chain Output
 
 (To be completed)
 ````
 
-**Size: ~2 KB** - Simple, focused, no chain inputs needed.
+**Size: ~500 bytes** - No chain inputs, no context duplication.
 
 ---
 
 ### Example B: Task with Dependencies
 
-A task that builds on work from upstream tasks.
+A task that builds on work from upstream tasks. State file includes chain inputs.
 
+**Task in database:**
+```json
+{
+  "id": 102,
+  "title": "Auth API endpoints",
+  "epic_id": 10,
+  "description": "Create REST endpoints for login, logout, and token refresh. Use JWT service from Task #101.",
+  "dependencies": [100, 101],
+  "acceptance_criteria": [
+    { "id": 1, "text": "POST /auth/login returns JWT on valid credentials", "checked": true },
+    { "id": 2, "text": "POST /auth/logout invalidates refresh token", "checked": false },
+    { "id": 3, "text": "POST /auth/refresh returns new access token", "checked": false },
+    { "id": 4, "text": "All endpoints have input validation", "checked": false },
+    { "id": 5, "text": "Integration tests pass", "checked": false }
+  ]
+}
+```
+
+**State file (`task-102-state.md`):**
 ````markdown
 # Task #102: Auth API endpoints
 
@@ -197,29 +288,13 @@ A task that builds on work from upstream tasks.
 {
   "task_id": 102,
   "epic_id": 10,
-  "status": "in_progress",
-  "dependencies": [100, 101],
-  "total_sessions": 2
+  "total_sessions": 2,
+  "started_at": "2024-11-26T14:00:00Z",
+  "last_session_at": "2024-11-26T15:30:00Z"
 }
 ```
 
-## 1. Context
-
-**Epic:** User Authentication (#10)
-**Repository:** backend
-
-### Requirements
-Create REST endpoints for login, logout, and token refresh.
-Use the JWT service from Task #101.
-
-### Acceptance Criteria
-- [x] POST /auth/login returns JWT on valid credentials
-- [ ] POST /auth/logout invalidates refresh token
-- [ ] POST /auth/refresh returns new access token
-- [ ] All endpoints have input validation
-- [ ] Integration tests pass
-
-## 2. Chain Inputs
+## 1. Chain Inputs
 
 ### From Task #100: Database Schema
 > Users table: id (UUID), email (unique), password_hash, created_at
@@ -232,7 +307,7 @@ Use the JWT service from Task #101.
 >
 > Config: JWT_SECRET, JWT_EXPIRY=15m
 
-## 3. Progress Log
+## 2. Progress Log
 
 ### Session 1 - 2024-11-26 14:00
 **Did:**
@@ -253,19 +328,37 @@ Use the JWT service from Task #101.
 
 **Next:** Fix race condition, add validation, write tests
 
-## 4. Chain Output
+## 3. Chain Output
 
 (To be completed)
 ````
 
-**Size: ~8 KB** - Includes chain inputs because depends on #100 and #101.
+**Size: ~2 KB** - Includes chain inputs for dependencies.
 
 ---
 
 ### Example C: Completed Task with Chain Output
 
-A task that has been completed across multiple sessions.
+A completed task with chain output for downstream tasks.
 
+**Task in database:**
+```json
+{
+  "id": 101,
+  "title": "JWT Service",
+  "epic_id": 10,
+  "status": "complete",
+  "description": "Implement JWT token service. Support access tokens (15min) and refresh tokens (7 days).",
+  "acceptance_criteria": [
+    { "id": 1, "text": "generateToken() creates valid JWT", "checked": true },
+    { "id": 2, "text": "verifyToken() validates signature and expiry", "checked": true },
+    { "id": 3, "text": "refreshToken() rotates tokens securely", "checked": true },
+    { "id": 4, "text": "Unit tests with 90%+ coverage", "checked": true }
+  ]
+}
+```
+
+**State file (`task-101-state.md`):**
 ````markdown
 # Task #101: JWT Service
 
@@ -274,27 +367,13 @@ A task that has been completed across multiple sessions.
 {
   "task_id": 101,
   "epic_id": 10,
-  "status": "complete",
-  "total_sessions": 5
+  "total_sessions": 5,
+  "started_at": "2024-11-26T10:00:00Z",
+  "completed_at": "2024-11-26T14:00:00Z"
 }
 ```
 
-## 1. Context
-
-**Epic:** User Authentication (#10)
-**Repository:** backend
-
-### Requirements
-Implement JWT token service for authentication.
-Support access tokens (15min) and refresh tokens (7 days).
-
-### Acceptance Criteria
-- [x] generateToken() creates valid JWT
-- [x] verifyToken() validates signature and expiry
-- [x] refreshToken() rotates tokens securely
-- [x] Unit tests with 90%+ coverage
-
-## 3. Progress Log
+## 2. Progress Log
 
 ### Session 1 - 2024-11-26 10:00
 **Did:** Set up project structure, added jsonwebtoken dependency
@@ -321,7 +400,7 @@ Support access tokens (15min) and refresh tokens (7 days).
 **Issues:** None
 **Next:** Task complete
 
-## 4. Chain Output
+## 3. Chain Output
 
 ### Summary
 JWT authentication service with token generation, verification, and secure refresh.
@@ -352,14 +431,29 @@ JWT_REFRESH_EXPIRY=7d
 - Token format: Bearer in Authorization header
 ````
 
-**Size: ~10 KB** - Complete with chain output for downstream tasks.
+**Size: ~3 KB** - Chain output provides context for downstream tasks.
 
 ---
 
 ### Example D: Minimal Bug Fix
 
-A small fix with pinpointed location.
+A small fix - state file is tiny.
 
+**Task in database:**
+```json
+{
+  "id": 305,
+  "title": "Fix login button disabled state",
+  "epic_id": null,
+  "description": "Login button stays disabled after validation passes. Fix in src/components/LoginForm.tsx line ~45.",
+  "acceptance_criteria": [
+    { "id": 1, "text": "Button enables when email and password are valid", "checked": false },
+    { "id": 2, "text": "Button disables during submission", "checked": false }
+  ]
+}
+```
+
+**State file (`task-305-state.md`):**
 ````markdown
 # Task #305: Fix login button disabled state
 
@@ -368,58 +462,44 @@ A small fix with pinpointed location.
 {
   "task_id": 305,
   "epic_id": null,
-  "status": "in_progress",
-  "total_sessions": 0
+  "total_sessions": 0,
+  "started_at": null
 }
 ```
 
-## 1. Context
-
-**Repository:** frontend
-
-### Requirements
-Login button stays disabled after form validation passes.
-Fix: Check `isValid` state in button disabled prop.
-File: `src/components/LoginForm.tsx` line ~45
-
-### Acceptance Criteria
-- [ ] Button enables when email and password are valid
-- [ ] Button disables during submission
-
-## 3. Progress Log
+## 2. Progress Log
 
 (No sessions yet)
 
-## 4. Chain Output
+## 3. Chain Output
 
 (Small fix - minimal output needed)
 ````
 
-**Size: ~1.5 KB** - Bug fix with clear location, no dependencies.
+**Size: ~300 bytes** - Bug fixes have minimal state.
 
 ---
 
-## 4. Agent Session Protocol
+## 5. Agent Session Protocol
 
 ### Startup Sequence (Every Session)
 
 ```mermaid
 flowchart TD
-    A[Session Start] --> B[Read task-state.md]
-    B --> C[Review acceptance criteria]
+    A[Session Start] --> B[Read task from API]
+    B --> C[Read state file]
     C --> D{First session?}
-    D -->|Yes| E[Start fresh]
-    D -->|No| F[Read progress log]
-    F --> G[Identify next steps from last session]
-    E --> H[Pick first unchecked criterion]
-    G --> H
-    H --> I[Implement]
-    I --> J[Test & verify]
-    J --> K[Check off criterion]
-    K --> L[Append to Progress Log]
-    L --> M{All criteria checked?}
-    M -->|Yes| N[Write Chain Output]
-    M -->|No| O[End session]
+    D -->|Yes| E[Review acceptance criteria]
+    D -->|No| F[Read progress log for context]
+    F --> E
+    E --> G[Pick first unchecked criterion]
+    G --> H[Implement]
+    H --> I[Test & verify]
+    I --> J[Check off criterion via API]
+    J --> K[Append to Progress Log]
+    K --> L{All criteria checked?}
+    L -->|Yes| M[Write Chain Output]
+    L -->|No| N[End session]
 ```
 
 ### Protocol Instructions (Inject to Agent)
@@ -428,23 +508,24 @@ flowchart TD
 ## Session Protocol
 
 ### Phase 1: Orientation
-1. Read task-state.md completely
-2. Run `git status` to check state
-3. Review acceptance criteria - find unchecked items
+1. Read task from API: GET /tasks/{id}
+2. Read state file for progress context
+3. Run `git status` to check repo state
+4. Review acceptance criteria - find unchecked items
 
 ### Phase 2: Implementation
-4. Pick ONE unchecked criterion to work on
-5. Read relevant source files first
-6. Implement directly (don't just suggest)
-7. Write tests to verify it works
+5. Pick ONE unchecked criterion to work on
+6. Read relevant source files first
+7. Implement directly (don't just suggest)
+8. Write tests to verify it works
 
 ### Phase 3: Handoff
-8. Check off completed criteria with [x]
-9. Append to Progress Log:
-   - What you did
-   - Any issues
-   - Next steps
-10. If all criteria checked → write Chain Output
+9. Check off criterion via API: PUT /tasks/{id}/criteria/{criterionId}
+10. Append to Progress Log in state file:
+    - What you did
+    - Any issues
+    - Next steps
+11. If all criteria checked → write Chain Output section
 ```
 
 ### Agent Behavior Rules
@@ -457,14 +538,14 @@ DO NOT add features beyond acceptance criteria.
 DO NOT create abstractions for single-use code.
 DO NOT assume file contents - read first.
 
-DO check off criteria only after testing.
+DO check off criteria via API after testing.
 DO update progress log before ending session.
 DO keep solutions simple and direct.
 ```
 
 ---
 
-## 5. File Size Management
+## 6. File Size Management
 
 ### Thresholds
 
@@ -480,7 +561,7 @@ DO keep solutions simple and direct.
 Keep last 5 sessions in full detail, summarize older ones:
 
 ````markdown
-## 3. Progress Log
+## 2. Progress Log
 
 ### Archived Summary (Sessions 1-5)
 **Duration:** 2024-11-26 10:00 - 14:00
@@ -503,42 +584,6 @@ Keep last 5 sessions in full detail, summarize older ones:
 | Medium | 4-8 | Single task, ideal size |
 | Large | 9-15 | Consider splitting |
 | Very Large | 16+ | Must decompose |
-
----
-
-## 6. Token Optimization
-
-### Embed vs Link Strategy
-
-Only embed what agent needs every session. Link rarely-accessed content.
-
-| Content | Access Pattern | Strategy |
-|---------|----------------|----------|
-| Requirements | Always needed | **Embed** |
-| Acceptance criteria | Always needed | **Embed** |
-| Chain input summaries | Usually needed | **Embed** |
-| Full PRD | Sometimes | **Link** |
-| Full Epic | Sometimes | **Link** |
-| Archived sessions | Rarely | **Link** |
-
-### Example: Linking Full Documents
-
-````markdown
-## 1. Context
-
-**Epic:** User Auth (#10) [details](/api/epics/10)
-**PRD:** [user-auth.md](/api/prds/user-auth)
-
-### Requirements
-JWT tokens with 15-min expiry. Use jsonwebtoken library.
-
-## 2. Chain Inputs
-
-### From Task #100: Database Schema
-> Users table: id, email, password_hash
-
-[Full chain output](/api/tasks/100/chain-output)
-````
 
 ---
 
@@ -576,9 +621,12 @@ class TaskStateManager {
     return this.parseChainOutput(state);
   }
 
-  async updateAcceptanceCriteria(taskId: number, index: number, checked: boolean): Promise<void> {
+  async injectChainInputs(taskId: number, dependencies: Task[]): Promise<void> {
     const state = await this.readState(taskId);
-    state.acceptanceCriteria[index].checked = checked;
+    for (const dep of dependencies) {
+      const chainOutput = await this.extractChainOutput(dep.id);
+      state.chainInputs.push({ taskId: dep.id, title: dep.title, content: chainOutput });
+    }
     await this.writeState(taskId, state);
   }
 }
@@ -590,18 +638,23 @@ class TaskStateManager {
 sequenceDiagram
     participant UI as SpecFlux UI
     participant API as Backend API
+    participant DB as Database
     participant TSM as TaskStateManager
     participant Agent as Claude Agent
 
-    UI->>API: Create Task
+    UI->>API: Create Task (with acceptance_criteria)
+    API->>DB: Insert task + criteria
     API->>TSM: createTaskState()
     TSM-->>API: task-state.md created
 
     UI->>API: Start Task
-    API->>Agent: Launch with state file path
-    Agent->>TSM: Read state
+    API->>TSM: injectChainInputs() if has dependencies
+    API->>Agent: Launch with task ID + state file path
+    Agent->>API: GET /tasks/{id} (read task + criteria)
+    Agent->>TSM: Read state file
     Agent->>Agent: Work on unchecked criteria
-    Agent->>TSM: Check off criteria, update progress
+    Agent->>API: PUT /tasks/{id}/criteria/{cid} (check off)
+    Agent->>TSM: Update progress log
 
     UI->>API: Complete Task
     API->>TSM: extractChainOutput()
@@ -621,39 +674,37 @@ sequenceDiagram
 
 **Challenge 1: Inter-Task Context**
 When tasks depend on each other, downstream tasks need upstream outputs.
-**Solution:** Chain Outputs in Section 4
+**Solution:** Chain Outputs in state file (Section 3.3)
 
 **Challenge 2: Intra-Task Context**
 When a task spans multiple sessions, agent loses memory on context reset.
-**Solution:** Progress Log in Section 3
+**Solution:** Progress Log in state file (Section 3.2)
+
+### Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| Task definition in DB | Agent reads via API, no duplication |
+| Acceptance criteria in DB | Checkable via API, visible in UI |
+| State file for runtime only | Minimal size, focused purpose |
+| Chain inputs in state file | Injected once when task starts |
 
 ### Before vs After
 
 | Aspect | Before | After |
 |--------|--------|-------|
+| Task definition | Duplicated in state file | Database only |
+| Acceptance criteria | In state file | Database (API-checkable) |
 | Session continuity | Lost on reset | Preserved in Progress Log |
 | Upstream context | Injected at start | Chain Inputs section |
-| Downstream handoff | Separate file | Chain Output section |
-| Progress tracking | None | Acceptance criteria checkboxes |
-| File count per task | Multiple | One unified file |
+| State file size | ~10 KB typical | ~2 KB typical |
 
 ### Claude 4 Alignment
 
 | Claude 4 Recommendation | Our Implementation |
 |-------------------------|-------------------|
-| Structured state tracking | JSON metadata |
+| Structured state tracking | JSON metadata + DB |
 | Save progress before reset | Progress Log section |
 | Explicit action directives | Agent rules: "IMPLEMENT, don't suggest" |
 | Read before edit | Protocol: "Read files first" |
-| Verification before marking done | Check criteria only after testing |
-
-### Why Not Just Link Everything?
-
-Linking doesn't save tokens if agent needs the content:
-
-```
-Embed: File 10 KB → Agent reads 10 KB tokens
-Link:  File 2 KB + API call 8 KB → Same 10 KB tokens + overhead
-```
-
-Only link content that's **conditionally accessed**.
+| Verification before marking done | Check criteria via API after testing |
