@@ -15,6 +15,19 @@ import {
   SortOrder,
 } from '../services/task.service';
 import {
+  listCriteria,
+  createCriterion,
+  updateCriterion,
+  deleteCriterion,
+  getCriterionById,
+} from '../services/acceptance-criteria.service';
+import {
+  readTaskState,
+  getStateWarnings,
+  hasTaskState,
+  SIZE_THRESHOLDS,
+} from '../services/task-state.service';
+import {
   userHasProjectAccess,
   getProjectConfig,
   getProjectById,
@@ -189,10 +202,11 @@ router.get('/tasks/:id', (req: Request, res: Response, next: NextFunction) => {
       throw new NotFoundError('Task', taskId);
     }
 
-    // Add blocked status
+    // Add blocked status and acceptance criteria
     const blocked = isTaskBlocked(taskId);
+    const acceptance_criteria = listCriteria('task', taskId);
 
-    res.json({ success: true, data: { ...task, is_blocked: blocked } });
+    res.json({ success: true, data: { ...task, is_blocked: blocked, acceptance_criteria } });
   } catch (error) {
     next(error);
   }
@@ -716,5 +730,239 @@ router.get('/tasks/:id/file-changes', (req: Request, res: Response, next: NextFu
     next(error);
   }
 });
+
+// ============================================================================
+// Task State Endpoints
+// ============================================================================
+
+/**
+ * GET /tasks/:id/state - Get task state file info and warnings
+ */
+router.get('/tasks/:id/state', (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const taskId = parseInt(req.params['id']!, 10);
+
+    if (isNaN(taskId)) {
+      throw new ValidationError('Invalid task id');
+    }
+
+    const task = getTaskById(taskId);
+    if (!task) {
+      throw new NotFoundError('Task', taskId);
+    }
+
+    const userId = req.userId ?? 1;
+    if (!userHasProjectAccess(task.project_id, userId)) {
+      throw new NotFoundError('Task', taskId);
+    }
+
+    // Get project path
+    const project = getProjectById(task.project_id);
+    if (!project?.local_path) {
+      res.json({
+        success: true,
+        data: {
+          exists: false,
+          state: null,
+          warnings: [],
+          thresholds: SIZE_THRESHOLDS,
+        },
+      });
+      return;
+    }
+
+    // Check if state file exists
+    const exists = hasTaskState(project.local_path, taskId);
+    if (!exists) {
+      res.json({
+        success: true,
+        data: {
+          exists: false,
+          state: null,
+          warnings: [],
+          thresholds: SIZE_THRESHOLDS,
+        },
+      });
+      return;
+    }
+
+    // Read state and get warnings
+    const state = readTaskState(project.local_path, taskId);
+    const warnings = getStateWarnings(project.local_path, taskId);
+
+    res.json({
+      success: true,
+      data: {
+        exists: true,
+        state: state
+          ? {
+              metadata: state.metadata,
+              session_count: state.progress_log.length,
+              has_chain_output: state.chain_output !== null,
+              has_chain_inputs: state.chain_inputs.length > 0,
+              has_archived_sessions: state.archived_summary !== undefined,
+            }
+          : null,
+        warnings,
+        thresholds: SIZE_THRESHOLDS,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ============================================================================
+// Acceptance Criteria Endpoints
+// ============================================================================
+
+/**
+ * GET /tasks/:id/criteria - List acceptance criteria for a task
+ */
+router.get('/tasks/:id/criteria', (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const taskId = parseInt(req.params['id']!, 10);
+
+    if (isNaN(taskId)) {
+      throw new ValidationError('Invalid task id');
+    }
+
+    const task = getTaskById(taskId);
+    if (!task) {
+      throw new NotFoundError('Task', taskId);
+    }
+
+    const userId = req.userId ?? 1;
+    if (!userHasProjectAccess(task.project_id, userId)) {
+      throw new NotFoundError('Task', taskId);
+    }
+
+    const criteria = listCriteria('task', taskId);
+    res.json({ success: true, data: criteria });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /tasks/:id/criteria - Create acceptance criterion for a task
+ */
+router.post('/tasks/:id/criteria', (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const taskId = parseInt(req.params['id']!, 10);
+
+    if (isNaN(taskId)) {
+      throw new ValidationError('Invalid task id');
+    }
+
+    const task = getTaskById(taskId);
+    if (!task) {
+      throw new NotFoundError('Task', taskId);
+    }
+
+    const userId = req.userId ?? 1;
+    if (!userHasProjectAccess(task.project_id, userId)) {
+      throw new NotFoundError('Task', taskId);
+    }
+
+    const body = req.body as Record<string, unknown>;
+    const { text, position } = body;
+
+    if (!text || typeof text !== 'string') {
+      throw new ValidationError('text is required');
+    }
+
+    const criterion = createCriterion('task', taskId, {
+      text,
+      position: position as number | undefined,
+    });
+
+    res.status(201).json({ success: true, data: criterion });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PUT /tasks/:id/criteria/:criterionId - Update acceptance criterion
+ */
+router.put(
+  '/tasks/:id/criteria/:criterionId',
+  (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const taskId = parseInt(req.params['id']!, 10);
+      const criterionId = parseInt(req.params['criterionId']!, 10);
+
+      if (isNaN(taskId) || isNaN(criterionId)) {
+        throw new ValidationError('Invalid task or criterion id');
+      }
+
+      const task = getTaskById(taskId);
+      if (!task) {
+        throw new NotFoundError('Task', taskId);
+      }
+
+      const userId = req.userId ?? 1;
+      if (!userHasProjectAccess(task.project_id, userId)) {
+        throw new NotFoundError('Task', taskId);
+      }
+
+      // Verify criterion belongs to this task
+      const existingCriterion = getCriterionById(criterionId);
+      if (existingCriterion?.entity_type !== 'task' || existingCriterion.entity_id !== taskId) {
+        throw new NotFoundError('AcceptanceCriterion', criterionId);
+      }
+
+      const body = req.body as Record<string, unknown>;
+      const criterion = updateCriterion(criterionId, {
+        text: body['text'] as string | undefined,
+        checked: body['checked'] as boolean | undefined,
+        position: body['position'] as number | undefined,
+      });
+
+      res.json({ success: true, data: criterion });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * DELETE /tasks/:id/criteria/:criterionId - Delete acceptance criterion
+ */
+router.delete(
+  '/tasks/:id/criteria/:criterionId',
+  (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const taskId = parseInt(req.params['id']!, 10);
+      const criterionId = parseInt(req.params['criterionId']!, 10);
+
+      if (isNaN(taskId) || isNaN(criterionId)) {
+        throw new ValidationError('Invalid task or criterion id');
+      }
+
+      const task = getTaskById(taskId);
+      if (!task) {
+        throw new NotFoundError('Task', taskId);
+      }
+
+      const userId = req.userId ?? 1;
+      if (!userHasProjectAccess(task.project_id, userId)) {
+        throw new NotFoundError('Task', taskId);
+      }
+
+      // Verify criterion belongs to this task
+      const existingCriterion = getCriterionById(criterionId);
+      if (existingCriterion?.entity_type !== 'task' || existingCriterion.entity_id !== taskId) {
+        throw new NotFoundError('AcceptanceCriterion', criterionId);
+      }
+
+      deleteCriterion(criterionId);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 export default router;

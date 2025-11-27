@@ -23,6 +23,14 @@ import {
   type ParserState,
 } from './terminal-parser.service';
 import { recordFileChange } from './file-tracking.service';
+import {
+  generateTaskProtocol,
+  generateEpicProtocol,
+  generateProjectProtocol,
+} from './session-protocol.service';
+import { listCriteria } from './acceptance-criteria.service';
+import { createTaskState, hasTaskState, injectChainInputs } from './task-state.service';
+import { getTaskDependencies } from './task.service';
 
 // Global emitter for agent lifecycle events (start/stop)
 // WebSocket handlers subscribe to this to know when to re-subscribe to task emitters
@@ -407,6 +415,15 @@ export function spawnAgentForContext(
       throw new NotFoundError('Task', contextId);
     }
     projectId = task.project_id;
+
+    // Validate task has at least one acceptance criterion (Definition of Ready)
+    const criteria = listCriteria('task', contextId);
+    if (criteria.length === 0) {
+      throw new ValidationError(
+        `Cannot start agent: Task #${contextId} has no acceptance criteria defined. ` +
+          `Please add at least one acceptance criterion to define what "done" means.`
+      );
+    }
   } else if (contextType === 'epic') {
     epic = getEpicById(contextId);
     if (!epic) {
@@ -480,6 +497,23 @@ export function spawnAgentForContext(
   const agentWorkDir = worktreePath ?? project.local_path;
   if (contextType === 'task') {
     writeContextFile(agentWorkDir, contextId);
+
+    // Ensure task state file exists
+    if (!hasTaskState(agentWorkDir, contextId) && task) {
+      createTaskState(agentWorkDir, contextId, task.title, task.epic_id ?? null);
+    }
+
+    // Inject chain inputs from completed dependencies
+    const deps = getTaskDependencies(contextId);
+    const completedDeps = deps
+      .filter((d) => d.depends_on_task?.status === 'done')
+      .map((d) => ({
+        id: d.depends_on_task_id,
+        title: d.depends_on_task?.title ?? `Task ${d.depends_on_task_id}`,
+      }));
+    if (completedDeps.length > 0) {
+      injectChainInputs(agentWorkDir, contextId, completedDeps);
+    }
   } else if (contextType === 'epic') {
     writeEpicContextFile(agentWorkDir, contextId);
   } else if (contextType === 'project') {
@@ -493,14 +527,16 @@ export function spawnAgentForContext(
   const command = config?.command ?? 'claude';
   let args = config?.args;
   if (!args) {
-    // Build initial prompt based on context type
+    // Build initial prompt based on context type using session protocol service
     let initialPrompt: string;
     if (contextType === 'task' && task) {
-      initialPrompt = `Please work on this task:\n\nTask #${task.id}: ${task.title}\n\n${task.description ?? 'No description provided.'}\n\nStart by understanding what needs to be done, then implement the changes.`;
+      // Use the comprehensive session protocol for tasks
+      const protocol = generateTaskProtocol(contextId, agentWorkDir);
+      initialPrompt = protocol.initialPrompt;
     } else if (contextType === 'epic' && epic) {
-      initialPrompt = `Please review this epic for planning quality.\n\nEpic: ${epic.title}\n\nRead the CLAUDE.md file in this directory - it contains the epic details, PRD, and all tasks. Then provide feedback on:\n1. PRD completeness\n2. Task sizing and scoping\n3. Task descriptions and context\n4. Dependencies\n5. Any missing tasks`;
+      initialPrompt = generateEpicProtocol(contextId, epic.title);
     } else if (contextType === 'project') {
-      initialPrompt = `Please review this project and help with coordination, planning, or cross-epic analysis as needed.\n\nRead the CLAUDE.md file in this directory - it contains project statistics, repositories, epics overview, and recent tasks.`;
+      initialPrompt = generateProjectProtocol(contextId);
     } else {
       initialPrompt = `Please start working. Read CLAUDE.md for context.`;
     }

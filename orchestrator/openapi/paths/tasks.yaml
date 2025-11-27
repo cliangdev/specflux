@@ -811,3 +811,171 @@ tasks-id-file-changes:
           application/json:
             schema:
               $ref: '../schemas/common.yaml#/Error'
+
+tasks-id-criteria:
+  get:
+    summary: List acceptance criteria
+    description: Get all acceptance criteria for a task
+    operationId: listTaskCriteria
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Task ID
+    responses:
+      '200':
+        description: Acceptance criteria list
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  type: array
+                  items:
+                    $ref: '../schemas/task.yaml#/AcceptanceCriterion'
+              required:
+                - success
+                - data
+      '404':
+        description: Task not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+  post:
+    summary: Create acceptance criterion
+    description: Add a new acceptance criterion to a task
+    operationId: createTaskCriterion
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Task ID
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/task.yaml#/CreateCriterionRequest'
+    responses:
+      '201':
+        description: Criterion created
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/task.yaml#/AcceptanceCriterion'
+              required:
+                - success
+                - data
+      '400':
+        description: Invalid request body
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+      '404':
+        description: Task not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+tasks-id-criteria-criterion-id:
+  put:
+    summary: Update acceptance criterion
+    description: Update text, checked status, or position of a criterion
+    operationId: updateTaskCriterion
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Task ID
+      - name: criterionId
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Criterion ID
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/task.yaml#/UpdateCriterionRequest'
+    responses:
+      '200':
+        description: Criterion updated
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/task.yaml#/AcceptanceCriterion'
+              required:
+                - success
+                - data
+      '400':
+        description: Invalid request body
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+      '404':
+        description: Task or criterion not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+  delete:
+    summary: Delete acceptance criterion
+    description: Remove an acceptance criterion from a task
+    operationId: deleteTaskCriterion
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Task ID
+      - name: criterionId
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Criterion ID
+    responses:
+      '204':
+        description: Criterion deleted
+      '404':
+        description: Task or criterion not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'

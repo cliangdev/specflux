@@ -47,6 +47,13 @@ coverage/
 .claude/settings.local.json
 orchestrator/data/*.db-*
 
-# SpecFlux runtime artifacts (worktrees, context files)
-.specflux/
+# SpecFlux runtime artifacts
+# Track directory structure but ignore ephemeral files
+.specflux/worktrees/
+.specflux/task-states/*.md
+.specflux/archives/*.md
+!.specflux/task-states/.gitkeep
+!.specflux/archives/.gitkeep
+
+# Playwright MCP
 .playwright-mcp/

@@ -10,6 +10,13 @@ import {
   getEpicById,
 } from '../services/epic.service';
 import { userHasProjectAccess } from '../services/project.service';
+import {
+  listCriteria,
+  createCriterion,
+  updateCriterion,
+  deleteCriterion,
+  getCriterionById,
+} from '../services/acceptance-criteria.service';
 import { NotFoundError, ValidationError } from '../types';
 
 const router = Router();
@@ -109,7 +116,10 @@ router.get('/epics/:id', (req: Request, res: Response, next: NextFunction) => {
       throw new NotFoundError('Epic', epicId);
     }
 
-    res.json({ success: true, data: epic });
+    // Add acceptance criteria to the response
+    const acceptance_criteria = listCriteria('epic', epicId);
+
+    res.json({ success: true, data: { ...epic, acceptance_criteria } });
   } catch (error) {
     next(error);
   }
@@ -248,5 +258,154 @@ router.get('/epics/:id/progress', (req: Request, res: Response, next: NextFuncti
     next(error);
   }
 });
+
+// ============================================================================
+// Acceptance Criteria Endpoints
+// ============================================================================
+
+/**
+ * GET /epics/:id/criteria - List acceptance criteria for an epic
+ */
+router.get('/epics/:id/criteria', (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const epicId = parseInt(req.params['id']!, 10);
+
+    if (isNaN(epicId)) {
+      throw new ValidationError('Invalid epic id');
+    }
+
+    const epic = getEpicById(epicId);
+    if (!epic) {
+      throw new NotFoundError('Epic', epicId);
+    }
+
+    if (!userHasProjectAccess(epic.project_id, req.userId!)) {
+      throw new NotFoundError('Epic', epicId);
+    }
+
+    const criteria = listCriteria('epic', epicId);
+    res.json({ success: true, data: criteria });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /epics/:id/criteria - Create acceptance criterion for an epic
+ */
+router.post('/epics/:id/criteria', (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const epicId = parseInt(req.params['id']!, 10);
+
+    if (isNaN(epicId)) {
+      throw new ValidationError('Invalid epic id');
+    }
+
+    const epic = getEpicById(epicId);
+    if (!epic) {
+      throw new NotFoundError('Epic', epicId);
+    }
+
+    if (!userHasProjectAccess(epic.project_id, req.userId!)) {
+      throw new NotFoundError('Epic', epicId);
+    }
+
+    const body = req.body as Record<string, unknown>;
+    const { text, position } = body;
+
+    if (!text || typeof text !== 'string') {
+      throw new ValidationError('text is required');
+    }
+
+    const criterion = createCriterion('epic', epicId, {
+      text,
+      position: position as number | undefined,
+    });
+
+    res.status(201).json({ success: true, data: criterion });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PUT /epics/:id/criteria/:criterionId - Update acceptance criterion
+ */
+router.put(
+  '/epics/:id/criteria/:criterionId',
+  (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const epicId = parseInt(req.params['id']!, 10);
+      const criterionId = parseInt(req.params['criterionId']!, 10);
+
+      if (isNaN(epicId) || isNaN(criterionId)) {
+        throw new ValidationError('Invalid epic or criterion id');
+      }
+
+      const epic = getEpicById(epicId);
+      if (!epic) {
+        throw new NotFoundError('Epic', epicId);
+      }
+
+      if (!userHasProjectAccess(epic.project_id, req.userId!)) {
+        throw new NotFoundError('Epic', epicId);
+      }
+
+      // Verify criterion belongs to this epic
+      const existingCriterion = getCriterionById(criterionId);
+      if (existingCriterion?.entity_type !== 'epic' || existingCriterion.entity_id !== epicId) {
+        throw new NotFoundError('AcceptanceCriterion', criterionId);
+      }
+
+      const body = req.body as Record<string, unknown>;
+      const criterion = updateCriterion(criterionId, {
+        text: body['text'] as string | undefined,
+        checked: body['checked'] as boolean | undefined,
+        position: body['position'] as number | undefined,
+      });
+
+      res.json({ success: true, data: criterion });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * DELETE /epics/:id/criteria/:criterionId - Delete acceptance criterion
+ */
+router.delete(
+  '/epics/:id/criteria/:criterionId',
+  (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const epicId = parseInt(req.params['id']!, 10);
+      const criterionId = parseInt(req.params['criterionId']!, 10);
+
+      if (isNaN(epicId) || isNaN(criterionId)) {
+        throw new ValidationError('Invalid epic or criterion id');
+      }
+
+      const epic = getEpicById(epicId);
+      if (!epic) {
+        throw new NotFoundError('Epic', epicId);
+      }
+
+      if (!userHasProjectAccess(epic.project_id, req.userId!)) {
+        throw new NotFoundError('Epic', epicId);
+      }
+
+      // Verify criterion belongs to this epic
+      const existingCriterion = getCriterionById(criterionId);
+      if (existingCriterion?.entity_type !== 'epic' || existingCriterion.entity_id !== epicId) {
+        throw new NotFoundError('AcceptanceCriterion', criterionId);
+      }
+
+      deleteCriterion(criterionId);
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 export default router;

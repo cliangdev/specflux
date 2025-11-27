@@ -224,3 +224,171 @@ epics-id-progress:
           application/json:
             schema:
               $ref: '../schemas/common.yaml#/Error'
+
+epics-id-criteria:
+  get:
+    summary: List acceptance criteria
+    description: Get all acceptance criteria for an epic
+    operationId: listEpicCriteria
+    tags:
+      - Epics
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Epic ID
+    responses:
+      '200':
+        description: Acceptance criteria list
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  type: array
+                  items:
+                    $ref: '../schemas/task.yaml#/AcceptanceCriterion'
+              required:
+                - success
+                - data
+      '404':
+        description: Epic not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+  post:
+    summary: Create acceptance criterion
+    description: Add a new acceptance criterion to an epic
+    operationId: createEpicCriterion
+    tags:
+      - Epics
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Epic ID
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/task.yaml#/CreateCriterionRequest'
+    responses:
+      '201':
+        description: Criterion created
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/task.yaml#/AcceptanceCriterion'
+              required:
+                - success
+                - data
+      '400':
+        description: Invalid request body
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+      '404':
+        description: Epic not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+epics-id-criteria-criterion-id:
+  put:
+    summary: Update acceptance criterion
+    description: Update text, checked status, or position of a criterion
+    operationId: updateEpicCriterion
+    tags:
+      - Epics
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Epic ID
+      - name: criterionId
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Criterion ID
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/task.yaml#/UpdateCriterionRequest'
+    responses:
+      '200':
+        description: Criterion updated
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/task.yaml#/AcceptanceCriterion'
+              required:
+                - success
+                - data
+      '400':
+        description: Invalid request body
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+      '404':
+        description: Epic or criterion not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+  delete:
+    summary: Delete acceptance criterion
+    description: Remove an acceptance criterion from an epic
+    operationId: deleteEpicCriterion
+    tags:
+      - Epics
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Epic ID
+      - name: criterionId
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Criterion ID
+    responses:
+      '204':
+        description: Criterion deleted
+      '404':
+        description: Epic or criterion not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
