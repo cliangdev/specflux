@@ -485,3 +485,41 @@ UpdateCriterionRequest:
     position:
       type: integer
       description: Display order position
+
+TaskStateInfo:
+  type: object
+  description: Task state file information
+  properties:
+    exists:
+      type: boolean
+      description: Whether the task state file exists
+    file_path:
+      type: string
+      nullable: true
+      description: Absolute path to the state file
+    state:
+      type: object
+      nullable: true
+      description: Parsed state metadata if file exists
+      properties:
+        metadata:
+          type: object
+          properties:
+            task_id:
+              type: integer
+            title:
+              type: string
+            status:
+              type: string
+            start_time:
+              type: string
+        session_count:
+          type: integer
+        has_chain_output:
+          type: boolean
+        has_chain_inputs:
+          type: boolean
+        has_archived_sessions:
+          type: boolean
+  required:
+    - exists
