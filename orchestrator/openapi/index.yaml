@@ -134,6 +134,8 @@ paths:
     $ref: './paths/tasks.yaml#/tasks-id-criteria'
   /tasks/{id}/criteria/{criterionId}:
     $ref: './paths/tasks.yaml#/tasks-id-criteria-criterion-id'
+  /tasks/{id}/state:
+    $ref: './paths/tasks.yaml#/tasks-id-state'
 
   # Repositories (nested under projects)
   /projects/{id}/repositories:

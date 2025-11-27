@@ -25,6 +25,7 @@ import {
   readTaskState,
   getStateWarnings,
   hasTaskState,
+  getTaskStatePath,
   SIZE_THRESHOLDS,
 } from '../services/task-state.service';
 import {
@@ -763,6 +764,7 @@ router.get('/tasks/:id/state', (req: Request, res: Response, next: NextFunction)
         success: true,
         data: {
           exists: false,
+          file_path: null,
           state: null,
           warnings: [],
           thresholds: SIZE_THRESHOLDS,
@@ -771,6 +773,9 @@ router.get('/tasks/:id/state', (req: Request, res: Response, next: NextFunction)
       return;
     }
 
+    // Get the state file path
+    const filePath = getTaskStatePath(project.local_path, taskId);
+
     // Check if state file exists
     const exists = hasTaskState(project.local_path, taskId);
     if (!exists) {
@@ -778,6 +783,7 @@ router.get('/tasks/:id/state', (req: Request, res: Response, next: NextFunction)
         success: true,
         data: {
           exists: false,
+          file_path: filePath,
           state: null,
           warnings: [],
           thresholds: SIZE_THRESHOLDS,
@@ -794,6 +800,7 @@ router.get('/tasks/:id/state', (req: Request, res: Response, next: NextFunction)
       success: true,
       data: {
         exists: true,
+        file_path: filePath,
         state: state
           ? {
               metadata: state.metadata,

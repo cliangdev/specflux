@@ -979,3 +979,39 @@ tasks-id-criteria-criterion-id:
           application/json:
             schema:
               $ref: '../schemas/common.yaml#/Error'
+
+tasks-id-state:
+  get:
+    summary: Get task state
+    description: Get task state file information including file path and metadata
+    operationId: getTaskState
+    tags:
+      - Tasks
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Task ID
+    responses:
+      '200':
+        description: Task state information
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/task.yaml#/TaskStateInfo'
+              required:
+                - success
+                - data
+      '404':
+        description: Task not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
