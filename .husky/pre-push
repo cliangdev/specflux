@@ -9,3 +9,21 @@ if [ "$current_branch" = "$protected_branch" ]; then
     echo "   Please create a feature branch and open a pull request."
     exit 1
 fi
+
+# Run TypeScript type checking
+echo "🔍 Running TypeScript type check..."
+npm run typecheck --workspace=orchestrator
+if [ $? -ne 0 ]; then
+    echo "❌ TypeScript type check failed. Please fix type errors before pushing."
+    exit 1
+fi
+
+# Run tests
+echo "🧪 Running tests..."
+npm run test --workspace=orchestrator
+if [ $? -ne 0 ]; then
+    echo "❌ Tests failed. Please fix failing tests before pushing."
+    exit 1
+fi
+
+echo "✅ All checks passed!"

@@ -15,6 +15,7 @@
     "test:coverage": "vitest --coverage",
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "typecheck": "tsc --noEmit",
     "generate:api": "cd ../orchestrator && npm run generate:client"
   },
   "dependencies": {
