@@ -140,10 +140,17 @@ CREATE INDEX idx_ac_entity ON acceptance_criteria(entity_type, entity_id);
 ### API Endpoints
 
 ```
-GET  /tasks/:id                    → includes acceptance_criteria[]
-PUT  /tasks/:id/criteria/:criterionId  → { checked: true/false }
-GET  /epics/:id                    → includes acceptance_criteria[]
-PUT  /epics/:id/criteria/:criterionId  → { checked: true/false }
+# Tasks
+GET    /tasks/:id                         → includes acceptance_criteria[]
+POST   /tasks/:id/criteria                → { text: string } → add criterion
+PUT    /tasks/:id/criteria/:criterionId   → { text?, checked?, position? }
+DELETE /tasks/:id/criteria/:criterionId   → remove criterion
+
+# Epics
+GET    /epics/:id                         → includes acceptance_criteria[]
+POST   /epics/:id/criteria                → { text: string } → add criterion
+PUT    /epics/:id/criteria/:criterionId   → { text?, checked?, position? }
+DELETE /epics/:id/criteria/:criterionId   → remove criterion
 ```
 
 ### Acceptance Criteria Hierarchy
