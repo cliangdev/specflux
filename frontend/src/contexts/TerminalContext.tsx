@@ -14,10 +14,17 @@ export interface TaskInfo {
 
 export type ContextType = "task" | "epic" | "project";
 
+export interface AgentInfo {
+  id: number;
+  name: string;
+  emoji: string;
+}
+
 export interface ContextInfo {
   type: ContextType;
   id: number;
   title: string;
+  agent?: AgentInfo;
 }
 
 export interface TerminalSession {
@@ -25,6 +32,8 @@ export interface TerminalSession {
   contextType: ContextType;
   contextId: number;
   contextTitle: string;
+  // Agent assigned to this session (for task contexts)
+  agent?: AgentInfo;
   // Backwards compatibility aliases
   taskId: number;
   taskTitle: string;
@@ -77,6 +86,7 @@ interface StoredSession {
   contextType: ContextType;
   contextId: number;
   contextTitle: string;
+  agent?: AgentInfo;
 }
 
 interface StoredState {
@@ -132,6 +142,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
         contextType: s.contextType,
         contextId: s.contextId,
         contextTitle: s.contextTitle,
+        agent: s.agent,
         taskId: s.contextId,
         taskTitle: s.contextTitle,
         isRunning: false,
@@ -152,6 +163,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
       contextType: s.contextType,
       contextId: s.contextId,
       contextTitle: s.contextTitle,
+      agent: s.agent,
     }));
 
     const state: StoredState = {
@@ -231,7 +243,12 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
       // Check if session already exists
       const existingSession = prev.find((s) => s.id === sessionId);
       if (existingSession) {
-        // Session exists, just switch to it
+        // Session exists, update agent if provided and switch to it
+        if (context.agent && !existingSession.agent) {
+          return prev.map((s) =>
+            s.id === sessionId ? { ...s, agent: context.agent } : s,
+          );
+        }
         return prev;
       }
       // Create new session
@@ -242,6 +259,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
           contextType: context.type,
           contextId: context.id,
           contextTitle: context.title,
+          agent: context.agent,
           // Backwards compat aliases
           taskId: context.id,
           taskTitle: context.title,

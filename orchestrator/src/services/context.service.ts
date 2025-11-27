@@ -5,6 +5,7 @@ import { Task, getTaskById, getTaskDependencies } from './task.service';
 import { getEpicWithStats, EpicWithStats } from './epic.service';
 import { getProjectById, getProjectStats, Project } from './project.service';
 import { listRepositories, Repository } from './repository.service';
+import { resolveAgentForTask } from './agent.service';
 
 export interface TaskContext {
   task: Task;
@@ -16,6 +17,12 @@ export interface TaskContext {
   projectName: string;
   epicTitle?: string;
   epicPrd?: string;
+  agent?: {
+    id: number;
+    name: string;
+    description: string | null;
+    systemPrompt: string | null;
+  };
 }
 
 /**
@@ -66,12 +73,24 @@ export function getTaskContext(taskId: number): TaskContext | null {
     status: dep.depends_on_task?.status ?? 'unknown',
   }));
 
+  // Resolve agent for this task
+  const resolvedAgent = resolveAgentForTask(taskId);
+  const agent = resolvedAgent
+    ? {
+        id: resolvedAgent.id,
+        name: resolvedAgent.name,
+        description: resolvedAgent.description,
+        systemPrompt: resolvedAgent.system_prompt,
+      }
+    : undefined;
+
   return {
     task,
     dependencies,
     projectName: project?.name ?? 'Unknown Project',
     epicTitle,
     epicPrd,
+    agent,
   };
 }
 
@@ -124,6 +143,22 @@ export function generateContextMarkdown(context: TaskContext): string {
       lines.push(`- ${statusIcon} [#${dep.id}] ${dep.title} (${dep.status})`);
     }
     lines.push('');
+  }
+
+  if (context.agent) {
+    lines.push('## Agent Configuration');
+    lines.push('');
+    lines.push(`**Agent:** ${context.agent.name}`);
+    if (context.agent.description) {
+      lines.push(`**Role:** ${context.agent.description}`);
+    }
+    lines.push('');
+    if (context.agent.systemPrompt) {
+      lines.push('### Agent Instructions');
+      lines.push('');
+      lines.push(context.agent.systemPrompt);
+      lines.push('');
+    }
   }
 
   lines.push('## Instructions');
