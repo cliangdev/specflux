@@ -29,6 +29,8 @@ export interface Task {
   // Owner + Executor model
   owner_user_id: number | null;
   executor_type: 'human' | 'agent';
+  // Agent assignment
+  assigned_agent_id: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -59,6 +61,8 @@ export interface CreateTaskInput {
   // Owner + Executor model
   owner_user_id?: number;
   executor_type?: 'human' | 'agent';
+  // Agent assignment
+  assigned_agent_id?: number;
 }
 
 export interface UpdateTaskInput {
@@ -84,6 +88,8 @@ export interface UpdateTaskInput {
   // Owner + Executor model
   owner_user_id?: number | null;
   executor_type?: 'human' | 'agent';
+  // Agent assignment
+  assigned_agent_id?: number | null;
 }
 
 export interface TaskFilters {
@@ -309,9 +315,9 @@ export function createTask(
       INSERT INTO tasks (
         project_id, epic_id, title, description, requires_approval,
         repo_name, agent_name, estimated_duration, created_by_user_id, assigned_to_user_id,
-        acceptance_criteria, scope_in, scope_out, owner_user_id, executor_type
+        acceptance_criteria, scope_in, scope_out, owner_user_id, executor_type, assigned_agent_id
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
     )
     .run(
@@ -329,7 +335,8 @@ export function createTask(
       input.scope_in ?? null,
       input.scope_out ?? null,
       input.owner_user_id ?? null,
-      input.executor_type ?? 'agent'
+      input.executor_type ?? 'agent',
+      input.assigned_agent_id ?? null
     );
 
   return getTaskById(result.lastInsertRowid as number)!;
@@ -372,6 +379,8 @@ export function updateTask(id: number, input: UpdateTaskInput): Task {
     // Owner + Executor model
     'owner_user_id',
     'executor_type',
+    // Agent assignment
+    'assigned_agent_id',
   ];
 
   for (const field of fields) {

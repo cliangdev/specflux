@@ -83,3 +83,31 @@ UpdateRepositoryRequest:
 # Notification schemas
 Notification:
   $ref: './notification.yaml#/Notification'
+
+# Agent schemas
+Agent:
+  $ref: './agent.yaml#/Agent'
+CreateAgentRequest:
+  $ref: './agent.yaml#/CreateAgentRequest'
+UpdateAgentRequest:
+  $ref: './agent.yaml#/UpdateAgentRequest'
+SetDefaultAgentRequest:
+  $ref: './agent.yaml#/SetDefaultAgentRequest'
+
+# Skill schemas
+Skill:
+  $ref: './skill.yaml#/Skill'
+CreateSkillRequest:
+  $ref: './skill.yaml#/CreateSkillRequest'
+UpdateSkillRequest:
+  $ref: './skill.yaml#/UpdateSkillRequest'
+SyncSkillsResult:
+  $ref: './skill.yaml#/SyncSkillsResult'
+
+# MCP Server schemas
+McpServer:
+  $ref: './mcp-server.yaml#/McpServer'
+CreateMcpServerRequest:
+  $ref: './mcp-server.yaml#/CreateMcpServerRequest'
+UpdateMcpServerRequest:
+  $ref: './mcp-server.yaml#/UpdateMcpServerRequest'

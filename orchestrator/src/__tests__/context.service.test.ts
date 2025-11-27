@@ -176,6 +176,7 @@ describe('ContextService', () => {
           scope_out: null,
           owner_user_id: null,
           executor_type: 'agent',
+          assigned_agent_id: null,
         },
         dependencies: [],
         projectName: 'Test Project',

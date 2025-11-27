@@ -1,0 +1,237 @@
+projects-id-agents:
+  get:
+    summary: List agents for a project
+    description: Get all agent definitions for a project
+    tags:
+      - Agents
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: List of agents
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  type: array
+                  items:
+                    $ref: '../schemas/agent.yaml#/Agent'
+      '404':
+        description: Project not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+  post:
+    summary: Create an agent
+    description: Create a new agent definition for a project
+    tags:
+      - Agents
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/agent.yaml#/CreateAgentRequest'
+    responses:
+      '201':
+        description: Agent created
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/agent.yaml#/Agent'
+      '400':
+        description: Validation error
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+      '404':
+        description: Project not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+agents-id:
+  get:
+    summary: Get an agent
+    description: Get a single agent by ID
+    tags:
+      - Agents
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '200':
+        description: Agent details
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/agent.yaml#/Agent'
+      '404':
+        description: Agent not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+  put:
+    summary: Update an agent
+    description: Full update of an agent
+    tags:
+      - Agents
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/agent.yaml#/UpdateAgentRequest'
+    responses:
+      '200':
+        description: Agent updated
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/agent.yaml#/Agent'
+      '404':
+        description: Agent not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+  patch:
+    summary: Partially update an agent
+    description: Partial update of an agent
+    tags:
+      - Agents
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/agent.yaml#/UpdateAgentRequest'
+    responses:
+      '200':
+        description: Agent updated
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  $ref: '../schemas/agent.yaml#/Agent'
+      '404':
+        description: Agent not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+  delete:
+    summary: Delete an agent
+    description: Delete an agent definition
+    tags:
+      - Agents
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    responses:
+      '204':
+        description: Agent deleted
+      '404':
+        description: Agent not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'
+
+projects-id-default-agent:
+  put:
+    summary: Set default agent
+    description: Set the default agent for a project
+    tags:
+      - Agents
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/agent.yaml#/SetDefaultAgentRequest'
+    responses:
+      '200':
+        description: Default agent set
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                data:
+                  type: object
+                  properties:
+                    project_id:
+                      type: integer
+                    default_agent_id:
+                      type: integer
+                      nullable: true
+      '404':
+        description: Project or agent not found
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/common.yaml#/Error'

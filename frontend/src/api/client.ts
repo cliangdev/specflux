@@ -7,13 +7,16 @@
 
 import {
   Configuration,
+  AgentsApi,
   EpicsApi,
   FilesApi,
   HealthApi,
+  MCPServersApi,
   NotificationsApi,
   ProjectsApi,
   ReleasesApi,
   RepositoriesApi,
+  SkillsApi,
   TasksApi,
   UsersApi,
 } from "./generated";
@@ -52,6 +55,9 @@ function createConfiguration(): Configuration {
  * Each instance is created fresh to ensure current user ID is used
  */
 export const api = {
+  get agents() {
+    return new AgentsApi(createConfiguration());
+  },
   get epics() {
     return new EpicsApi(createConfiguration());
   },
@@ -60,6 +66,9 @@ export const api = {
   },
   get health() {
     return new HealthApi(createConfiguration());
+  },
+  get mcpServers() {
+    return new MCPServersApi(createConfiguration());
   },
   get notifications() {
     return new NotificationsApi(createConfiguration());
@@ -73,6 +82,9 @@ export const api = {
   get repositories() {
     return new RepositoriesApi(createConfiguration());
   },
+  get skills() {
+    return new SkillsApi(createConfiguration());
+  },
   get tasks() {
     return new TasksApi(createConfiguration());
   },
@@ -84,13 +96,16 @@ export const api = {
 // Export API classes for custom configuration if needed
 export {
   Configuration,
+  AgentsApi,
   EpicsApi,
   FilesApi,
   HealthApi,
+  MCPServersApi,
   NotificationsApi,
   ProjectsApi,
   ReleasesApi,
   RepositoriesApi,
+  SkillsApi,
   TasksApi,
   UsersApi,
 };

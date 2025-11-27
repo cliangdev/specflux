@@ -1,12 +1,23 @@
 import { useState } from "react";
 import { GeneralSettings } from "../components/settings/GeneralSettings";
 import { RepositorySettings } from "../components/settings/RepositorySettings";
+import { AgentSettings } from "../components/settings/AgentSettings";
+import { SkillSettings } from "../components/settings/SkillSettings";
+import { McpServerSettings } from "../components/settings/McpServerSettings";
 
-type SettingsTab = "general" | "repositories";
+type SettingsTab =
+  | "general"
+  | "repositories"
+  | "agents"
+  | "skills"
+  | "mcp-servers";
 
 const tabs: { id: SettingsTab; label: string }[] = [
   { id: "general", label: "General" },
   { id: "repositories", label: "Repositories" },
+  { id: "agents", label: "Agents" },
+  { id: "skills", label: "Skills" },
+  { id: "mcp-servers", label: "MCP Servers" },
 ];
 
 export default function SettingsPage() {
@@ -45,9 +56,12 @@ export default function SettingsPage() {
 
         {/* Tab Content */}
         <div className="flex-1 overflow-auto p-8">
-          <div className="max-w-2xl">
+          <div className="max-w-3xl">
             {activeTab === "general" && <GeneralSettings />}
             {activeTab === "repositories" && <RepositorySettings />}
+            {activeTab === "agents" && <AgentSettings />}
+            {activeTab === "skills" && <SkillSettings />}
+            {activeTab === "mcp-servers" && <McpServerSettings />}
           </div>
         </div>
       </div>

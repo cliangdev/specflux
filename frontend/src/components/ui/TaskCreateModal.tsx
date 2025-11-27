@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from "react";
-import { api, type CreateTaskRequest, type Epic } from "../../api";
+import { api, type CreateTaskRequest, type Epic, type Agent } from "../../api";
+import { AgentSelector } from "../tasks";
 
 interface TaskCreateModalProps {
   projectId: number;
@@ -17,6 +18,7 @@ export default function TaskCreateModal({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [epicId, setEpicId] = useState<number | undefined>(defaultEpicId);
+  const [assignedAgentId, setAssignedAgentId] = useState<number | null>(null);
   const [epics, setEpics] = useState<Epic[]>([]);
   const [loadingEpics, setLoadingEpics] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -54,6 +56,8 @@ export default function TaskCreateModal({
         title: title.trim(),
         description: description.trim() || undefined,
         epicId: epicId,
+        assignedAgentId: assignedAgentId ?? undefined,
+        executorType: assignedAgentId ? "agent" : undefined,
       };
 
       await api.tasks.createTask({
@@ -176,6 +180,21 @@ export default function TaskCreateModal({
               </select>
               <p className="mt-1 text-xs text-system-500 dark:text-system-400">
                 Optional - group this task under an epic
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1">
+                Assigned Agent
+              </label>
+              <AgentSelector
+                projectId={projectId}
+                selectedAgentId={assignedAgentId}
+                onChange={(agentId) => setAssignedAgentId(agentId)}
+                variant="dropdown"
+              />
+              <p className="mt-1 text-xs text-system-500 dark:text-system-400">
+                Optional - assign an AI agent to execute this task
               </p>
             </div>
           </div>
