@@ -31,6 +31,7 @@ import {
 import { listCriteria } from './acceptance-criteria.service';
 import { createTaskState, hasTaskState, injectChainInputs } from './task-state.service';
 import { getTaskDependencies } from './task.service';
+import { getAgentById, getProjectDefaultAgent, type Agent } from './agent-config.service';
 
 // Global emitter for agent lifecycle events (start/stop)
 // WebSocket handlers subscribe to this to know when to re-subscribe to task emitters
@@ -390,6 +391,69 @@ export function getAgentStatus(taskId: number): AgentStatusResponse {
 }
 
 /**
+ * Resolve which agent should be used for a task.
+ * Resolution order:
+ * 1. Task's assigned_agent_id (if set)
+ * 2. Project's default_agent_id (if set)
+ * 3. null (no agent, use basic context only)
+ */
+export function resolveAgentForTask(taskId: number): Agent | null {
+  const task = getTaskById(taskId);
+  if (!task) return null;
+
+  // 1. Check if task has an assigned agent
+  if (task.assigned_agent_id) {
+    const agent = getAgentById(task.assigned_agent_id);
+    if (agent) return agent;
+  }
+
+  // 2. Check if project has a default agent
+  const projectAgent = getProjectDefaultAgent(task.project_id);
+  if (projectAgent) return projectAgent;
+
+  // 3. No agent configured
+  return null;
+}
+
+/**
+ * Build agent-specific system prompt to inject into Claude Code session.
+ * Combines agent's persona/instructions with tools configuration.
+ */
+export function buildAgentSystemPrompt(agent: Agent): string {
+  const lines: string[] = [];
+
+  lines.push(`## Agent: ${agent.name}`);
+  if (agent.description) {
+    lines.push(`**Role:** ${agent.description}`);
+  }
+  lines.push('');
+
+  if (agent.system_prompt) {
+    lines.push('### Agent Instructions');
+    lines.push(agent.system_prompt);
+    lines.push('');
+  }
+
+  if (agent.tools) {
+    try {
+      const tools = JSON.parse(agent.tools) as string[];
+      if (tools.length > 0) {
+        lines.push('### Available Tools');
+        lines.push('This agent has access to the following tools:');
+        for (const tool of tools) {
+          lines.push(`- ${tool}`);
+        }
+        lines.push('');
+      }
+    } catch {
+      // Invalid JSON, ignore
+    }
+  }
+
+  return lines.join('\n');
+}
+
+/**
  * Spawn Claude Code agent for a context (task or epic)
  */
 export function spawnAgentForContext(
@@ -523,6 +587,12 @@ export function spawnAgentForContext(
   // Create session record
   const sessionId = createAgentSession(contextType, contextId, worktreePath);
 
+  // Resolve agent for task context
+  let resolvedAgent: Agent | null = null;
+  if (contextType === 'task') {
+    resolvedAgent = resolveAgentForTask(contextId);
+  }
+
   // Determine command and args
   const command = config?.command ?? 'claude';
   let args = config?.args;
@@ -533,6 +603,12 @@ export function spawnAgentForContext(
       // Use the comprehensive session protocol for tasks
       const protocol = generateTaskProtocol(contextId, agentWorkDir);
       initialPrompt = protocol.initialPrompt;
+
+      // Prepend agent context if an agent is assigned
+      if (resolvedAgent) {
+        const agentPrompt = buildAgentSystemPrompt(resolvedAgent);
+        initialPrompt = `${agentPrompt}\n---\n\n${initialPrompt}`;
+      }
     } else if (contextType === 'epic' && epic) {
       initialPrompt = generateEpicProtocol(contextId, epic.title);
     } else if (contextType === 'project') {
@@ -552,6 +628,8 @@ export function spawnAgentForContext(
     // Backwards compat for task context
     ...(contextType === 'task' ? { SPECFLUX_TASK_ID: String(contextId) } : {}),
     SPECFLUX_SESSION_ID: String(sessionId),
+    // Include agent ID if resolved
+    ...(resolvedAgent ? { SPECFLUX_AGENT_ID: String(resolvedAgent.id) } : {}),
   } as Record<string, string>;
 
   try {

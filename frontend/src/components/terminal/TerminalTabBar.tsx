@@ -154,6 +154,16 @@ export default function TerminalTabBar({
               />
             )}
 
+            {/* Agent indicator */}
+            {session.agent && (
+              <span
+                className="flex-shrink-0"
+                title={`Agent: ${session.agent.name}`}
+              >
+                {session.agent.emoji}
+              </span>
+            )}
+
             {/* Tab label */}
             <span className="truncate">
               #{contextId}: {truncatedTitle}

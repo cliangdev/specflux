@@ -6,7 +6,10 @@ import {
   getAgentStatus,
   getTaskSessionHistory,
   cleanupStaleSessions,
+  resolveAgentForTask,
+  buildAgentSystemPrompt,
 } from '../services/agent.service';
+import { type Agent } from '../services/agent-config.service';
 
 // Mock node-pty since we can't spawn real PTYs in tests
 jest.mock('node-pty', () => ({
@@ -284,6 +287,207 @@ describe('AgentService', () => {
         .get(completedId) as { status: string };
 
       expect(session.status).toBe('completed');
+    });
+  });
+
+  describe('resolveAgentForTask', () => {
+    let agentProjectId: number;
+    let agentId: number;
+    let defaultAgentId: number;
+
+    beforeAll(() => {
+      const db = getDatabase();
+
+      // Create a project for agent tests
+      const projectResult = db
+        .prepare(
+          `INSERT INTO projects (project_id, name, local_path, owner_user_id)
+           VALUES (?, ?, ?, ?)`
+        )
+        .run(`agent-resolve-test-${Date.now()}`, 'Agent Resolve Project', '/test/resolve', 1);
+      agentProjectId = projectResult.lastInsertRowid as number;
+
+      // Add user as project member
+      db.prepare(
+        `INSERT INTO project_members (project_id, user_id, role)
+         VALUES (?, ?, 'owner')`
+      ).run(agentProjectId, 1);
+
+      // Create agents
+      const agentResult = db
+        .prepare(
+          `INSERT INTO agents (project_id, name, description, system_prompt)
+           VALUES (?, ?, ?, ?)`
+        )
+        .run(agentProjectId, 'Backend Agent', 'Handles backend tasks', 'Focus on Node.js code');
+      agentId = agentResult.lastInsertRowid as number;
+
+      const defaultAgentResult = db
+        .prepare(
+          `INSERT INTO agents (project_id, name, description, system_prompt)
+           VALUES (?, ?, ?, ?)`
+        )
+        .run(agentProjectId, 'Default Agent', 'Project default', 'General coding');
+      defaultAgentId = defaultAgentResult.lastInsertRowid as number;
+
+      // Set project default agent
+      db.prepare('UPDATE projects SET default_agent_id = ? WHERE id = ?').run(
+        defaultAgentId,
+        agentProjectId
+      );
+    });
+
+    it('should return task-assigned agent when set', () => {
+      const db = getDatabase();
+      const taskResult = db
+        .prepare(
+          `INSERT INTO tasks (project_id, title, status, requires_approval, created_by_user_id, assigned_agent_id)
+           VALUES (?, ?, ?, ?, ?, ?)`
+        )
+        .run(agentProjectId, 'Task with assigned agent', 'ready', 0, 1, agentId);
+      const taskWithAgentId = taskResult.lastInsertRowid as number;
+
+      const agent = resolveAgentForTask(taskWithAgentId);
+
+      expect(agent).not.toBeNull();
+      expect(agent?.id).toBe(agentId);
+      expect(agent?.name).toBe('Backend Agent');
+    });
+
+    it('should fall back to project default agent when no task agent', () => {
+      const db = getDatabase();
+      const taskResult = db
+        .prepare(
+          `INSERT INTO tasks (project_id, title, status, requires_approval, created_by_user_id)
+           VALUES (?, ?, ?, ?, ?)`
+        )
+        .run(agentProjectId, 'Task without agent', 'ready', 0, 1);
+      const taskNoAgentId = taskResult.lastInsertRowid as number;
+
+      const agent = resolveAgentForTask(taskNoAgentId);
+
+      expect(agent).not.toBeNull();
+      expect(agent?.id).toBe(defaultAgentId);
+      expect(agent?.name).toBe('Default Agent');
+    });
+
+    it('should return null when no task or project agent', () => {
+      const db = getDatabase();
+
+      // Create project without default agent
+      const noAgentProjectResult = db
+        .prepare(
+          `INSERT INTO projects (project_id, name, local_path, owner_user_id)
+           VALUES (?, ?, ?, ?)`
+        )
+        .run(`no-agent-project-${Date.now()}`, 'No Agent Project', '/test/noagent', 1);
+      const noAgentProjectId = noAgentProjectResult.lastInsertRowid as number;
+
+      db.prepare(
+        `INSERT INTO project_members (project_id, user_id, role)
+         VALUES (?, ?, 'owner')`
+      ).run(noAgentProjectId, 1);
+
+      const taskResult = db
+        .prepare(
+          `INSERT INTO tasks (project_id, title, status, requires_approval, created_by_user_id)
+           VALUES (?, ?, ?, ?, ?)`
+        )
+        .run(noAgentProjectId, 'Task in no-agent project', 'ready', 0, 1);
+      const taskInNoAgentProject = taskResult.lastInsertRowid as number;
+
+      const agent = resolveAgentForTask(taskInNoAgentProject);
+
+      expect(agent).toBeNull();
+    });
+
+    it('should return null for non-existent task', () => {
+      const agent = resolveAgentForTask(999999);
+      expect(agent).toBeNull();
+    });
+  });
+
+  describe('buildAgentSystemPrompt', () => {
+    it('should build prompt with name and description', () => {
+      const agent: Agent = {
+        id: 1,
+        project_id: 1,
+        name: 'Test Agent',
+        description: 'A test agent for unit tests',
+        emoji: '🤖',
+        system_prompt: null,
+        tools: null,
+        config_file_path: null,
+        created_at: '2024-01-01',
+        updated_at: '2024-01-01',
+      };
+
+      const prompt = buildAgentSystemPrompt(agent);
+
+      expect(prompt).toContain('## Agent: Test Agent');
+      expect(prompt).toContain('**Role:** A test agent for unit tests');
+    });
+
+    it('should include system prompt when provided', () => {
+      const agent: Agent = {
+        id: 2,
+        project_id: 1,
+        name: 'Backend Dev',
+        description: 'Backend developer',
+        emoji: '🔧',
+        system_prompt: 'Focus on TypeScript and Node.js patterns',
+        tools: null,
+        config_file_path: null,
+        created_at: '2024-01-01',
+        updated_at: '2024-01-01',
+      };
+
+      const prompt = buildAgentSystemPrompt(agent);
+
+      expect(prompt).toContain('### Agent Instructions');
+      expect(prompt).toContain('Focus on TypeScript and Node.js patterns');
+    });
+
+    it('should include tools list when provided', () => {
+      const agent: Agent = {
+        id: 3,
+        project_id: 1,
+        name: 'Tooled Agent',
+        description: null,
+        emoji: '🛠️',
+        system_prompt: null,
+        tools: JSON.stringify(['Read', 'Write', 'Bash']),
+        config_file_path: null,
+        created_at: '2024-01-01',
+        updated_at: '2024-01-01',
+      };
+
+      const prompt = buildAgentSystemPrompt(agent);
+
+      expect(prompt).toContain('### Available Tools');
+      expect(prompt).toContain('- Read');
+      expect(prompt).toContain('- Write');
+      expect(prompt).toContain('- Bash');
+    });
+
+    it('should handle invalid tools JSON gracefully', () => {
+      const agent: Agent = {
+        id: 4,
+        project_id: 1,
+        name: 'Bad Tools Agent',
+        description: null,
+        emoji: '❌',
+        system_prompt: null,
+        tools: 'not valid json',
+        config_file_path: null,
+        created_at: '2024-01-01',
+        updated_at: '2024-01-01',
+      };
+
+      // Should not throw
+      const prompt = buildAgentSystemPrompt(agent);
+      expect(prompt).toContain('## Agent: Bad Tools Agent');
+      expect(prompt).not.toContain('### Available Tools');
     });
   });
 });

@@ -11,6 +11,7 @@ import {
   type ApproveAndPRResult,
   type TaskDependency,
   type User,
+  type Agent,
   ControlTaskAgentRequestActionEnum,
   AgentStatusStatusEnum,
 } from "../api";
@@ -23,7 +24,7 @@ import {
 } from "../components/tasks";
 import TaskDetailHeader from "../components/tasks/TaskDetailHeader";
 import { TaskEditModal, TabNavigation } from "../components/ui";
-import { useTerminal } from "../contexts/TerminalContext";
+import { useTerminal, type AgentInfo } from "../contexts/TerminalContext";
 import { calculateReadiness } from "../utils/readiness";
 
 // Helper to open external URLs using Tauri command
@@ -137,7 +138,7 @@ export default function TaskDetailPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const {
-    openTerminalForTask,
+    openTerminalForContext,
     activeTask,
     isRunning: terminalIsRunning,
   } = useTerminal();
@@ -166,6 +167,7 @@ export default function TaskDetailPage() {
   const [showAddDependencyModal, setShowAddDependencyModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [ownerUser, setOwnerUser] = useState<User | null>(null);
+  const [assignedAgent, setAssignedAgent] = useState<Agent | null>(null);
 
   // Check if terminal is showing this task
   const isTerminalShowingThisTask = activeTask?.id === Number(taskId);
@@ -376,6 +378,26 @@ export default function TaskDetailPage() {
     }
   }, [task?.projectId, fetchEpics]);
 
+  // Fetch assigned agent when task has one
+  useEffect(() => {
+    const fetchAssignedAgent = async () => {
+      if (!task?.assignedAgentId) {
+        setAssignedAgent(null);
+        return;
+      }
+      try {
+        const response = await api.agents.agentsIdGet({
+          id: task.assignedAgentId,
+        });
+        setAssignedAgent(response.data ?? null);
+      } catch (err) {
+        console.error("Failed to fetch assigned agent:", err);
+        setAssignedAgent(null);
+      }
+    };
+    fetchAssignedAgent();
+  }, [task?.assignedAgentId]);
+
   const handleCreatePR = async () => {
     if (!taskId) return;
 
@@ -430,6 +452,16 @@ export default function TaskDetailPage() {
     }
   };
 
+  // Build agent info for terminal context
+  const getAgentInfoForTerminal = (): AgentInfo | undefined => {
+    if (!assignedAgent) return undefined;
+    return {
+      id: assignedAgent.id,
+      name: assignedAgent.name,
+      emoji: assignedAgent.emoji,
+    };
+  };
+
   const handleAgentAction = async (
     action: ControlTaskAgentRequestActionEnum,
   ) => {
@@ -441,7 +473,12 @@ export default function TaskDetailPage() {
 
       // When starting, also open terminal for this task
       if (action === ControlTaskAgentRequestActionEnum.Start) {
-        openTerminalForTask({ id: task.id, title: task.title });
+        openTerminalForContext({
+          type: "task",
+          id: task.id,
+          title: task.title,
+          agent: getAgentInfoForTerminal(),
+        });
       }
 
       const response = await api.tasks.controlTaskAgent({
@@ -466,7 +503,12 @@ export default function TaskDetailPage() {
   // Handle opening terminal for this task
   const handleOpenInTerminal = () => {
     if (task) {
-      openTerminalForTask({ id: task.id, title: task.title });
+      openTerminalForContext({
+        type: "task",
+        id: task.id,
+        title: task.title,
+        agent: getAgentInfoForTerminal(),
+      });
     }
   };
 
