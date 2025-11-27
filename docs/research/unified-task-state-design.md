@@ -842,3 +842,376 @@ For EVERY feature you implement:
 | Avoid hardcoding | Testing philosophy guidelines |
 
 The Claude 4 best practices **validate our approach** and provide specific prompting patterns to make agents more effective within the Unified Task State framework.
+
+---
+
+## File Size Management
+
+The Progress Log section grows with each session. Without management, files can become too large for efficient context loading.
+
+### Size Analysis
+
+| Section | Size Per Entry | Typical Count | Total Size |
+|---------|----------------|---------------|------------|
+| Static Context | 1-2 KB | 1 | 1-2 KB |
+| Chain Inputs | 1-3 KB each | 0-5 | 0-15 KB |
+| Feature Checklist | 200 bytes each | 5-20 features | 1-4 KB |
+| **Progress Log** | 1-2 KB each | **Variable** | **Growth Vector** |
+| Git History | 100 bytes each | 10-50 commits | 1-5 KB |
+| Chain Output | 2-5 KB | 1 | 2-5 KB |
+
+### Size Projections by Task Complexity
+
+```mermaid
+graph LR
+    subgraph "File Size Growth"
+        S1[Simple Task<br/>2 sessions<br/>~10 KB]
+        S2[Medium Task<br/>8 sessions<br/>~30 KB]
+        S3[Large Task<br/>18 sessions<br/>~60 KB]
+        S4[Very Large<br/>35 sessions<br/>~100 KB]
+    end
+
+    S1 --> S2 --> S3 --> S4
+
+    style S1 fill:#4CAF50
+    style S2 fill:#8BC34A
+    style S3 fill:#FFC107
+    style S4 fill:#F44336
+```
+
+| Task Complexity | Sessions | Progress Log | Total File | Status |
+|-----------------|----------|--------------|------------|--------|
+| Simple | 1-3 | 2-6 KB | ~10 KB | Safe |
+| Medium | 5-10 | 8-20 KB | ~30 KB | Safe |
+| Large | 15-20 | 25-40 KB | ~60 KB | Monitor |
+| Very Large | 30+ | 50-70 KB | ~100 KB | Requires mitigation |
+
+### Size Thresholds
+
+| Threshold | Action |
+|-----------|--------|
+| **< 50 KB** | No action needed |
+| **50-75 KB** | Warning: Consider summarizing |
+| **> 75 KB** | Auto-summarize older sessions |
+| **> 20 sessions** | Suggest task decomposition |
+
+### Mitigation Strategy: Rolling Window with Summarization
+
+Keep recent sessions in full detail, summarize older ones:
+
+```mermaid
+flowchart TB
+    subgraph "Progress Log Structure"
+        direction TB
+        META[Metadata<br/>Total sessions, file size]
+        ARCHIVE[Archived Summary<br/>Sessions 1-N condensed<br/>~2-3 KB]
+        RECENT[Recent Sessions<br/>Last 5 in full detail<br/>~5-10 KB]
+    end
+
+    META --> ARCHIVE --> RECENT
+
+    style META fill:#E3F2FD
+    style ARCHIVE fill:#FFF3E0
+    style RECENT fill:#E8F5E9
+```
+
+### Updated File Format with Size Management
+
+```markdown
+# Task #101: JWT Service - State
+
+## 0. Metadata
+
+```json
+{
+  "task_id": 101,
+  "created_at": "2024-11-26T14:00:00Z",
+  "updated_at": "2024-11-26T18:30:00Z",
+  "total_sessions": 12,
+  "archived_sessions": 7,
+  "recent_sessions": 5,
+  "file_size_kb": 42,
+  "archive_path": ".specflux/archives/task-101-archive.md"
+}
+```
+
+## 1. Static Context
+(PRD, Epic, Task Description - unchanged)
+
+## 2. Chain Inputs
+(From upstream tasks - unchanged)
+
+## 3. Feature Checklist
+(JSON checklist - unchanged)
+
+## 4. Progress Log
+
+### Archived Summary (Sessions 1-7)
+
+**Duration:** 2024-11-26 14:00 - 2024-11-26 16:45
+**Key Accomplishments:**
+- Set up project structure and dependencies
+- Implemented generateToken() with proper JWT signing
+- Fixed TypeScript configuration issues
+- Added verifyToken() with signature validation
+- Wrote 8 unit tests, all passing
+
+**Issues Resolved:**
+- @types/jsonwebtoken installation
+- Environment variable loading for JWT_SECRET
+
+**Commits:** abc123, def456, ghi789, jkl012, mno345
+
+[Full session details: .specflux/archives/task-101-archive.md]
+
+### Session 8 - 2024-11-26 17:00
+**What I did:**
+- Implemented refresh token rotation
+- Added token blacklist for revocation
+
+**Issues:** None
+
+**Current state:** Core refresh logic working
+
+**Next steps:** Add integration tests for refresh flow
+
+### Session 9 - 2024-11-26 17:30
+(Full detail)
+
+### Session 10 - 2024-11-26 18:00
+(Full detail)
+
+### Session 11 - 2024-11-26 18:15
+(Full detail)
+
+### Session 12 - 2024-11-26 18:30
+(Full detail - most recent)
+
+## 5. Git History
+(Recent commits only, older in archive)
+
+## 6. Chain Output
+(Finalized when complete)
+```
+
+### Archive File Structure
+
+```
+.specflux/
+├── task-states/
+│   ├── task-101-state.md      # Working file (< 75 KB)
+│   └── task-102-state.md
+└── archives/
+    ├── task-101-archive.md     # Full history for task 101
+    └── task-102-archive.md
+```
+
+**Archive file format:**
+
+```markdown
+# Task #101 Archive - Full Session History
+
+## Session 1 - 2024-11-26 14:00
+(Complete original entry)
+
+## Session 2 - 2024-11-26 14:30
+(Complete original entry)
+
+... (all archived sessions in full detail)
+
+## Session 7 - 2024-11-26 16:45
+(Complete original entry)
+
+---
+Archived on: 2024-11-26 18:30
+Reason: Working file exceeded 75 KB threshold
+Sessions archived: 1-7
+```
+
+### Summarization Algorithm
+
+```mermaid
+flowchart TD
+    A[Session Ends] --> B{File size > 75 KB?}
+    B -->|No| C[Keep as-is]
+    B -->|Yes| D[Count sessions]
+    D --> E{Sessions > 5?}
+    E -->|No| F[Warn: Task may be too large]
+    E -->|Yes| G[Archive oldest sessions]
+    G --> H[Keep last 5 sessions in full]
+    H --> I[Generate summary of archived]
+    I --> J[Update metadata]
+    J --> K[Save archive file]
+
+    style B fill:#FFC107
+    style G fill:#4CAF50
+```
+
+### Implementation: Size-Aware Task State Manager
+
+```typescript
+interface TaskStateMetadata {
+  task_id: number;
+  created_at: string;
+  updated_at: string;
+  total_sessions: number;
+  archived_sessions: number;
+  recent_sessions: number;
+  file_size_kb: number;
+  archive_path: string | null;
+}
+
+interface ProgressSession {
+  session_number: number;
+  timestamp: string;
+  what_i_did: string[];
+  issues: string[];
+  current_state: string;
+  next_steps: string[];
+  commits: string[];
+}
+
+const SIZE_THRESHOLDS = {
+  WARNING_KB: 50,
+  AUTO_ARCHIVE_KB: 75,
+  MAX_RECENT_SESSIONS: 5,
+  WARN_TOTAL_SESSIONS: 20,
+};
+
+class TaskStateManager {
+  private taskId: number;
+  private statePath: string;
+  private archivePath: string;
+
+  constructor(taskId: number) {
+    this.taskId = taskId;
+    this.statePath = `devflow/task-states/task-${taskId}-state.md`;
+    this.archivePath = `.specflux/archives/task-${taskId}-archive.md`;
+  }
+
+  async appendSession(session: ProgressSession): Promise<void> {
+    const state = await this.readState();
+
+    // Add new session
+    state.sessions.push(session);
+    state.metadata.total_sessions++;
+    state.metadata.updated_at = new Date().toISOString();
+
+    // Check size and archive if needed
+    const sizeKb = this.calculateSizeKb(state);
+
+    if (sizeKb > SIZE_THRESHOLDS.AUTO_ARCHIVE_KB) {
+      await this.archiveOldSessions(state);
+    }
+
+    // Warn if task is getting too large
+    if (state.metadata.total_sessions > SIZE_THRESHOLDS.WARN_TOTAL_SESSIONS) {
+      console.warn(`Task ${this.taskId} has ${state.metadata.total_sessions} sessions. Consider decomposing.`);
+    }
+
+    await this.writeState(state);
+  }
+
+  private async archiveOldSessions(state: TaskState): Promise<void> {
+    const sessionsToKeep = SIZE_THRESHOLDS.MAX_RECENT_SESSIONS;
+    const sessionsToArchive = state.sessions.slice(0, -sessionsToKeep);
+    const recentSessions = state.sessions.slice(-sessionsToKeep);
+
+    // Append to archive file
+    await this.appendToArchive(sessionsToArchive);
+
+    // Generate summary of archived sessions
+    const summary = this.generateArchiveSummary(sessionsToArchive);
+
+    // Update state
+    state.archivedSummary = summary;
+    state.sessions = recentSessions;
+    state.metadata.archived_sessions += sessionsToArchive.length;
+    state.metadata.recent_sessions = recentSessions.length;
+    state.metadata.archive_path = this.archivePath;
+    state.metadata.file_size_kb = this.calculateSizeKb(state);
+  }
+
+  private generateArchiveSummary(sessions: ProgressSession[]): ArchivedSummary {
+    const firstSession = sessions[0];
+    const lastSession = sessions[sessions.length - 1];
+
+    // Extract key accomplishments across all sessions
+    const allAccomplishments = sessions.flatMap(s => s.what_i_did);
+    const allIssues = sessions.flatMap(s => s.issues).filter(Boolean);
+    const allCommits = sessions.flatMap(s => s.commits);
+
+    return {
+      session_range: `${firstSession.session_number}-${lastSession.session_number}`,
+      duration: {
+        start: firstSession.timestamp,
+        end: lastSession.timestamp,
+      },
+      key_accomplishments: this.deduplicateAndSummarize(allAccomplishments),
+      issues_resolved: this.deduplicateAndSummarize(allIssues),
+      commits: allCommits,
+    };
+  }
+
+  async getContextForAgent(): Promise<string> {
+    const state = await this.readState();
+
+    // Return formatted state file content
+    // Agent sees: metadata, static context, chain inputs,
+    // feature checklist, archived summary, recent sessions
+    return this.formatForAgent(state);
+  }
+}
+```
+
+### Task Decomposition Warning
+
+When a task exceeds thresholds, SpecFlux should suggest decomposition:
+
+```
+┌────────────────────────────────────────────────────────────┐
+│  ⚠️  Task #101 is getting large                           │
+├────────────────────────────────────────────────────────────┤
+│                                                            │
+│  This task has 22 sessions and is 85 KB.                  │
+│  Large tasks are harder for agents to complete.           │
+│                                                            │
+│  Consider breaking it into smaller subtasks:              │
+│                                                            │
+│  Suggested decomposition:                                  │
+│  ├─ Task 101a: JWT generation (estimated 5 sessions)      │
+│  ├─ Task 101b: Token verification (estimated 4 sessions)  │
+│  ├─ Task 101c: Refresh tokens (estimated 5 sessions)      │
+│  └─ Task 101d: Integration tests (estimated 4 sessions)   │
+│                                                            │
+│  [Decompose Task]  [Continue Anyway]  [Dismiss]           │
+└────────────────────────────────────────────────────────────┘
+```
+
+### Best Practices for Task Sizing
+
+```mermaid
+graph TD
+    A[New Task Created] --> B{Estimate complexity}
+    B -->|Simple: 1-3 sessions| C[Single task OK]
+    B -->|Medium: 4-10 sessions| D[Single task OK, monitor]
+    B -->|Large: 10-20 sessions| E[Consider subtasks]
+    B -->|Very Large: 20+| F[Must decompose]
+
+    E --> G{Can break down?}
+    G -->|Yes| H[Create subtasks]
+    G -->|No| I[Proceed with warnings]
+
+    F --> H
+
+    style C fill:#4CAF50
+    style D fill:#8BC34A
+    style E fill:#FFC107
+    style F fill:#F44336
+```
+
+**Guidelines:**
+1. **Ideal task size:** 3-8 sessions, 20-50 KB state file
+2. **One feature = one subtask** when possible
+3. **Natural breakpoints:** API design → Implementation → Tests → Documentation
+4. **Chain outputs connect subtasks** - decomposition doesn't lose context
