@@ -67,9 +67,6 @@ ${task.description ?? 'No description provided.'}
 ### Acceptance Criteria
 ${criteriaList}
 
-${task.scope_in ? `### In Scope\n${task.scope_in}\n` : ''}
-${task.scope_out ? `### Out of Scope\n${task.scope_out}\n` : ''}
-
 ---
 
 ## Session Protocol
