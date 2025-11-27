@@ -78,6 +78,10 @@ Task:
       type: string
       enum: [human, agent]
       description: Whether executor is a human developer or AI agent
+    assigned_agent_id:
+      type: integer
+      nullable: true
+      description: ID of the agent assigned to execute this task
     created_at:
       type: string
       format: date-time
@@ -143,6 +147,10 @@ CreateTaskRequest:
       type: string
       enum: [human, agent]
       description: Whether executor is a human developer or AI agent
+    assigned_agent_id:
+      type: integer
+      nullable: true
+      description: ID of the agent assigned to execute this task
   required:
     - title
 
@@ -190,6 +198,10 @@ UpdateTaskRequest:
       type: string
       enum: [human, agent]
       description: Whether executor is a human developer or AI agent
+    assigned_agent_id:
+      type: integer
+      nullable: true
+      description: ID of the agent assigned to execute this task
 
 TaskDependency:
   type: object

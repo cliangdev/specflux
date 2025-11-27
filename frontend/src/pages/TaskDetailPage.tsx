@@ -278,6 +278,29 @@ export default function TaskDetailPage() {
     }
   };
 
+  // Update task's assigned agent
+  const handleAgentChange = async (agentId: number | null) => {
+    if (!task) return;
+
+    try {
+      await api.tasks.updateTask({
+        id: task.id,
+        updateTaskRequest: {
+          assignedAgentId: agentId,
+          // Automatically set executor type to 'agent' if an agent is assigned
+          executorType: agentId ? "agent" : undefined,
+        },
+      });
+      // Refresh task data
+      fetchTask();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to update agent";
+      setError(message);
+      console.error("Failed to update agent:", err);
+    }
+  };
+
   // Remove dependency
   const handleRemoveDependency = async (dependencyId: number) => {
     if (!taskId) return;
@@ -520,6 +543,7 @@ export default function TaskDetailPage() {
         owner={ownerUser}
         readiness={readiness}
         onStatusChange={handleStatusChange}
+        onAgentChange={handleAgentChange}
         onEdit={() => setShowEditModal(true)}
         onBack={() => navigate(-1)}
       />

@@ -557,96 +557,143 @@ interface ProjectSettings {
 
 ## Folder Structure Support
 
-### How Agents & Skills Get Applied
+### Unified Approach: Launch from SpecFlux with `--add-dir`
 
-Claude Code looks for `.claude/` in the **working directory** where it's launched. This affects how we handle different folder structures:
+Claude Code supports accessing files outside its working directory via the `--add-dir` flag. This enables a **single, simple approach** for both mono-repo and sibling-repo structures:
 
-| Structure | Working Directory | `.claude/` Location | How It Works |
-|-----------|-------------------|---------------------|--------------|
-| Mono-repo | Project root | Project root | ✅ Claude finds `.claude/` automatically |
-| Sibling repos | Repo folder | Project root (different folder) | ⚠️ Need to copy/symlink `.claude/` to worktree |
+**Always launch Claude Code from the SpecFlux project folder**, then use `--add-dir` to grant access to sibling repositories.
+
+### Key Insight
+
+| Approach | Complexity | Agent Management |
+|----------|------------|------------------|
+| Per-repository Claude instances | High - multiple processes, separate configs | One agent per repo |
+| **Single Claude from SpecFlux + `--add-dir`** | **Simple - one process, shared config** | **One agent per project** |
 
 ### Mono-repo (Parent with Sub-folders)
 
 ```
-specflux/                       # Project root = working directory
-├── .claude/                    # ✅ Claude Code finds this
+specflux/                       # Project root = Claude Code working directory
+├── .claude/                    # ✅ Claude Code finds this automatically
 │   ├── agents/
 │   │   ├── backend-dev.md
 │   │   └── frontend-dev.md
 │   └── skills/
 │       ├── api-design/
 │       └── ui-patterns/
-├── backend/                    # Repository 1
+├── orchestrator/               # Backend subdirectory
 │   ├── src/
 │   └── package.json
-├── frontend/                   # Repository 2
+├── frontend/                   # Frontend subdirectory
 │   ├── src/
 │   └── package.json
 └── .specflux/
     └── worktrees/
-        └── task-123/           # Worktree created here
-            └── backend/        # Git worktree of backend
 ```
 
-**How agents/skills work:**
-- Claude Code runs from project root (`/workspace/specflux`)
-- `.claude/agents/` and `.claude/skills/` are in the same folder
-- ✅ Everything works automatically
+**How it works:**
+- Claude Code launched from `/workspace/specflux`
+- All subdirectories are accessible by default
+- `.claude/` config applies automatically
+- ✅ No special handling needed
 
-**Configuration:**
-- Project `root_path`: `/workspace/specflux`
-- Repository `backend` path: `backend` (relative)
-- Repository `frontend` path: `frontend` (relative)
-- Agents & skills defined at project level, shared across repos
+**Launch command:**
+```bash
+claude "Work on task #123..."
+```
 
 ### Sibling Repos (Separate Folders)
 
 ```
 workspace/
-├── specflux/                   # Project management
+├── specflux/                   # SpecFlux project = Claude Code working directory
 │   ├── .claude/                # Agents & skills defined here
 │   │   ├── agents/
+│   │   │   ├── backend-dev.md
+│   │   │   └── frontend-dev.md
 │   │   └── skills/
 │   └── .specflux/
-│       └── worktrees/
-│           └── task-123/       # Worktree for backend task
-│               ├── .claude/    # ⬅️ Symlink to specflux/.claude/
-│               └── (backend files)
-├── backend/                    # Separate repo
+├── backend/                    # Sibling repo (separate git repo)
 │   └── src/
-└── frontend/                   # Separate repo
+└── frontend/                   # Sibling repo (separate git repo)
     └── src/
 ```
 
-**How agents/skills work:**
-- Claude Code runs from worktree (`/workspace/specflux/.specflux/worktrees/task-123`)
-- `.claude/` is NOT in the worktree by default
-- **Solution:** When creating worktree, symlink or copy `.claude/` from project root
+**How it works:**
+- Claude Code launched from `/workspace/specflux`
+- Sibling repos added via `--add-dir` flag
+- `.claude/` config from specflux applies to all work
+- ✅ Simple, no symlinks or worktree hacks needed
 
-```typescript
-// When spawning agent for sibling repo task:
-async function prepareWorktree(task: Task, project: Project) {
-  const worktreePath = createWorktree(task);
+**Launch command:**
+```bash
+claude --add-dir ../backend --add-dir ../frontend "Work on task #123..."
+```
 
-  // Symlink .claude from project to worktree
-  const projectClaudePath = path.join(project.root_path, '.claude');
-  const worktreeClaudePath = path.join(worktreePath, '.claude');
-
-  if (fs.existsSync(projectClaudePath)) {
-    fs.symlinkSync(projectClaudePath, worktreeClaudePath);
+**Alternative: Persistent configuration in `.claude/settings.json`:**
+```json
+{
+  "permissions": {
+    "additionalDirectories": [
+      "../backend",
+      "../frontend"
+    ]
   }
-
-  return worktreePath;
 }
 ```
 
-**Configuration:**
-- Project `root_path`: `/workspace/specflux`
-- Repository `backend` path: `/workspace/backend` (absolute)
-- Repository `frontend` path: `/workspace/frontend` (absolute)
-- Worktrees created in project's `.specflux/worktrees/`
-- `.claude/` symlinked into each worktree
+### Implementation
+
+```typescript
+// agent.service.ts - Spawn Claude with sibling repo access
+
+export async function spawnAgentForTask(
+  task: Task,
+  project: Project
+): Promise<SpawnResult> {
+  const workDir = project.root_path;  // Always launch from SpecFlux folder
+
+  // Build --add-dir args for sibling repos
+  const addDirArgs: string[] = [];
+  for (const repo of project.repositories) {
+    if (repo.path.startsWith('../') || repo.path.startsWith('/')) {
+      // Sibling repo - needs explicit access
+      addDirArgs.push('--add-dir', repo.path);
+    }
+    // Subdirectories are accessible by default, no --add-dir needed
+  }
+
+  const initialPrompt = generateInitialPrompt(task);
+
+  return spawnPty({
+    command: 'claude',
+    args: [...addDirArgs, initialPrompt],
+    cwd: workDir,
+    env: {
+      ...process.env,
+      SPECFLUX_TASK_ID: String(task.id),
+      SPECFLUX_AGENT: task.agent?.name || 'default',
+    },
+  });
+}
+```
+
+### Benefits of This Approach
+
+1. **Simpler agent management** - One agent per project, not per repository
+2. **Single `.claude/` config** - Agents, skills, and MCP servers defined once
+3. **No worktree complexity** - No symlinks or file copying needed
+4. **Cross-repo visibility** - Claude can see and modify files across all repos
+5. **Consistent context** - Same CLAUDE.md and skills apply everywhere
+
+### Configuration
+
+| Setting | Mono-repo | Sibling Repos |
+|---------|-----------|---------------|
+| Project `root_path` | `/workspace/specflux` | `/workspace/specflux` |
+| Repository paths | `orchestrator`, `frontend` (relative) | `../backend`, `../frontend` (relative) |
+| Launch directory | Project root | Project root |
+| Additional dirs | None needed | Auto-detected from repo paths |
 
 ## AI-Assisted Task Creation
 

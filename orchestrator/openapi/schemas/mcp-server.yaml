@@ -1,0 +1,84 @@
+McpServer:
+  type: object
+  properties:
+    id:
+      type: integer
+    project_id:
+      type: integer
+    name:
+      type: string
+    command:
+      type: string
+      description: Command to run the MCP server
+    args:
+      type: array
+      items:
+        type: string
+      description: Command arguments
+    env_vars:
+      type: object
+      additionalProperties:
+        type: string
+      nullable: true
+      description: Environment variables for the MCP server
+    is_active:
+      type: boolean
+      description: Whether the MCP server is enabled
+    created_at:
+      type: string
+      format: date-time
+  required:
+    - id
+    - project_id
+    - name
+    - command
+    - args
+    - is_active
+    - created_at
+
+CreateMcpServerRequest:
+  type: object
+  properties:
+    name:
+      type: string
+      minLength: 1
+    command:
+      type: string
+      minLength: 1
+    args:
+      type: array
+      items:
+        type: string
+    env_vars:
+      type: object
+      additionalProperties:
+        type: string
+      nullable: true
+    is_active:
+      type: boolean
+      default: true
+  required:
+    - name
+    - command
+    - args
+
+UpdateMcpServerRequest:
+  type: object
+  properties:
+    name:
+      type: string
+      minLength: 1
+    command:
+      type: string
+      minLength: 1
+    args:
+      type: array
+      items:
+        type: string
+    env_vars:
+      type: object
+      additionalProperties:
+        type: string
+      nullable: true
+    is_active:
+      type: boolean

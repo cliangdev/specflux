@@ -82,3 +82,20 @@ Error:
   required:
     - success
     - error
+
+SyncResult:
+  type: object
+  properties:
+    created:
+      type: integer
+      description: Number of items created
+    updated:
+      type: integer
+      description: Number of items updated
+    deleted:
+      type: integer
+      description: Number of items deleted
+  required:
+    - created
+    - updated
+    - deleted

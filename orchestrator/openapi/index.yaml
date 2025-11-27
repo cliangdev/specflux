@@ -53,6 +53,12 @@ tags:
     description: Notification management
   - name: Files
     description: File operations within project directories
+  - name: Agents
+    description: Agent definition management
+  - name: Skills
+    description: Skill definition management
+  - name: MCP Servers
+    description: MCP server configuration management
 
 paths:
   # Health
@@ -144,6 +150,34 @@ paths:
     $ref: './paths/files.yaml#/projects-id-files'
   /files/{path}:
     $ref: './paths/files.yaml#/files-path'
+
+  # Agents (nested under projects)
+  /projects/{id}/agents:
+    $ref: './paths/agents.yaml#/projects-id-agents'
+  /projects/{id}/agents/sync:
+    $ref: './paths/agents.yaml#/projects-id-agents-sync'
+  /projects/{id}/default-agent:
+    $ref: './paths/agents.yaml#/projects-id-default-agent'
+  /agents/{id}:
+    $ref: './paths/agents.yaml#/agents-id'
+
+  # Skills (nested under projects)
+  /projects/{id}/skills:
+    $ref: './paths/skills.yaml#/projects-id-skills'
+  /projects/{id}/skills/sync:
+    $ref: './paths/skills.yaml#/projects-id-skills-sync'
+  /skills/{id}:
+    $ref: './paths/skills.yaml#/skills-id'
+
+  # MCP Servers (nested under projects)
+  /projects/{id}/mcp-servers:
+    $ref: './paths/mcp-servers.yaml#/projects-id-mcp-servers'
+  /projects/{id}/mcp-servers/sync:
+    $ref: './paths/mcp-servers.yaml#/projects-id-mcp-servers-sync'
+  /mcp-servers/{id}:
+    $ref: './paths/mcp-servers.yaml#/mcp-servers-id'
+  /mcp-servers/{id}/toggle:
+    $ref: './paths/mcp-servers.yaml#/mcp-servers-id-toggle'
 
 components:
   schemas:

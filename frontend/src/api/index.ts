@@ -48,6 +48,10 @@ export type {
   GetTaskFileChanges200ResponseData as TaskFileChanges,
   GetTaskFileChanges200ResponseDataChangesInner as TrackedFileChange,
   GetTaskFileChanges200ResponseDataSummary as FileChangeSummary,
+  // Agent types
+  Agent,
+  Skill,
+  McpServer,
 } from "./generated";
 
 // Request types

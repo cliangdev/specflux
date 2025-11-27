@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
-import type { Task, Epic, User } from "../../api/generated";
+import type { Task, Epic, User, Agent } from "../../api/generated";
 import type { ReadinessResult } from "../../utils/readiness";
 import ProgressBar from "../ui/ProgressBar";
 import OwnerExecutorBadge from "./OwnerExecutorBadge";
+import AgentSelector from "./AgentSelector";
 
 // Status configuration
 const STATUS_CONFIG: Record<
@@ -154,6 +155,7 @@ interface TaskDetailHeaderProps {
   owner?: User | null;
   readiness: ReadinessResult;
   onStatusChange: (status: string) => void;
+  onAgentChange: (agentId: number | null, agent: Agent | null) => void;
   onEdit: () => void;
   onBack: () => void;
 }
@@ -164,6 +166,7 @@ export default function TaskDetailHeader({
   owner,
   readiness,
   onStatusChange,
+  onAgentChange,
   onEdit,
   onBack,
 }: TaskDetailHeaderProps) {
@@ -343,12 +346,27 @@ export default function TaskDetailHeader({
         {/* Separator */}
         <div className="h-5 w-px bg-system-200 dark:bg-system-700" />
 
+        {/* Agent Selector */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-sm text-system-500 dark:text-system-400">
+            Agent:
+          </span>
+          <AgentSelector
+            projectId={task.projectId}
+            selectedAgentId={task.assignedAgentId}
+            onChange={onAgentChange}
+            variant="inline"
+          />
+        </div>
+
+        {/* Separator */}
+        <div className="h-5 w-px bg-system-200 dark:bg-system-700" />
+
         {/* Owner/Executor Badge */}
         <OwnerExecutorBadge
           owner={owner}
           ownerUserId={task.ownerUserId}
           executorType={task.executorType}
-          agentName={task.repoName ? undefined : "backend-dev"} // Fallback agent name
         />
       </div>
 

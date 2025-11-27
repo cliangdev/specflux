@@ -9,6 +9,9 @@ import notificationRoutes from './notifications.routes';
 import userRoutes from './users.routes';
 import fileRoutes from './files.routes';
 import agentRoutes from './agent.routes';
+import agentsRoutes from './agents.routes';
+import skillsRoutes from './skills.routes';
+import mcpServersRoutes from './mcp-servers.routes';
 
 const router = Router();
 
@@ -52,7 +55,16 @@ router.use(notificationRoutes);
 // File routes
 router.use(fileRoutes);
 
-// Agent routes (for Claude Code agent management)
+// Agent routes (for Claude Code agent management - sessions)
 router.use(agentRoutes);
+
+// Agents routes (for agent definitions CRUD)
+router.use(agentsRoutes);
+
+// Skills routes (for skill definitions CRUD)
+router.use(skillsRoutes);
+
+// MCP Servers routes (for MCP server configurations CRUD)
+router.use(mcpServersRoutes);
 
 export default router;
