@@ -146,6 +146,16 @@ GET  /epics/:id                    → includes acceptance_criteria[]
 PUT  /epics/:id/criteria/:criterionId  → { checked: true/false }
 ```
 
+### Acceptance Criteria Hierarchy
+
+| Level | Purpose | Checked By | Example |
+|-------|---------|------------|---------|
+| **Epic AC** | High-level success conditions | Human at Epic completion | "Users can authenticate via OAuth" |
+| **Task AC** | Implementation checkpoints | Agent during work | "POST /auth/login returns JWT" |
+
+- Epic AC = "Definition of done" for the whole feature
+- Task AC = Working checklist for the agent
+
 ### Validation Rules
 
 - Epic: Must have ≥1 acceptance criterion before creating tasks
