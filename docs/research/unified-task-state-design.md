@@ -34,12 +34,11 @@ flowchart TB
 
     subgraph "Task State File"
         direction TB
-        META[Metadata]
-        CTX[Context<br/>Task + Epic reference]
-        CHAIN_IN[Chain Inputs<br/>Only if has dependencies]
-        CHECKLIST[Feature Checklist]
-        PROGRESS[Progress Log<br/>Updated each session]
-        CHAIN_OUT[Chain Output<br/>Finalized when complete]
+        META[0. Metadata]
+        CTX[1. Context<br/>Requirements + Acceptance Criteria]
+        CHAIN_IN[2. Chain Inputs<br/>Only if has dependencies]
+        PROGRESS[3. Progress Log<br/>Updated each session]
+        CHAIN_OUT[4. Chain Output<br/>Finalized when complete]
     end
 
     CREATE --> META
@@ -57,6 +56,7 @@ flowchart TB
 | **One file per task** | All state in `task-{id}-state.md` |
 | **Minimal context** | Only include what agent needs |
 | **Chain inputs only when needed** | Tasks without dependencies skip this section |
+| **Acceptance criteria as checkboxes** | Agent checks off as features are verified |
 | **Progress log is critical** | Enables session continuity across context resets |
 | **Size-aware** | Auto-archive when file exceeds 75 KB |
 
@@ -80,16 +80,15 @@ flowchart TB
 
 | Section | Required | When to Include |
 |---------|----------|-----------------|
-| **0. Metadata** | Yes | Always |
-| **1. Context** | Yes | Always (but minimal) |
+| **0. Metadata** | Yes | Always (JSON) |
+| **1. Context** | Yes | Always - requirements + acceptance criteria |
 | **2. Chain Inputs** | No | Only if task has dependencies |
-| **3. Feature Checklist** | Yes | Always |
-| **4. Progress Log** | Yes | Agent updates each session |
-| **5. Chain Output** | Yes | Agent finalizes when complete |
+| **3. Progress Log** | Yes | Agent updates each session |
+| **4. Chain Output** | Yes | Agent finalizes when complete |
 
 ### Full Format Template
 
-```markdown
+````markdown
 # Task #{id}: {title}
 
 ## 0. Metadata
@@ -98,10 +97,7 @@ flowchart TB
   "task_id": 101,
   "epic_id": 10,
   "status": "in_progress",
-  "created_at": "2024-11-26T14:00:00Z",
-  "updated_at": "2024-11-26T16:00:00Z",
-  "total_sessions": 3,
-  "file_size_kb": 15
+  "total_sessions": 3
 }
 ```
 
@@ -109,7 +105,6 @@ flowchart TB
 
 **Epic:** {epic_title} (#{epic_id})
 **Repository:** {repo_name}
-**Agent:** {agent_name}
 
 ### Requirements
 {brief task requirements - 2-5 sentences}
@@ -125,24 +120,14 @@ flowchart TB
 ### From Task #{dep_id}: {dep_title}
 > {summary of what upstream task produced}
 
-## 3. Feature Checklist
-```json
-{
-  "features": [
-    { "id": "f1", "description": "Feature 1", "passes": false },
-    { "id": "f2", "description": "Feature 2", "passes": true }
-  ]
-}
-```
-
-## 4. Progress Log
+## 3. Progress Log
 
 ### Session 1 - {timestamp}
 **Did:** {bullet points}
 **Issues:** {any blockers}
 **Next:** {clear next steps}
 
-## 5. Chain Output
+## 4. Chain Output
 (Agent fills when task is complete)
 
 ### Summary
@@ -150,7 +135,7 @@ flowchart TB
 
 ### For Downstream Tasks
 {API contracts, integration notes}
-```
+````
 
 ---
 
@@ -158,9 +143,9 @@ flowchart TB
 
 ### Example A: Simple Task (No Dependencies)
 
-A self-contained task with clear requirements. Most common case.
+A self-contained task with clear requirements. **Most common case.**
 
-```markdown
+````markdown
 # Task #201: Add dark mode toggle
 
 ## 0. Metadata
@@ -169,8 +154,7 @@ A self-contained task with clear requirements. Most common case.
   "task_id": 201,
   "epic_id": 15,
   "status": "in_progress",
-  "total_sessions": 1,
-  "file_size_kb": 8
+  "total_sessions": 0
 }
 ```
 
@@ -178,7 +162,6 @@ A self-contained task with clear requirements. Most common case.
 
 **Epic:** UI Polish (#15)
 **Repository:** frontend
-**Agent:** frontend-dev
 
 ### Requirements
 Add a dark mode toggle to the settings page. Use existing theme context.
@@ -189,27 +172,16 @@ Follow the ui-patterns skill for styling.
 - [ ] Persists preference to localStorage
 - [ ] Applies theme immediately without reload
 
-## 3. Feature Checklist
-```json
-{
-  "features": [
-    { "id": "toggle-ui", "description": "Toggle component renders", "passes": false },
-    { "id": "persist", "description": "Preference saved to localStorage", "passes": false },
-    { "id": "apply", "description": "Theme applies immediately", "passes": false }
-  ]
-}
-```
-
-## 4. Progress Log
+## 3. Progress Log
 
 (No sessions yet)
 
-## 5. Chain Output
+## 4. Chain Output
 
 (To be completed)
-```
+````
 
-**Size: ~3 KB** - Simple, focused, no dependencies needed.
+**Size: ~2 KB** - Simple, focused, no chain inputs needed.
 
 ---
 
@@ -217,7 +189,7 @@ Follow the ui-patterns skill for styling.
 
 A task that builds on work from upstream tasks.
 
-```markdown
+````markdown
 # Task #102: Auth API endpoints
 
 ## 0. Metadata
@@ -227,8 +199,7 @@ A task that builds on work from upstream tasks.
   "epic_id": 10,
   "status": "in_progress",
   "dependencies": [100, 101],
-  "total_sessions": 2,
-  "file_size_kb": 18
+  "total_sessions": 2
 }
 ```
 
@@ -236,14 +207,13 @@ A task that builds on work from upstream tasks.
 
 **Epic:** User Authentication (#10)
 **Repository:** backend
-**Agent:** backend-dev
 
 ### Requirements
 Create REST endpoints for login, logout, and token refresh.
 Use the JWT service from Task #101.
 
 ### Acceptance Criteria
-- [ ] POST /auth/login returns JWT on valid credentials
+- [x] POST /auth/login returns JWT on valid credentials
 - [ ] POST /auth/logout invalidates refresh token
 - [ ] POST /auth/refresh returns new access token
 - [ ] All endpoints have input validation
@@ -252,7 +222,7 @@ Use the JWT service from Task #101.
 ## 2. Chain Inputs
 
 ### From Task #100: Database Schema
-> Users table: id mod(UUID), email (unique), password_hash, created_at
+> Users table: id (UUID), email (unique), password_hash, created_at
 
 ### From Task #101: JWT Service
 > JWTService API:
@@ -262,20 +232,7 @@ Use the JWT service from Task #101.
 >
 > Config: JWT_SECRET, JWT_EXPIRY=15m
 
-## 3. Feature Checklist
-```json
-{
-  "features": [
-    { "id": "login", "description": "POST /auth/login works", "passes": true },
-    { "id": "logout", "description": "POST /auth/logout works", "passes": false },
-    { "id": "refresh", "description": "POST /auth/refresh works", "passes": false },
-    { "id": "validation", "description": "Input validation on all endpoints", "passes": false },
-    { "id": "tests", "description": "Integration tests pass", "passes": false }
-  ]
-}
-```
-
-## 4. Progress Log
+## 3. Progress Log
 
 ### Session 1 - 2024-11-26 14:00
 **Did:**
@@ -296,20 +253,20 @@ Use the JWT service from Task #101.
 
 **Next:** Fix race condition, add validation, write tests
 
-## 5. Chain Output
+## 4. Chain Output
 
 (To be completed)
-```
+````
 
-**Size: ~12 KB** - Includes chain inputs because this task depends on #100 and #101.
+**Size: ~8 KB** - Includes chain inputs because depends on #100 and #101.
 
 ---
 
-### Example C: Task with Multi-Session Progress
+### Example C: Completed Task with Chain Output
 
-A task that has been worked on across multiple sessions with archiving.
+A task that has been completed across multiple sessions.
 
-```markdown
+````markdown
 # Task #101: JWT Service
 
 ## 0. Metadata
@@ -318,10 +275,7 @@ A task that has been worked on across multiple sessions with archiving.
   "task_id": 101,
   "epic_id": 10,
   "status": "complete",
-  "total_sessions": 8,
-  "archived_sessions": 3,
-  "file_size_kb": 22,
-  "archive_path": ".specflux/archives/task-101-archive.md"
+  "total_sessions": 5
 }
 ```
 
@@ -329,7 +283,6 @@ A task that has been worked on across multiple sessions with archiving.
 
 **Epic:** User Authentication (#10)
 **Repository:** backend
-**Agent:** backend-dev
 
 ### Requirements
 Implement JWT token service for authentication.
@@ -341,44 +294,39 @@ Support access tokens (15min) and refresh tokens (7 days).
 - [x] refreshToken() rotates tokens securely
 - [x] Unit tests with 90%+ coverage
 
-## 3. Feature Checklist
-```json
-{
-  "features": [
-    { "id": "generate", "description": "generateToken works", "passes": true },
-    { "id": "verify", "description": "verifyToken works", "passes": true },
-    { "id": "refresh", "description": "refreshToken works", "passes": true },
-    { "id": "tests", "description": "90%+ test coverage", "passes": true }
-  ]
-}
-```
+## 3. Progress Log
 
-## 4. Progress Log
+### Session 1 - 2024-11-26 10:00
+**Did:** Set up project structure, added jsonwebtoken dependency
+**Issues:** TypeScript types not found
+**Next:** Fix types, implement generateToken
 
-### Archived Summary (Sessions 1-3)
-**Duration:** 2024-11-26 10:00 - 12:30
-**Accomplishments:** Set up project, implemented generateToken, fixed TypeScript issues
-**Commits:** abc123, def456, ghi789
-[Full details: .specflux/archives/task-101-archive.md]
+### Session 2 - 2024-11-26 11:00
+**Did:** Fixed types, implemented generateToken()
+**Issues:** None
+**Next:** Implement verifyToken
 
-### Session 4 - 2024-11-26 13:00
+### Session 3 - 2024-11-26 12:00
 **Did:** Implemented verifyToken with signature validation
 **Issues:** None
 **Next:** Add refresh token logic
 
-### Session 5 - 2024-11-26 14:00
+### Session 4 - 2024-11-26 13:00
 **Did:** Added refreshToken with rotation
 **Issues:** None
-**Next:** Write comprehensive tests
+**Next:** Write tests
 
-(Sessions 6-8 abbreviated for example)
+### Session 5 - 2024-11-26 14:00
+**Did:** Wrote unit tests, achieved 94% coverage
+**Issues:** None
+**Next:** Task complete
 
-## 5. Chain Output
+## 4. Chain Output
 
 ### Summary
-JWT authentication service with token generation, verification, and refresh.
+JWT authentication service with token generation, verification, and secure refresh.
 
-### Files
+### Files Created
 - `src/auth/jwt.service.ts` - Main service
 - `src/auth/jwt.service.test.ts` - Tests (94% coverage)
 
@@ -391,7 +339,7 @@ class JWTService {
 }
 ```
 
-### Configuration
+### Configuration Required
 ```env
 JWT_SECRET=min-32-char-secret
 JWT_EXPIRY=15m
@@ -401,17 +349,18 @@ JWT_REFRESH_EXPIRY=7d
 ### Integration Notes
 - Import: `import { jwtService } from '../auth/jwt.service'`
 - Returns null for invalid tokens (check before proceeding)
-```
+- Token format: Bearer in Authorization header
+````
 
-**Size: ~18 KB** - Has archived sessions, complete chain output.
+**Size: ~10 KB** - Complete with chain output for downstream tasks.
 
 ---
 
-### Example D: Minimal Task (Clear Requirements)
+### Example D: Minimal Bug Fix
 
-A bug fix or small change with very clear scope.
+A small fix with pinpointed location.
 
-```markdown
+````markdown
 # Task #305: Fix login button disabled state
 
 ## 0. Metadata
@@ -420,15 +369,13 @@ A bug fix or small change with very clear scope.
   "task_id": 305,
   "epic_id": null,
   "status": "in_progress",
-  "total_sessions": 1,
-  "file_size_kb": 4
+  "total_sessions": 0
 }
 ```
 
 ## 1. Context
 
 **Repository:** frontend
-**Agent:** frontend-dev
 
 ### Requirements
 Login button stays disabled after form validation passes.
@@ -439,25 +386,16 @@ File: `src/components/LoginForm.tsx` line ~45
 - [ ] Button enables when email and password are valid
 - [ ] Button disables during submission
 
-## 3. Feature Checklist
-```json
-{
-  "features": [
-    { "id": "fix", "description": "Button enables on valid input", "passes": false }
-  ]
-}
-```
-
-## 4. Progress Log
+## 3. Progress Log
 
 (No sessions yet)
 
-## 5. Chain Output
+## 4. Chain Output
 
 (Small fix - minimal output needed)
-```
+````
 
-**Size: ~2 KB** - Bug fix with pinpointed location, no dependencies.
+**Size: ~1.5 KB** - Bug fix with clear location, no dependencies.
 
 ---
 
@@ -468,21 +406,20 @@ File: `src/components/LoginForm.tsx` line ~45
 ```mermaid
 flowchart TD
     A[Session Start] --> B[Read task-state.md]
-    B --> C[Check Progress Log]
+    B --> C[Review acceptance criteria]
     C --> D{First session?}
     D -->|Yes| E[Start fresh]
-    D -->|No| F[Review previous work]
-    F --> G[Identify next steps]
-    E --> H[Check feature checklist]
+    D -->|No| F[Read progress log]
+    F --> G[Identify next steps from last session]
+    E --> H[Pick first unchecked criterion]
     G --> H
-    H --> I[Pick ONE feature]
-    I --> J[Implement]
-    J --> K[Test & verify]
-    K --> L[Update checklist]
-    L --> M[Append to Progress Log]
-    M --> N{All features done?}
-    N -->|Yes| O[Write Chain Output]
-    N -->|No| P[End session]
+    H --> I[Implement]
+    I --> J[Test & verify]
+    J --> K[Check off criterion]
+    K --> L[Append to Progress Log]
+    L --> M{All criteria checked?}
+    M -->|Yes| N[Write Chain Output]
+    M -->|No| O[End session]
 ```
 
 ### Protocol Instructions (Inject to Agent)
@@ -493,21 +430,21 @@ flowchart TD
 ### Phase 1: Orientation
 1. Read task-state.md completely
 2. Run `git status` to check state
-3. Review feature checklist for incomplete items
+3. Review acceptance criteria - find unchecked items
 
 ### Phase 2: Implementation
-4. Pick ONE incomplete feature
+4. Pick ONE unchecked criterion to work on
 5. Read relevant source files first
-6. Implement directly (don't suggest)
-7. Write tests, verify they pass
+6. Implement directly (don't just suggest)
+7. Write tests to verify it works
 
 ### Phase 3: Handoff
-8. Update feature checklist (passes: true/false)
+8. Check off completed criteria with [x]
 9. Append to Progress Log:
    - What you did
    - Any issues
    - Next steps
-10. If all features pass → write Chain Output
+10. If all criteria checked → write Chain Output
 ```
 
 ### Agent Behavior Rules
@@ -520,8 +457,8 @@ DO NOT add features beyond acceptance criteria.
 DO NOT create abstractions for single-use code.
 DO NOT assume file contents - read first.
 
-DO update progress log before ending.
-DO mark features as passes:true only after testing.
+DO check off criteria only after testing.
+DO update progress log before ending session.
 DO keep solutions simple and direct.
 ```
 
@@ -542,8 +479,8 @@ DO keep solutions simple and direct.
 
 Keep last 5 sessions in full detail, summarize older ones:
 
-```markdown
-## 4. Progress Log
+````markdown
+## 3. Progress Log
 
 ### Archived Summary (Sessions 1-5)
 **Duration:** 2024-11-26 10:00 - 14:00
@@ -556,7 +493,7 @@ Keep last 5 sessions in full detail, summarize older ones:
 
 ### Session 7 - 2024-11-26 16:00
 (Full detail - most recent)
-```
+````
 
 ### Task Sizing Guidelines
 
@@ -577,33 +514,31 @@ Only embed what agent needs every session. Link rarely-accessed content.
 
 | Content | Access Pattern | Strategy |
 |---------|----------------|----------|
-| Task requirements | Always needed | **Embed** |
+| Requirements | Always needed | **Embed** |
 | Acceptance criteria | Always needed | **Embed** |
 | Chain input summaries | Usually needed | **Embed** |
 | Full PRD | Sometimes | **Link** |
 | Full Epic | Sometimes | **Link** |
 | Archived sessions | Rarely | **Link** |
 
-### Example: Hybrid Approach
+### Example: Linking Full Documents
 
-```markdown
+````markdown
 ## 1. Context
 
-**Epic:** User Auth (#10) [Full: /api/epics/10]
-**PRD:** user-auth.md [Full: /api/prds/user-auth]
+**Epic:** User Auth (#10) [details](/api/epics/10)
+**PRD:** [user-auth.md](/api/prds/user-auth)
 
-### Requirements (embedded)
+### Requirements
 JWT tokens with 15-min expiry. Use jsonwebtoken library.
 
-## 2. Chain Inputs (embedded summaries)
+## 2. Chain Inputs
 
 ### From Task #100: Database Schema
 > Users table: id, email, password_hash
 
-[Full output: /api/tasks/100/chain-output]
-```
-
-**Result:** ~20 KB embedded, full content available via links if needed.
+[Full chain output](/api/tasks/100/chain-output)
+````
 
 ---
 
@@ -640,6 +575,12 @@ class TaskStateManager {
     const state = await this.readState(taskId);
     return this.parseChainOutput(state);
   }
+
+  async updateAcceptanceCriteria(taskId: number, index: number, checked: boolean): Promise<void> {
+    const state = await this.readState(taskId);
+    state.acceptanceCriteria[index].checked = checked;
+    await this.writeState(taskId, state);
+  }
 }
 ```
 
@@ -659,8 +600,8 @@ sequenceDiagram
     UI->>API: Start Task
     API->>Agent: Launch with state file path
     Agent->>TSM: Read state
-    Agent->>Agent: Work
-    Agent->>TSM: Update progress
+    Agent->>Agent: Work on unchecked criteria
+    Agent->>TSM: Check off criteria, update progress
 
     UI->>API: Complete Task
     API->>TSM: extractChainOutput()
@@ -680,11 +621,11 @@ sequenceDiagram
 
 **Challenge 1: Inter-Task Context**
 When tasks depend on each other, downstream tasks need upstream outputs.
-**Solution:** Chain Outputs (SpecFlux already has this)
+**Solution:** Chain Outputs in Section 4
 
 **Challenge 2: Intra-Task Context**
 When a task spans multiple sessions, agent loses memory on context reset.
-**Solution:** Progress Log (this design adds this)
+**Solution:** Progress Log in Section 3
 
 ### Before vs After
 
@@ -693,17 +634,18 @@ When a task spans multiple sessions, agent loses memory on context reset.
 | Session continuity | Lost on reset | Preserved in Progress Log |
 | Upstream context | Injected at start | Chain Inputs section |
 | Downstream handoff | Separate file | Chain Output section |
+| Progress tracking | None | Acceptance criteria checkboxes |
 | File count per task | Multiple | One unified file |
 
 ### Claude 4 Alignment
 
 | Claude 4 Recommendation | Our Implementation |
 |-------------------------|-------------------|
-| Structured state tracking | JSON metadata + feature checklist |
+| Structured state tracking | JSON metadata |
 | Save progress before reset | Progress Log section |
 | Explicit action directives | Agent rules: "IMPLEMENT, don't suggest" |
 | Read before edit | Protocol: "Read files first" |
-| Verification tools | Feature checklist with passes: true/false |
+| Verification before marking done | Check criteria only after testing |
 
 ### Why Not Just Link Everything?
 
