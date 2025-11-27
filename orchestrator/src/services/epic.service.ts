@@ -17,8 +17,8 @@ export interface Epic {
   updated_at: string;
 }
 
-export interface EpicWithStats extends Epic {
-  depends_on_parsed: number[]; // Parsed array from JSON
+export interface EpicWithStats extends Omit<Epic, 'depends_on'> {
+  depends_on: number[]; // Parsed array for API response
   phase: number; // Computed phase based on dependencies
   task_stats: {
     total: number;
@@ -193,7 +193,7 @@ function addEpicStats(epic: Epic, epicMap: Map<number, { depends_on: number[] }>
   return {
     ...epic,
     status: computedStatus,
-    depends_on_parsed: dependsOnParsed,
+    depends_on: dependsOnParsed,
     phase,
     task_stats: taskStats,
     progress_percentage: progressPercentage,
