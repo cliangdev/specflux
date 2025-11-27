@@ -1,8 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { useProject } from "../contexts";
-import { api, type Epic } from "../api";
+import { api, type Epic, type Release } from "../api";
 import { EpicStatusEnum } from "../api/generated";
 import { EpicCard, EpicCreateModal } from "../components/epics";
+import { EpicGraph } from "../components/roadmap";
+
+type ViewMode = "cards" | "graph";
+
+const STORAGE_KEY = "specflux-epics-view";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
@@ -14,11 +19,34 @@ const STATUS_OPTIONS = [
 export default function EpicsPage() {
   const { currentProject } = useProject();
   const [epics, setEpics] = useState<Epic[]>([]);
+  const [releases, setReleases] = useState<Release[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
+  const [releaseFilter, setReleaseFilter] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved === "cards" || saved === "graph" ? saved : "cards";
+  });
+
+  // Persist view mode to localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, viewMode);
+  }, [viewMode]);
+
+  const fetchReleases = useCallback(async () => {
+    if (!currentProject) return;
+    try {
+      const response = await api.releases.listReleases({
+        id: currentProject.id,
+      });
+      setReleases(response.data ?? []);
+    } catch (err) {
+      console.error("Failed to fetch releases:", err);
+    }
+  }, [currentProject]);
 
   const fetchEpics = useCallback(async () => {
     if (!currentProject) {
@@ -46,17 +74,37 @@ export default function EpicsPage() {
   }, [currentProject, statusFilter]);
 
   useEffect(() => {
+    fetchReleases();
     fetchEpics();
-  }, [fetchEpics]);
+  }, [fetchReleases, fetchEpics]);
 
-  // Filter epics by search query (client-side)
-  const filteredEpics = searchQuery
-    ? epics.filter(
-        (epic) =>
-          epic.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          epic.description?.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-    : epics;
+  // Filter epics by search query and release (client-side)
+  const filteredEpics = epics.filter((epic) => {
+    // Release filter
+    if (releaseFilter) {
+      if (releaseFilter === "unassigned") {
+        if (epic.releaseId) return false;
+      } else {
+        if (epic.releaseId !== Number(releaseFilter)) return false;
+      }
+    }
+
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchesTitle = epic.title.toLowerCase().includes(query);
+      const matchesDescription = epic.description
+        ?.toLowerCase()
+        .includes(query);
+      const matchesId = epic.id.toString().includes(query);
+      if (!matchesTitle && !matchesDescription && !matchesId) return false;
+    }
+
+    return true;
+  });
+
+  const hasActiveFilters =
+    statusFilter !== "" || releaseFilter !== "" || searchQuery !== "";
 
   if (!currentProject) {
     return (
@@ -74,10 +122,25 @@ export default function EpicsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-system-900 dark:text-white">
+        <h1 className="text-2xl font-semibold text-system-900 dark:text-white mr-4">
           Epics
         </h1>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Release filter */}
+          <select
+            value={releaseFilter}
+            onChange={(e) => setReleaseFilter(e.target.value)}
+            className="select w-[160px]"
+          >
+            <option value="">All Releases</option>
+            <option value="unassigned">Unassigned</option>
+            {releases.map((release) => (
+              <option key={release.id} value={release.id}>
+                {release.name}
+              </option>
+            ))}
+          </select>
+
           {/* Status filter */}
           <select
             value={statusFilter}
@@ -113,6 +176,58 @@ export default function EpicsPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="input pl-10 w-[200px]"
             />
+          </div>
+
+          {/* View toggle */}
+          <div className="flex items-center bg-system-100 dark:bg-system-800 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode("cards")}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                viewMode === "cards"
+                  ? "bg-white dark:bg-system-700 text-system-900 dark:text-white shadow-sm"
+                  : "text-system-600 dark:text-system-400 hover:text-system-900 dark:hover:text-white"
+              }`}
+              title="Card view"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+                />
+              </svg>
+              Cards
+            </button>
+            <button
+              onClick={() => setViewMode("graph")}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                viewMode === "graph"
+                  ? "bg-white dark:bg-system-700 text-system-900 dark:text-white shadow-sm"
+                  : "text-system-600 dark:text-system-400 hover:text-system-900 dark:hover:text-white"
+              }`}
+              title="Dependency graph view"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
+              </svg>
+              Graph
+            </button>
           </div>
 
           {/* Refresh button */}
@@ -158,6 +273,25 @@ export default function EpicsPage() {
           </button>
         </div>
       </div>
+
+      {/* Filter summary */}
+      {hasActiveFilters && (
+        <div className="flex items-center gap-2 mb-4 text-sm text-system-500 dark:text-system-400">
+          <span>
+            Showing {filteredEpics.length} of {epics.length} epics
+          </span>
+          <button
+            onClick={() => {
+              setStatusFilter("");
+              setReleaseFilter("");
+              setSearchQuery("");
+            }}
+            className="text-brand-600 dark:text-brand-400 hover:underline"
+          >
+            Clear filters
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
@@ -210,11 +344,13 @@ export default function EpicsPage() {
             No epics
           </h3>
           <p className="mt-2 text-system-500">
-            {statusFilter || searchQuery
+            {hasActiveFilters
               ? "No epics match the selected filters."
               : "Get started by creating your first epic."}
           </p>
         </div>
+      ) : viewMode === "graph" ? (
+        <EpicGraph epics={filteredEpics} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredEpics.map((epic) => (
