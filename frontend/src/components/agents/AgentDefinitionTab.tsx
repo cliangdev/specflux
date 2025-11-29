@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { readTextFile, writeTextFile, stat } from "@tauri-apps/plugin-fs";
-import { open } from "@tauri-apps/plugin-shell";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface AgentDefinitionTabProps {
   configFilePath: string | null | undefined;
@@ -37,15 +38,19 @@ export function AgentDefinitionTab({
   const [copied, setCopied] = useState(false);
 
   const loadFileContent = useCallback(async () => {
-    if (!fullFilePath) return;
+    if (!fullFilePath) {
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     setError(null);
 
     try {
-      // Read file content
+      // Read file content using Tauri API
       const content = await readTextFile(fullFilePath);
       setFileContent(content);
+      setError(null);
 
       // Get file metadata
       try {
@@ -119,17 +124,6 @@ export function AgentDefinitionTab({
     }
   };
 
-  const handleOpenInEditor = async () => {
-    if (!fullFilePath) return;
-
-    try {
-      await open(fullFilePath);
-    } catch (err) {
-      console.error("Failed to open file in editor:", err);
-      setError("Failed to open file in external editor");
-    }
-  };
-
   const handleCopyPath = async () => {
     if (!fullFilePath) return;
     await navigator.clipboard.writeText(fullFilePath);
@@ -173,140 +167,49 @@ export function AgentDefinitionTab({
   }
 
   return (
-    <div className="card p-5">
-      {/* Header with file path and actions */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <svg
-            className="w-5 h-5 text-system-400 dark:text-system-500 flex-shrink-0"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
-          </svg>
-          <code className="text-sm bg-system-100 dark:bg-system-800 px-2 py-1 rounded font-mono text-system-700 dark:text-system-300 truncate">
-            {fullFilePath}
-          </code>
+    <div className="flex flex-col h-[calc(100vh-320px)] min-h-[400px]">
+      {/* Edit Controls - outside content area */}
+      <div className="flex justify-end mb-4">
+        {isEditingFile ? (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCancelFileEdit}
+              disabled={savingFile}
+              className="btn btn-secondary text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSaveFile}
+              disabled={savingFile}
+              className="btn btn-primary text-sm"
+            >
+              {savingFile ? "Saving..." : "Save"}
+            </button>
+          </div>
+        ) : (
           <button
-            onClick={handleCopyPath}
-            className="p-1 text-system-400 hover:text-system-600 dark:hover:text-system-300 flex-shrink-0"
-            title="Copy path"
+            onClick={handleEditFile}
+            disabled={loading || !!error}
+            className="btn btn-secondary text-sm"
           >
-            {copied ? (
-              <svg
-                className="w-4 h-4 text-green-500"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-            ) : (
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                />
-              </svg>
-            )}
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
+            </svg>
+            Edit
           </button>
-        </div>
-
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {isEditingFile ? (
-            <>
-              <button
-                onClick={handleCancelFileEdit}
-                disabled={savingFile}
-                className="btn btn-secondary text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveFile}
-                disabled={savingFile}
-                className="btn btn-primary text-sm"
-              >
-                {savingFile ? "Saving..." : "Save"}
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={handleOpenInEditor}
-                className="btn btn-ghost text-sm"
-                title="Open in external editor"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                  />
-                </svg>
-                Open in Editor
-              </button>
-              <button
-                onClick={handleEditFile}
-                disabled={loading || !!error}
-                className="btn btn-secondary text-sm"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                  />
-                </svg>
-                Edit
-              </button>
-            </>
-          )}
-        </div>
+        )}
       </div>
-
-      {/* File metadata */}
-      {fileMetadata && (
-        <div className="flex items-center gap-4 mb-4 text-xs text-system-500 dark:text-system-400">
-          <span>{formatFileSize(fileMetadata.size)}</span>
-          {fileMetadata.modifiedAt && (
-            <span>
-              Modified: {fileMetadata.modifiedAt.toLocaleDateString()}{" "}
-              {fileMetadata.modifiedAt.toLocaleTimeString()}
-            </span>
-          )}
-        </div>
-      )}
 
       {/* Save error */}
       {saveFileError && (
@@ -315,56 +218,114 @@ export function AgentDefinitionTab({
         </div>
       )}
 
-      {/* Content area */}
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <svg
-            className="animate-spin w-6 h-6 text-brand-500"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-              fill="none"
+      {/* File content container - styled like Files page */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-white dark:bg-[#1c2128] rounded-lg border border-gray-200 dark:border-[#30363d]">
+        {/* File Path Header */}
+        <div className="h-12 border-b border-gray-200 dark:border-[#30363d] flex items-center justify-between px-6 shrink-0 bg-gray-50 dark:bg-[#2d333b]">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <h2 className="text-sm font-medium text-gray-900 dark:text-[#adbac7] truncate">
+              {fullFilePath}
+            </h2>
+            <button
+              onClick={handleCopyPath}
+              className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0"
+              title="Copy path"
+            >
+              {copied ? (
+                <svg
+                  className="w-4 h-4 text-green-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                  />
+                </svg>
+              )}
+            </button>
+          </div>
+          {/* File metadata */}
+          {fileMetadata && (
+            <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-[#768390]">
+              <span>{formatFileSize(fileMetadata.size)}</span>
+              {fileMetadata.modifiedAt && (
+                <span>
+                  Modified: {fileMetadata.modifiedAt.toLocaleDateString()}{" "}
+                  {fileMetadata.modifiedAt.toLocaleTimeString()}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Content area */}
+        <div className="flex-1 overflow-auto">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <svg
+                className="animate-spin w-6 h-6 text-brand-500"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  fill="none"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
+              </svg>
+            </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <div className="text-red-500 dark:text-red-400 mb-2">{error}</div>
+              <button
+                onClick={loadFileContent}
+                className="btn btn-secondary text-sm"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : isEditingFile ? (
+            <textarea
+              value={editedContent}
+              onChange={(e) => setEditedContent(e.target.value)}
+              className="w-full h-full font-mono text-sm p-8 bg-white dark:bg-[#1c2128] text-gray-800 dark:text-[#adbac7] resize-none focus:outline-none"
+              spellCheck={false}
             />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            />
-          </svg>
+          ) : (
+            <div className="prose dark:prose-invert max-w-none p-8 prose-headings:dark:text-[#96d0ff] prose-p:dark:text-[#adbac7] prose-strong:dark:text-[#cdd9e5] prose-code:dark:text-[#a5d6ff] prose-code:dark:bg-[#262c36] prose-a:dark:text-[#539bf5] prose-li:dark:text-[#adbac7]">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {fileContent || ""}
+              </ReactMarkdown>
+            </div>
+          )}
         </div>
-      ) : error ? (
-        <div className="text-center py-8">
-          <div className="text-red-500 dark:text-red-400 mb-2">{error}</div>
-          <button
-            onClick={loadFileContent}
-            className="btn btn-secondary text-sm"
-          >
-            Try Again
-          </button>
-        </div>
-      ) : isEditingFile ? (
-        <textarea
-          value={editedContent}
-          onChange={(e) => setEditedContent(e.target.value)}
-          className="w-full h-96 font-mono text-sm p-4 bg-system-50 dark:bg-system-900 border border-system-200 dark:border-system-700 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-brand-500 dark:focus:ring-brand-400"
-          spellCheck={false}
-        />
-      ) : (
-        <div className="relative">
-          <pre className="w-full h-96 overflow-auto font-mono text-sm p-4 bg-system-50 dark:bg-system-900 border border-system-200 dark:border-system-700 rounded-lg">
-            <code className="text-system-800 dark:text-system-200 whitespace-pre-wrap">
-              {fileContent || ""}
-            </code>
-          </pre>
-          {/* Line numbers overlay could be added here if needed */}
-        </div>
-      )}
+      </div>
     </div>
   );
 }

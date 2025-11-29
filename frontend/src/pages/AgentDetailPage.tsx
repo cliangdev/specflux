@@ -156,7 +156,7 @@ export default function AgentDetailPage() {
 
     try {
       await api.agents.agentsIdDelete({ id: parseInt(id, 10) });
-      navigate("/settings", { state: { tab: "agents" } });
+      navigate(-1);
     } catch (err) {
       const message = await getApiErrorMessage(err, "Failed to delete agent");
       setError(message);
@@ -218,11 +218,8 @@ export default function AgentDetailPage() {
         <div className="text-system-500 dark:text-system-400 text-lg">
           Agent not found
         </div>
-        <button
-          onClick={() => navigate("/settings")}
-          className="mt-4 btn btn-primary"
-        >
-          Back to Settings
+        <button onClick={() => navigate(-1)} className="mt-4 btn btn-primary">
+          Back
         </button>
       </div>
     );
@@ -232,10 +229,7 @@ export default function AgentDetailPage() {
     <div>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <button
-          onClick={() => navigate("/settings", { state: { tab: "agents" } })}
-          className="btn btn-ghost"
-        >
+        <button onClick={() => navigate(-1)} className="btn btn-ghost">
           <svg
             className="w-5 h-5"
             fill="none"
@@ -249,89 +243,28 @@ export default function AgentDetailPage() {
               d="M10 19l-7-7m0 0l7-7m-7 7h18"
             />
           </svg>
-          Back to Agents
+          Back
         </button>
 
-        <div className="flex items-center gap-2">
-          {isEditing ? (
-            <>
-              <button
-                onClick={handleCancelEdit}
-                disabled={saving}
-                className="btn btn-secondary"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving || !editForm.name.trim()}
-                className="btn btn-primary"
-              >
-                {saving ? (
-                  <>
-                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                        fill="none"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                      />
-                    </svg>
-                    Saving...
-                  </>
-                ) : (
-                  "Save"
-                )}
-              </button>
-            </>
-          ) : (
-            <>
-              <button onClick={handleEditClick} className="btn btn-secondary">
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                  />
-                </svg>
-                Edit
-              </button>
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="btn btn-ghost text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
-                Delete
-              </button>
-            </>
-          )}
-        </div>
+        <button
+          onClick={() => setShowDeleteConfirm(true)}
+          className="btn btn-ghost text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+            />
+          </svg>
+          Delete
+        </button>
       </div>
 
       {/* Save Error */}
@@ -419,6 +352,48 @@ export default function AgentDetailPage() {
       {/* Tab Content */}
       {activeTab === "overview" && (
         <div className="space-y-6">
+          {/* Overview Edit Controls */}
+          <div className="flex justify-end mb-4">
+            {isEditing ? (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleCancelEdit}
+                  disabled={saving}
+                  className="btn btn-secondary text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving || !editForm.name.trim()}
+                  className="btn btn-primary text-sm"
+                >
+                  {saving ? "Saving..." : "Save"}
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleEditClick}
+                className="btn btn-secondary text-sm"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                  />
+                </svg>
+                Edit
+              </button>
+            )}
+          </div>
+
           {/* Description */}
           <div className="card p-5">
             <h3 className="text-sm font-medium text-system-500 dark:text-system-400 mb-2">
