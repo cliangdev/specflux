@@ -78,3 +78,42 @@ export {
   ControlTaskAgentRequestActionEnum,
   AgentStatusStatusEnum,
 } from "./generated";
+
+// Runtime error class (for error handling)
+export { ResponseError } from "./generated/runtime";
+
+/**
+ * Extract a user-friendly error message from an API error.
+ * Handles ResponseError from the generated client which wraps fetch Response objects.
+ *
+ * @param error - The error caught from an API call
+ * @param fallback - Fallback message if error cannot be parsed
+ * @returns A user-friendly error message
+ */
+export async function getApiErrorMessage(
+  error: unknown,
+  fallback = "An unexpected error occurred",
+): Promise<string> {
+  // Import ResponseError dynamically to avoid circular dependencies
+  const { ResponseError } = await import("./generated/runtime");
+
+  if (error instanceof ResponseError) {
+    try {
+      // Clone the response to read the body (can only be read once)
+      const body = await error.response.clone().json();
+      if (body && typeof body.error === "string") {
+        return body.error;
+      }
+    } catch {
+      // If we can't parse the response, fall through to default handling
+    }
+    // Use status text as a fallback
+    return error.response.statusText || error.message || fallback;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return fallback;
+}

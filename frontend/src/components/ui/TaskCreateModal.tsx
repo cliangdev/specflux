@@ -1,5 +1,10 @@
 import { useState, useEffect, type FormEvent } from "react";
-import { api, type CreateTaskRequest, type Epic, type Agent } from "../../api";
+import {
+  api,
+  getApiErrorMessage,
+  type CreateTaskRequest,
+  type Epic,
+} from "../../api";
 import { AgentSelector } from "../tasks";
 
 interface TaskCreateModalProps {
@@ -17,6 +22,7 @@ export default function TaskCreateModal({
 }: TaskCreateModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [acceptanceCriteria, setAcceptanceCriteria] = useState("");
   const [epicId, setEpicId] = useState<number | undefined>(defaultEpicId);
   const [assignedAgentId, setAssignedAgentId] = useState<number | null>(null);
   const [epics, setEpics] = useState<Epic[]>([]);
@@ -48,6 +54,11 @@ export default function TaskCreateModal({
       return;
     }
 
+    if (!acceptanceCriteria.trim()) {
+      setError('Acceptance criteria is required - define what "done" means');
+      return;
+    }
+
     try {
       setSubmitting(true);
       setError(null);
@@ -55,6 +66,7 @@ export default function TaskCreateModal({
       const request: CreateTaskRequest = {
         title: title.trim(),
         description: description.trim() || undefined,
+        acceptanceCriteria: acceptanceCriteria.trim(),
         epicId: epicId,
         assignedAgentId: assignedAgentId ?? undefined,
         executorType: assignedAgentId ? "agent" : undefined,
@@ -68,8 +80,7 @@ export default function TaskCreateModal({
       onCreated();
       onClose();
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to create task";
+      const message = await getApiErrorMessage(err, "Failed to create task");
       setError(message);
       console.error("Failed to create task:", err);
     } finally {
@@ -157,6 +168,27 @@ export default function TaskCreateModal({
 
             <div>
               <label
+                htmlFor="acceptanceCriteria"
+                className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
+              >
+                Acceptance Criteria <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                id="acceptanceCriteria"
+                value={acceptanceCriteria}
+                onChange={(e) => setAcceptanceCriteria(e.target.value)}
+                placeholder="Define what 'done' means for this task. Use bullet points for multiple criteria."
+                rows={4}
+                className="input resize-none"
+              />
+              <p className="mt-1 text-xs text-system-500 dark:text-system-400">
+                Required - describe the conditions that must be met for the task
+                to be complete
+              </p>
+            </div>
+
+            <div>
+              <label
                 htmlFor="epic"
                 className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
               >
@@ -210,7 +242,9 @@ export default function TaskCreateModal({
             </button>
             <button
               type="submit"
-              disabled={submitting || !title.trim()}
+              disabled={
+                submitting || !title.trim() || !acceptanceCriteria.trim()
+              }
               className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting && (

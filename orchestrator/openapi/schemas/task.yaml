@@ -129,8 +129,8 @@ CreateTaskRequest:
       description: Array of task IDs this task depends on
     acceptance_criteria:
       type: string
-      nullable: true
-      description: Testable acceptance criteria (markdown checklist)
+      minLength: 1
+      description: Testable acceptance criteria (markdown checklist) - required to define what "done" means
     scope_in:
       type: string
       nullable: true
@@ -153,6 +153,7 @@ CreateTaskRequest:
       description: ID of the agent assigned to execute this task
   required:
     - title
+    - acceptance_criteria
 
 UpdateTaskRequest:
   type: object
