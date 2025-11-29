@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { SPECFLUX_DIRS, ensureTaskStateDirectories } from './filesystem.service';
+import { SPECFLUX_DIRS } from './filesystem.service';
 
 /**
  * Size thresholds for state file management
@@ -57,17 +57,50 @@ export interface TaskState {
 }
 
 /**
- * Get the path to a task's state file
+ * Get the path to a task's state file in the worktree
+ * State files live inside the task's worktree at:
+ * .specflux/worktrees/task-{id}/.specflux/task-states/task-{id}-state.md
  */
 export function getTaskStatePath(projectPath: string, taskId: number): string {
-  return path.join(projectPath, SPECFLUX_DIRS.TASK_STATES, `task-${taskId}-state.md`);
+  return path.join(
+    projectPath,
+    SPECFLUX_DIRS.WORKTREES,
+    `task-${taskId}`,
+    SPECFLUX_DIRS.TASK_STATES,
+    `task-${taskId}-state.md`
+  );
 }
 
 /**
- * Get the path to a task's archive file
+ * Ensure task state directories exist within the worktree
+ */
+function ensureWorktreeTaskStateDirectories(projectPath: string, taskId: number): void {
+  const worktreeBase = path.join(projectPath, SPECFLUX_DIRS.WORKTREES, `task-${taskId}`);
+  const taskStateDirs = [
+    path.join(worktreeBase, SPECFLUX_DIRS.TASK_STATES),
+    path.join(worktreeBase, SPECFLUX_DIRS.ARCHIVES),
+  ];
+
+  for (const dir of taskStateDirs) {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  }
+}
+
+/**
+ * Get the path to a task's archive file in the worktree
+ * Archive files live inside the task's worktree at:
+ * .specflux/worktrees/task-{id}/.specflux/archives/task-{id}-archive.md
  */
 export function getTaskArchivePath(projectPath: string, taskId: number): string {
-  return path.join(projectPath, SPECFLUX_DIRS.ARCHIVES, `task-${taskId}-archive.md`);
+  return path.join(
+    projectPath,
+    SPECFLUX_DIRS.WORKTREES,
+    `task-${taskId}`,
+    SPECFLUX_DIRS.ARCHIVES,
+    `task-${taskId}-archive.md`
+  );
 }
 
 /**
@@ -275,8 +308,8 @@ export function createTaskState(
   title: string,
   epicId: number | null
 ): string {
-  // Ensure directories exist
-  ensureTaskStateDirectories(projectPath);
+  // Ensure directories exist within the worktree
+  ensureWorktreeTaskStateDirectories(projectPath, taskId);
 
   const statePath = getTaskStatePath(projectPath, taskId);
   const content = generateInitialStateContent(taskId, title, epicId);

@@ -1,4 +1,32 @@
+import { useState, useEffect, useCallback, useRef } from "react";
 import { NavLink } from "react-router-dom";
+
+const SIDEBAR_STORAGE_KEY = "specflux-sidebar";
+const MIN_SIDEBAR_WIDTH = 200;
+const DEFAULT_SIDEBAR_WIDTH = 256;
+
+interface SidebarState {
+  width: number;
+  collapsed: boolean;
+}
+
+function getInitialState(): SidebarState {
+  if (typeof window !== "undefined") {
+    const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        return {
+          width: parsed.width ?? DEFAULT_SIDEBAR_WIDTH,
+          collapsed: parsed.collapsed ?? false,
+        };
+      } catch {
+        // Invalid JSON, use defaults
+      }
+    }
+  }
+  return { width: DEFAULT_SIDEBAR_WIDTH, collapsed: false };
+}
 
 const navItems = [
   {
@@ -6,7 +34,7 @@ const navItems = [
     label: "Board",
     icon: (
       <svg
-        className="w-5 h-5"
+        className="w-5 h-5 flex-shrink-0"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -25,7 +53,7 @@ const navItems = [
     label: "Tasks",
     icon: (
       <svg
-        className="w-5 h-5"
+        className="w-5 h-5 flex-shrink-0"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -44,7 +72,7 @@ const navItems = [
     label: "Epics",
     icon: (
       <svg
-        className="w-5 h-5"
+        className="w-5 h-5 flex-shrink-0"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -63,7 +91,7 @@ const navItems = [
     label: "Roadmap",
     icon: (
       <svg
-        className="w-5 h-5"
+        className="w-5 h-5 flex-shrink-0"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -82,7 +110,7 @@ const navItems = [
     label: "Files",
     icon: (
       <svg
-        className="w-5 h-5"
+        className="w-5 h-5 flex-shrink-0"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -101,7 +129,7 @@ const navItems = [
     label: "Settings",
     icon: (
       <svg
-        className="w-5 h-5"
+        className="w-5 h-5 flex-shrink-0"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -123,14 +151,149 @@ const navItems = [
   },
 ];
 
-export default function Sidebar() {
+// Hamburger menu icon
+function HamburgerIcon() {
   return (
-    <aside className="w-64 bg-system-50 dark:bg-system-900 border-r border-system-200 dark:border-system-800 flex flex-col">
-      <nav className="flex-1 px-3 py-4">
-        <div className="mb-2 px-3">
+    <svg
+      className="w-5 h-5"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M4 6h16M4 12h16M4 18h16"
+      />
+    </svg>
+  );
+}
+
+// Chevron left icon for collapse button
+function ChevronLeftIcon() {
+  return (
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M15 19l-7-7 7-7"
+      />
+    </svg>
+  );
+}
+
+export default function Sidebar() {
+  const [state, setState] = useState<SidebarState>(getInitialState);
+  const [isResizing, setIsResizing] = useState(false);
+  const sidebarRef = useRef<HTMLElement>(null);
+
+  // Persist state to localStorage
+  useEffect(() => {
+    localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(state));
+  }, [state]);
+
+  const toggleCollapsed = useCallback(() => {
+    setState((prev) => ({ ...prev, collapsed: !prev.collapsed }));
+  }, []);
+
+  // Handle resize drag
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      // Calculate max width as half of the screen
+      const maxWidth = Math.floor(window.innerWidth / 2);
+      const newWidth = Math.max(
+        MIN_SIDEBAR_WIDTH,
+        Math.min(maxWidth, e.clientX)
+      );
+      setState((prev) => ({ ...prev, width: newWidth }));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isResizing]);
+
+  // Collapsed state: show hamburger icon only
+  if (state.collapsed) {
+    return (
+      <aside className="w-14 bg-system-50 dark:bg-system-900 border-r border-system-200 dark:border-system-800 flex flex-col">
+        <div className="px-3 py-4">
+          <button
+            onClick={toggleCollapsed}
+            className="p-2 rounded-lg text-system-600 dark:text-system-400 hover:text-system-900 dark:hover:text-white hover:bg-system-100 dark:hover:bg-system-800 transition-colors"
+            aria-label="Expand sidebar"
+            title="Expand sidebar"
+          >
+            <HamburgerIcon />
+          </button>
+        </div>
+        <nav className="flex-1 px-3">
+          <ul className="space-y-1">
+            {navItems.map((item) => (
+              <li key={item.to}>
+                <NavLink
+                  to={item.to}
+                  className={({ isActive }) =>
+                    `flex items-center justify-center p-2 rounded-lg transition-colors ${
+                      isActive
+                        ? "bg-brand-600 text-white"
+                        : "text-system-600 dark:text-system-400 hover:text-system-900 dark:hover:text-white hover:bg-system-100 dark:hover:bg-system-800"
+                    }`
+                  }
+                  title={item.label}
+                >
+                  {item.icon}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </aside>
+    );
+  }
+
+  // Expanded state: full sidebar with resize handle
+  return (
+    <aside
+      ref={sidebarRef}
+      className="bg-system-50 dark:bg-system-900 border-r border-system-200 dark:border-system-800 flex flex-col relative"
+      style={{ width: state.width }}
+    >
+      <nav className="flex-1 px-3 py-4 overflow-hidden">
+        <div className="mb-2 px-3 flex items-center justify-between">
           <span className="text-xs font-semibold uppercase tracking-wider text-system-400 dark:text-system-500">
             Navigation
           </span>
+          <button
+            onClick={toggleCollapsed}
+            className="p-1 rounded text-system-400 dark:text-system-500 hover:text-system-600 dark:hover:text-system-300 hover:bg-system-100 dark:hover:bg-system-800 transition-colors"
+            aria-label="Collapse sidebar"
+            title="Collapse sidebar"
+          >
+            <ChevronLeftIcon />
+          </button>
         </div>
         <ul className="space-y-1">
           {navItems.map((item) => (
@@ -146,12 +309,27 @@ export default function Sidebar() {
                 }
               >
                 {item.icon}
-                {item.label}
+                <span className="truncate">{item.label}</span>
               </NavLink>
             </li>
           ))}
         </ul>
       </nav>
+      {/* Resize handle - wider hit area for easier grabbing */}
+      <div
+        onMouseDown={handleMouseDown}
+        className="absolute top-0 -right-1 w-3 h-full cursor-col-resize group flex items-center justify-center"
+        aria-label="Resize sidebar"
+      >
+        {/* Visual indicator - thin line that highlights on hover/drag */}
+        <div
+          className={`w-0.5 h-full transition-colors ${
+            isResizing
+              ? "bg-brand-500"
+              : "bg-system-300 dark:bg-system-700 group-hover:bg-brand-500"
+          }`}
+        />
+      </div>
     </aside>
   );
 }
