@@ -120,8 +120,8 @@ export default function EpicsPage() {
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between mb-6 shrink-0">
         <h1 className="text-2xl font-semibold text-system-900 dark:text-white mr-4">
           Epics
         </h1>
@@ -276,7 +276,7 @@ export default function EpicsPage() {
 
       {/* Filter summary */}
       {hasActiveFilters && (
-        <div className="flex items-center gap-2 mb-4 text-sm text-system-500 dark:text-system-400">
+        <div className="flex items-center gap-2 mb-4 text-sm text-system-500 dark:text-system-400 shrink-0">
           <span>
             Showing {filteredEpics.length} of {epics.length} epics
           </span>
@@ -350,9 +350,9 @@ export default function EpicsPage() {
           </p>
         </div>
       ) : viewMode === "graph" ? (
-        <EpicGraph epics={filteredEpics} />
+        <EpicGraph epics={filteredEpics} className="flex-1 min-h-0" />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-auto">
           {filteredEpics.map((epic) => (
             <EpicCard key={epic.id} epic={epic} />
           ))}
