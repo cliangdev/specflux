@@ -6,3 +6,4 @@ export { default as EpicDetailPage } from "./EpicDetailPage";
 export { default as RoadmapPage } from "./RoadmapPage";
 export { default as FilesPage } from "./FilesPage";
 export { default as SettingsPage } from "./SettingsPage";
+export { default as AgentDetailPage } from "./AgentDetailPage";

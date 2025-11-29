@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useProject } from "../../contexts/ProjectContext";
 import { api } from "../../api";
 import type { Agent } from "../../api/generated/models/Agent";
@@ -15,6 +16,7 @@ type ModalMode = "add" | "edit" | null;
 
 export function AgentSettings() {
   const { currentProject } = useProject();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -286,7 +288,8 @@ export function AgentSettings() {
           {agents.map((agent) => (
             <div
               key={agent.id}
-              className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-800 hover:border-brand-300 dark:hover:border-brand-700 transition-colors"
+              onClick={() => navigate(`/settings/agents/${agent.id}`)}
+              className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-800 hover:border-brand-300 dark:hover:border-brand-700 transition-colors cursor-pointer"
             >
               <div className="flex items-start gap-3">
                 {/* Emoji */}
@@ -328,47 +331,20 @@ export function AgentSettings() {
                   )}
                 </div>
 
-                {/* Actions */}
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => handleEditClick(agent)}
-                    className="p-1.5 text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 rounded hover:bg-gray-100 dark:hover:bg-slate-700"
-                    title="Edit"
-                  >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => handleDeleteClick(agent)}
-                    className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded hover:bg-gray-100 dark:hover:bg-slate-700"
-                    title="Delete"
-                  >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
-                  </button>
-                </div>
+                {/* Arrow indicator */}
+                <svg
+                  className="w-5 h-5 text-gray-400 dark:text-gray-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
               </div>
             </div>
           ))}
