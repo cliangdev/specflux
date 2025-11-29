@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useProject } from "../../contexts/ProjectContext";
 import { api } from "../../api";
 import type { Agent } from "../../api/generated/models/Agent";
@@ -15,6 +16,7 @@ type ModalMode = "add" | "edit" | null;
 
 export function AgentSettings() {
   const { currentProject } = useProject();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -286,7 +288,8 @@ export function AgentSettings() {
           {agents.map((agent) => (
             <div
               key={agent.id}
-              className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-800 hover:border-brand-300 dark:hover:border-brand-700 transition-colors"
+              onClick={() => navigate(`/settings/agents/${agent.id}`)}
+              className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-800 hover:border-brand-300 dark:hover:border-brand-700 transition-colors cursor-pointer"
             >
               <div className="flex items-start gap-3">
                 {/* Emoji */}
@@ -331,9 +334,12 @@ export function AgentSettings() {
                 {/* Actions */}
                 <div className="flex gap-1">
                   <button
-                    onClick={() => handleEditClick(agent)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditClick(agent);
+                    }}
                     className="p-1.5 text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 rounded hover:bg-gray-100 dark:hover:bg-slate-700"
-                    title="Edit"
+                    title="Quick Edit"
                   >
                     <svg
                       className="w-4 h-4"
@@ -350,7 +356,10 @@ export function AgentSettings() {
                     </svg>
                   </button>
                   <button
-                    onClick={() => handleDeleteClick(agent)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteClick(agent);
+                    }}
                     className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded hover:bg-gray-100 dark:hover:bg-slate-700"
                     title="Delete"
                   >
