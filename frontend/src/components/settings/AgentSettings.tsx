@@ -1,18 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProject } from "../../contexts/ProjectContext";
 import { api } from "../../api";
 import type { Agent } from "../../api/generated/models/Agent";
-
-interface AgentFormData {
-  name: string;
-  description: string;
-  emoji: string;
-  systemPrompt: string;
-  tools: string[];
-}
-
-type ModalMode = "add" | "edit" | null;
 
 export function AgentSettings() {
   const { currentProject } = useProject();
@@ -20,38 +10,22 @@ export function AgentSettings() {
   const [loading, setLoading] = useState(false);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [modalMode, setModalMode] = useState<ModalMode>(null);
-  const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
   const [deletingAgent, setDeletingAgent] = useState<Agent | null>(null);
-  const [formData, setFormData] = useState<AgentFormData>({
-    name: "",
-    description: "",
-    emoji: "",
-    systemPrompt: "",
-    tools: [],
-  });
-  const [saving, setSaving] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<{
-    created: number;
-    updated: number;
-    deleted: number;
-  } | null>(null);
 
-  // Load agents
-  useEffect(() => {
-    if (currentProject) {
-      loadAgents();
-    }
-  }, [currentProject]);
-
-  const loadAgents = async () => {
+  // Auto-sync and load agents on mount
+  const syncAndLoadAgents = useCallback(async () => {
     if (!currentProject) return;
 
     setLoading(true);
     setError(null);
 
     try {
+      // First sync from filesystem
+      await api.agents.projectsIdAgentsSyncPost({
+        id: currentProject.id,
+      });
+
+      // Then load agents
       const response = await api.agents.projectsIdAgentsGet({
         id: currentProject.id,
       });
@@ -67,97 +41,11 @@ export function AgentSettings() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentProject]);
 
-  const handleAddClick = () => {
-    setFormData({
-      name: "",
-      description: "",
-      emoji: "",
-      systemPrompt: "",
-      tools: [],
-    });
-    setEditingAgent(null);
-    setModalMode("add");
-  };
-
-  const handleEditClick = (agent: Agent) => {
-    setFormData({
-      name: agent.name,
-      description: agent.description || "",
-      emoji: agent.emoji || "",
-      systemPrompt: agent.systemPrompt || "",
-      tools: agent.tools || [],
-    });
-    setEditingAgent(agent);
-    setModalMode("edit");
-  };
-
-  const handleModalClose = () => {
-    setModalMode(null);
-    setEditingAgent(null);
-    setFormData({
-      name: "",
-      description: "",
-      emoji: "",
-      systemPrompt: "",
-      tools: [],
-    });
-  };
-
-  const handleSave = async () => {
-    if (!currentProject) return;
-
-    setSaving(true);
-    setError(null);
-
-    try {
-      if (modalMode === "add") {
-        const response = await api.agents.projectsIdAgentsPost({
-          id: currentProject.id,
-          createAgentRequest: {
-            name: formData.name,
-            description: formData.description || null,
-            emoji: formData.emoji || undefined,
-            systemPrompt: formData.systemPrompt || null,
-            tools: formData.tools.length > 0 ? formData.tools : null,
-          },
-        });
-
-        if (response.success) {
-          await loadAgents();
-          handleModalClose();
-        } else {
-          setError("Failed to add agent");
-        }
-      } else if (modalMode === "edit" && editingAgent) {
-        const response = await api.agents.agentsIdPut({
-          id: editingAgent.id,
-          updateAgentRequest: {
-            name: formData.name,
-            description: formData.description || null,
-            emoji: formData.emoji || undefined,
-            systemPrompt: formData.systemPrompt || null,
-            tools: formData.tools.length > 0 ? formData.tools : null,
-          },
-        });
-
-        if (response.success) {
-          await loadAgents();
-          handleModalClose();
-        } else {
-          setError("Failed to update agent");
-        }
-      }
-    } catch (err) {
-      setError(
-        modalMode === "add" ? "Failed to add agent" : "Failed to update agent",
-      );
-      console.error(err);
-    } finally {
-      setSaving(false);
-    }
-  };
+  useEffect(() => {
+    syncAndLoadAgents();
+  }, [syncAndLoadAgents]);
 
   const handleDeleteClick = (agent: Agent) => {
     setDeletingAgent(agent);
@@ -170,7 +58,7 @@ export function AgentSettings() {
 
     try {
       await api.agents.agentsIdDelete({ id: deletingAgent.id });
-      await loadAgents();
+      await syncAndLoadAgents();
       setDeletingAgent(null);
     } catch (err) {
       setError("Failed to delete agent");
@@ -181,38 +69,6 @@ export function AgentSettings() {
 
   const handleDeleteCancel = () => {
     setDeletingAgent(null);
-  };
-
-  const handleSync = async () => {
-    if (!currentProject) return;
-
-    setSyncing(true);
-    setError(null);
-    setSyncResult(null);
-
-    try {
-      const response = await api.agents.projectsIdAgentsSyncPost({
-        id: currentProject.id,
-      });
-
-      if (response.success && response.data) {
-        setSyncResult(
-          response.data as {
-            created: number;
-            updated: number;
-            deleted: number;
-          },
-        );
-        await loadAgents();
-      } else {
-        setError("Failed to sync agents from filesystem");
-      }
-    } catch (err) {
-      setError("Failed to sync agents from filesystem");
-      console.error(err);
-    } finally {
-      setSyncing(false);
-    }
   };
 
   if (!currentProject) {
@@ -230,40 +86,29 @@ export function AgentSettings() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            AI Agents
-          </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Configure specialized Claude Code agents for different tasks
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            className="bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-600 disabled:opacity-50"
-            title="Sync agents from .claude/agents/ directory"
-          >
-            {syncing ? "Syncing..." : "Sync from Filesystem"}
-          </button>
-          <button
-            onClick={handleAddClick}
-            className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
-          >
-            Create Agent
-          </button>
-        </div>
+      <div>
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+          AI Agents
+        </h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          Configure specialized Claude Code agents for different tasks
+        </p>
       </div>
 
-      {/* Sync result message */}
-      {syncResult && (
-        <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded text-sm text-green-800 dark:text-green-200">
-          Synced from .claude/agents/: {syncResult.created} created,{" "}
-          {syncResult.updated} updated, {syncResult.deleted} deleted
-        </div>
-      )}
+      {/* Info Banner */}
+      <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+        <p className="text-sm text-blue-800 dark:text-blue-200">
+          Agents are automatically discovered from{" "}
+          <code className="px-1 py-0.5 bg-blue-100 dark:bg-blue-800 rounded">
+            .claude/agents/
+          </code>{" "}
+          directory. Each{" "}
+          <code className="px-1 py-0.5 bg-blue-100 dark:bg-blue-800 rounded">
+            .md
+          </code>{" "}
+          file becomes an agent definition.
+        </p>
+      </div>
 
       {/* Error message */}
       {error && (
@@ -277,10 +122,10 @@ export function AgentSettings() {
         <div className="text-center py-12 border border-gray-200 dark:border-slate-700 rounded-lg">
           <div className="text-4xl mb-3">🤖</div>
           <div className="text-gray-500 dark:text-gray-400 mb-2">
-            No agents configured yet
+            No agents found
           </div>
           <div className="text-sm text-gray-400 dark:text-gray-500">
-            Create an agent to customize Claude Code for specific tasks
+            Add .md files to .claude/agents/ to define agents
           </div>
         </div>
       ) : (
@@ -348,130 +193,6 @@ export function AgentSettings() {
               </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Add/Edit Modal */}
-      {modalMode && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {modalMode === "add" ? "Create Agent" : "Edit Agent"}
-              </h3>
-            </div>
-
-            {/* Modal Body */}
-            <div className="px-6 py-4 space-y-4">
-              <div className="flex gap-4">
-                <div className="flex-shrink-0">
-                  <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
-                    Emoji
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.emoji}
-                    onChange={(e) =>
-                      setFormData({ ...formData, emoji: e.target.value })
-                    }
-                    className="w-16 h-16 text-3xl text-center border border-gray-200 dark:border-slate-700 rounded bg-white dark:bg-slate-900 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
-                    placeholder="🤖"
-                    maxLength={2}
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
-                    Name
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                    className="w-full border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm bg-white dark:bg-slate-900 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
-                    placeholder="e.g., Backend Developer"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
-                  Description
-                </label>
-                <input
-                  type="text"
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                  className="w-full border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm bg-white dark:bg-slate-900 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
-                  placeholder="Brief description of this agent's specialty"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
-                  System Prompt
-                </label>
-                <textarea
-                  value={formData.systemPrompt}
-                  onChange={(e) =>
-                    setFormData({ ...formData, systemPrompt: e.target.value })
-                  }
-                  rows={4}
-                  className="w-full border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm bg-white dark:bg-slate-900 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-none"
-                  placeholder="Custom instructions for Claude Code..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
-                  Allowed Tools (comma-separated)
-                </label>
-                <input
-                  type="text"
-                  value={formData.tools.join(", ")}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      tools: e.target.value
-                        .split(",")
-                        .map((t) => t.trim())
-                        .filter(Boolean),
-                    })
-                  }
-                  className="w-full border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm bg-white dark:bg-slate-900 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
-                  placeholder="Read, Edit, Bash, Glob, Grep"
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Leave empty to allow all tools
-                </p>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700 flex gap-3 justify-end">
-              <button
-                onClick={handleModalClose}
-                className="bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-600"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving || !formData.name}
-                className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
-              >
-                {saving
-                  ? "Saving..."
-                  : modalMode === "add"
-                    ? "Create Agent"
-                    : "Save Changes"}
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
