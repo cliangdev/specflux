@@ -131,7 +131,7 @@ function EpicGraphInner({
   if (epics.length === 0) {
     return (
       <div
-        className={`w-full h-[600px] bg-system-50 dark:bg-system-900 rounded-lg border border-system-200 dark:border-system-700 flex items-center justify-center ${className ?? ""}`}
+        className={`w-full min-h-[400px] bg-system-50 dark:bg-system-900 rounded-lg border border-system-200 dark:border-system-700 flex items-center justify-center ${className ?? ""}`}
       >
         <div className="text-center">
           <svg
@@ -157,7 +157,7 @@ function EpicGraphInner({
 
   return (
     <div
-      className={`relative w-full h-[600px] bg-system-50 dark:bg-system-900 rounded-lg border border-system-200 dark:border-system-700 ${className ?? ""}`}
+      className={`relative w-full min-h-[400px] bg-system-50 dark:bg-system-900 rounded-lg border border-system-200 dark:border-system-700 ${className ?? ""}`}
     >
       <ReactFlow
         nodes={nodes}
