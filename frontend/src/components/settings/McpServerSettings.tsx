@@ -1,55 +1,29 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useProject } from "../../contexts/ProjectContext";
 import { api } from "../../api";
 import type { McpServer } from "../../api/generated/models/McpServer";
-
-interface McpServerFormData {
-  name: string;
-  command: string;
-  args: string;
-  envVars: string;
-  isActive: boolean;
-}
-
-type ModalMode = "add" | "edit" | null;
 
 export function McpServerSettings() {
   const { currentProject } = useProject();
   const [loading, setLoading] = useState(false);
   const [servers, setServers] = useState<McpServer[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [modalMode, setModalMode] = useState<ModalMode>(null);
-  const [editingServer, setEditingServer] = useState<McpServer | null>(null);
   const [deletingServer, setDeletingServer] = useState<McpServer | null>(null);
-  const [formData, setFormData] = useState<McpServerFormData>({
-    name: "",
-    command: "",
-    args: "",
-    envVars: "",
-    isActive: true,
-  });
-  const [saving, setSaving] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<{
-    created: number;
-    updated: number;
-    deleted: number;
-  } | null>(null);
 
-  // Load MCP servers
-  useEffect(() => {
-    if (currentProject) {
-      loadServers();
-    }
-  }, [currentProject]);
-
-  const loadServers = async () => {
+  // Auto-sync and load MCP servers on mount
+  const syncAndLoadServers = useCallback(async () => {
     if (!currentProject) return;
 
     setLoading(true);
     setError(null);
 
     try {
+      // First sync from filesystem
+      await api.mcpServers.projectsIdMcpServersSyncPost({
+        id: currentProject.id,
+      });
+
+      // Then load servers
       const response = await api.mcpServers.projectsIdMcpServersGet({
         id: currentProject.id,
       });
@@ -65,123 +39,16 @@ export function McpServerSettings() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentProject]);
 
-  const handleAddClick = () => {
-    setFormData({
-      name: "",
-      command: "npx",
-      args: "-y @modelcontextprotocol/server-",
-      envVars: "",
-      isActive: true,
-    });
-    setEditingServer(null);
-    setModalMode("add");
-  };
-
-  const handleEditClick = (server: McpServer) => {
-    setFormData({
-      name: server.name,
-      command: server.command,
-      args: server.args.join(" "),
-      envVars: server.envVars
-        ? Object.entries(server.envVars)
-            .map(([k, v]) => `${k}=${v}`)
-            .join("\n")
-        : "",
-      isActive: server.isActive,
-    });
-    setEditingServer(server);
-    setModalMode("edit");
-  };
-
-  const handleModalClose = () => {
-    setModalMode(null);
-    setEditingServer(null);
-    setFormData({
-      name: "",
-      command: "",
-      args: "",
-      envVars: "",
-      isActive: true,
-    });
-  };
-
-  const parseEnvVars = (str: string): Record<string, string> | null => {
-    if (!str.trim()) return null;
-    const result: Record<string, string> = {};
-    str.split("\n").forEach((line) => {
-      const [key, ...valueParts] = line.split("=");
-      if (key && valueParts.length > 0) {
-        result[key.trim()] = valueParts.join("=").trim();
-      }
-    });
-    return Object.keys(result).length > 0 ? result : null;
-  };
-
-  const handleSave = async () => {
-    if (!currentProject) return;
-
-    setSaving(true);
-    setError(null);
-
-    try {
-      const args = formData.args.split(/\s+/).filter(Boolean);
-      const envVars = parseEnvVars(formData.envVars);
-
-      if (modalMode === "add") {
-        const response = await api.mcpServers.projectsIdMcpServersPost({
-          id: currentProject.id,
-          createMcpServerRequest: {
-            name: formData.name,
-            command: formData.command,
-            args,
-            envVars,
-            isActive: formData.isActive,
-          },
-        });
-
-        if (response.success) {
-          await loadServers();
-          handleModalClose();
-        } else {
-          setError("Failed to add MCP server");
-        }
-      } else if (modalMode === "edit" && editingServer) {
-        const response = await api.mcpServers.mcpServersIdPut({
-          id: editingServer.id,
-          updateMcpServerRequest: {
-            name: formData.name,
-            command: formData.command,
-            args,
-            envVars,
-            isActive: formData.isActive,
-          },
-        });
-
-        if (response.success) {
-          await loadServers();
-          handleModalClose();
-        } else {
-          setError("Failed to update MCP server");
-        }
-      }
-    } catch (err) {
-      setError(
-        modalMode === "add"
-          ? "Failed to add MCP server"
-          : "Failed to update MCP server",
-      );
-      console.error(err);
-    } finally {
-      setSaving(false);
-    }
-  };
+  useEffect(() => {
+    syncAndLoadServers();
+  }, [syncAndLoadServers]);
 
   const handleToggle = async (server: McpServer) => {
     try {
       await api.mcpServers.mcpServersIdTogglePost({ id: server.id });
-      await loadServers();
+      await syncAndLoadServers();
     } catch (err) {
       setError("Failed to toggle MCP server");
       console.error(err);
@@ -199,7 +66,7 @@ export function McpServerSettings() {
 
     try {
       await api.mcpServers.mcpServersIdDelete({ id: deletingServer.id });
-      await loadServers();
+      await syncAndLoadServers();
       setDeletingServer(null);
     } catch (err) {
       setError("Failed to delete MCP server");
@@ -210,38 +77,6 @@ export function McpServerSettings() {
 
   const handleDeleteCancel = () => {
     setDeletingServer(null);
-  };
-
-  const handleSync = async () => {
-    if (!currentProject) return;
-
-    setSyncing(true);
-    setError(null);
-    setSyncResult(null);
-
-    try {
-      const response = await api.mcpServers.projectsIdMcpServersSyncPost({
-        id: currentProject.id,
-      });
-
-      if (response.success && response.data) {
-        setSyncResult(
-          response.data as {
-            created: number;
-            updated: number;
-            deleted: number;
-          },
-        );
-        await loadServers();
-      } else {
-        setError("Failed to sync MCP servers from filesystem");
-      }
-    } catch (err) {
-      setError("Failed to sync MCP servers from filesystem");
-      console.error(err);
-    } finally {
-      setSyncing(false);
-    }
   };
 
   if (!currentProject) {
@@ -259,41 +94,26 @@ export function McpServerSettings() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            MCP Servers
-          </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Model Context Protocol servers extend Claude Code with additional
-            tools
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            className="bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-600 disabled:opacity-50"
-            title="Sync from .claude/.mcp.json file"
-          >
-            {syncing ? "Syncing..." : "Sync from Filesystem"}
-          </button>
-          <button
-            onClick={handleAddClick}
-            className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
-          >
-            Add Server
-          </button>
-        </div>
+      <div>
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+          MCP Servers
+        </h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          Model Context Protocol servers extend Claude Code with additional
+          tools
+        </p>
       </div>
 
-      {/* Sync result message */}
-      {syncResult && (
-        <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded text-sm text-green-800 dark:text-green-200">
-          Synced from .claude/.mcp.json: {syncResult.created} created,{" "}
-          {syncResult.updated} updated, {syncResult.deleted} deleted
-        </div>
-      )}
+      {/* Info Banner */}
+      <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+        <p className="text-sm text-blue-800 dark:text-blue-200">
+          MCP servers are automatically discovered from{" "}
+          <code className="px-1 py-0.5 bg-blue-100 dark:bg-blue-800 rounded">
+            .claude/.mcp.json
+          </code>{" "}
+          file. Edit the file directly to add or modify servers.
+        </p>
+      </div>
 
       {/* Error message */}
       {error && (
@@ -302,97 +122,93 @@ export function McpServerSettings() {
         </div>
       )}
 
-      {/* MCP Servers List */}
+      {/* MCP Server Cards */}
       {servers.length === 0 ? (
         <div className="text-center py-12 border border-gray-200 dark:border-slate-700 rounded-lg">
           <div className="text-4xl mb-3">🔌</div>
           <div className="text-gray-500 dark:text-gray-400 mb-2">
-            No MCP servers configured
+            No MCP servers found
           </div>
           <div className="text-sm text-gray-400 dark:text-gray-500">
-            Add MCP servers to extend Claude Code with additional capabilities
+            Configure servers in .claude/.mcp.json to extend Claude Code
           </div>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {servers.map((server) => (
             <div
               key={server.id}
-              className={`border rounded-lg p-4 ${
-                server.isActive
-                  ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-900/10"
-                  : "border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800"
-              }`}
+              className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-800"
             >
-              <div className="flex items-start gap-4">
-                {/* Toggle */}
-                <button
-                  onClick={() => handleToggle(server)}
-                  className={`relative w-11 h-6 rounded-full transition-colors ${
-                    server.isActive
-                      ? "bg-emerald-500"
-                      : "bg-gray-300 dark:bg-slate-600"
-                  }`}
-                >
-                  <span
-                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                      server.isActive ? "translate-x-5" : "translate-x-0"
-                    }`}
-                  />
-                </button>
+              <div className="flex items-start gap-3">
+                {/* Emoji */}
+                <div className="text-3xl">🔌</div>
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-medium text-gray-900 dark:text-white">
+                    <h3 className="font-medium text-gray-900 dark:text-white truncate">
                       {server.name}
                     </h3>
-                    {!server.isActive && (
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        (disabled)
+                    {server.isActive ? (
+                      <span className="text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded">
+                        active
+                      </span>
+                    ) : (
+                      <span className="text-xs bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded">
+                        disabled
                       </span>
                     )}
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400 font-mono mt-1">
+                  <div className="text-xs text-gray-500 dark:text-gray-400 font-mono mt-2 truncate">
                     {server.command} {server.args.join(" ")}
                   </div>
                   {server.envVars && Object.keys(server.envVars).length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
-                      {Object.keys(server.envVars).map((key) => (
-                        <span
-                          key={key}
-                          className="text-xs bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded"
-                        >
-                          {key}
+                      {Object.keys(server.envVars)
+                        .slice(0, 3)
+                        .map((key) => (
+                          <span
+                            key={key}
+                            className="text-xs bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 px-2 py-0.5 rounded"
+                          >
+                            {key}
+                          </span>
+                        ))}
+                      {Object.keys(server.envVars).length > 3 && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          +{Object.keys(server.envVars).length - 3} more
                         </span>
-                      ))}
+                      )}
                     </div>
                   )}
                 </div>
 
-                {/* Actions */}
-                <div className="flex gap-1">
+                {/* Toggle + Delete */}
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => handleEditClick(server)}
-                    className="p-1.5 text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 rounded hover:bg-gray-100 dark:hover:bg-slate-700"
-                    title="Edit"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggle(server);
+                    }}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${
+                      server.isActive
+                        ? "bg-emerald-500"
+                        : "bg-gray-300 dark:bg-slate-600"
+                    }`}
+                    title={server.isActive ? "Disable" : "Enable"}
                   >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                      />
-                    </svg>
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                        server.isActive ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
                   </button>
                   <button
-                    onClick={() => handleDeleteClick(server)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteClick(server);
+                    }}
                     className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded hover:bg-gray-100 dark:hover:bg-slate-700"
                     title="Delete"
                   >
@@ -414,125 +230,6 @@ export function McpServerSettings() {
               </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Add/Edit Modal */}
-      {modalMode && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {modalMode === "add" ? "Add MCP Server" : "Edit MCP Server"}
-              </h3>
-            </div>
-
-            {/* Modal Body */}
-            <div className="px-6 py-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
-                  Name
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  className="w-full border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm bg-white dark:bg-slate-900 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
-                  placeholder="e.g., github"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
-                  Command
-                </label>
-                <input
-                  type="text"
-                  value={formData.command}
-                  onChange={(e) =>
-                    setFormData({ ...formData, command: e.target.value })
-                  }
-                  className="w-full border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm bg-white dark:bg-slate-900 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none font-mono"
-                  placeholder="npx"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
-                  Arguments
-                </label>
-                <input
-                  type="text"
-                  value={formData.args}
-                  onChange={(e) =>
-                    setFormData({ ...formData, args: e.target.value })
-                  }
-                  className="w-full border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm bg-white dark:bg-slate-900 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none font-mono"
-                  placeholder="-y @modelcontextprotocol/server-github"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
-                  Environment Variables
-                </label>
-                <textarea
-                  value={formData.envVars}
-                  onChange={(e) =>
-                    setFormData({ ...formData, envVars: e.target.value })
-                  }
-                  rows={3}
-                  className="w-full border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm bg-white dark:bg-slate-900 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none font-mono resize-none"
-                  placeholder="GITHUB_TOKEN=ghp_xxx&#10;API_KEY=xxx"
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  One per line in KEY=VALUE format
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="isActive"
-                  checked={formData.isActive}
-                  onChange={(e) =>
-                    setFormData({ ...formData, isActive: e.target.checked })
-                  }
-                  className="rounded border-gray-300 dark:border-slate-600 text-brand-600 focus:ring-brand-500"
-                />
-                <label
-                  htmlFor="isActive"
-                  className="text-sm text-gray-700 dark:text-gray-300"
-                >
-                  Enable this server
-                </label>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700 flex gap-3 justify-end">
-              <button
-                onClick={handleModalClose}
-                className="bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-600"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving || !formData.name || !formData.command}
-                className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
-              >
-                {saving
-                  ? "Saving..."
-                  : modalMode === "add"
-                    ? "Add Server"
-                    : "Save Changes"}
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
