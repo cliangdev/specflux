@@ -153,6 +153,16 @@ router.post('/projects/:projectId/tasks', (req: Request, res: Response, next: Ne
       throw new ValidationError('title is required');
     }
 
+    if (
+      !acceptance_criteria ||
+      typeof acceptance_criteria !== 'string' ||
+      !acceptance_criteria.trim()
+    ) {
+      throw new ValidationError(
+        'acceptance_criteria is required - define what "done" means for this task'
+      );
+    }
+
     const task = createTask(
       projectId,
       {

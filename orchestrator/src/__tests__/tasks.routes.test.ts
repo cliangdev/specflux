@@ -34,7 +34,10 @@ describe('Tasks API Routes', () => {
     it('should create a task with required fields only', async () => {
       const response = await request(app)
         .post(`/api/projects/${projectId}/tasks`)
-        .send({ title: 'Test Task' })
+        .send({
+          title: 'Test Task',
+          acceptance_criteria: '- [ ] Task completes successfully',
+        })
         .set('Content-Type', 'application/json');
 
       expect(response.status).toBe(201);
@@ -50,6 +53,7 @@ describe('Tasks API Routes', () => {
         .send({
           title: 'Full Task',
           description: 'A detailed description',
+          acceptance_criteria: '- [ ] All tests pass',
           requires_approval: false,
           repo_name: 'my-repo',
           agent_name: 'claude-code',
@@ -71,6 +75,7 @@ describe('Tasks API Routes', () => {
         .post(`/api/projects/${projectId}/tasks`)
         .send({
           title: 'Approval Required Task',
+          acceptance_criteria: '- [ ] Approval obtained',
           requires_approval: true,
         })
         .set('Content-Type', 'application/json');
@@ -84,6 +89,7 @@ describe('Tasks API Routes', () => {
         .post(`/api/projects/${projectId}/tasks`)
         .send({
           title: 'No Approval Task',
+          acceptance_criteria: '- [ ] No approval needed',
           requires_approval: false,
         })
         .set('Content-Type', 'application/json');
@@ -106,7 +112,10 @@ describe('Tasks API Routes', () => {
     it('should return 404 for non-existent project', async () => {
       const response = await request(app)
         .post('/api/projects/99999/tasks')
-        .send({ title: 'Test Task' })
+        .send({
+          title: 'Test Task',
+          acceptance_criteria: '- [ ] Test criteria',
+        })
         .set('Content-Type', 'application/json');
 
       expect(response.status).toBe(404);
@@ -141,7 +150,10 @@ describe('Tasks API Routes', () => {
       // Create a task to test with
       const response = await request(app)
         .post(`/api/projects/${projectId}/tasks`)
-        .send({ title: 'Task for GET test' })
+        .send({
+          title: 'Task for GET test',
+          acceptance_criteria: '- [ ] GET test criteria',
+        })
         .set('Content-Type', 'application/json');
       taskId = response.body.data.id;
     });
@@ -168,7 +180,10 @@ describe('Tasks API Routes', () => {
     beforeAll(async () => {
       const response = await request(app)
         .post(`/api/projects/${projectId}/tasks`)
-        .send({ title: 'Task for PATCH test' })
+        .send({
+          title: 'Task for PATCH test',
+          acceptance_criteria: '- [ ] PATCH test criteria',
+        })
         .set('Content-Type', 'application/json');
       taskId = response.body.data.id;
     });
@@ -210,7 +225,10 @@ describe('Tasks API Routes', () => {
     beforeAll(async () => {
       const response = await request(app)
         .post(`/api/projects/${projectId}/tasks`)
-        .send({ title: 'DoR Test Task' })
+        .send({
+          title: 'DoR Test Task',
+          acceptance_criteria: '- [ ] DoR test criteria',
+        })
         .set('Content-Type', 'application/json');
       taskId = response.body.data.id;
     });
@@ -241,7 +259,10 @@ describe('Tasks API Routes', () => {
     it('should default executor_type to agent', async () => {
       const response = await request(app)
         .post(`/api/projects/${projectId}/tasks`)
-        .send({ title: 'Task with default executor' })
+        .send({
+          title: 'Task with default executor',
+          acceptance_criteria: '- [ ] Default executor test',
+        })
         .set('Content-Type', 'application/json');
 
       expect(response.status).toBe(201);
@@ -253,6 +274,7 @@ describe('Tasks API Routes', () => {
         .post(`/api/projects/${projectId}/tasks`)
         .send({
           title: 'Human executed task',
+          acceptance_criteria: '- [ ] Human executor test',
           executor_type: 'human',
         })
         .set('Content-Type', 'application/json');
@@ -371,7 +393,10 @@ describe('Tasks API Routes', () => {
       // Create a task to delete
       const createResponse = await request(app)
         .post(`/api/projects/${projectId}/tasks`)
-        .send({ title: 'Task to Delete' })
+        .send({
+          title: 'Task to Delete',
+          acceptance_criteria: '- [ ] Delete test criteria',
+        })
         .set('Content-Type', 'application/json');
       const taskId = createResponse.body.data.id;
 

@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-shell";
 import {
   api,
+  getApiErrorMessage,
   type Task,
   type Epic,
   type AgentStatus,
@@ -491,8 +492,10 @@ export default function TaskDetailPage() {
         fetchTask();
       }
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : `Failed to ${action} agent`;
+      const message = await getApiErrorMessage(
+        err,
+        `Failed to ${action} agent`,
+      );
       setError(message);
       console.error(`Failed to ${action} agent:`, err);
     } finally {
