@@ -74,28 +74,16 @@ export default function TaskCreateModal({
       const request: CreateTaskRequest = {
         title: title.trim(),
         description: description.trim() || undefined,
+        acceptanceCriteria: validCriteria.map((c) => c.text.trim()),
         epicId: epicId,
         assignedAgentId: assignedAgentId ?? undefined,
         executorType: assignedAgentId ? "agent" : undefined,
       };
 
-      const response = await api.tasks.createTask({
+      await api.tasks.createTask({
         id: projectId,
         createTaskRequest: request,
       });
-
-      // Create acceptance criteria for the new task
-      const taskId = response.data?.id;
-      if (taskId) {
-        await Promise.all(
-          validCriteria.map((c) =>
-            api.tasks.createTaskCriterion({
-              id: taskId,
-              createCriterionRequest: { text: c.text.trim() },
-            }),
-          ),
-        );
-      }
 
       onCreated();
       onClose();

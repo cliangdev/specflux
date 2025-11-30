@@ -93,8 +93,16 @@ CreateEpicRequest:
       type: string
       format: date
       nullable: true
+    acceptance_criteria:
+      type: array
+      items:
+        type: string
+        minLength: 1
+      minItems: 1
+      description: List of acceptance criteria - at least one required
   required:
     - title
+    - acceptance_criteria
 
 UpdateEpicRequest:
   type: object

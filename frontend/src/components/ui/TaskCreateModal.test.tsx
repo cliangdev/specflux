@@ -6,7 +6,6 @@ vi.mock("../../api", () => ({
   api: {
     tasks: {
       createTask: vi.fn(),
-      createTaskCriterion: vi.fn(),
     },
     epics: {
       listEpics: vi.fn(),
@@ -57,19 +56,6 @@ describe("TaskCreateModal", () => {
     vi.mocked(api.epics.listEpics).mockResolvedValue({
       success: true,
       data: mockEpics,
-    });
-    // Default mock for createTaskCriterion
-    vi.mocked(api.tasks.createTaskCriterion).mockResolvedValue({
-      success: true,
-      data: {
-        id: 1,
-        text: "Test criterion",
-        checked: false,
-        entityType: "task" as const,
-        entityId: 1,
-        position: 0,
-        createdAt: new Date(),
-      },
     });
     // Default mock for agents
     vi.mocked(api.agents.projectsIdAgentsGet).mockResolvedValue({
@@ -209,18 +195,11 @@ describe("TaskCreateModal", () => {
         createTaskRequest: {
           title: "Test Task",
           description: "Test description",
+          acceptanceCriteria: ["Test criterion"],
           epicId: undefined,
           assignedAgentId: undefined,
           executorType: undefined,
         },
-      });
-    });
-
-    // Verify criterion was created
-    await waitFor(() => {
-      expect(api.tasks.createTaskCriterion).toHaveBeenCalledWith({
-        id: 1, // task ID
-        createCriterionRequest: { text: "Test criterion" },
       });
     });
 
@@ -269,6 +248,7 @@ describe("TaskCreateModal", () => {
         createTaskRequest: {
           title: "Test Task",
           description: undefined,
+          acceptanceCriteria: ["Test criterion"],
           epicId: 2,
           assignedAgentId: undefined,
           executorType: undefined,

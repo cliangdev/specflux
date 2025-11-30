@@ -128,9 +128,12 @@ CreateTaskRequest:
         type: integer
       description: Array of task IDs this task depends on
     acceptance_criteria:
-      type: string
-      minLength: 1
-      description: Testable acceptance criteria (markdown checklist) - required to define what "done" means
+      type: array
+      items:
+        type: string
+        minLength: 1
+      minItems: 1
+      description: List of acceptance criteria - at least one required to define what "done" means
     scope_in:
       type: string
       nullable: true

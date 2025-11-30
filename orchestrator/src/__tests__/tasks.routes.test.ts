@@ -36,7 +36,7 @@ describe('Tasks API Routes', () => {
         .post(`/api/projects/${projectId}/tasks`)
         .send({
           title: 'Test Task',
-          acceptance_criteria: '- [ ] Task completes successfully',
+          acceptance_criteria: ['Task completes successfully'],
         })
         .set('Content-Type', 'application/json');
 
@@ -53,7 +53,7 @@ describe('Tasks API Routes', () => {
         .send({
           title: 'Full Task',
           description: 'A detailed description',
-          acceptance_criteria: '- [ ] All tests pass',
+          acceptance_criteria: ['All tests pass'],
           requires_approval: false,
           repo_name: 'my-repo',
           agent_name: 'claude-code',
@@ -75,7 +75,7 @@ describe('Tasks API Routes', () => {
         .post(`/api/projects/${projectId}/tasks`)
         .send({
           title: 'Approval Required Task',
-          acceptance_criteria: '- [ ] Approval obtained',
+          acceptance_criteria: ['Approval obtained'],
           requires_approval: true,
         })
         .set('Content-Type', 'application/json');
@@ -89,7 +89,7 @@ describe('Tasks API Routes', () => {
         .post(`/api/projects/${projectId}/tasks`)
         .send({
           title: 'No Approval Task',
-          acceptance_criteria: '- [ ] No approval needed',
+          acceptance_criteria: ['No approval needed'],
           requires_approval: false,
         })
         .set('Content-Type', 'application/json');
@@ -114,7 +114,7 @@ describe('Tasks API Routes', () => {
         .post('/api/projects/99999/tasks')
         .send({
           title: 'Test Task',
-          acceptance_criteria: '- [ ] Test criteria',
+          acceptance_criteria: ['Test criteria'],
         })
         .set('Content-Type', 'application/json');
 
@@ -152,7 +152,7 @@ describe('Tasks API Routes', () => {
         .post(`/api/projects/${projectId}/tasks`)
         .send({
           title: 'Task for GET test',
-          acceptance_criteria: '- [ ] GET test criteria',
+          acceptance_criteria: ['GET test criteria'],
         })
         .set('Content-Type', 'application/json');
       taskId = response.body.data.id;
@@ -182,7 +182,7 @@ describe('Tasks API Routes', () => {
         .post(`/api/projects/${projectId}/tasks`)
         .send({
           title: 'Task for PATCH test',
-          acceptance_criteria: '- [ ] PATCH test criteria',
+          acceptance_criteria: ['PATCH test criteria'],
         })
         .set('Content-Type', 'application/json');
       taskId = response.body.data.id;
@@ -227,7 +227,7 @@ describe('Tasks API Routes', () => {
         .post(`/api/projects/${projectId}/tasks`)
         .send({
           title: 'DoR Test Task',
-          acceptance_criteria: '- [ ] DoR test criteria',
+          acceptance_criteria: ['DoR test criteria'],
         })
         .set('Content-Type', 'application/json');
       taskId = response.body.data.id;
@@ -238,7 +238,7 @@ describe('Tasks API Routes', () => {
         .post(`/api/projects/${projectId}/tasks`)
         .send({
           title: 'Task with DoR fields',
-          acceptance_criteria: '- [ ] Unit tests pass\n- [ ] Integration tests pass',
+          acceptance_criteria: ['Unit tests pass', 'Integration tests pass'],
           scope_in: 'Backend API changes only',
           scope_out: 'Frontend UI, documentation',
           owner_user_id: 1,
@@ -247,8 +247,9 @@ describe('Tasks API Routes', () => {
         .set('Content-Type', 'application/json');
 
       expect(response.status).toBe(201);
+      // acceptance_criteria is stored as markdown format
       expect(response.body.data.acceptance_criteria).toBe(
-        '- [ ] Unit tests pass\n- [ ] Integration tests pass'
+        '- Unit tests pass\n- Integration tests pass'
       );
       expect(response.body.data.scope_in).toBe('Backend API changes only');
       expect(response.body.data.scope_out).toBe('Frontend UI, documentation');
@@ -261,7 +262,7 @@ describe('Tasks API Routes', () => {
         .post(`/api/projects/${projectId}/tasks`)
         .send({
           title: 'Task with default executor',
-          acceptance_criteria: '- [ ] Default executor test',
+          acceptance_criteria: ['Default executor test'],
         })
         .set('Content-Type', 'application/json');
 
@@ -274,7 +275,7 @@ describe('Tasks API Routes', () => {
         .post(`/api/projects/${projectId}/tasks`)
         .send({
           title: 'Human executed task',
-          acceptance_criteria: '- [ ] Human executor test',
+          acceptance_criteria: ['Human executor test'],
           executor_type: 'human',
         })
         .set('Content-Type', 'application/json');
@@ -369,7 +370,7 @@ describe('Tasks API Routes', () => {
       await request(app)
         .patch(`/api/tasks/${taskId}`)
         .send({
-          acceptance_criteria: '- [ ] Test criteria',
+          acceptance_criteria: ['Test criteria'],
           scope_in: 'Test scope in',
           scope_out: 'Test scope out',
           owner_user_id: 1,
@@ -395,7 +396,7 @@ describe('Tasks API Routes', () => {
         .post(`/api/projects/${projectId}/tasks`)
         .send({
           title: 'Task to Delete',
-          acceptance_criteria: '- [ ] Delete test criteria',
+          acceptance_criteria: ['Delete test criteria'],
         })
         .set('Content-Type', 'application/json');
       const taskId = createResponse.body.data.id;

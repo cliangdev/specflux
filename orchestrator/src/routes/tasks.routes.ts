@@ -153,13 +153,16 @@ router.post('/projects/:projectId/tasks', (req: Request, res: Response, next: Ne
       throw new ValidationError('title is required');
     }
 
-    if (
-      !acceptance_criteria ||
-      typeof acceptance_criteria !== 'string' ||
-      !acceptance_criteria.trim()
-    ) {
+    // Validate acceptance_criteria is a non-empty array of strings
+    if (!Array.isArray(acceptance_criteria) || acceptance_criteria.length === 0) {
+      throw new ValidationError('acceptance_criteria is required - provide at least one criterion');
+    }
+    const criteriaList = acceptance_criteria.filter(
+      (c): c is string => typeof c === 'string' && c.trim().length > 0
+    );
+    if (criteriaList.length === 0) {
       throw new ValidationError(
-        'acceptance_criteria is required - define what "done" means for this task'
+        'acceptance_criteria must contain at least one non-empty criterion'
       );
     }
 
@@ -173,8 +176,8 @@ router.post('/projects/:projectId/tasks', (req: Request, res: Response, next: Ne
         repo_name: repo_name as string | undefined,
         agent_name: agent_name as string | undefined,
         estimated_duration: estimated_duration as number | undefined,
-        // Definition of Ready (DoR) fields
-        acceptance_criteria: acceptance_criteria as string | undefined,
+        // Definition of Ready (DoR) fields - store as markdown for legacy compatibility
+        acceptance_criteria: criteriaList.map((c) => `- ${c}`).join('\n'),
         scope_in: scope_in as string | undefined,
         scope_out: scope_out as string | undefined,
         // Owner + Executor model
@@ -183,6 +186,11 @@ router.post('/projects/:projectId/tasks', (req: Request, res: Response, next: Ne
       },
       userId
     );
+
+    // Create individual criterion records in the AcceptanceCriterion table
+    for (const text of criteriaList) {
+      createCriterion('task', task.id, { text: text.trim() });
+    }
 
     res.status(201).json({ success: true, data: task });
   } catch (error) {
