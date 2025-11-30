@@ -454,7 +454,7 @@ tasks-id-agent:
 
   put:
     summary: Control agent
-    description: Start, pause, resume, or stop the agent for a task
+    description: Start or stop the agent for a task
     operationId: controlTaskAgent
     tags:
       - Tasks
@@ -474,7 +474,7 @@ tasks-id-agent:
             properties:
               action:
                 type: string
-                enum: [start, pause, resume, stop]
+                enum: [start, stop]
                 description: Agent control action
               cols:
                 type: integer

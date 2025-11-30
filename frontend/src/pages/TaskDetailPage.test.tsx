@@ -19,14 +19,11 @@ vi.mock("../api", () => ({
   },
   ControlTaskAgentRequestActionEnum: {
     Start: "start",
-    Pause: "pause",
-    Resume: "resume",
     Stop: "stop",
   },
   AgentStatusStatusEnum: {
     Idle: "idle",
     Running: "running",
-    Paused: "paused",
     Stopped: "stopped",
     Completed: "completed",
     Failed: "failed",
@@ -223,7 +220,7 @@ describe("TaskDetailPage", () => {
     expect(screen.getByText("Task not found")).toBeInTheDocument();
   });
 
-  it("shows Pause and Stop buttons when agent is running", async () => {
+  it("shows Stop button when agent is running", async () => {
     vi.mocked(api.tasks.getTaskAgentStatus).mockResolvedValue({
       success: true,
       data: { ...mockAgentStatus, status: "running" },
@@ -232,8 +229,7 @@ describe("TaskDetailPage", () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText("Pause")).toBeInTheDocument();
-      expect(screen.getByText("Stop")).toBeInTheDocument();
+      expect(screen.getByText("Stop Agent")).toBeInTheDocument();
     });
   });
 

@@ -122,15 +122,6 @@ describe("TaskCard", () => {
     expect(screen.queryByTitle(/Blocked by/)).not.toBeInTheDocument();
   });
 
-  it("shows correct agent status for paused task", () => {
-    const pausedTask: Task = {
-      ...mockTask,
-      agentStatus: TaskAgentStatusEnum.Paused,
-    };
-    render(<TaskCard task={pausedTask} />);
-    expect(screen.getByTitle("Paused")).toBeInTheDocument();
-  });
-
   it("shows correct agent status for failed task", () => {
     const failedTask: Task = {
       ...mockTask,

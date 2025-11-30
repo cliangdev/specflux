@@ -38,15 +38,15 @@ router.get('/tasks/:id/agent', (req: Request, res: Response, next: NextFunction)
 
 /**
  * PUT /api/tasks/:id/agent
- * Control agent for a task (start, pause, resume, stop)
+ * Control agent for a task (start, stop)
  */
 router.put('/tasks/:id/agent', (req: Request, res: Response, next: NextFunction) => {
   try {
     const taskId = parseInt(req.params['id'] ?? '0', 10);
     const { action, cols, rows } = req.body as { action?: string; cols?: number; rows?: number };
 
-    if (!action || !['start', 'pause', 'resume', 'stop'].includes(action)) {
-      throw new ValidationError('Invalid action. Must be one of: start, pause, resume, stop');
+    if (!action || !['start', 'stop'].includes(action)) {
+      throw new ValidationError('Invalid action. Must be one of: start, stop');
     }
 
     // Verify task exists
@@ -73,16 +73,6 @@ router.put('/tasks/:id/agent', (req: Request, res: Response, next: NextFunction)
 
       case 'stop':
         stopAgent(taskId);
-        result = getAgentStatus(taskId);
-        res.json({
-          success: true,
-          data: result,
-        });
-        return;
-
-      case 'pause':
-      case 'resume':
-        // Pause/resume not yet implemented - just return current status
         result = getAgentStatus(taskId);
         res.json({
           success: true,

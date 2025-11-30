@@ -36,16 +36,6 @@ const AGENT_STATUS_CONFIG: Record<
     color: "text-brand-500",
     label: "Running",
   },
-  paused: {
-    icon: (
-      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
-        <rect x="6" y="4" width="4" height="16" rx="1" />
-        <rect x="14" y="4" width="4" height="16" rx="1" />
-      </svg>
-    ),
-    color: "text-amber-500 dark:text-amber-400",
-    label: "Paused",
-  },
   stopped: {
     icon: (
       <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">

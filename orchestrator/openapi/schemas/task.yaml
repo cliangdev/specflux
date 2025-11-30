@@ -23,7 +23,7 @@ Task:
       nullable: true
     agent_status:
       type: string
-      enum: [idle, running, paused, stopped, completed, failed]
+      enum: [idle, running, stopped, completed, failed]
       nullable: true
     progress_percentage:
       type: integer
@@ -226,7 +226,7 @@ AgentStatus:
       type: integer
     status:
       type: string
-      enum: [idle, running, paused, stopped, completed, failed]
+      enum: [idle, running, stopped, completed, failed]
     pid:
       type: integer
       nullable: true

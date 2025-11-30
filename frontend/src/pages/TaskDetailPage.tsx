@@ -53,11 +53,6 @@ const AGENT_STATUS_CONFIG: Record<
       "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
     dot: true,
   },
-  paused: {
-    label: "Paused",
-    classes:
-      "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800",
-  },
   stopped: {
     label: "Stopped",
     classes:
@@ -473,7 +468,6 @@ export default function TaskDetailPage() {
   const isAgentRunning =
     agentStatus?.status === AgentStatusStatusEnum.Running ||
     (isTerminalShowingThisTask && terminalIsRunning);
-  const isAgentPaused = agentStatus?.status === AgentStatusStatusEnum.Paused;
   const isAgentIdle =
     !agentStatus ||
     agentStatus.status === AgentStatusStatusEnum.Idle ||
@@ -682,56 +676,15 @@ export default function TaskDetailPage() {
                   </button>
                 )}
                 {isAgentRunning && (
-                  <>
-                    <button
-                      onClick={() =>
-                        handleAgentAction(
-                          ControlTaskAgentRequestActionEnum.Pause,
-                        )
-                      }
-                      disabled={actionLoading}
-                      className="btn btn-secondary flex-1 text-sm disabled:opacity-50"
-                    >
-                      Pause
-                    </button>
-                    <button
-                      onClick={() =>
-                        handleAgentAction(
-                          ControlTaskAgentRequestActionEnum.Stop,
-                        )
-                      }
-                      disabled={actionLoading}
-                      className="btn btn-danger text-sm disabled:opacity-50"
-                    >
-                      Stop
-                    </button>
-                  </>
-                )}
-                {isAgentPaused && (
-                  <>
-                    <button
-                      onClick={() =>
-                        handleAgentAction(
-                          ControlTaskAgentRequestActionEnum.Resume,
-                        )
-                      }
-                      disabled={actionLoading}
-                      className="btn btn-secondary flex-1 text-sm disabled:opacity-50"
-                    >
-                      Resume
-                    </button>
-                    <button
-                      onClick={() =>
-                        handleAgentAction(
-                          ControlTaskAgentRequestActionEnum.Stop,
-                        )
-                      }
-                      disabled={actionLoading}
-                      className="btn btn-danger text-sm disabled:opacity-50"
-                    >
-                      Stop
-                    </button>
-                  </>
+                  <button
+                    onClick={() =>
+                      handleAgentAction(ControlTaskAgentRequestActionEnum.Stop)
+                    }
+                    disabled={actionLoading}
+                    className="btn btn-danger flex-1 text-sm disabled:opacity-50"
+                  >
+                    Stop Agent
+                  </button>
                 )}
               </div>
 

@@ -58,6 +58,7 @@ export default function TaskCreateModal({
         epicId: epicId,
         assignedAgentId: assignedAgentId ?? undefined,
         executorType: assignedAgentId ? "agent" : undefined,
+        acceptanceCriteria: "",
       };
 
       await api.tasks.createTask({
