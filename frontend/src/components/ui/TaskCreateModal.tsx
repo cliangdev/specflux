@@ -1,6 +1,11 @@
 import { useState, useEffect, type FormEvent } from "react";
-import { api, type CreateTaskRequest, type Epic, type Agent } from "../../api";
+import { api, type CreateTaskRequest, type Epic } from "../../api";
 import { AgentSelector } from "../tasks";
+
+interface CriterionInput {
+  id: string; // Local ID for key prop
+  text: string;
+}
 
 interface TaskCreateModalProps {
   projectId: number;
@@ -19,6 +24,9 @@ export default function TaskCreateModal({
   const [description, setDescription] = useState("");
   const [epicId, setEpicId] = useState<number | undefined>(defaultEpicId);
   const [assignedAgentId, setAssignedAgentId] = useState<number | null>(null);
+  const [criteria, setCriteria] = useState<CriterionInput[]>([
+    { id: crypto.randomUUID(), text: "" },
+  ]);
   const [epics, setEpics] = useState<Epic[]>([]);
   const [loadingEpics, setLoadingEpics] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -43,8 +51,14 @@ export default function TaskCreateModal({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
+    const validCriteria = criteria.filter((c) => c.text.trim());
     if (!title.trim()) {
       setError("Title is required");
+      return;
+    }
+
+    if (validCriteria.length === 0) {
+      setError("At least one acceptance criterion is required");
       return;
     }
 
@@ -60,10 +74,23 @@ export default function TaskCreateModal({
         executorType: assignedAgentId ? "agent" : undefined,
       };
 
-      await api.tasks.createTask({
+      const response = await api.tasks.createTask({
         id: projectId,
         createTaskRequest: request,
       });
+
+      // Create acceptance criteria for the new task
+      const taskId = response.data?.id;
+      if (taskId) {
+        await Promise.all(
+          validCriteria.map((c) =>
+            api.tasks.createTaskCriterion({
+              id: taskId,
+              createCriterionRequest: { text: c.text.trim() },
+            }),
+          ),
+        );
+      }
 
       onCreated();
       onClose();
@@ -156,6 +183,70 @@ export default function TaskCreateModal({
             </div>
 
             <div>
+              <label className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1">
+                Acceptance Criteria <span className="text-red-500">*</span>
+              </label>
+              <div className="space-y-2">
+                {criteria.map((criterion, index) => (
+                  <div key={criterion.id} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={criterion.text}
+                      onChange={(e) => {
+                        const updated = [...criteria];
+                        updated[index] = { ...criterion, text: e.target.value };
+                        setCriteria(updated);
+                      }}
+                      placeholder={`Criterion ${index + 1}`}
+                      className="input flex-1"
+                    />
+                    {criteria.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCriteria(
+                            criteria.filter((c) => c.id !== criterion.id),
+                          )
+                        }
+                        className="p-2 text-system-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                        title="Remove criterion"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCriteria([
+                      ...criteria,
+                      { id: crypto.randomUUID(), text: "" },
+                    ])
+                  }
+                  className="text-sm text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 font-medium"
+                >
+                  + Add another criterion
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-system-500 dark:text-system-400">
+                Define what needs to be true for this task to be complete
+              </p>
+            </div>
+
+            <div>
               <label
                 htmlFor="epic"
                 className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
@@ -210,7 +301,11 @@ export default function TaskCreateModal({
             </button>
             <button
               type="submit"
-              disabled={submitting || !title.trim()}
+              disabled={
+                submitting ||
+                !title.trim() ||
+                !criteria.some((c) => c.text.trim())
+              }
               className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting && (
