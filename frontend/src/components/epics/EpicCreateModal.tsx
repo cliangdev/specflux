@@ -1,6 +1,11 @@
 import { useState, type FormEvent } from "react";
 import { api, type CreateEpicRequest } from "../../api";
 
+interface CriterionInput {
+  id: string;
+  text: string;
+}
+
 interface EpicCreateModalProps {
   projectId: number;
   releaseId?: number;
@@ -17,14 +22,24 @@ export default function EpicCreateModal({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [prdFilePath, setPrdFilePath] = useState("");
+  const [criteria, setCriteria] = useState<CriterionInput[]>([
+    { id: crypto.randomUUID(), text: "" },
+  ]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
+    const validCriteria = criteria.filter((c) => c.text.trim());
+
     if (!title.trim()) {
       setError("Title is required");
+      return;
+    }
+
+    if (validCriteria.length === 0) {
+      setError("At least one acceptance criterion is required");
       return;
     }
 
@@ -37,6 +52,7 @@ export default function EpicCreateModal({
         description: description.trim() || undefined,
         prdFilePath: prdFilePath.trim() || undefined,
         releaseId: releaseId ?? undefined,
+        acceptanceCriteria: validCriteria.map((c) => c.text.trim()),
       };
 
       await api.epics.createEpic({
@@ -135,6 +151,70 @@ export default function EpicCreateModal({
             </div>
 
             <div>
+              <label className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1">
+                Acceptance Criteria <span className="text-red-500">*</span>
+              </label>
+              <div className="space-y-2">
+                {criteria.map((criterion, index) => (
+                  <div key={criterion.id} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={criterion.text}
+                      onChange={(e) => {
+                        const updated = [...criteria];
+                        updated[index] = { ...criterion, text: e.target.value };
+                        setCriteria(updated);
+                      }}
+                      placeholder={`Criterion ${index + 1}`}
+                      className="input flex-1"
+                    />
+                    {criteria.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCriteria(
+                            criteria.filter((c) => c.id !== criterion.id),
+                          )
+                        }
+                        className="p-2 text-system-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                        title="Remove criterion"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCriteria([
+                      ...criteria,
+                      { id: crypto.randomUUID(), text: "" },
+                    ])
+                  }
+                  className="text-sm text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 font-medium"
+                >
+                  + Add another criterion
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-system-500 dark:text-system-400">
+                Define what needs to be true for this epic to be complete
+              </p>
+            </div>
+
+            <div>
               <label
                 htmlFor="prdFilePath"
                 className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
@@ -166,7 +246,11 @@ export default function EpicCreateModal({
             </button>
             <button
               type="submit"
-              disabled={submitting || !title.trim()}
+              disabled={
+                submitting ||
+                !title.trim() ||
+                !criteria.some((c) => c.text.trim())
+              }
               className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting && (

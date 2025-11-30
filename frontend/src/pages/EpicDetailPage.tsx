@@ -1,78 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { api, type Epic, type Task } from "../api";
+import { api, getApiErrorMessage, type Epic, type Task } from "../api";
 import type { AcceptanceCriterion } from "../api/generated";
 import { ProgressBar, TaskCreateModal } from "../components/ui";
-import { EpicEditModal } from "../components/epics";
+import { EpicDetailHeader, EpicEditModal } from "../components/epics";
 import { AcceptanceCriteriaList } from "../components/ui/AcceptanceCriteriaList";
-
-// Epic status badge configuration
-const EPIC_STATUS_CONFIG: Record<
-  string,
-  { label: string; icon: JSX.Element; classes: string }
-> = {
-  planning: {
-    label: "Planning",
-    icon: (
-      <svg
-        className="w-3.5 h-3.5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <circle cx="12" cy="12" r="10" strokeDasharray="4 2" />
-      </svg>
-    ),
-    classes:
-      "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
-  },
-  active: {
-    label: "Active",
-    icon: (
-      <svg
-        className="w-3.5 h-3.5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-        />
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-        />
-      </svg>
-    ),
-    classes:
-      "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 border-brand-200 dark:border-brand-800",
-  },
-  completed: {
-    label: "Completed",
-    icon: (
-      <svg
-        className="w-3.5 h-3.5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-        />
-      </svg>
-    ),
-    classes:
-      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
-  },
-};
 
 // Task status badge configuration
 const TASK_STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
@@ -120,6 +52,7 @@ export default function EpicDetailPage() {
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [allEpics, setAllEpics] = useState<Epic[]>([]);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchEpicData = useCallback(async () => {
     if (!id) return;
@@ -174,6 +107,60 @@ export default function EpicDetailPage() {
     fetchCriteria();
   }, [fetchEpicData, fetchCriteria]);
 
+  // Handle status change
+  const handleStatusChange = async (newStatus: string) => {
+    if (!epic) return;
+
+    try {
+      await api.epics.updateEpic({
+        id: epic.id,
+        updateEpicRequest: {
+          status: newStatus as "planning" | "active" | "completed",
+        },
+      });
+      fetchEpicData();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to update status";
+      setError(message);
+      console.error("Failed to update status:", err);
+    }
+  };
+
+  // Handle title change
+  const handleTitleChange = async (newTitle: string) => {
+    if (!epic) return;
+
+    try {
+      await api.epics.updateEpic({
+        id: epic.id,
+        updateEpicRequest: { title: newTitle },
+      });
+      fetchEpicData();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to update title";
+      setError(message);
+      console.error("Failed to update title:", err);
+    }
+  };
+
+  // Handle epic deletion
+  const handleDelete = async () => {
+    if (!epic) return;
+
+    try {
+      setDeleting(true);
+      await api.epics.deleteEpic({ id: epic.id });
+      navigate("/epics");
+    } catch (err) {
+      const message = await getApiErrorMessage(err, "Failed to delete epic");
+      setError(message);
+      console.error("Failed to delete epic:", err);
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -227,8 +214,6 @@ export default function EpicDetailPage() {
     );
   }
 
-  const statusConfig =
-    EPIC_STATUS_CONFIG[epic.status] || EPIC_STATUS_CONFIG.planning;
   const taskStats = epic.taskStats || { total: 0, done: 0, inProgress: 0 };
   const progressPercent = epic.progressPercentage ?? 0;
   const remaining =
@@ -239,63 +224,14 @@ export default function EpicDetailPage() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <button onClick={() => navigate(-1)} className="btn btn-ghost">
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M10 19l-7-7m0 0l7-7m-7 7h18"
-            />
-          </svg>
-          Back
-        </button>
-      </div>
-
-      {/* Epic Title and ID */}
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <span className="text-sm font-mono text-system-500 dark:text-system-400">
-              Epic #{epic.id}
-            </span>
-            <span
-              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusConfig.classes}`}
-            >
-              {statusConfig.icon}
-              {statusConfig.label}
-            </span>
-          </div>
-          <h1 className="text-2xl font-semibold text-system-900 dark:text-white">
-            {epic.title}
-          </h1>
-        </div>
-        <button
-          onClick={() => setShowEditModal(true)}
-          className="btn btn-secondary"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-            />
-          </svg>
-          Edit
-        </button>
-      </div>
+      <EpicDetailHeader
+        epic={epic}
+        onStatusChange={handleStatusChange}
+        onTitleChange={handleTitleChange}
+        onDelete={handleDelete}
+        onBack={() => navigate(-1)}
+        deleting={deleting}
+      />
 
       {/* Progress Summary Card */}
       <div className="card p-6 mb-6">

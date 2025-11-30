@@ -311,6 +311,11 @@ export function deleteEpic(id: number): void {
   // Unlink tasks from this epic (don't delete them)
   db.prepare('UPDATE tasks SET epic_id = NULL WHERE epic_id = ?').run(id);
 
+  // Delete acceptance criteria (no cascade delete on schema)
+  db.prepare("DELETE FROM acceptance_criteria WHERE entity_type = 'epic' AND entity_id = ?").run(
+    id
+  );
+
   db.prepare('DELETE FROM epics WHERE id = ?').run(id);
 }
 

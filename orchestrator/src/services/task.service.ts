@@ -409,6 +409,10 @@ export function deleteTask(id: number): void {
     throw new NotFoundError('Task', id);
   }
 
+  // Delete acceptance criteria first (no cascade delete on schema)
+  db.prepare("DELETE FROM acceptance_criteria WHERE entity_type = 'task' AND entity_id = ?").run(
+    id
+  );
   db.prepare('DELETE FROM tasks WHERE id = ?').run(id);
 }
 
