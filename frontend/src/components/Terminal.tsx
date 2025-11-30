@@ -88,6 +88,8 @@ export function Terminal({
   const [running, setRunning] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  // Track if user has scrolled away from the bottom (to disable auto-scroll)
+  const userScrolledRef = useRef(false);
 
   // Use refs for callbacks to avoid reconnection loops
   const runningRef = useRef(running);
@@ -212,13 +214,42 @@ export function Terminal({
     xtermRef.current = term;
     fitAddonRef.current = fitAddon;
 
+    // Track user scroll to disable auto-scroll when user scrolls up
+    // Reset userScrolledRef when component mounts
+    userScrolledRef.current = false;
+
+    const scrollHandler = term.onScroll(() => {
+      // Check if user is at the bottom of the terminal
+      // buffer.baseY is the number of lines scrolled back (0 = at bottom)
+      // buffer.viewportY is the current viewport position
+      const buffer = term.buffer.active;
+      const isAtBottom = buffer.baseY === buffer.viewportY;
+      userScrolledRef.current = !isAtBottom;
+    });
+
     // Handle resize - use ResizeObserver for container size changes
     const handleResize = () => {
       // Use requestAnimationFrame to batch resize operations
       requestAnimationFrame(() => {
         if (!terminalRef.current || !fitAddon) return;
         try {
+          // Preserve scroll position before fit
+          const buffer = term.buffer.active;
+          const wasAtBottom = buffer.baseY === buffer.viewportY;
+          const viewportY = buffer.viewportY;
+
           fitAddon.fit();
+
+          // Restore scroll position after fit (unless user was at bottom)
+          if (!wasAtBottom && !userScrolledRef.current) {
+            // User was scrolled up - try to restore their position
+            term.scrollToLine(viewportY);
+          } else if (userScrolledRef.current) {
+            // User has explicitly scrolled - maintain their scroll position
+            term.scrollToLine(viewportY);
+          }
+          // If user was at bottom, let xterm.js handle it naturally
+
           onDimensionsReadyRef.current?.({ cols: term.cols, rows: term.rows });
           if (wsRef.current?.readyState === WebSocket.OPEN) {
             wsRef.current.send(
@@ -246,6 +277,7 @@ export function Terminal({
 
     // Cleanup
     return () => {
+      scrollHandler.dispose();
       resizeObserver.disconnect();
       window.removeEventListener("resize", handleResize);
       webglAddon?.dispose();
@@ -293,8 +325,18 @@ export function Terminal({
 
           case "output":
             if (msg.data) {
-              // Write data directly - backend handles filtering
+              // Preserve scroll position if user has scrolled away from bottom
+              const buffer = term.buffer.active;
+              const wasScrolledUp = userScrolledRef.current;
+              const viewportY = buffer.viewportY;
+
+              // Write data - xterm.js will auto-scroll to bottom by default
               term.write(msg.data);
+
+              // If user had scrolled up, restore their position
+              if (wasScrolledUp) {
+                term.scrollToLine(viewportY);
+              }
             }
             break;
 

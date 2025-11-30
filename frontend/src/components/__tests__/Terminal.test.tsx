@@ -10,9 +10,17 @@ vi.mock("@xterm/xterm", () => ({
     writeln: vi.fn(),
     clear: vi.fn(),
     onData: vi.fn(() => ({ dispose: vi.fn() })),
+    onScroll: vi.fn(() => ({ dispose: vi.fn() })),
+    scrollToLine: vi.fn(),
     dispose: vi.fn(),
     cols: 80,
     rows: 24,
+    buffer: {
+      active: {
+        baseY: 0,
+        viewportY: 0,
+      },
+    },
   })),
 }));
 
