@@ -229,10 +229,7 @@ export function KanbanBoard({
         </h1>
         <div className="flex items-center gap-2">
           {onTaskCreate && (
-            <button
-              onClick={onTaskCreate}
-              className="bg-brand-600 hover:bg-brand-700 text-white px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-2 shadow-sm"
-            >
+            <button onClick={onTaskCreate} className="btn btn-primary">
               <svg
                 className="w-4 h-4"
                 fill="none"
@@ -246,7 +243,7 @@ export function KanbanBoard({
                   d="M12 4v16m8-8H4"
                 />
               </svg>
-              New Task
+              Create Task
             </button>
           )}
         </div>
