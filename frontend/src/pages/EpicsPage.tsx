@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useProject } from "../contexts";
 import { api, type Epic, type Release } from "../api";
 import { EpicStatusEnum } from "../api/generated";
@@ -18,18 +19,56 @@ const STATUS_OPTIONS = [
 
 export default function EpicsPage() {
   const { currentProject } = useProject();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [epics, setEpics] = useState<Epic[]>([]);
   const [releases, setReleases] = useState<Release[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState("");
-  const [releaseFilter, setReleaseFilter] = useState<string>("");
-  const [searchQuery, setSearchQuery] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     return saved === "cards" || saved === "graph" ? saved : "cards";
   });
+
+  // Read filters from URL params
+  const statusFilter = searchParams.get("status") || "";
+  const releaseFilter = searchParams.get("release") || "";
+  const searchQuery = searchParams.get("q") || "";
+
+  // Setter functions that update URL params
+  const setStatusFilter = (status: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (status === "") {
+      newParams.delete("status");
+    } else {
+      newParams.set("status", status);
+    }
+    setSearchParams(newParams);
+  };
+
+  const setReleaseFilter = (release: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (release === "") {
+      newParams.delete("release");
+    } else {
+      newParams.set("release", release);
+    }
+    setSearchParams(newParams);
+  };
+
+  const setSearchQuery = (query: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (query === "") {
+      newParams.delete("q");
+    } else {
+      newParams.set("q", query);
+    }
+    setSearchParams(newParams);
+  };
+
+  const clearFilters = () => {
+    setSearchParams(new URLSearchParams());
+  };
 
   // Persist view mode to localStorage
   useEffect(() => {
@@ -281,11 +320,7 @@ export default function EpicsPage() {
             Showing {filteredEpics.length} of {epics.length} epics
           </span>
           <button
-            onClick={() => {
-              setStatusFilter("");
-              setReleaseFilter("");
-              setSearchQuery("");
-            }}
+            onClick={clearFilters}
             className="text-brand-600 dark:text-brand-400 hover:underline"
           >
             Clear filters
