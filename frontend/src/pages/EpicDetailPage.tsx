@@ -228,6 +228,7 @@ export default function EpicDetailPage() {
         epic={epic}
         onStatusChange={handleStatusChange}
         onTitleChange={handleTitleChange}
+        onEdit={() => setShowEditModal(true)}
         onDelete={handleDelete}
         onBack={() => navigate(-1)}
         deleting={deleting}
