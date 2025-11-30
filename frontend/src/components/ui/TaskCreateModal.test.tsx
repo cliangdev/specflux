@@ -158,7 +158,6 @@ describe("TaskCreateModal", () => {
           epicId: undefined,
           assignedAgentId: undefined,
           executorType: undefined,
-          acceptanceCriteria: "",
         },
       });
     });
@@ -208,7 +207,6 @@ describe("TaskCreateModal", () => {
           epicId: 2,
           assignedAgentId: undefined,
           executorType: undefined,
-          acceptanceCriteria: "",
         },
       });
     });
