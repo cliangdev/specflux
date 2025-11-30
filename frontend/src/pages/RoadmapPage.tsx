@@ -480,15 +480,20 @@ export default function RoadmapPage() {
   const { currentProject } = useProject();
   const [searchParams, setSearchParams] = useSearchParams();
   const [releases, setReleases] = useState<Release[]>([]);
-  const [selectedReleaseId, setSelectedReleaseId] = useState<number | null>(
-    null,
-  );
+  // "all" means show all releases, number means specific release
+  const [selectedReleaseId, setSelectedReleaseId] = useState<
+    number | "all" | null
+  >(null);
   const [roadmapData, setRoadmapData] = useState<ReleaseWithEpics | null>(null);
+  const [allRoadmapData, setAllRoadmapData] = useState<ReleaseWithEpics[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingEpic, setEditingEpic] = useState<Epic | null>(null);
   const [showCreateRelease, setShowCreateRelease] = useState(false);
   const [showCreateEpic, setShowCreateEpic] = useState(false);
+  const [createEpicReleaseId, setCreateEpicReleaseId] = useState<number | null>(
+    null,
+  );
 
   // Filter state from URL params
   const statusFilter = searchParams.get("status") || "all";
@@ -531,9 +536,9 @@ export default function RoadmapPage() {
       const releaseList = response.data ?? [];
       setReleases(releaseList);
 
-      // Auto-select first release if none selected
-      if (releaseList.length > 0 && !selectedReleaseId) {
-        setSelectedReleaseId(releaseList[0].id);
+      // Auto-select "all" if none selected and releases exist
+      if (releaseList.length > 0 && selectedReleaseId === null) {
+        setSelectedReleaseId("all");
       }
     } catch (err) {
       const message =
@@ -545,33 +550,50 @@ export default function RoadmapPage() {
     }
   }, [currentProject, selectedReleaseId]);
 
-  // Fetch roadmap data for selected release
+  // Fetch roadmap data for selected release(s)
   const fetchRoadmap = useCallback(async () => {
-    if (!selectedReleaseId) {
+    if (selectedReleaseId === null) {
       setRoadmapData(null);
+      setAllRoadmapData([]);
       return;
     }
 
     try {
       setError(null);
-      const response = await api.releases.getReleaseRoadmap({
-        id: selectedReleaseId,
-      });
-      setRoadmapData(response.data ?? null);
+
+      if (selectedReleaseId === "all") {
+        // Fetch roadmap for all releases
+        const roadmapPromises = releases.map((release) =>
+          api.releases.getReleaseRoadmap({ id: release.id }),
+        );
+        const responses = await Promise.all(roadmapPromises);
+        const allData = responses
+          .map((r) => r.data)
+          .filter((d): d is ReleaseWithEpics => d !== null && d !== undefined);
+        setAllRoadmapData(allData);
+        setRoadmapData(null);
+      } else {
+        // Fetch roadmap for single release
+        const response = await api.releases.getReleaseRoadmap({
+          id: selectedReleaseId,
+        });
+        setRoadmapData(response.data ?? null);
+        setAllRoadmapData([]);
+      }
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to load roadmap";
       setError(message);
       console.error("Failed to fetch roadmap:", err);
     }
-  }, [selectedReleaseId]);
+  }, [selectedReleaseId, releases]);
 
   useEffect(() => {
     fetchReleases();
   }, [fetchReleases]);
 
   useEffect(() => {
-    if (selectedReleaseId) {
+    if (selectedReleaseId !== null) {
       fetchRoadmap();
     }
   }, [selectedReleaseId, fetchRoadmap]);
@@ -581,32 +603,35 @@ export default function RoadmapPage() {
     fetchRoadmap();
   };
 
-  // Filter epics based on status and search query
-  const filteredEpics = useMemo(() => {
-    if (!roadmapData?.epics) return [];
-
-    return roadmapData.epics.filter((epic) => {
-      // Status filter
-      if (statusFilter !== "all" && epic.status !== statusFilter) {
-        return false;
-      }
-
-      // Search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const matchesTitle = epic.title.toLowerCase().includes(query);
-        const matchesDescription = epic.description
-          ?.toLowerCase()
-          .includes(query);
-        const matchesId = epic.id.toString().includes(query);
-        if (!matchesTitle && !matchesDescription && !matchesId) {
+  // Helper to filter epics
+  const filterEpics = useCallback(
+    (epics: Epic[]) => {
+      return epics.filter((epic) => {
+        if (statusFilter !== "all" && epic.status !== statusFilter) {
           return false;
         }
-      }
+        if (searchQuery) {
+          const query = searchQuery.toLowerCase();
+          const matchesTitle = epic.title.toLowerCase().includes(query);
+          const matchesDescription = epic.description
+            ?.toLowerCase()
+            .includes(query);
+          const matchesId = epic.id.toString().includes(query);
+          if (!matchesTitle && !matchesDescription && !matchesId) {
+            return false;
+          }
+        }
+        return true;
+      });
+    },
+    [statusFilter, searchQuery],
+  );
 
-      return true;
-    });
-  }, [roadmapData?.epics, statusFilter, searchQuery]);
+  // Filter epics based on status and search query (single release view)
+  const filteredEpics = useMemo(() => {
+    if (!roadmapData?.epics) return [];
+    return filterEpics(roadmapData.epics);
+  }, [roadmapData?.epics, filterEpics]);
 
   // Compute filtered phases (only phases containing filtered epics)
   const filteredPhases = useMemo(() => {
@@ -622,9 +647,33 @@ export default function RoadmapPage() {
       .filter((phase) => phase.epicIds.length > 0);
   }, [roadmapData?.phases, filteredEpics]);
 
-  const totalEpicsCount = roadmapData?.epics.length ?? 0;
-  const filteredEpicsCount = filteredEpics.length;
   const hasActiveFilters = statusFilter !== "all" || searchQuery !== "";
+
+  // Filter data for all releases view
+  const filteredAllRoadmapData = useMemo(() => {
+    return allRoadmapData
+      .map((rd) => {
+        const epics = filterEpics(rd.epics);
+        const epicIds = new Set(epics.map((e) => e.id));
+        const phases = rd.phases
+          .map((phase) => ({
+            ...phase,
+            epicIds: phase.epicIds.filter((id) => epicIds.has(id)),
+          }))
+          .filter((phase) => phase.epicIds.length > 0);
+        return { ...rd, epics, phases };
+      })
+      .filter((rd) => rd.epics.length > 0 || !hasActiveFilters);
+  }, [allRoadmapData, filterEpics, hasActiveFilters]);
+
+  const totalEpicsCount =
+    selectedReleaseId === "all"
+      ? allRoadmapData.reduce((sum, rd) => sum + rd.epics.length, 0)
+      : (roadmapData?.epics.length ?? 0);
+  const filteredEpicsCount =
+    selectedReleaseId === "all"
+      ? filteredAllRoadmapData.reduce((sum, rd) => sum + rd.epics.length, 0)
+      : filteredEpics.length;
 
   if (!currentProject) {
     return (
@@ -650,13 +699,19 @@ export default function RoadmapPage() {
           {releases.length > 0 && (
             <select
               value={selectedReleaseId ?? ""}
-              onChange={(e) =>
-                setSelectedReleaseId(
-                  e.target.value ? Number(e.target.value) : null,
-                )
-              }
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "all") {
+                  setSelectedReleaseId("all");
+                } else if (val) {
+                  setSelectedReleaseId(Number(val));
+                } else {
+                  setSelectedReleaseId(null);
+                }
+              }}
               className="select w-[200px]"
             >
+              <option value="all">All Releases</option>
               {releases.map((release) => (
                 <option key={release.id} value={release.id}>
                   {release.name}
@@ -762,6 +817,126 @@ export default function RoadmapPage() {
             Create Release
           </button>
         </div>
+      ) : selectedReleaseId === "all" && allRoadmapData.length > 0 ? (
+        <>
+          {/* Filter controls for all releases view */}
+          {totalEpicsCount > 0 && (
+            <div className="flex items-center gap-4 mb-6">
+              <div className="relative flex-1 max-w-xs">
+                <svg
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-system-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search epics..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="input pl-10 w-full"
+                />
+              </div>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="select"
+              >
+                <option value="all">All Statuses</option>
+                <option value="planning">Planning</option>
+                <option value="active">Active</option>
+                <option value="completed">Completed</option>
+              </select>
+              <div className="text-sm text-system-500 dark:text-system-400">
+                {hasActiveFilters ? (
+                  <>
+                    Showing {filteredEpicsCount} of {totalEpicsCount} epics
+                    <button
+                      onClick={() => setSearchParams(new URLSearchParams())}
+                      className="ml-2 text-brand-600 dark:text-brand-400 hover:underline"
+                    >
+                      Clear filters
+                    </button>
+                  </>
+                ) : (
+                  <>{totalEpicsCount} epics</>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* All releases view */}
+          <div className="space-y-8">
+            {filteredAllRoadmapData.map((rd) => (
+              <div key={rd.release.id}>
+                <ReleaseHeader release={rd.release} onUpdate={handleRefresh} />
+                {rd.phases.length === 0 && !hasActiveFilters ? (
+                  <div className="text-center py-8 card mt-4">
+                    <p className="text-system-500 dark:text-system-400">
+                      No epics in this release
+                    </p>
+                    <button
+                      onClick={() => {
+                        setCreateEpicReleaseId(rd.release.id);
+                        setShowCreateEpic(true);
+                      }}
+                      className="mt-2 btn btn-ghost text-sm"
+                    >
+                      Add Epic
+                    </button>
+                  </div>
+                ) : (
+                  rd.phases
+                    .sort((a, b) => a.phaseNumber - b.phaseNumber)
+                    .map((phase) => {
+                      const phaseEpics = rd.epics.filter((e) =>
+                        phase.epicIds.includes(e.id),
+                      );
+                      return (
+                        <PhaseSection
+                          key={`${rd.release.id}-${phase.phaseNumber}`}
+                          phaseNumber={phase.phaseNumber}
+                          status={
+                            phase.status as
+                              | "ready"
+                              | "in_progress"
+                              | "blocked"
+                              | "completed"
+                          }
+                          epics={phaseEpics}
+                          allEpics={rd.epics}
+                          completedCount={phase.completedCount}
+                          totalCount={phase.totalCount}
+                          onEditEpic={setEditingEpic}
+                        />
+                      );
+                    })
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Epic Edit Modal */}
+          {editingEpic && currentProject && (
+            <EpicEditModal
+              epic={editingEpic}
+              projectId={currentProject.id}
+              allEpics={allRoadmapData.flatMap((rd) => rd.epics)}
+              onClose={() => setEditingEpic(null)}
+              onUpdated={() => {
+                setEditingEpic(null);
+                fetchRoadmap();
+              }}
+            />
+          )}
+        </>
       ) : roadmapData ? (
         <>
           <ReleaseHeader
@@ -851,7 +1026,14 @@ export default function RoadmapPage() {
                 Add epics to start building your roadmap.
               </p>
               <button
-                onClick={() => setShowCreateEpic(true)}
+                onClick={() => {
+                  setCreateEpicReleaseId(
+                    typeof selectedReleaseId === "number"
+                      ? selectedReleaseId
+                      : null,
+                  );
+                  setShowCreateEpic(true);
+                }}
                 className="mt-4 btn btn-primary"
               >
                 <svg
@@ -957,13 +1139,17 @@ export default function RoadmapPage() {
       )}
 
       {/* Create Epic Modal */}
-      {showCreateEpic && currentProject && selectedReleaseId && (
+      {showCreateEpic && currentProject && createEpicReleaseId && (
         <EpicCreateModal
           projectId={currentProject.id}
-          releaseId={selectedReleaseId}
-          onClose={() => setShowCreateEpic(false)}
+          releaseId={createEpicReleaseId}
+          onClose={() => {
+            setShowCreateEpic(false);
+            setCreateEpicReleaseId(null);
+          }}
           onCreated={() => {
             setShowCreateEpic(false);
+            setCreateEpicReleaseId(null);
             fetchRoadmap();
           }}
         />
