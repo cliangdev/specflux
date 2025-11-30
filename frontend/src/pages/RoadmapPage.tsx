@@ -7,6 +7,35 @@ import { PhaseSection } from "../components/roadmap";
 import { EpicEditModal, EpicCreateModal } from "../components/epics";
 import { ReleaseCreateModal } from "../components/releases";
 
+const FILTERS_STORAGE_KEY = "specflux-roadmap-filters";
+
+interface RoadmapFilters {
+  selectedReleaseId: number | "all" | null;
+  status: string;
+  q: string;
+}
+
+function loadFilters(): RoadmapFilters {
+  try {
+    const stored = localStorage.getItem(FILTERS_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return {
+        selectedReleaseId: parsed.selectedReleaseId ?? "all",
+        status: parsed.status ?? "all",
+        q: parsed.q ?? "",
+      };
+    }
+  } catch {
+    // Invalid JSON, use defaults
+  }
+  return { selectedReleaseId: "all", status: "all", q: "" };
+}
+
+function saveFilters(filters: RoadmapFilters): void {
+  localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters));
+}
+
 function formatDate(date: Date | null | undefined): string {
   if (!date) return "No target date";
   return new Date(date).toLocaleDateString("en-US", {
@@ -480,10 +509,21 @@ export default function RoadmapPage() {
   const { currentProject } = useProject();
   const [searchParams, setSearchParams] = useSearchParams();
   const [releases, setReleases] = useState<Release[]>([]);
+
+  // Load initial filters from localStorage
+  const [initialFilters] = useState(loadFilters);
+
   // "all" means show all releases, number means specific release
   const [selectedReleaseId, setSelectedReleaseId] = useState<
     number | "all" | null
-  >(null);
+  >(() => {
+    // URL param takes priority, then localStorage
+    const urlRelease = searchParams.get("release");
+    if (urlRelease === "all") return "all";
+    if (urlRelease) return Number(urlRelease);
+    return initialFilters.selectedReleaseId;
+  });
+
   const [roadmapData, setRoadmapData] = useState<ReleaseWithEpics | null>(null);
   const [allRoadmapData, setAllRoadmapData] = useState<ReleaseWithEpics[]>([]);
   const [loading, setLoading] = useState(true);
@@ -495,29 +535,35 @@ export default function RoadmapPage() {
     null,
   );
 
-  // Filter state from URL params
-  const statusFilter = searchParams.get("status") || "all";
-  const searchQuery = searchParams.get("q") || "";
+  // Filter state - initialize from URL params first, then localStorage
+  const [statusFilter, setStatusFilter] = useState(
+    () => searchParams.get("status") || initialFilters.status,
+  );
+  const [searchQuery, setSearchQuery] = useState(
+    () => searchParams.get("q") || initialFilters.q,
+  );
 
-  const setStatusFilter = (status: string) => {
-    const newParams = new URLSearchParams(searchParams);
-    if (status === "all") {
-      newParams.delete("status");
-    } else {
-      newParams.set("status", status);
-    }
-    setSearchParams(newParams);
-  };
+  // Persist filters to localStorage
+  useEffect(() => {
+    saveFilters({
+      selectedReleaseId,
+      status: statusFilter,
+      q: searchQuery,
+    });
+  }, [selectedReleaseId, statusFilter, searchQuery]);
 
-  const setSearchQuery = (query: string) => {
-    const newParams = new URLSearchParams(searchParams);
-    if (!query) {
-      newParams.delete("q");
-    } else {
-      newParams.set("q", query);
+  // Sync URL params with filter state
+  useEffect(() => {
+    const newParams = new URLSearchParams();
+    if (selectedReleaseId !== null && selectedReleaseId !== "all") {
+      newParams.set("release", String(selectedReleaseId));
+    } else if (selectedReleaseId === "all") {
+      newParams.set("release", "all");
     }
-    setSearchParams(newParams);
-  };
+    if (statusFilter !== "all") newParams.set("status", statusFilter);
+    if (searchQuery) newParams.set("q", searchQuery);
+    setSearchParams(newParams, { replace: true });
+  }, [selectedReleaseId, statusFilter, searchQuery, setSearchParams]);
 
   // Fetch all releases for the project
   const fetchReleases = useCallback(async () => {
