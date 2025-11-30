@@ -339,7 +339,14 @@ export function createTask(
       input.assigned_agent_id ?? null
     );
 
-  return getTaskById(result.lastInsertRowid as number)!;
+  const newTask = getTaskById(result.lastInsertRowid as number)!;
+
+  // Update epic status if task belongs to an epic
+  if (input.epic_id) {
+    updateEpicStatusFromTasks(input.epic_id);
+  }
+
+  return newTask;
 }
 
 /**
@@ -395,7 +402,19 @@ export function updateTask(id: number, input: UpdateTaskInput): Task {
     db.prepare(`UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`).run(...values, id);
   }
 
-  return getTaskById(id)!;
+  const updatedTask = getTaskById(id)!;
+
+  // Update epic status if task belongs to an epic (check both old and new epic_id)
+  const epicId = updatedTask.epic_id ?? task.epic_id;
+  if (epicId) {
+    updateEpicStatusFromTasks(epicId);
+  }
+  // If epic_id changed, also update the old epic
+  if (input.epic_id !== undefined && task.epic_id && task.epic_id !== input.epic_id) {
+    updateEpicStatusFromTasks(task.epic_id);
+  }
+
+  return updatedTask;
 }
 
 /**
@@ -409,11 +428,18 @@ export function deleteTask(id: number): void {
     throw new NotFoundError('Task', id);
   }
 
+  const epicId = task.epic_id;
+
   // Delete acceptance criteria first (no cascade delete on schema)
   db.prepare("DELETE FROM acceptance_criteria WHERE entity_type = 'task' AND entity_id = ?").run(
     id
   );
   db.prepare('DELETE FROM tasks WHERE id = ?').run(id);
+
+  // Update epic status after task deletion
+  if (epicId) {
+    updateEpicStatusFromTasks(epicId);
+  }
 }
 
 /**
@@ -581,7 +607,14 @@ export function submitTaskReview(
     unblockDependentTasks(taskId);
   }
 
-  return getTaskById(taskId)!;
+  const updatedTask = getTaskById(taskId)!;
+
+  // Update epic status after review
+  if (updatedTask.epic_id) {
+    updateEpicStatusFromTasks(updatedTask.epic_id);
+  }
+
+  return updatedTask;
 }
 
 /**
@@ -641,4 +674,51 @@ export function isTaskBlocked(taskId: number): boolean {
     .get(taskId) as { count: number };
 
   return blockingDeps.count > 0;
+}
+
+/**
+ * Auto-update epic status based on its tasks' progress
+ * Called after task status changes
+ */
+export function updateEpicStatusFromTasks(epicId: number): void {
+  const db = getDatabase();
+
+  // Get task stats for the epic
+  const stats = db
+    .prepare(
+      `
+      SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN status IN ('done', 'approved') THEN 1 ELSE 0 END) as done,
+        SUM(CASE WHEN status IN ('in_progress', 'pending_review') THEN 1 ELSE 0 END) as in_progress
+      FROM tasks
+      WHERE epic_id = ?
+    `
+    )
+    .get(epicId) as { total: number; done: number; in_progress: number };
+
+  // Determine new epic status
+  let newStatus: string;
+
+  if (stats.total === 0) {
+    // No tasks - keep as planning
+    newStatus = 'planning';
+  } else if (stats.done === stats.total) {
+    // All tasks done
+    newStatus = 'completed';
+  } else if (stats.in_progress > 0 || stats.done > 0) {
+    // Some work in progress or started
+    newStatus = 'active';
+  } else {
+    // All tasks are backlog/ready
+    newStatus = 'planning';
+  }
+
+  // Update epic status
+  db.prepare(
+    `
+    UPDATE epics SET status = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ? AND status != ?
+  `
+  ).run(newStatus, epicId, newStatus);
 }
