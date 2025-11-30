@@ -10,7 +10,16 @@ vi.mock("../../api", () => ({
     epics: {
       listEpics: vi.fn(),
     },
+    agents: {
+      projectsIdAgentsGet: vi.fn(),
+    },
   },
+  getApiErrorMessage: vi.fn().mockImplementation(async (error: unknown) => {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    return "An unexpected error occurred";
+  }),
 }));
 
 import { api } from "../../api";
@@ -48,7 +57,22 @@ describe("TaskCreateModal", () => {
       success: true,
       data: mockEpics,
     });
+    // Default mock for agents
+    vi.mocked(api.agents.projectsIdAgentsGet).mockResolvedValue({
+      success: true,
+      data: [],
+    });
   });
+
+  // Helper to fill in required fields
+  function fillRequiredFields() {
+    fireEvent.change(screen.getByLabelText(/Title/), {
+      target: { value: "Test Task" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Criterion 1"), {
+      target: { value: "Test criterion" },
+    });
+  }
 
   function renderModal(defaultEpicId?: number) {
     return render(
@@ -70,6 +94,8 @@ describe("TaskCreateModal", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText(/Title/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Description/)).toBeInTheDocument();
+    expect(screen.getByText(/Acceptance Criteria/)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Criterion 1")).toBeInTheDocument();
     expect(screen.getByLabelText(/Epic/)).toBeInTheDocument();
 
     // Wait for epics to load
@@ -123,6 +149,17 @@ describe("TaskCreateModal", () => {
     expect(submitButton).toBeDisabled();
   });
 
+  it("disables submit button when no criteria are filled", () => {
+    renderModal();
+
+    fireEvent.change(screen.getByLabelText(/Title/), {
+      target: { value: "Test Task" },
+    });
+
+    const submitButton = screen.getByRole("button", { name: /Create Task/i });
+    expect(submitButton).toBeDisabled();
+  });
+
   it("submits form without epic and calls callbacks on success", async () => {
     vi.mocked(api.tasks.createTask).mockResolvedValue({
       success: true,
@@ -147,6 +184,9 @@ describe("TaskCreateModal", () => {
     fireEvent.change(screen.getByLabelText(/Description/), {
       target: { value: "Test description" },
     });
+    fireEvent.change(screen.getByPlaceholderText("Criterion 1"), {
+      target: { value: "Test criterion" },
+    });
     fireEvent.click(screen.getByRole("button", { name: /Create Task/i }));
 
     await waitFor(() => {
@@ -155,7 +195,10 @@ describe("TaskCreateModal", () => {
         createTaskRequest: {
           title: "Test Task",
           description: "Test description",
+          acceptanceCriteria: ["Test criterion"],
           epicId: undefined,
+          assignedAgentId: undefined,
+          executorType: undefined,
         },
       });
     });
@@ -191,6 +234,9 @@ describe("TaskCreateModal", () => {
     fireEvent.change(screen.getByLabelText(/Title/), {
       target: { value: "Test Task" },
     });
+    fireEvent.change(screen.getByPlaceholderText("Criterion 1"), {
+      target: { value: "Test criterion" },
+    });
     fireEvent.change(screen.getByLabelText(/Epic/), {
       target: { value: "2" },
     });
@@ -202,7 +248,10 @@ describe("TaskCreateModal", () => {
         createTaskRequest: {
           title: "Test Task",
           description: undefined,
+          acceptanceCriteria: ["Test criterion"],
           epicId: 2,
+          assignedAgentId: undefined,
+          executorType: undefined,
         },
       });
     });
@@ -215,9 +264,7 @@ describe("TaskCreateModal", () => {
 
     renderModal();
 
-    fireEvent.change(screen.getByLabelText(/Title/), {
-      target: { value: "Test Task" },
-    });
+    fillRequiredFields();
     fireEvent.click(screen.getByRole("button", { name: /Create Task/i }));
 
     await waitFor(() => {
@@ -228,15 +275,48 @@ describe("TaskCreateModal", () => {
     expect(mockOnClose).not.toHaveBeenCalled();
   });
 
-  it("enables submit button when title is filled", () => {
+  it("enables submit button when title and criteria are filled", () => {
     renderModal();
 
-    fireEvent.change(screen.getByLabelText(/Title/), {
-      target: { value: "Test" },
-    });
+    fillRequiredFields();
 
     const submitButton = screen.getByRole("button", { name: /Create Task/i });
     expect(submitButton).not.toBeDisabled();
+  });
+
+  it("allows adding multiple criteria", () => {
+    renderModal();
+
+    // Initially has one criterion input
+    expect(screen.getByPlaceholderText("Criterion 1")).toBeInTheDocument();
+
+    // Click add another
+    fireEvent.click(screen.getByText("+ Add another criterion"));
+
+    // Now has two
+    expect(screen.getByPlaceholderText("Criterion 1")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Criterion 2")).toBeInTheDocument();
+  });
+
+  it("allows removing criteria when more than one exists", () => {
+    renderModal();
+
+    // Add another criterion
+    fireEvent.click(screen.getByText("+ Add another criterion"));
+    expect(screen.getByPlaceholderText("Criterion 2")).toBeInTheDocument();
+
+    // Remove button should be visible for each criterion
+    const removeButtons = screen.getAllByTitle("Remove criterion");
+    expect(removeButtons).toHaveLength(2);
+
+    // Remove second criterion
+    fireEvent.click(removeButtons[1]);
+
+    // Only first criterion should remain
+    expect(screen.getByPlaceholderText("Criterion 1")).toBeInTheDocument();
+    expect(
+      screen.queryByPlaceholderText("Criterion 2"),
+    ).not.toBeInTheDocument();
   });
 
   it("handles epic fetch failure gracefully", async () => {

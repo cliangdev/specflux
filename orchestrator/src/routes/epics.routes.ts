@@ -68,10 +68,24 @@ router.post('/projects/:projectId/epics', (req: Request, res: Response, next: Ne
       release_id,
       depends_on,
       target_date,
+      acceptance_criteria,
     } = body;
 
     if (!title || typeof title !== 'string') {
       throw new ValidationError('title is required');
+    }
+
+    // Validate acceptance_criteria is a non-empty array of strings
+    if (!Array.isArray(acceptance_criteria) || acceptance_criteria.length === 0) {
+      throw new ValidationError('acceptance_criteria is required - provide at least one criterion');
+    }
+    const criteriaList = acceptance_criteria.filter(
+      (c): c is string => typeof c === 'string' && c.trim().length > 0
+    );
+    if (criteriaList.length === 0) {
+      throw new ValidationError(
+        'acceptance_criteria must contain at least one non-empty criterion'
+      );
     }
 
     const epic = createEpic(
@@ -88,6 +102,11 @@ router.post('/projects/:projectId/epics', (req: Request, res: Response, next: Ne
       },
       req.userId!
     );
+
+    // Create individual criterion records in the AcceptanceCriterion table
+    for (const text of criteriaList) {
+      createCriterion('epic', epic.id, { text: text.trim() });
+    }
 
     res.status(201).json({ success: true, data: epic });
   } catch (error) {
