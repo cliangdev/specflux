@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useProject } from "../contexts";
 import { useSearchParams } from "react-router-dom";
 import { api, type Release, type ReleaseWithEpics, type Epic } from "../api";
+import { UpdateReleaseRequestStatusEnum } from "../api/generated";
 import { PhaseSection } from "../components/roadmap";
 import { EpicEditModal, EpicCreateModal } from "../components/epics";
 import { ReleaseCreateModal } from "../components/releases";
@@ -108,39 +109,349 @@ function RoadmapSkeleton() {
 
 interface ReleaseHeaderProps {
   release: Release;
+  onUpdate: () => void;
 }
 
-function ReleaseHeader({ release }: ReleaseHeaderProps) {
+const RELEASE_STATUSES = [
+  { value: "planned", label: "Planned" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "released", label: "Released" },
+] as const;
+
+function ReleaseHeader({ release, onUpdate }: ReleaseHeaderProps) {
   const statusBadge = getReleaseStatusBadge(release.status);
   const progress = release.progressPercentage ?? 0;
+
+  // Editing state
+  const [editingName, setEditingName] = useState(false);
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [editingDate, setEditingDate] = useState(false);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+
+  // Form values
+  const [nameValue, setNameValue] = useState(release.name);
+  const [descriptionValue, setDescriptionValue] = useState(
+    release.description ?? "",
+  );
+  const [dateValue, setDateValue] = useState(
+    release.targetDate
+      ? new Date(release.targetDate).toISOString().split("T")[0]
+      : "",
+  );
+
+  // Refs
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
+  const dateInputRef = useRef<HTMLInputElement>(null);
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Sync values when release prop changes
+  useEffect(() => {
+    setNameValue(release.name);
+    setDescriptionValue(release.description ?? "");
+    setDateValue(
+      release.targetDate
+        ? new Date(release.targetDate).toISOString().split("T")[0]
+        : "",
+    );
+  }, [release]);
+
+  // Focus inputs when editing starts
+  useEffect(() => {
+    if (editingName && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
+    }
+  }, [editingName]);
+
+  useEffect(() => {
+    if (editingDescription && descriptionInputRef.current) {
+      descriptionInputRef.current.focus();
+    }
+  }, [editingDescription]);
+
+  useEffect(() => {
+    if (editingDate && dateInputRef.current) {
+      dateInputRef.current.focus();
+    }
+  }, [editingDate]);
+
+  // Close status dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        statusDropdownRef.current &&
+        !statusDropdownRef.current.contains(event.target as Node)
+      ) {
+        setStatusDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Update handlers
+  const handleNameSave = async () => {
+    const trimmed = nameValue.trim();
+    if (trimmed && trimmed !== release.name) {
+      try {
+        await api.releases.updateRelease({
+          id: release.id,
+          updateReleaseRequest: { name: trimmed },
+        });
+        onUpdate();
+      } catch (err) {
+        console.error("Failed to update release name:", err);
+        setNameValue(release.name);
+      }
+    } else {
+      setNameValue(release.name);
+    }
+    setEditingName(false);
+  };
+
+  const handleDescriptionSave = async () => {
+    const trimmed = descriptionValue.trim();
+    if (trimmed !== (release.description ?? "")) {
+      try {
+        await api.releases.updateRelease({
+          id: release.id,
+          updateReleaseRequest: { description: trimmed || null },
+        });
+        onUpdate();
+      } catch (err) {
+        console.error("Failed to update release description:", err);
+        setDescriptionValue(release.description ?? "");
+      }
+    }
+    setEditingDescription(false);
+  };
+
+  const handleDateSave = async () => {
+    const newDate = dateValue ? new Date(dateValue) : null;
+    const currentDate = release.targetDate
+      ? new Date(release.targetDate).toISOString().split("T")[0]
+      : "";
+
+    if (dateValue !== currentDate) {
+      try {
+        await api.releases.updateRelease({
+          id: release.id,
+          updateReleaseRequest: { targetDate: newDate },
+        });
+        onUpdate();
+      } catch (err) {
+        console.error("Failed to update release date:", err);
+        setDateValue(
+          release.targetDate
+            ? new Date(release.targetDate).toISOString().split("T")[0]
+            : "",
+        );
+      }
+    }
+    setEditingDate(false);
+  };
+
+  const handleStatusChange = async (
+    newStatus: UpdateReleaseRequestStatusEnum,
+  ) => {
+    if (newStatus !== release.status) {
+      try {
+        await api.releases.updateRelease({
+          id: release.id,
+          updateReleaseRequest: { status: newStatus },
+        });
+        onUpdate();
+      } catch (err) {
+        console.error("Failed to update release status:", err);
+      }
+    }
+    setStatusDropdownOpen(false);
+  };
+
+  const handleKeyDown = (
+    e: React.KeyboardEvent,
+    saveHandler: () => void,
+    cancelHandler: () => void,
+  ) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      saveHandler();
+    } else if (e.key === "Escape") {
+      cancelHandler();
+    }
+  };
 
   return (
     <div className="card mb-6 p-5">
       <div className="flex items-start justify-between mb-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl font-semibold text-system-900 dark:text-white">
-              {release.name}
-            </h2>
-            <span
-              className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusBadge.className}`}
-            >
-              {statusBadge.label}
-            </span>
+        <div className="flex-1 min-w-0 mr-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Editable Name */}
+            {editingName ? (
+              <input
+                ref={nameInputRef}
+                type="text"
+                value={nameValue}
+                onChange={(e) => setNameValue(e.target.value)}
+                onBlur={handleNameSave}
+                onKeyDown={(e) =>
+                  handleKeyDown(e, handleNameSave, () => {
+                    setNameValue(release.name);
+                    setEditingName(false);
+                  })
+                }
+                className="text-xl font-semibold text-system-900 dark:text-white bg-transparent border-b-2 border-brand-500 outline-none min-w-[200px]"
+              />
+            ) : (
+              <h2
+                onClick={() => setEditingName(true)}
+                className="text-xl font-semibold text-system-900 dark:text-white cursor-pointer hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+                title="Click to edit"
+              >
+                {release.name}
+              </h2>
+            )}
+
+            {/* Status Dropdown */}
+            <div className="relative" ref={statusDropdownRef}>
+              <button
+                onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${statusBadge.className} hover:opacity-80 transition-opacity cursor-pointer`}
+                title="Click to change status"
+              >
+                {statusBadge.label}
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </button>
+              {statusDropdownOpen && (
+                <div className="absolute z-50 mt-1 w-36 bg-white dark:bg-system-800 rounded-lg shadow-lg border border-system-200 dark:border-system-700 py-1">
+                  {RELEASE_STATUSES.map((status) => {
+                    const isSelected = release.status === status.value;
+                    return (
+                      <button
+                        key={status.value}
+                        onClick={() =>
+                          handleStatusChange(
+                            status.value as UpdateReleaseRequestStatusEnum,
+                          )
+                        }
+                        className={`w-full flex items-center justify-between px-3 py-2 text-sm text-left hover:bg-system-100 dark:hover:bg-system-700 ${
+                          isSelected ? "bg-system-100 dark:bg-system-700" : ""
+                        }`}
+                      >
+                        <span
+                          className={
+                            isSelected
+                              ? "font-medium text-system-900 dark:text-white"
+                              : "text-system-700 dark:text-system-300"
+                          }
+                        >
+                          {status.label}
+                        </span>
+                        {isSelected && (
+                          <svg
+                            className="w-4 h-4 text-brand-600 dark:text-brand-400"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
-          {release.description && (
-            <p className="text-system-600 dark:text-system-400 mt-1">
-              {release.description}
+
+          {/* Editable Description */}
+          {editingDescription ? (
+            <textarea
+              ref={descriptionInputRef}
+              value={descriptionValue}
+              onChange={(e) => setDescriptionValue(e.target.value)}
+              onBlur={handleDescriptionSave}
+              onKeyDown={(e) =>
+                handleKeyDown(e, handleDescriptionSave, () => {
+                  setDescriptionValue(release.description ?? "");
+                  setEditingDescription(false);
+                })
+              }
+              placeholder="Add a description..."
+              className="mt-2 w-full text-system-600 dark:text-system-400 bg-transparent border border-brand-500 rounded-md p-2 outline-none resize-none"
+              rows={2}
+            />
+          ) : (
+            <p
+              onClick={() => setEditingDescription(true)}
+              className={`mt-1 cursor-pointer hover:text-brand-600 dark:hover:text-brand-400 transition-colors ${
+                release.description
+                  ? "text-system-600 dark:text-system-400"
+                  : "text-system-400 dark:text-system-500 italic"
+              }`}
+              title="Click to edit"
+            >
+              {release.description || "Add a description..."}
             </p>
           )}
         </div>
-        <div className="text-right">
+
+        {/* Editable Target Date */}
+        <div className="text-right flex-shrink-0">
           <div className="text-sm text-system-500 dark:text-system-400">
             Target Date
           </div>
-          <div className="font-medium text-system-900 dark:text-white">
-            {formatDate(release.targetDate)}
-          </div>
+          {editingDate ? (
+            <input
+              ref={dateInputRef}
+              type="date"
+              value={dateValue}
+              onChange={(e) => setDateValue(e.target.value)}
+              onBlur={handleDateSave}
+              onKeyDown={(e) =>
+                handleKeyDown(e, handleDateSave, () => {
+                  setDateValue(
+                    release.targetDate
+                      ? new Date(release.targetDate).toISOString().split("T")[0]
+                      : "",
+                  );
+                  setEditingDate(false);
+                })
+              }
+              className="font-medium text-system-900 dark:text-white bg-transparent border-b-2 border-brand-500 outline-none"
+            />
+          ) : (
+            <div
+              onClick={() => setEditingDate(true)}
+              className={`font-medium cursor-pointer hover:text-brand-600 dark:hover:text-brand-400 transition-colors ${
+                release.targetDate
+                  ? "text-system-900 dark:text-white"
+                  : "text-system-400 dark:text-system-500 italic"
+              }`}
+              title="Click to edit"
+            >
+              {formatDate(release.targetDate)}
+            </div>
+          )}
         </div>
       </div>
 
@@ -453,7 +764,10 @@ export default function RoadmapPage() {
         </div>
       ) : roadmapData ? (
         <>
-          <ReleaseHeader release={roadmapData.release} />
+          <ReleaseHeader
+            release={roadmapData.release}
+            onUpdate={handleRefresh}
+          />
 
           {/* Filter controls */}
           {totalEpicsCount > 0 && (
