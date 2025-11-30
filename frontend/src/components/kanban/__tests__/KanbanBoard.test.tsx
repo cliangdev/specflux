@@ -140,12 +140,12 @@ describe("KanbanBoard", () => {
     });
   });
 
-  it("renders New Task button when onTaskCreate provided", async () => {
+  it("renders Create Task button when onTaskCreate provided", async () => {
     const handleCreate = vi.fn();
     render(<KanbanBoard projectId={1} onTaskCreate={handleCreate} />);
 
     await waitFor(() => {
-      expect(screen.getByText("New Task")).toBeInTheDocument();
+      expect(screen.getByText("Create Task")).toBeInTheDocument();
     });
   });
 

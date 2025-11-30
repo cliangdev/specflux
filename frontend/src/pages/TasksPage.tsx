@@ -7,7 +7,7 @@ import {
   ListTasksSortEnum,
   ListTasksOrderEnum,
 } from "../api/generated";
-import { TaskCreateModal, Pagination, ProgressBar } from "../components/ui";
+import { TaskCreateModal, Pagination } from "../components/ui";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
@@ -510,13 +510,6 @@ export default function TasksPage() {
                   Repository
                 </th>
                 <SortableHeader
-                  label="Progress"
-                  field={ListTasksSortEnum.ProgressPercentage}
-                  currentSort={sortField}
-                  currentOrder={sortOrder}
-                  onSort={handleSort}
-                />
-                <SortableHeader
                   label="Created"
                   field={ListTasksSortEnum.CreatedAt}
                   currentSort={sortField}
@@ -550,13 +543,6 @@ export default function TasksPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-system-500 dark:text-system-400">
                     {task.repoName || "-"}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <ProgressBar
-                      percent={task.progressPercentage}
-                      showLabel
-                      className="w-28"
-                    />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-system-500 dark:text-system-400">
                     {new Date(task.createdAt).toLocaleDateString()}

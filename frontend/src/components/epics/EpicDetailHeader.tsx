@@ -1,36 +1,13 @@
 import { useState, useRef, useEffect } from "react";
-import { Link } from "react-router-dom";
-import type { Task, Epic, Agent } from "../../api/generated";
-import AgentSelector from "./AgentSelector";
+import type { Epic } from "../../api/generated";
 
 // Status configuration
 const STATUS_CONFIG: Record<
   string,
   { label: string; icon: JSX.Element; classes: string; dropdownClasses: string }
 > = {
-  backlog: {
-    label: "Backlog",
-    icon: (
-      <svg
-        className="w-3.5 h-3.5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-        />
-      </svg>
-    ),
-    classes:
-      "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
-    dropdownClasses: "hover:bg-slate-100 dark:hover:bg-slate-800",
-  },
-  ready: {
-    label: "Ready",
+  planning: {
+    label: "Planning",
     icon: (
       <svg
         className="w-3.5 h-3.5"
@@ -46,8 +23,8 @@ const STATUS_CONFIG: Record<
       "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
     dropdownClasses: "hover:bg-slate-100 dark:hover:bg-slate-800",
   },
-  in_progress: {
-    label: "In Progress",
+  active: {
+    label: "Active",
     icon: (
       <svg
         className="w-3.5 h-3.5"
@@ -59,7 +36,12 @@ const STATUS_CONFIG: Record<
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
-          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+          d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
         />
       </svg>
     ),
@@ -67,55 +49,8 @@ const STATUS_CONFIG: Record<
       "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 border-brand-200 dark:border-brand-800",
     dropdownClasses: "hover:bg-brand-50 dark:hover:bg-brand-900/20",
   },
-  pending_review: {
-    label: "Pending Review",
-    icon: (
-      <svg
-        className="w-3.5 h-3.5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-        />
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-        />
-      </svg>
-    ),
-    classes:
-      "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800",
-    dropdownClasses: "hover:bg-amber-50 dark:hover:bg-amber-900/20",
-  },
-  approved: {
-    label: "Approved",
-    icon: (
-      <svg
-        className="w-3.5 h-3.5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-        />
-      </svg>
-    ),
-    classes:
-      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
-    dropdownClasses: "hover:bg-emerald-50 dark:hover:bg-emerald-900/20",
-  },
-  done: {
-    label: "Done",
+  completed: {
+    label: "Completed",
     icon: (
       <svg
         className="w-3.5 h-3.5"
@@ -137,40 +72,29 @@ const STATUS_CONFIG: Record<
   },
 };
 
-const STATUSES = [
-  "backlog",
-  "ready",
-  "in_progress",
-  "pending_review",
-  "approved",
-  "done",
-] as const;
+const STATUSES = ["planning", "active", "completed"] as const;
 
-interface TaskDetailHeaderProps {
-  task: Task;
-  epic?: Epic | null;
+interface EpicDetailHeaderProps {
+  epic: Epic;
   onStatusChange: (status: string) => void;
-  onAgentChange: (agentId: number | null, agent: Agent | null) => void;
   onTitleChange: (title: string) => void;
   onDelete: () => void;
   onBack: () => void;
   deleting?: boolean;
 }
 
-export default function TaskDetailHeader({
-  task,
+export default function EpicDetailHeader({
   epic,
   onStatusChange,
-  onAgentChange,
   onTitleChange,
   onDelete,
   onBack,
   deleting = false,
-}: TaskDetailHeaderProps) {
+}: EpicDetailHeaderProps) {
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
-  const [titleValue, setTitleValue] = useState(task.title);
+  const [titleValue, setTitleValue] = useState(epic.title);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
@@ -196,17 +120,17 @@ export default function TaskDetailHeader({
     }
   }, [editingTitle]);
 
-  // Sync title value when task changes
+  // Sync title value when epic changes
   useEffect(() => {
-    setTitleValue(task.title);
-  }, [task.title]);
+    setTitleValue(epic.title);
+  }, [epic.title]);
 
   const handleTitleSave = () => {
     const trimmed = titleValue.trim();
-    if (trimmed && trimmed !== task.title) {
+    if (trimmed && trimmed !== epic.title) {
       onTitleChange(trimmed);
     } else {
-      setTitleValue(task.title);
+      setTitleValue(epic.title);
     }
     setEditingTitle(false);
   };
@@ -215,16 +139,16 @@ export default function TaskDetailHeader({
     if (e.key === "Enter") {
       handleTitleSave();
     } else if (e.key === "Escape") {
-      setTitleValue(task.title);
+      setTitleValue(epic.title);
       setEditingTitle(false);
     }
   };
 
-  const currentStatus = STATUS_CONFIG[task.status] || STATUS_CONFIG.backlog;
+  const currentStatus = STATUS_CONFIG[epic.status] || STATUS_CONFIG.planning;
 
   return (
     <div className="space-y-3 mb-4">
-      {/* Row 1: Back, ID, Title, Actions */}
+      {/* Row 1: Back, ID, Title, Delete */}
       <div className="flex items-center gap-3">
         <button
           onClick={onBack}
@@ -247,7 +171,7 @@ export default function TaskDetailHeader({
         </button>
         <div className="h-6 w-px bg-system-200 dark:bg-system-700 flex-shrink-0" />
         <span className="text-system-500 dark:text-system-400 text-sm font-mono flex-shrink-0">
-          #{task.id}
+          #{epic.id}
         </span>
         {editingTitle ? (
           <input
@@ -265,7 +189,7 @@ export default function TaskDetailHeader({
             className="text-xl font-semibold text-system-900 dark:text-white truncate flex-1 min-w-0 cursor-pointer hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
             title="Click to edit"
           >
-            {task.title}
+            {epic.title}
           </h1>
         )}
         <button
@@ -289,7 +213,7 @@ export default function TaskDetailHeader({
         </button>
       </div>
 
-      {/* Row 2: Status Dropdown, Epic, Owner/Executor */}
+      {/* Row 2: Status Dropdown, Parent Epic */}
       <div className="flex items-center gap-4 flex-wrap">
         {/* Status Dropdown */}
         <div className="relative" ref={dropdownRef}>
@@ -317,7 +241,7 @@ export default function TaskDetailHeader({
             <div className="absolute z-50 mt-1 w-44 bg-white dark:bg-system-800 rounded-lg shadow-lg border border-system-200 dark:border-system-700 py-1">
               {STATUSES.map((status) => {
                 const config = STATUS_CONFIG[status];
-                const isSelected = task.status === status;
+                const isSelected = epic.status === status;
                 return (
                   <button
                     key={status}
@@ -368,45 +292,6 @@ export default function TaskDetailHeader({
             </div>
           )}
         </div>
-
-        {/* Epic Link */}
-        {epic && (
-          <Link
-            to={`/epics/${epic.id}`}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-sm rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors"
-          >
-            <svg
-              className="w-3.5 h-3.5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-              />
-            </svg>
-            {epic.title}
-          </Link>
-        )}
-
-        {/* Separator */}
-        <div className="h-5 w-px bg-system-200 dark:bg-system-700" />
-
-        {/* Agent Selector */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-sm text-system-500 dark:text-system-400">
-            Agent:
-          </span>
-          <AgentSelector
-            projectId={task.projectId}
-            selectedAgentId={task.assignedAgentId}
-            onChange={onAgentChange}
-            variant="inline"
-          />
-        </div>
       </div>
 
       {/* Delete Confirmation Modal */}
@@ -420,16 +305,17 @@ export default function TaskDetailHeader({
           <div className="relative bg-white dark:bg-system-800 rounded-lg shadow-xl w-full max-w-md mx-4 border border-system-200 dark:border-system-700">
             <div className="px-6 py-4 border-b border-system-200 dark:border-system-700">
               <h2 className="text-lg font-semibold text-system-900 dark:text-white">
-                Delete Task
+                Delete Epic
               </h2>
             </div>
             <div className="px-6 py-4">
               <p className="text-system-600 dark:text-system-300">
                 Are you sure you want to delete{" "}
                 <span className="font-medium text-system-900 dark:text-white">
-                  {task.title}
+                  {epic.title}
                 </span>
-                ? This action cannot be undone.
+                ? This action cannot be undone. Tasks linked to this epic will
+                be unlinked but not deleted.
               </p>
             </div>
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-system-200 dark:border-system-700">
