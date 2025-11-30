@@ -325,11 +325,24 @@ export function getReleaseRoadmap(
     const completedCount = phaseEpics.filter((e) => e.status === 'completed').length;
     const totalCount = phaseEpics.length;
 
+    // Check if any epic has work in progress (tasks done or in progress)
+    const hasWorkInProgress = phaseEpics.some(
+      (e) =>
+        e.status === 'active' ||
+        e.task_stats.in_progress > 0 ||
+        (e.task_stats.done > 0 && e.task_stats.done < e.task_stats.total)
+    );
+
+    // Check if any epic has all tasks done (even if status is still 'planning')
+    const hasEpicWithAllTasksDone = phaseEpics.some(
+      (e) => e.task_stats.total > 0 && e.task_stats.done === e.task_stats.total
+    );
+
     // Determine phase status
     let status: ReleasePhase['status'] = 'blocked';
     if (completedCount === totalCount) {
       status = 'completed';
-    } else if (phaseEpics.some((e) => e.status === 'active')) {
+    } else if (hasWorkInProgress || hasEpicWithAllTasksDone) {
       status = 'in_progress';
     } else if (phaseNum === 1 || phases[phases.length - 1]?.status === 'completed') {
       status = 'ready';
