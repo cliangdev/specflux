@@ -8,7 +8,35 @@ import { EpicGraph } from "../components/roadmap";
 
 type ViewMode = "cards" | "graph";
 
-const STORAGE_KEY = "specflux-epics-view";
+const VIEW_STORAGE_KEY = "specflux-epics-view";
+const FILTERS_STORAGE_KEY = "specflux-epics-filters";
+
+interface EpicsFilters {
+  status: string;
+  release: string;
+  q: string;
+}
+
+function loadFilters(): EpicsFilters {
+  try {
+    const stored = localStorage.getItem(FILTERS_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return {
+        status: parsed.status ?? "",
+        release: parsed.release ?? "",
+        q: parsed.q ?? "",
+      };
+    }
+  } catch {
+    // Invalid JSON, use defaults
+  }
+  return { status: "", release: "", q: "" };
+}
+
+function saveFilters(filters: EpicsFilters): void {
+  localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters));
+}
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
@@ -26,54 +54,52 @@ export default function EpicsPage() {
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(VIEW_STORAGE_KEY);
     return saved === "cards" || saved === "graph" ? saved : "cards";
   });
 
-  // Read filters from URL params
-  const statusFilter = searchParams.get("status") || "";
-  const releaseFilter = searchParams.get("release") || "";
-  const searchQuery = searchParams.get("q") || "";
+  // Load initial filters from localStorage
+  const [initialFilters] = useState(loadFilters);
 
-  // Setter functions that update URL params
-  const setStatusFilter = (status: string) => {
-    const newParams = new URLSearchParams(searchParams);
-    if (status === "") {
-      newParams.delete("status");
-    } else {
-      newParams.set("status", status);
-    }
-    setSearchParams(newParams);
-  };
-
-  const setReleaseFilter = (release: string) => {
-    const newParams = new URLSearchParams(searchParams);
-    if (release === "") {
-      newParams.delete("release");
-    } else {
-      newParams.set("release", release);
-    }
-    setSearchParams(newParams);
-  };
-
-  const setSearchQuery = (query: string) => {
-    const newParams = new URLSearchParams(searchParams);
-    if (query === "") {
-      newParams.delete("q");
-    } else {
-      newParams.set("q", query);
-    }
-    setSearchParams(newParams);
-  };
+  // Filters - initialize from URL params first, then localStorage
+  const [statusFilter, setStatusFilter] = useState(
+    () => searchParams.get("status") || initialFilters.status,
+  );
+  const [releaseFilter, setReleaseFilter] = useState(
+    () => searchParams.get("release") || initialFilters.release,
+  );
+  const [searchQuery, setSearchQuery] = useState(
+    () => searchParams.get("q") || initialFilters.q,
+  );
 
   const clearFilters = () => {
-    setSearchParams(new URLSearchParams());
+    setStatusFilter("");
+    setReleaseFilter("");
+    setSearchQuery("");
   };
 
   // Persist view mode to localStorage
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, viewMode);
+    localStorage.setItem(VIEW_STORAGE_KEY, viewMode);
   }, [viewMode]);
+
+  // Persist filters to localStorage
+  useEffect(() => {
+    saveFilters({
+      status: statusFilter,
+      release: releaseFilter,
+      q: searchQuery,
+    });
+  }, [statusFilter, releaseFilter, searchQuery]);
+
+  // Sync URL params with filter state (for shareability)
+  useEffect(() => {
+    const newParams = new URLSearchParams();
+    if (statusFilter) newParams.set("status", statusFilter);
+    if (releaseFilter) newParams.set("release", releaseFilter);
+    if (searchQuery) newParams.set("q", searchQuery);
+    setSearchParams(newParams, { replace: true });
+  }, [statusFilter, releaseFilter, searchQuery, setSearchParams]);
 
   const fetchReleases = useCallback(async () => {
     if (!currentProject) return;
