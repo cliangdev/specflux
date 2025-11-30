@@ -411,7 +411,11 @@ export default function EpicsPage() {
           </p>
         </div>
       ) : viewMode === "graph" ? (
-        <EpicGraph epics={filteredEpics} className="flex-1 min-h-0" />
+        <EpicGraph
+          key={`${releaseFilter}-${statusFilter}-${searchQuery}`}
+          epics={filteredEpics}
+          className="flex-1 min-h-0"
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-auto">
           {filteredEpics.map((epic) => (
