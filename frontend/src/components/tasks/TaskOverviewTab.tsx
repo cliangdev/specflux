@@ -70,67 +70,6 @@ export default function TaskOverviewTab({
           />
         )}
       </div>
-
-      {/* Scope */}
-      <div className="grid grid-cols-2 gap-4">
-        {/* Scope In */}
-        <div>
-          <h3 className="text-sm font-semibold text-system-900 dark:text-white mb-2 flex items-center gap-1.5">
-            <svg
-              className="w-4 h-4 text-emerald-500"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
-            In Scope
-          </h3>
-          {task.scopeIn ? (
-            <div className="text-sm text-system-600 dark:text-system-300 whitespace-pre-wrap">
-              {task.scopeIn}
-            </div>
-          ) : (
-            <p className="text-sm text-system-400 dark:text-system-500 italic">
-              Not specified
-            </p>
-          )}
-        </div>
-
-        {/* Scope Out */}
-        <div>
-          <h3 className="text-sm font-semibold text-system-900 dark:text-white mb-2 flex items-center gap-1.5">
-            <svg
-              className="w-4 h-4 text-red-500"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-            Out of Scope
-          </h3>
-          {task.scopeOut ? (
-            <div className="text-sm text-system-600 dark:text-system-300 whitespace-pre-wrap">
-              {task.scopeOut}
-            </div>
-          ) : (
-            <p className="text-sm text-system-400 dark:text-system-500 italic">
-              Not specified
-            </p>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

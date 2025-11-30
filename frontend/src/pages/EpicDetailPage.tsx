@@ -457,9 +457,6 @@ export default function EpicDetailPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-system-500 dark:text-system-400 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-system-500 dark:text-system-400 uppercase tracking-wider">
-                    Progress
-                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-system-200 dark:divide-system-700">
@@ -489,13 +486,6 @@ export default function EpicDetailPage() {
                         >
                           {taskStatusConfig.label}
                         </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <ProgressBar
-                          percent={task.progressPercentage}
-                          showLabel
-                          className="w-24"
-                        />
                       </td>
                     </tr>
                   );
