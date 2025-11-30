@@ -16,13 +16,13 @@ export interface PhaseSectionProps {
 function getPhaseStatusColor(status: string): string {
   switch (status) {
     case "completed":
-      return "bg-semantic-success/20 text-semantic-success border-semantic-success/30";
+      return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800";
     case "in_progress":
-      return "bg-brand-500/20 text-brand-600 dark:text-brand-400 border-brand-500/30";
+      return "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 border-brand-200 dark:border-brand-800";
     case "blocked":
-      return "bg-semantic-warning/20 text-semantic-warning border-semantic-warning/30";
+      return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800";
     default:
-      return "bg-system-200 dark:bg-system-700 text-system-600 dark:text-system-400 border-system-300 dark:border-system-600";
+      return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700";
   }
 }
 
@@ -435,9 +435,9 @@ export function PhaseSection({
               <div
                 className={`h-full rounded-full transition-all duration-300 ${
                   status === "completed"
-                    ? "bg-semantic-success"
+                    ? "bg-emerald-500"
                     : status === "blocked"
-                      ? "bg-semantic-warning"
+                      ? "bg-amber-500"
                       : "bg-brand-500"
                 }`}
                 style={{

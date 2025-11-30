@@ -9,6 +9,42 @@ import {
 } from "../api/generated";
 import { TaskCreateModal, Pagination } from "../components/ui";
 
+const FILTERS_STORAGE_KEY = "specflux-tasks-filters";
+
+interface TasksFilters {
+  status: string;
+  epicId: number | undefined;
+  sortField: ListTasksSortEnum;
+  sortOrder: ListTasksOrderEnum;
+}
+
+function loadFilters(): TasksFilters {
+  try {
+    const stored = localStorage.getItem(FILTERS_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return {
+        status: parsed.status ?? "",
+        epicId: parsed.epicId ?? undefined,
+        sortField: parsed.sortField ?? ListTasksSortEnum.CreatedAt,
+        sortOrder: parsed.sortOrder ?? ListTasksOrderEnum.Desc,
+      };
+    }
+  } catch {
+    // Invalid JSON, use defaults
+  }
+  return {
+    status: "",
+    epicId: undefined,
+    sortField: ListTasksSortEnum.CreatedAt,
+    sortOrder: ListTasksOrderEnum.Desc,
+  };
+}
+
+function saveFilters(filters: TasksFilters): void {
+  localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters));
+}
+
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
   { value: "backlog", label: "Backlog" },
@@ -217,18 +253,33 @@ export default function TasksPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Load initial filters from localStorage
+  const [initialFilters] = useState(loadFilters);
+
   // Filters
-  const [statusFilter, setStatusFilter] = useState("");
-  const [epicFilter, setEpicFilter] = useState<number | undefined>(undefined);
+  const [statusFilter, setStatusFilter] = useState(initialFilters.status);
+  const [epicFilter, setEpicFilter] = useState<number | undefined>(
+    initialFilters.epicId,
+  );
   const [epics, setEpics] = useState<Epic[]>([]);
 
   // Sorting
   const [sortField, setSortField] = useState<ListTasksSortEnum>(
-    ListTasksSortEnum.CreatedAt,
+    initialFilters.sortField,
   );
   const [sortOrder, setSortOrder] = useState<ListTasksOrderEnum>(
-    ListTasksOrderEnum.Desc,
+    initialFilters.sortOrder,
   );
+
+  // Persist filters to localStorage
+  useEffect(() => {
+    saveFilters({
+      status: statusFilter,
+      epicId: epicFilter,
+      sortField,
+      sortOrder,
+    });
+  }, [statusFilter, epicFilter, sortField, sortOrder]);
 
   // Pagination
   const [pagination, setPagination] = useState({

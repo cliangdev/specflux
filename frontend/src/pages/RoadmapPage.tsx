@@ -1,10 +1,40 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useProject } from "../contexts";
 import { useSearchParams } from "react-router-dom";
 import { api, type Release, type ReleaseWithEpics, type Epic } from "../api";
+import { UpdateReleaseRequestStatusEnum } from "../api/generated";
 import { PhaseSection } from "../components/roadmap";
 import { EpicEditModal, EpicCreateModal } from "../components/epics";
 import { ReleaseCreateModal } from "../components/releases";
+
+const FILTERS_STORAGE_KEY = "specflux-roadmap-filters";
+
+interface RoadmapFilters {
+  selectedReleaseId: number | "all" | null;
+  status: string;
+  q: string;
+}
+
+function loadFilters(): RoadmapFilters {
+  try {
+    const stored = localStorage.getItem(FILTERS_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return {
+        selectedReleaseId: parsed.selectedReleaseId ?? "all",
+        status: parsed.status ?? "all",
+        q: parsed.q ?? "",
+      };
+    }
+  } catch {
+    // Invalid JSON, use defaults
+  }
+  return { selectedReleaseId: "all", status: "all", q: "" };
+}
+
+function saveFilters(filters: RoadmapFilters): void {
+  localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters));
+}
 
 function formatDate(date: Date | null | undefined): string {
   if (!date) return "No target date";
@@ -108,39 +138,349 @@ function RoadmapSkeleton() {
 
 interface ReleaseHeaderProps {
   release: Release;
+  onUpdate: () => void;
 }
 
-function ReleaseHeader({ release }: ReleaseHeaderProps) {
+const RELEASE_STATUSES = [
+  { value: "planned", label: "Planned" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "released", label: "Released" },
+] as const;
+
+function ReleaseHeader({ release, onUpdate }: ReleaseHeaderProps) {
   const statusBadge = getReleaseStatusBadge(release.status);
   const progress = release.progressPercentage ?? 0;
+
+  // Editing state
+  const [editingName, setEditingName] = useState(false);
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [editingDate, setEditingDate] = useState(false);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+
+  // Form values
+  const [nameValue, setNameValue] = useState(release.name);
+  const [descriptionValue, setDescriptionValue] = useState(
+    release.description ?? "",
+  );
+  const [dateValue, setDateValue] = useState(
+    release.targetDate
+      ? new Date(release.targetDate).toISOString().split("T")[0]
+      : "",
+  );
+
+  // Refs
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const descriptionInputRef = useRef<HTMLTextAreaElement>(null);
+  const dateInputRef = useRef<HTMLInputElement>(null);
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Sync values when release prop changes
+  useEffect(() => {
+    setNameValue(release.name);
+    setDescriptionValue(release.description ?? "");
+    setDateValue(
+      release.targetDate
+        ? new Date(release.targetDate).toISOString().split("T")[0]
+        : "",
+    );
+  }, [release]);
+
+  // Focus inputs when editing starts
+  useEffect(() => {
+    if (editingName && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
+    }
+  }, [editingName]);
+
+  useEffect(() => {
+    if (editingDescription && descriptionInputRef.current) {
+      descriptionInputRef.current.focus();
+    }
+  }, [editingDescription]);
+
+  useEffect(() => {
+    if (editingDate && dateInputRef.current) {
+      dateInputRef.current.focus();
+    }
+  }, [editingDate]);
+
+  // Close status dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        statusDropdownRef.current &&
+        !statusDropdownRef.current.contains(event.target as Node)
+      ) {
+        setStatusDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Update handlers
+  const handleNameSave = async () => {
+    const trimmed = nameValue.trim();
+    if (trimmed && trimmed !== release.name) {
+      try {
+        await api.releases.updateRelease({
+          id: release.id,
+          updateReleaseRequest: { name: trimmed },
+        });
+        onUpdate();
+      } catch (err) {
+        console.error("Failed to update release name:", err);
+        setNameValue(release.name);
+      }
+    } else {
+      setNameValue(release.name);
+    }
+    setEditingName(false);
+  };
+
+  const handleDescriptionSave = async () => {
+    const trimmed = descriptionValue.trim();
+    if (trimmed !== (release.description ?? "")) {
+      try {
+        await api.releases.updateRelease({
+          id: release.id,
+          updateReleaseRequest: { description: trimmed || null },
+        });
+        onUpdate();
+      } catch (err) {
+        console.error("Failed to update release description:", err);
+        setDescriptionValue(release.description ?? "");
+      }
+    }
+    setEditingDescription(false);
+  };
+
+  const handleDateSave = async () => {
+    const newDate = dateValue ? new Date(dateValue) : null;
+    const currentDate = release.targetDate
+      ? new Date(release.targetDate).toISOString().split("T")[0]
+      : "";
+
+    if (dateValue !== currentDate) {
+      try {
+        await api.releases.updateRelease({
+          id: release.id,
+          updateReleaseRequest: { targetDate: newDate },
+        });
+        onUpdate();
+      } catch (err) {
+        console.error("Failed to update release date:", err);
+        setDateValue(
+          release.targetDate
+            ? new Date(release.targetDate).toISOString().split("T")[0]
+            : "",
+        );
+      }
+    }
+    setEditingDate(false);
+  };
+
+  const handleStatusChange = async (
+    newStatus: UpdateReleaseRequestStatusEnum,
+  ) => {
+    if (newStatus !== release.status) {
+      try {
+        await api.releases.updateRelease({
+          id: release.id,
+          updateReleaseRequest: { status: newStatus },
+        });
+        onUpdate();
+      } catch (err) {
+        console.error("Failed to update release status:", err);
+      }
+    }
+    setStatusDropdownOpen(false);
+  };
+
+  const handleKeyDown = (
+    e: React.KeyboardEvent,
+    saveHandler: () => void,
+    cancelHandler: () => void,
+  ) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      saveHandler();
+    } else if (e.key === "Escape") {
+      cancelHandler();
+    }
+  };
 
   return (
     <div className="card mb-6 p-5">
       <div className="flex items-start justify-between mb-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl font-semibold text-system-900 dark:text-white">
-              {release.name}
-            </h2>
-            <span
-              className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusBadge.className}`}
-            >
-              {statusBadge.label}
-            </span>
+        <div className="flex-1 min-w-0 mr-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Editable Name */}
+            {editingName ? (
+              <input
+                ref={nameInputRef}
+                type="text"
+                value={nameValue}
+                onChange={(e) => setNameValue(e.target.value)}
+                onBlur={handleNameSave}
+                onKeyDown={(e) =>
+                  handleKeyDown(e, handleNameSave, () => {
+                    setNameValue(release.name);
+                    setEditingName(false);
+                  })
+                }
+                className="text-xl font-semibold text-system-900 dark:text-white bg-transparent border-b-2 border-brand-500 outline-none min-w-[200px]"
+              />
+            ) : (
+              <h2
+                onClick={() => setEditingName(true)}
+                className="text-xl font-semibold text-system-900 dark:text-white cursor-pointer hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+                title="Click to edit"
+              >
+                {release.name}
+              </h2>
+            )}
+
+            {/* Status Dropdown */}
+            <div className="relative" ref={statusDropdownRef}>
+              <button
+                onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${statusBadge.className} hover:opacity-80 transition-opacity cursor-pointer`}
+                title="Click to change status"
+              >
+                {statusBadge.label}
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </button>
+              {statusDropdownOpen && (
+                <div className="absolute z-50 mt-1 w-36 bg-white dark:bg-system-800 rounded-lg shadow-lg border border-system-200 dark:border-system-700 py-1">
+                  {RELEASE_STATUSES.map((status) => {
+                    const isSelected = release.status === status.value;
+                    return (
+                      <button
+                        key={status.value}
+                        onClick={() =>
+                          handleStatusChange(
+                            status.value as UpdateReleaseRequestStatusEnum,
+                          )
+                        }
+                        className={`w-full flex items-center justify-between px-3 py-2 text-sm text-left hover:bg-system-100 dark:hover:bg-system-700 ${
+                          isSelected ? "bg-system-100 dark:bg-system-700" : ""
+                        }`}
+                      >
+                        <span
+                          className={
+                            isSelected
+                              ? "font-medium text-system-900 dark:text-white"
+                              : "text-system-700 dark:text-system-300"
+                          }
+                        >
+                          {status.label}
+                        </span>
+                        {isSelected && (
+                          <svg
+                            className="w-4 h-4 text-brand-600 dark:text-brand-400"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
-          {release.description && (
-            <p className="text-system-600 dark:text-system-400 mt-1">
-              {release.description}
+
+          {/* Editable Description */}
+          {editingDescription ? (
+            <textarea
+              ref={descriptionInputRef}
+              value={descriptionValue}
+              onChange={(e) => setDescriptionValue(e.target.value)}
+              onBlur={handleDescriptionSave}
+              onKeyDown={(e) =>
+                handleKeyDown(e, handleDescriptionSave, () => {
+                  setDescriptionValue(release.description ?? "");
+                  setEditingDescription(false);
+                })
+              }
+              placeholder="Add a description..."
+              className="mt-2 w-full text-system-600 dark:text-system-400 bg-transparent border border-brand-500 rounded-md p-2 outline-none resize-none"
+              rows={2}
+            />
+          ) : (
+            <p
+              onClick={() => setEditingDescription(true)}
+              className={`mt-1 cursor-pointer hover:text-brand-600 dark:hover:text-brand-400 transition-colors ${
+                release.description
+                  ? "text-system-600 dark:text-system-400"
+                  : "text-system-400 dark:text-system-500 italic"
+              }`}
+              title="Click to edit"
+            >
+              {release.description || "Add a description..."}
             </p>
           )}
         </div>
-        <div className="text-right">
+
+        {/* Editable Target Date */}
+        <div className="text-right flex-shrink-0">
           <div className="text-sm text-system-500 dark:text-system-400">
             Target Date
           </div>
-          <div className="font-medium text-system-900 dark:text-white">
-            {formatDate(release.targetDate)}
-          </div>
+          {editingDate ? (
+            <input
+              ref={dateInputRef}
+              type="date"
+              value={dateValue}
+              onChange={(e) => setDateValue(e.target.value)}
+              onBlur={handleDateSave}
+              onKeyDown={(e) =>
+                handleKeyDown(e, handleDateSave, () => {
+                  setDateValue(
+                    release.targetDate
+                      ? new Date(release.targetDate).toISOString().split("T")[0]
+                      : "",
+                  );
+                  setEditingDate(false);
+                })
+              }
+              className="font-medium text-system-900 dark:text-white bg-transparent border-b-2 border-brand-500 outline-none"
+            />
+          ) : (
+            <div
+              onClick={() => setEditingDate(true)}
+              className={`font-medium cursor-pointer hover:text-brand-600 dark:hover:text-brand-400 transition-colors ${
+                release.targetDate
+                  ? "text-system-900 dark:text-white"
+                  : "text-system-400 dark:text-system-500 italic"
+              }`}
+              title="Click to edit"
+            >
+              {formatDate(release.targetDate)}
+            </div>
+          )}
         </div>
       </div>
 
@@ -169,39 +509,61 @@ export default function RoadmapPage() {
   const { currentProject } = useProject();
   const [searchParams, setSearchParams] = useSearchParams();
   const [releases, setReleases] = useState<Release[]>([]);
-  const [selectedReleaseId, setSelectedReleaseId] = useState<number | null>(
-    null,
-  );
+
+  // Load initial filters from localStorage
+  const [initialFilters] = useState(loadFilters);
+
+  // "all" means show all releases, number means specific release
+  const [selectedReleaseId, setSelectedReleaseId] = useState<
+    number | "all" | null
+  >(() => {
+    // URL param takes priority, then localStorage
+    const urlRelease = searchParams.get("release");
+    if (urlRelease === "all") return "all";
+    if (urlRelease) return Number(urlRelease);
+    return initialFilters.selectedReleaseId;
+  });
+
   const [roadmapData, setRoadmapData] = useState<ReleaseWithEpics | null>(null);
+  const [allRoadmapData, setAllRoadmapData] = useState<ReleaseWithEpics[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingEpic, setEditingEpic] = useState<Epic | null>(null);
   const [showCreateRelease, setShowCreateRelease] = useState(false);
   const [showCreateEpic, setShowCreateEpic] = useState(false);
+  const [createEpicReleaseId, setCreateEpicReleaseId] = useState<number | null>(
+    null,
+  );
 
-  // Filter state from URL params
-  const statusFilter = searchParams.get("status") || "all";
-  const searchQuery = searchParams.get("q") || "";
+  // Filter state - initialize from URL params first, then localStorage
+  const [statusFilter, setStatusFilter] = useState(
+    () => searchParams.get("status") || initialFilters.status,
+  );
+  const [searchQuery, setSearchQuery] = useState(
+    () => searchParams.get("q") || initialFilters.q,
+  );
 
-  const setStatusFilter = (status: string) => {
-    const newParams = new URLSearchParams(searchParams);
-    if (status === "all") {
-      newParams.delete("status");
-    } else {
-      newParams.set("status", status);
+  // Persist filters to localStorage
+  useEffect(() => {
+    saveFilters({
+      selectedReleaseId,
+      status: statusFilter,
+      q: searchQuery,
+    });
+  }, [selectedReleaseId, statusFilter, searchQuery]);
+
+  // Sync URL params with filter state
+  useEffect(() => {
+    const newParams = new URLSearchParams();
+    if (selectedReleaseId !== null && selectedReleaseId !== "all") {
+      newParams.set("release", String(selectedReleaseId));
+    } else if (selectedReleaseId === "all") {
+      newParams.set("release", "all");
     }
-    setSearchParams(newParams);
-  };
-
-  const setSearchQuery = (query: string) => {
-    const newParams = new URLSearchParams(searchParams);
-    if (!query) {
-      newParams.delete("q");
-    } else {
-      newParams.set("q", query);
-    }
-    setSearchParams(newParams);
-  };
+    if (statusFilter !== "all") newParams.set("status", statusFilter);
+    if (searchQuery) newParams.set("q", searchQuery);
+    setSearchParams(newParams, { replace: true });
+  }, [selectedReleaseId, statusFilter, searchQuery, setSearchParams]);
 
   // Fetch all releases for the project
   const fetchReleases = useCallback(async () => {
@@ -220,9 +582,9 @@ export default function RoadmapPage() {
       const releaseList = response.data ?? [];
       setReleases(releaseList);
 
-      // Auto-select first release if none selected
-      if (releaseList.length > 0 && !selectedReleaseId) {
-        setSelectedReleaseId(releaseList[0].id);
+      // Auto-select "all" if none selected and releases exist
+      if (releaseList.length > 0 && selectedReleaseId === null) {
+        setSelectedReleaseId("all");
       }
     } catch (err) {
       const message =
@@ -234,33 +596,50 @@ export default function RoadmapPage() {
     }
   }, [currentProject, selectedReleaseId]);
 
-  // Fetch roadmap data for selected release
+  // Fetch roadmap data for selected release(s)
   const fetchRoadmap = useCallback(async () => {
-    if (!selectedReleaseId) {
+    if (selectedReleaseId === null) {
       setRoadmapData(null);
+      setAllRoadmapData([]);
       return;
     }
 
     try {
       setError(null);
-      const response = await api.releases.getReleaseRoadmap({
-        id: selectedReleaseId,
-      });
-      setRoadmapData(response.data ?? null);
+
+      if (selectedReleaseId === "all") {
+        // Fetch roadmap for all releases
+        const roadmapPromises = releases.map((release) =>
+          api.releases.getReleaseRoadmap({ id: release.id }),
+        );
+        const responses = await Promise.all(roadmapPromises);
+        const allData = responses
+          .map((r) => r.data)
+          .filter((d): d is ReleaseWithEpics => d !== null && d !== undefined);
+        setAllRoadmapData(allData);
+        setRoadmapData(null);
+      } else {
+        // Fetch roadmap for single release
+        const response = await api.releases.getReleaseRoadmap({
+          id: selectedReleaseId,
+        });
+        setRoadmapData(response.data ?? null);
+        setAllRoadmapData([]);
+      }
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to load roadmap";
       setError(message);
       console.error("Failed to fetch roadmap:", err);
     }
-  }, [selectedReleaseId]);
+  }, [selectedReleaseId, releases]);
 
   useEffect(() => {
     fetchReleases();
   }, [fetchReleases]);
 
   useEffect(() => {
-    if (selectedReleaseId) {
+    if (selectedReleaseId !== null) {
       fetchRoadmap();
     }
   }, [selectedReleaseId, fetchRoadmap]);
@@ -270,32 +649,35 @@ export default function RoadmapPage() {
     fetchRoadmap();
   };
 
-  // Filter epics based on status and search query
-  const filteredEpics = useMemo(() => {
-    if (!roadmapData?.epics) return [];
-
-    return roadmapData.epics.filter((epic) => {
-      // Status filter
-      if (statusFilter !== "all" && epic.status !== statusFilter) {
-        return false;
-      }
-
-      // Search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const matchesTitle = epic.title.toLowerCase().includes(query);
-        const matchesDescription = epic.description
-          ?.toLowerCase()
-          .includes(query);
-        const matchesId = epic.id.toString().includes(query);
-        if (!matchesTitle && !matchesDescription && !matchesId) {
+  // Helper to filter epics
+  const filterEpics = useCallback(
+    (epics: Epic[]) => {
+      return epics.filter((epic) => {
+        if (statusFilter !== "all" && epic.status !== statusFilter) {
           return false;
         }
-      }
+        if (searchQuery) {
+          const query = searchQuery.toLowerCase();
+          const matchesTitle = epic.title.toLowerCase().includes(query);
+          const matchesDescription = epic.description
+            ?.toLowerCase()
+            .includes(query);
+          const matchesId = epic.id.toString().includes(query);
+          if (!matchesTitle && !matchesDescription && !matchesId) {
+            return false;
+          }
+        }
+        return true;
+      });
+    },
+    [statusFilter, searchQuery],
+  );
 
-      return true;
-    });
-  }, [roadmapData?.epics, statusFilter, searchQuery]);
+  // Filter epics based on status and search query (single release view)
+  const filteredEpics = useMemo(() => {
+    if (!roadmapData?.epics) return [];
+    return filterEpics(roadmapData.epics);
+  }, [roadmapData?.epics, filterEpics]);
 
   // Compute filtered phases (only phases containing filtered epics)
   const filteredPhases = useMemo(() => {
@@ -311,9 +693,33 @@ export default function RoadmapPage() {
       .filter((phase) => phase.epicIds.length > 0);
   }, [roadmapData?.phases, filteredEpics]);
 
-  const totalEpicsCount = roadmapData?.epics.length ?? 0;
-  const filteredEpicsCount = filteredEpics.length;
   const hasActiveFilters = statusFilter !== "all" || searchQuery !== "";
+
+  // Filter data for all releases view
+  const filteredAllRoadmapData = useMemo(() => {
+    return allRoadmapData
+      .map((rd) => {
+        const epics = filterEpics(rd.epics);
+        const epicIds = new Set(epics.map((e) => e.id));
+        const phases = rd.phases
+          .map((phase) => ({
+            ...phase,
+            epicIds: phase.epicIds.filter((id) => epicIds.has(id)),
+          }))
+          .filter((phase) => phase.epicIds.length > 0);
+        return { ...rd, epics, phases };
+      })
+      .filter((rd) => rd.epics.length > 0 || !hasActiveFilters);
+  }, [allRoadmapData, filterEpics, hasActiveFilters]);
+
+  const totalEpicsCount =
+    selectedReleaseId === "all"
+      ? allRoadmapData.reduce((sum, rd) => sum + rd.epics.length, 0)
+      : (roadmapData?.epics.length ?? 0);
+  const filteredEpicsCount =
+    selectedReleaseId === "all"
+      ? filteredAllRoadmapData.reduce((sum, rd) => sum + rd.epics.length, 0)
+      : filteredEpics.length;
 
   if (!currentProject) {
     return (
@@ -339,13 +745,19 @@ export default function RoadmapPage() {
           {releases.length > 0 && (
             <select
               value={selectedReleaseId ?? ""}
-              onChange={(e) =>
-                setSelectedReleaseId(
-                  e.target.value ? Number(e.target.value) : null,
-                )
-              }
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "all") {
+                  setSelectedReleaseId("all");
+                } else if (val) {
+                  setSelectedReleaseId(Number(val));
+                } else {
+                  setSelectedReleaseId(null);
+                }
+              }}
               className="select w-[200px]"
             >
+              <option value="all">All Releases</option>
               {releases.map((release) => (
                 <option key={release.id} value={release.id}>
                   {release.name}
@@ -451,9 +863,132 @@ export default function RoadmapPage() {
             Create Release
           </button>
         </div>
+      ) : selectedReleaseId === "all" && allRoadmapData.length > 0 ? (
+        <>
+          {/* Filter controls for all releases view */}
+          {totalEpicsCount > 0 && (
+            <div className="flex items-center gap-4 mb-6">
+              <div className="relative flex-1 max-w-xs">
+                <svg
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-system-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search epics..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="input pl-10 w-full"
+                />
+              </div>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="select"
+              >
+                <option value="all">All Statuses</option>
+                <option value="planning">Planning</option>
+                <option value="active">Active</option>
+                <option value="completed">Completed</option>
+              </select>
+              <div className="text-sm text-system-500 dark:text-system-400">
+                {hasActiveFilters ? (
+                  <>
+                    Showing {filteredEpicsCount} of {totalEpicsCount} epics
+                    <button
+                      onClick={() => setSearchParams(new URLSearchParams())}
+                      className="ml-2 text-brand-600 dark:text-brand-400 hover:underline"
+                    >
+                      Clear filters
+                    </button>
+                  </>
+                ) : (
+                  <>{totalEpicsCount} epics</>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* All releases view */}
+          <div className="space-y-8">
+            {filteredAllRoadmapData.map((rd) => (
+              <div key={rd.release.id}>
+                <ReleaseHeader release={rd.release} onUpdate={handleRefresh} />
+                {rd.phases.length === 0 && !hasActiveFilters ? (
+                  <div className="text-center py-8 card mt-4">
+                    <p className="text-system-500 dark:text-system-400">
+                      No epics in this release
+                    </p>
+                    <button
+                      onClick={() => {
+                        setCreateEpicReleaseId(rd.release.id);
+                        setShowCreateEpic(true);
+                      }}
+                      className="mt-2 btn btn-ghost text-sm"
+                    >
+                      Add Epic
+                    </button>
+                  </div>
+                ) : (
+                  rd.phases
+                    .sort((a, b) => a.phaseNumber - b.phaseNumber)
+                    .map((phase) => {
+                      const phaseEpics = rd.epics.filter((e) =>
+                        phase.epicIds.includes(e.id),
+                      );
+                      return (
+                        <PhaseSection
+                          key={`${rd.release.id}-${phase.phaseNumber}`}
+                          phaseNumber={phase.phaseNumber}
+                          status={
+                            phase.status as
+                              | "ready"
+                              | "in_progress"
+                              | "blocked"
+                              | "completed"
+                          }
+                          epics={phaseEpics}
+                          allEpics={rd.epics}
+                          completedCount={phase.completedCount}
+                          totalCount={phase.totalCount}
+                          onEditEpic={setEditingEpic}
+                        />
+                      );
+                    })
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Epic Edit Modal */}
+          {editingEpic && currentProject && (
+            <EpicEditModal
+              epic={editingEpic}
+              projectId={currentProject.id}
+              allEpics={allRoadmapData.flatMap((rd) => rd.epics)}
+              onClose={() => setEditingEpic(null)}
+              onUpdated={() => {
+                setEditingEpic(null);
+                fetchRoadmap();
+              }}
+            />
+          )}
+        </>
       ) : roadmapData ? (
         <>
-          <ReleaseHeader release={roadmapData.release} />
+          <ReleaseHeader
+            release={roadmapData.release}
+            onUpdate={handleRefresh}
+          />
 
           {/* Filter controls */}
           {totalEpicsCount > 0 && (
@@ -537,7 +1072,14 @@ export default function RoadmapPage() {
                 Add epics to start building your roadmap.
               </p>
               <button
-                onClick={() => setShowCreateEpic(true)}
+                onClick={() => {
+                  setCreateEpicReleaseId(
+                    typeof selectedReleaseId === "number"
+                      ? selectedReleaseId
+                      : null,
+                  );
+                  setShowCreateEpic(true);
+                }}
                 className="mt-4 btn btn-primary"
               >
                 <svg
@@ -643,13 +1185,17 @@ export default function RoadmapPage() {
       )}
 
       {/* Create Epic Modal */}
-      {showCreateEpic && currentProject && selectedReleaseId && (
+      {showCreateEpic && currentProject && createEpicReleaseId && (
         <EpicCreateModal
           projectId={currentProject.id}
-          releaseId={selectedReleaseId}
-          onClose={() => setShowCreateEpic(false)}
+          releaseId={createEpicReleaseId}
+          onClose={() => {
+            setShowCreateEpic(false);
+            setCreateEpicReleaseId(null);
+          }}
           onCreated={() => {
             setShowCreateEpic(false);
+            setCreateEpicReleaseId(null);
             fetchRoadmap();
           }}
         />

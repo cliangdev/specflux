@@ -1,10 +1,17 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { api, getApiErrorMessage, type Epic, type Task } from "../api";
+import {
+  api,
+  getApiErrorMessage,
+  type Epic,
+  type Task,
+  type Release,
+} from "../api";
 import type { AcceptanceCriterion } from "../api/generated";
 import { ProgressBar, TaskCreateModal } from "../components/ui";
-import { EpicDetailHeader, EpicEditModal } from "../components/epics";
+import { EpicDetailHeader } from "../components/epics";
 import { AcceptanceCriteriaList } from "../components/ui/AcceptanceCriteriaList";
+import { calculatePhase } from "../utils/phaseCalculation";
 
 // Task status badge configuration
 const TASK_STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
@@ -46,13 +53,63 @@ export default function EpicDetailPage() {
   const [epic, setEpic] = useState<Epic | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [criteria, setCriteria] = useState<AcceptanceCriterion[]>([]);
+  const [releases, setReleases] = useState<Release[]>([]);
   const [loading, setLoading] = useState(true);
   const [criteriaLoading, setCriteriaLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
   const [allEpics, setAllEpics] = useState<Epic[]>([]);
   const [deleting, setDeleting] = useState(false);
+
+  // Inline editing state
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [descriptionValue, setDescriptionValue] = useState("");
+  const [editingPrd, setEditingPrd] = useState(false);
+  const [prdValue, setPrdValue] = useState("");
+  const [showDependencyPicker, setShowDependencyPicker] = useState(false);
+  const [dependencySearch, setDependencySearch] = useState("");
+
+  // Refs
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const prdRef = useRef<HTMLInputElement>(null);
+  const dependencyPickerRef = useRef<HTMLDivElement>(null);
+
+  // Sync editing values when epic changes
+  useEffect(() => {
+    if (epic) {
+      setDescriptionValue(epic.description ?? "");
+      setPrdValue(epic.prdFilePath ?? "");
+    }
+  }, [epic]);
+
+  // Focus inputs when editing starts
+  useEffect(() => {
+    if (editingDescription && descriptionRef.current) {
+      descriptionRef.current.focus();
+    }
+  }, [editingDescription]);
+
+  useEffect(() => {
+    if (editingPrd && prdRef.current) {
+      prdRef.current.focus();
+      prdRef.current.select();
+    }
+  }, [editingPrd]);
+
+  // Close dependency picker when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dependencyPickerRef.current &&
+        !dependencyPickerRef.current.contains(event.target as Node)
+      ) {
+        setShowDependencyPicker(false);
+        setDependencySearch("");
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const fetchEpicData = useCallback(async () => {
     if (!id) return;
@@ -70,12 +127,14 @@ export default function EpicDetailPage() {
       setEpic(epicData);
       setTasks(tasksResponse.data ?? []);
 
-      // Fetch all epics for the project (for dependency selection in edit modal)
+      // Fetch all epics and releases for the project
       if (epicData?.projectId) {
-        const allEpicsResponse = await api.epics.listEpics({
-          id: epicData.projectId,
-        });
+        const [allEpicsResponse, releasesResponse] = await Promise.all([
+          api.epics.listEpics({ id: epicData.projectId }),
+          api.releases.listReleases({ id: epicData.projectId }),
+        ]);
         setAllEpics(allEpicsResponse.data ?? []);
+        setReleases(releasesResponse.data ?? []);
       }
     } catch (err) {
       const message =
@@ -106,6 +165,39 @@ export default function EpicDetailPage() {
     fetchEpicData();
     fetchCriteria();
   }, [fetchEpicData, fetchCriteria]);
+
+  // Calculate phase from dependencies
+  const phase = useMemo(() => {
+    if (!epic) return 1;
+    const epicsMap = new Map<number, { dependsOn: number[] }>();
+    for (const e of allEpics) {
+      epicsMap.set(e.id, { dependsOn: e.dependsOn ?? [] });
+    }
+    return calculatePhase(epic.id, epicsMap);
+  }, [epic, allEpics]);
+
+  // Available epics for dependency selection (exclude current epic and detect circular)
+  const availableEpics = useMemo(() => {
+    if (!epic) return [];
+    return allEpics.filter((e) => e.id !== epic.id);
+  }, [allEpics, epic]);
+
+  // Filter available epics by search
+  const filteredAvailableEpics = useMemo(() => {
+    if (!dependencySearch) return availableEpics;
+    const query = dependencySearch.toLowerCase();
+    return availableEpics.filter(
+      (e) =>
+        e.title.toLowerCase().includes(query) ||
+        e.id.toString().includes(query),
+    );
+  }, [availableEpics, dependencySearch]);
+
+  // Get dependency epic objects
+  const dependencyEpics = useMemo(() => {
+    if (!epic?.dependsOn) return [];
+    return allEpics.filter((e) => epic.dependsOn?.includes(e.id));
+  }, [epic, allEpics]);
 
   // Handle status change
   const handleStatusChange = async (newStatus: string) => {
@@ -145,6 +237,98 @@ export default function EpicDetailPage() {
     }
   };
 
+  // Handle release change
+  const handleReleaseChange = async (releaseId: number | null) => {
+    if (!epic) return;
+
+    try {
+      await api.epics.updateEpic({
+        id: epic.id,
+        updateEpicRequest: { releaseId },
+      });
+      fetchEpicData();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to update release";
+      setError(message);
+      console.error("Failed to update release:", err);
+    }
+  };
+
+  // Handle description save
+  const handleDescriptionSave = async () => {
+    if (!epic) return;
+    const trimmed = descriptionValue.trim();
+    if (trimmed !== (epic.description ?? "")) {
+      try {
+        await api.epics.updateEpic({
+          id: epic.id,
+          updateEpicRequest: { description: trimmed || null },
+        });
+        fetchEpicData();
+      } catch (err) {
+        console.error("Failed to update description:", err);
+        setDescriptionValue(epic.description ?? "");
+      }
+    }
+    setEditingDescription(false);
+  };
+
+  // Handle PRD path save
+  const handlePrdSave = async () => {
+    if (!epic) return;
+    const trimmed = prdValue.trim();
+    if (trimmed !== (epic.prdFilePath ?? "")) {
+      try {
+        await api.epics.updateEpic({
+          id: epic.id,
+          updateEpicRequest: { prdFilePath: trimmed || null },
+        });
+        fetchEpicData();
+      } catch (err) {
+        console.error("Failed to update PRD path:", err);
+        setPrdValue(epic.prdFilePath ?? "");
+      }
+    }
+    setEditingPrd(false);
+  };
+
+  // Handle add dependency
+  const handleAddDependency = async (depEpicId: number) => {
+    if (!epic) return;
+    const currentDeps = epic.dependsOn ?? [];
+    if (currentDeps.includes(depEpicId)) return;
+
+    try {
+      await api.epics.updateEpic({
+        id: epic.id,
+        updateEpicRequest: { dependsOn: [...currentDeps, depEpicId] },
+      });
+      fetchEpicData();
+    } catch (err) {
+      console.error("Failed to add dependency:", err);
+    }
+    setShowDependencyPicker(false);
+    setDependencySearch("");
+  };
+
+  // Handle remove dependency
+  const handleRemoveDependency = async (depEpicId: number) => {
+    if (!epic) return;
+    const currentDeps = epic.dependsOn ?? [];
+    const newDeps = currentDeps.filter((id) => id !== depEpicId);
+
+    try {
+      await api.epics.updateEpic({
+        id: epic.id,
+        updateEpicRequest: { dependsOn: newDeps },
+      });
+      fetchEpicData();
+    } catch (err) {
+      console.error("Failed to remove dependency:", err);
+    }
+  };
+
   // Handle epic deletion
   const handleDelete = async () => {
     if (!epic) return;
@@ -158,6 +342,20 @@ export default function EpicDetailPage() {
       setError(message);
       console.error("Failed to delete epic:", err);
       setDeleting(false);
+    }
+  };
+
+  // Keyboard handlers
+  const handleKeyDown = (
+    e: React.KeyboardEvent,
+    saveHandler: () => void,
+    cancelHandler: () => void,
+  ) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      saveHandler();
+    } else if (e.key === "Escape") {
+      cancelHandler();
     }
   };
 
@@ -226,8 +424,11 @@ export default function EpicDetailPage() {
       {/* Header */}
       <EpicDetailHeader
         epic={epic}
+        releases={releases}
+        phase={phase}
         onStatusChange={handleStatusChange}
         onTitleChange={handleTitleChange}
+        onReleaseChange={handleReleaseChange}
         onDelete={handleDelete}
         onBack={() => navigate(-1)}
         deleting={deleting}
@@ -276,19 +477,113 @@ export default function EpicDetailPage() {
         </div>
       </div>
 
-      {/* Description Section */}
-      {epic.description && (
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold text-system-900 dark:text-white mb-3">
-            Description
-          </h2>
-          <div className="card p-5">
-            <p className="text-system-700 dark:text-system-300 whitespace-pre-wrap">
-              {epic.description}
+      {/* Description Section - Inline Editable */}
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold text-system-900 dark:text-white mb-3">
+          Description
+        </h2>
+        <div className="card p-5">
+          {editingDescription ? (
+            <textarea
+              ref={descriptionRef}
+              value={descriptionValue}
+              onChange={(e) => setDescriptionValue(e.target.value)}
+              onBlur={handleDescriptionSave}
+              onKeyDown={(e) =>
+                handleKeyDown(e, handleDescriptionSave, () => {
+                  setDescriptionValue(epic.description ?? "");
+                  setEditingDescription(false);
+                })
+              }
+              placeholder="Add a description..."
+              className="w-full text-system-700 dark:text-system-300 bg-transparent border border-brand-500 rounded-md p-3 outline-none resize-none min-h-[100px]"
+              rows={4}
+            />
+          ) : (
+            <p
+              onClick={() => setEditingDescription(true)}
+              className={`whitespace-pre-wrap cursor-pointer hover:text-brand-600 dark:hover:text-brand-400 transition-colors min-h-[24px] ${
+                epic.description
+                  ? "text-system-700 dark:text-system-300"
+                  : "text-system-400 dark:text-system-500 italic"
+              }`}
+              title="Click to edit"
+            >
+              {epic.description || "Click to add a description..."}
             </p>
-          </div>
+          )}
         </div>
-      )}
+      </div>
+
+      {/* PRD File Path - Inline Editable */}
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold text-system-900 dark:text-white mb-3">
+          PRD File Path
+        </h2>
+        <div className="card p-4">
+          {editingPrd ? (
+            <div className="flex items-center gap-3">
+              <svg
+                className="w-5 h-5 text-system-500 flex-shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              <input
+                ref={prdRef}
+                type="text"
+                value={prdValue}
+                onChange={(e) => setPrdValue(e.target.value)}
+                onBlur={handlePrdSave}
+                onKeyDown={(e) =>
+                  handleKeyDown(e, handlePrdSave, () => {
+                    setPrdValue(epic.prdFilePath ?? "");
+                    setEditingPrd(false);
+                  })
+                }
+                placeholder="e.g., prds/feature-name.md"
+                className="flex-1 text-system-700 dark:text-system-300 bg-transparent border-b-2 border-brand-500 outline-none"
+              />
+            </div>
+          ) : (
+            <div
+              onClick={() => setEditingPrd(true)}
+              className="flex items-center gap-3 cursor-pointer hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+              title="Click to edit"
+            >
+              <svg
+                className="w-5 h-5 text-system-500 flex-shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              {epic.prdFilePath ? (
+                <code className="text-sm bg-system-100 dark:bg-system-800 px-2 py-0.5 rounded text-system-700 dark:text-system-300">
+                  {epic.prdFilePath}
+                </code>
+              ) : (
+                <span className="text-system-400 dark:text-system-500 italic">
+                  Click to add PRD file path...
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Acceptance Criteria Section */}
       <div className="mb-6">
@@ -311,30 +606,143 @@ export default function EpicDetailPage() {
         </div>
       </div>
 
-      {/* PRD Link */}
-      {epic.prdFilePath && (
-        <div className="card p-4 mb-6 flex items-center gap-3">
-          <svg
-            className="w-5 h-5 text-system-500"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
-          </svg>
-          <span className="text-system-700 dark:text-system-300">
-            PRD:{" "}
-            <code className="text-sm bg-system-100 dark:bg-system-800 px-2 py-0.5 rounded">
-              {epic.prdFilePath}
-            </code>
-          </span>
+      {/* Dependencies Section - Inline Editable */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold text-system-900 dark:text-white">
+            Dependencies
+          </h2>
+          <div className="relative" ref={dependencyPickerRef}>
+            <button
+              onClick={() => setShowDependencyPicker(!showDependencyPicker)}
+              className="btn btn-ghost text-sm"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              Add
+            </button>
+
+            {/* Dependency Picker Dropdown */}
+            {showDependencyPicker && (
+              <div className="absolute right-0 z-50 mt-1 w-80 bg-white dark:bg-system-800 rounded-lg shadow-lg border border-system-200 dark:border-system-700 overflow-hidden">
+                <div className="p-2 border-b border-system-200 dark:border-system-700">
+                  <input
+                    type="text"
+                    value={dependencySearch}
+                    onChange={(e) => setDependencySearch(e.target.value)}
+                    placeholder="Search epics..."
+                    className="input w-full text-sm"
+                    autoFocus
+                  />
+                </div>
+                <div className="max-h-60 overflow-y-auto">
+                  {filteredAvailableEpics.length === 0 ? (
+                    <div className="p-4 text-sm text-system-500 dark:text-system-400 text-center">
+                      No epics found
+                    </div>
+                  ) : (
+                    filteredAvailableEpics.map((e) => {
+                      const isSelected = epic.dependsOn?.includes(e.id);
+                      const epicPhase = e.phase ?? 1;
+                      return (
+                        <button
+                          key={e.id}
+                          onClick={() =>
+                            isSelected
+                              ? handleRemoveDependency(e.id)
+                              : handleAddDependency(e.id)
+                          }
+                          className={`w-full flex items-center gap-3 px-3 py-2 text-sm text-left hover:bg-system-100 dark:hover:bg-system-700 ${
+                            isSelected ? "bg-brand-50 dark:bg-brand-900/20" : ""
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            readOnly
+                            className="rounded border-system-300 dark:border-system-600 text-brand-600 focus:ring-brand-500"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-system-500 dark:text-system-400">
+                                #{e.id}
+                              </span>
+                              <span className="text-system-900 dark:text-white truncate">
+                                {e.title}
+                              </span>
+                            </div>
+                          </div>
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-system-100 dark:bg-system-700 text-system-600 dark:text-system-400">
+                            P{epicPhase}
+                          </span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      )}
+
+        <div className="card p-5">
+          {dependencyEpics.length === 0 ? (
+            <p className="text-system-500 dark:text-system-400 text-sm">
+              No dependencies. This epic is in Phase 1 and can start
+              immediately.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {dependencyEpics.map((depEpic) => (
+                <div
+                  key={depEpic.id}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-system-100 dark:bg-system-700 rounded-lg text-sm"
+                >
+                  <Link
+                    to={`/epics/${depEpic.id}`}
+                    className="flex items-center gap-2 text-system-700 dark:text-system-300 hover:text-brand-600 dark:hover:text-brand-400"
+                  >
+                    <span className="text-xs text-system-500 dark:text-system-400">
+                      #{depEpic.id}
+                    </span>
+                    <span>{depEpic.title}</span>
+                  </Link>
+                  <button
+                    onClick={() => handleRemoveDependency(depEpic.id)}
+                    className="text-system-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                    title="Remove dependency"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Tasks Section */}
       <div>
@@ -439,20 +847,6 @@ export default function EpicDetailPage() {
           defaultEpicId={epic.id}
           onClose={() => setShowCreateTaskModal(false)}
           onCreated={fetchEpicData}
-        />
-      )}
-
-      {/* Edit Epic Modal */}
-      {showEditModal && epic && (
-        <EpicEditModal
-          epic={epic}
-          projectId={epic.projectId}
-          allEpics={allEpics}
-          onClose={() => setShowEditModal(false)}
-          onUpdated={() => {
-            setShowEditModal(false);
-            fetchEpicData();
-          }}
         />
       )}
     </div>

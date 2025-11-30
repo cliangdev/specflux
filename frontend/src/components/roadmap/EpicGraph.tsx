@@ -6,6 +6,7 @@ import ReactFlow, {
   BackgroundVariant,
   useNodesState,
   useEdgesState,
+  useReactFlow,
   ReactFlowProvider,
   type NodeTypes,
 } from "reactflow";
@@ -45,6 +46,7 @@ function EpicGraphInner({
   className,
 }: EpicGraphProps) {
   const navigate = useNavigate();
+  const { fitView } = useReactFlow();
   const [popup, setPopup] = useState<PopupState | null>(null);
 
   // Transform epics to graph data
@@ -67,11 +69,16 @@ function EpicGraphInner({
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
 
-  // Update nodes when epics change
+  // Update nodes when epics change and re-fit the view
   useEffect(() => {
     setNodes(layoutedNodes);
     setEdges(layoutedEdges);
-  }, [layoutedNodes, layoutedEdges, setNodes, setEdges]);
+    // Delay fitView to allow React Flow to process the node updates
+    const timeoutId = setTimeout(() => {
+      fitView({ padding: 0.2, duration: 200 });
+    }, 50);
+    return () => clearTimeout(timeoutId);
+  }, [layoutedNodes, layoutedEdges, setNodes, setEdges, fitView]);
 
   const onNodeClick = useCallback(
     (event: React.MouseEvent, node: Node<EpicNodeData>) => {
