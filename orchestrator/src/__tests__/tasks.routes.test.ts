@@ -414,5 +414,39 @@ describe('Tasks API Routes', () => {
       const response = await request(app).delete('/api/tasks/99999');
       expect(response.status).toBe(404);
     });
+
+    it('should cascade delete acceptance criteria when task is deleted', async () => {
+      const db = getDatabase();
+
+      // Create a task with acceptance criteria
+      const createResponse = await request(app)
+        .post(`/api/projects/${projectId}/tasks`)
+        .send({
+          title: 'Task with Criteria to Delete',
+          acceptance_criteria: ['Criterion 1', 'Criterion 2', 'Criterion 3'],
+        })
+        .set('Content-Type', 'application/json');
+      const taskId = createResponse.body.data.id;
+
+      // Verify acceptance criteria exist
+      const criteriaBeforeDelete = db
+        .prepare(
+          "SELECT COUNT(*) as count FROM acceptance_criteria WHERE entity_type = 'task' AND entity_id = ?"
+        )
+        .get(taskId) as { count: number };
+      expect(criteriaBeforeDelete.count).toBe(3);
+
+      // Delete the task
+      const deleteResponse = await request(app).delete(`/api/tasks/${taskId}`);
+      expect(deleteResponse.status).toBe(204);
+
+      // Verify acceptance criteria are also deleted
+      const criteriaAfterDelete = db
+        .prepare(
+          "SELECT COUNT(*) as count FROM acceptance_criteria WHERE entity_type = 'task' AND entity_id = ?"
+        )
+        .get(taskId) as { count: number };
+      expect(criteriaAfterDelete.count).toBe(0);
+    });
   });
 });
