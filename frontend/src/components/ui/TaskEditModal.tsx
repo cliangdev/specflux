@@ -36,12 +36,6 @@ export default function TaskEditModal({
   );
   const [status, setStatus] = useState(task.status);
   const [repoName, setRepoName] = useState(task.repoName ?? "");
-  const [requiresApproval, setRequiresApproval] = useState(
-    task.requiresApproval,
-  );
-  const [estimatedDuration, setEstimatedDuration] = useState<string>(
-    task.estimatedDuration?.toString() ?? "",
-  );
 
   const [epics, setEpics] = useState<Epic[]>([]);
   const [repositories, setRepositories] = useState<Repository[]>([]);
@@ -87,10 +81,6 @@ export default function TaskEditModal({
         epicId: epicId,
         status: status as UpdateTaskRequest["status"],
         repoName: repoName || undefined,
-        requiresApproval,
-        estimatedDuration: estimatedDuration
-          ? parseInt(estimatedDuration, 10)
-          : undefined,
       };
 
       await api.tasks.updateTask({
@@ -260,42 +250,6 @@ export default function TaskEditModal({
                   </option>
                 ))}
               </select>
-            </div>
-
-            {/* Estimated Duration */}
-            <div>
-              <label
-                htmlFor="estimatedDuration"
-                className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
-              >
-                Estimated Duration (minutes)
-              </label>
-              <input
-                id="estimatedDuration"
-                type="number"
-                min="0"
-                value={estimatedDuration}
-                onChange={(e) => setEstimatedDuration(e.target.value)}
-                placeholder="e.g., 60"
-                className="input"
-              />
-            </div>
-
-            {/* Requires Approval */}
-            <div className="flex items-center gap-3">
-              <input
-                id="requiresApproval"
-                type="checkbox"
-                checked={requiresApproval}
-                onChange={(e) => setRequiresApproval(e.target.checked)}
-                className="w-4 h-4 rounded border-system-300 dark:border-system-600 text-brand-600 focus:ring-brand-500 dark:bg-system-700"
-              />
-              <label
-                htmlFor="requiresApproval"
-                className="text-sm font-medium text-system-700 dark:text-system-300"
-              >
-                Requires approval before completion
-              </label>
             </div>
           </div>
 

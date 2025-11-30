@@ -19,14 +19,12 @@ import {
 import FileChanges from "../components/FileChanges";
 import {
   AddDependencyModal,
-  ReadinessChecklist,
   TaskOverviewTab,
   TaskContextTab,
 } from "../components/tasks";
 import TaskDetailHeader from "../components/tasks/TaskDetailHeader";
 import { TaskEditModal, TabNavigation } from "../components/ui";
 import { useTerminal, type AgentInfo } from "../contexts/TerminalContext";
-import { calculateReadiness } from "../utils/readiness";
 
 // Helper to open external URLs using Tauri command
 const openExternal = async (url: string) => {
@@ -172,18 +170,6 @@ export default function TaskDetailPage() {
 
   // Check if terminal is showing this task
   const isTerminalShowingThisTask = activeTask?.id === Number(taskId);
-
-  // Calculate readiness when task changes
-  const readiness = useMemo(() => {
-    if (!task)
-      return {
-        score: 0,
-        isReady: false,
-        criteria: {} as any,
-        criteriaLabels: [],
-      };
-    return calculateReadiness(task);
-  }, [task]);
 
   // Get current epic from the epics list
   const currentEpic = useMemo(() => {
@@ -402,6 +388,13 @@ export default function TaskDetailPage() {
   const handleCreatePR = async () => {
     if (!taskId) return;
 
+    // Check if the API method exists
+    if (typeof api.tasks.createTaskPR !== "function") {
+      setError("API client not properly initialized. Please restart the application.");
+      console.error("api.tasks.createTaskPR is not a function - API client may need to be regenerated");
+      return;
+    }
+
     try {
       setCreatePRLoading(true);
       setError(null);
@@ -412,20 +405,7 @@ export default function TaskDetailPage() {
       // Refresh task to persist PR URL from database
       fetchTask();
     } catch (err) {
-      let message = "Failed to create PR";
-      // Handle ResponseError from generated API client
-      if (err && typeof err === "object" && "response" in err) {
-        const responseErr = err as { response: Response };
-        try {
-          const body = await responseErr.response.json();
-          message = body.error?.message || body.error || message;
-        } catch {
-          // If JSON parsing fails, use status text
-          message = responseErr.response.statusText || message;
-        }
-      } else if (err instanceof Error) {
-        message = err.message;
-      }
+      const message = await getApiErrorMessage(err, "Failed to create PR");
       setError(message);
       console.error("Failed to create PR:", err);
     } finally {
@@ -581,12 +561,11 @@ export default function TaskDetailPage() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header with Status, Epic, Owner/Executor, and Readiness */}
+      {/* Header with Status, Epic, Owner/Executor */}
       <TaskDetailHeader
         task={task}
         epic={currentEpic}
         owner={ownerUser}
-        readiness={readiness}
         onStatusChange={handleStatusChange}
         onAgentChange={handleAgentChange}
         onEdit={() => setShowEditModal(true)}
@@ -657,19 +636,6 @@ export default function TaskDetailPage() {
         {/* Right Sidebar */}
         <div className="w-72 flex-shrink-0 border-l border-system-200 dark:border-system-700 bg-system-50 dark:bg-system-800/50 flex flex-col overflow-y-auto">
           <div className="p-4 space-y-6">
-            {/* Definition of Ready */}
-            <div>
-              <h3 className="text-xs font-semibold text-system-500 dark:text-system-400 uppercase mb-3">
-                Definition of Ready
-              </h3>
-              <ReadinessChecklist
-                readiness={readiness}
-                onAddCriteria={() => setShowEditModal(true)}
-                onAssignExecutor={() => setShowEditModal(true)}
-                onAssignRepo={() => setShowEditModal(true)}
-              />
-            </div>
-
             {/* Agent Section */}
             <div>
               <div className="flex items-center justify-between mb-3">
@@ -804,25 +770,23 @@ export default function TaskDetailPage() {
             </div>
 
             {/* PR Section */}
-            {(hasFileChanges || prResult?.prUrl || task.githubPrUrl) && (
-              <div>
-                <h3 className="text-xs font-semibold text-system-500 dark:text-system-400 uppercase mb-3">
-                  Pull Request
-                </h3>
+            <div>
+              <h3 className="text-xs font-semibold text-system-500 dark:text-system-400 uppercase mb-3">
+                Pull Request
+              </h3>
 
-                {/* Create PR button */}
-                {hasFileChanges &&
-                  !prResult?.prUrl &&
-                  !task.githubPrUrl &&
-                  task.status !== "done" && (
-                    <button
-                      onClick={handleCreatePR}
-                      disabled={createPRLoading}
-                      className="btn btn-primary w-full text-sm disabled:opacity-50"
-                    >
-                      {createPRLoading ? "Creating PR..." : "Create PR"}
-                    </button>
-                  )}
+              {/* Create PR button - show when no PR exists and task isn't done */}
+              {!prResult?.prUrl &&
+                !task.githubPrUrl &&
+                task.status !== "done" && (
+                  <button
+                    onClick={handleCreatePR}
+                    disabled={createPRLoading}
+                    className="btn btn-primary w-full text-sm disabled:opacity-50"
+                  >
+                    {createPRLoading ? "Creating PR..." : "Create PR"}
+                  </button>
+                )}
 
                 {/* PR Link & Approve */}
                 {(prResult?.prUrl || task.githubPrUrl) && (
@@ -882,8 +846,7 @@ export default function TaskDetailPage() {
                     )}
                   </div>
                 )}
-              </div>
-            )}
+            </div>
           </div>
         </div>
       </div>

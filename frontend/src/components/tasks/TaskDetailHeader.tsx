@@ -1,8 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import type { Task, Epic, User, Agent } from "../../api/generated";
-import type { ReadinessResult } from "../../utils/readiness";
-import ProgressBar from "../ui/ProgressBar";
 import OwnerExecutorBadge from "./OwnerExecutorBadge";
 import AgentSelector from "./AgentSelector";
 
@@ -153,7 +151,6 @@ interface TaskDetailHeaderProps {
   task: Task;
   epic?: Epic | null;
   owner?: User | null;
-  readiness: ReadinessResult;
   onStatusChange: (status: string) => void;
   onAgentChange: (agentId: number | null, agent: Agent | null) => void;
   onEdit: () => void;
@@ -164,7 +161,6 @@ export default function TaskDetailHeader({
   task,
   epic,
   owner,
-  readiness,
   onStatusChange,
   onAgentChange,
   onEdit,
@@ -368,59 +364,6 @@ export default function TaskDetailHeader({
           ownerUserId={task.ownerUserId}
           executorType={task.executorType}
         />
-      </div>
-
-      {/* Row 3: Readiness Progress */}
-      <div className="flex items-center gap-3">
-        <div className="flex-1 max-w-xs">
-          <ProgressBar percent={readiness.score} size="sm" />
-        </div>
-        <span className="text-sm text-system-600 dark:text-system-400 tabular-nums">
-          {readiness.score}% Ready
-        </span>
-        <span
-          className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded ${
-            readiness.isReady
-              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
-              : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
-          }`}
-        >
-          {readiness.isReady ? (
-            <>
-              <svg
-                className="w-3 h-3"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-              READY
-            </>
-          ) : (
-            <>
-              <svg
-                className="w-3 h-3"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                />
-              </svg>
-              NOT READY
-            </>
-          )}
-        </span>
       </div>
     </div>
   );

@@ -10,6 +10,8 @@ vi.mock("../api", () => ({
     epics: {
       getEpic: vi.fn(),
       getEpicTasks: vi.fn(),
+      listEpics: vi.fn(),
+      listEpicCriteria: vi.fn(),
     },
     tasks: {
       createTask: vi.fn(),
@@ -147,6 +149,14 @@ describe("EpicDetailPage", () => {
     vi.mocked(api.epics.getEpicTasks).mockResolvedValue({
       success: true,
       data: mockTasks,
+    });
+    vi.mocked(api.epics.listEpics).mockResolvedValue({
+      success: true,
+      data: [],
+    });
+    vi.mocked(api.epics.listEpicCriteria).mockResolvedValue({
+      success: true,
+      data: [],
     });
   });
 
