@@ -659,7 +659,9 @@ export default function TaskDetailPage() {
 
           {/* Tab Content */}
           <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
-            {activeTab === "overview" && <TaskOverviewTab task={task} />}
+            {activeTab === "overview" && (
+              <TaskOverviewTab task={task} onTaskUpdate={fetchTask} />
+            )}
 
             {activeTab === "context" && (
               <TaskContextTab
