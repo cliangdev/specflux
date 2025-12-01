@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { Link } from "react-router-dom";
-import type { Task, Epic, Agent } from "../../api/generated";
+import type { Task, Agent } from "../../api/generated";
 import AgentSelector from "./AgentSelector";
+import EpicSelector from "./EpicSelector";
 
 // Status configuration
 const STATUS_CONFIG: Record<
@@ -148,8 +148,8 @@ const STATUSES = [
 
 interface TaskDetailHeaderProps {
   task: Task;
-  epic?: Epic | null;
   onStatusChange: (status: string) => void;
+  onEpicChange: (epicId: number | null) => void;
   onAgentChange: (agentId: number | null, agent: Agent | null) => void;
   onTitleChange: (title: string) => void;
   onDelete: () => void;
@@ -159,8 +159,8 @@ interface TaskDetailHeaderProps {
 
 export default function TaskDetailHeader({
   task,
-  epic,
   onStatusChange,
+  onEpicChange,
   onAgentChange,
   onTitleChange,
   onDelete,
@@ -369,28 +369,17 @@ export default function TaskDetailHeader({
           )}
         </div>
 
-        {/* Epic Link */}
-        {epic && (
-          <Link
-            to={`/epics/${epic.id}`}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-sm rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors"
-          >
-            <svg
-              className="w-3.5 h-3.5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-              />
-            </svg>
-            {epic.title}
-          </Link>
-        )}
+        {/* Epic Selector */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-sm text-system-500 dark:text-system-400">
+            Epic:
+          </span>
+          <EpicSelector
+            projectId={task.projectId}
+            selectedEpicId={task.epicId}
+            onChange={onEpicChange}
+          />
+        </div>
 
         {/* Separator */}
         <div className="h-5 w-px bg-system-200 dark:bg-system-700" />

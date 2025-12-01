@@ -603,8 +603,8 @@ export default function TaskDetailPage() {
       {/* Header with Status, Epic, Owner/Executor */}
       <TaskDetailHeader
         task={task}
-        epic={currentEpic}
         onStatusChange={handleStatusChange}
+        onEpicChange={handleEpicChange}
         onAgentChange={handleAgentChange}
         onTitleChange={handleTitleChange}
         onDelete={handleDelete}

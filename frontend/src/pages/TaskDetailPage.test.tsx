@@ -238,18 +238,16 @@ describe("TaskDetailPage", () => {
   });
 
   describe("Epic editing", () => {
-    it("renders epic dropdown with epics loaded", async () => {
+    it("renders epic selector with 'No epic' when no epic assigned", async () => {
       renderPage();
 
       await waitFor(() => {
         expect(api.epics.listEpics).toHaveBeenCalledWith({ id: 1 });
       });
 
-      // Check for epic options
+      // Should show "No epic" button in the header
       await waitFor(() => {
-        expect(screen.getByText("No Epic")).toBeInTheDocument();
-        expect(screen.getByText("Epic 1")).toBeInTheDocument();
-        expect(screen.getByText("Epic 2")).toBeInTheDocument();
+        expect(screen.getByText("No epic")).toBeInTheDocument();
       });
     });
 
@@ -261,22 +259,47 @@ describe("TaskDetailPage", () => {
 
       renderPage();
 
+      // Wait for epics to load and the selected epic to be displayed
       await waitFor(() => {
-        const epicSelect = screen.getByRole("combobox") as HTMLSelectElement;
-        expect(epicSelect.value).toBe("1");
+        expect(screen.getByText("Epic 1")).toBeInTheDocument();
+      });
+    });
+
+    it("opens dropdown and shows epics when clicked", async () => {
+      renderPage();
+
+      // Wait for initial render
+      await waitFor(() => {
+        expect(screen.getByText("No epic")).toBeInTheDocument();
+      });
+
+      // Click to open the dropdown
+      fireEvent.click(screen.getByText("No epic"));
+
+      // Dropdown should show all epic options
+      await waitFor(() => {
+        expect(screen.getByText("Epic 1")).toBeInTheDocument();
+        expect(screen.getByText("Epic 2")).toBeInTheDocument();
       });
     });
 
     it("calls updateTask when epic is changed", async () => {
       renderPage();
 
-      // Wait for epics to load
+      // Wait for page to load
+      await waitFor(() => {
+        expect(screen.getByText("No epic")).toBeInTheDocument();
+      });
+
+      // Click to open the dropdown
+      fireEvent.click(screen.getByText("No epic"));
+
+      // Wait for dropdown to open and select Epic 2
       await waitFor(() => {
         expect(screen.getByText("Epic 2")).toBeInTheDocument();
       });
 
-      const epicSelect = screen.getByRole("combobox");
-      fireEvent.change(epicSelect, { target: { value: "2" } });
+      fireEvent.click(screen.getByText("Epic 2"));
 
       await waitFor(() => {
         expect(api.tasks.updateTask).toHaveBeenCalledWith({
@@ -294,13 +317,20 @@ describe("TaskDetailPage", () => {
 
       renderPage();
 
-      // Wait for epics to load
+      // Wait for the current epic to be displayed
       await waitFor(() => {
-        expect(screen.getByText("No Epic")).toBeInTheDocument();
+        expect(screen.getByText("Epic 1")).toBeInTheDocument();
       });
 
-      const epicSelect = screen.getByRole("combobox");
-      fireEvent.change(epicSelect, { target: { value: "" } });
+      // Click to open the dropdown
+      fireEvent.click(screen.getByText("Epic 1"));
+
+      // Wait for dropdown to open
+      await waitFor(() => {
+        expect(screen.getByText("No epic")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText("No epic"));
 
       await waitFor(() => {
         expect(api.tasks.updateTask).toHaveBeenCalledWith({
@@ -321,13 +351,20 @@ describe("TaskDetailPage", () => {
       // Clear the call count
       vi.mocked(api.tasks.getTask).mockClear();
 
-      // Wait for epics to load
+      // Wait for page to load
+      await waitFor(() => {
+        expect(screen.getByText("No epic")).toBeInTheDocument();
+      });
+
+      // Click to open the dropdown
+      fireEvent.click(screen.getByText("No epic"));
+
+      // Wait for dropdown and select Epic 2
       await waitFor(() => {
         expect(screen.getByText("Epic 2")).toBeInTheDocument();
       });
 
-      const epicSelect = screen.getByRole("combobox");
-      fireEvent.change(epicSelect, { target: { value: "2" } });
+      fireEvent.click(screen.getByText("Epic 2"));
 
       // Should refresh task after update
       await waitFor(() => {
