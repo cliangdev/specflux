@@ -41,6 +41,7 @@ specflux/                    <- Run Claude Code from here
 │   ├── .mcp.json            # MCP servers (GitHub, Filesystem)
 │   ├── skills/              # Coding pattern guides
 │   │   ├── typescript-patterns/
+│   │   ├── springboot-patterns/  # Java/Spring Boot best practices
 │   │   ├── tauri-dev/
 │   │   ├── api-design/
 │   │   ├── database-migrations/
