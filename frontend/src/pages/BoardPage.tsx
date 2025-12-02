@@ -3,11 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { useProject } from "../contexts";
 import { useTerminal } from "../contexts/TerminalContext";
 import { api, type Task } from "../api";
+import { v2Api } from "../api/v2/client";
 import { KanbanBoard, WorkflowTemplate } from "../components/kanban";
 import TaskCreateModal from "../components/ui/TaskCreateModal";
 
 export default function BoardPage() {
-  const { currentProject } = useProject();
+  const { currentProject, usingV2, getProjectRef } = useProject();
   const navigate = useNavigate();
   const { openTerminalForTask } = useTerminal();
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -20,26 +21,37 @@ export default function BoardPage() {
     if (!currentProject) return;
 
     try {
-      const response = await api.projects.getProjectConfig({
-        id: currentProject.id,
-      });
-      if (response.success && response.data) {
-        const template = response.data.workflowTemplate as WorkflowTemplate;
-        if (template) {
-          setWorkflowTemplate(template);
+      if (usingV2) {
+        const projectRef = getProjectRef();
+        if (!projectRef) return;
+        // v2 API may not have projectConfig endpoint yet, use default
+        // TODO: Add v2 project config endpoint
+        console.log("[BoardPage] Using default workflow template for v2");
+      } else {
+        const response = await api.projects.getProjectConfig({
+          id: currentProject.id,
+        });
+        if (response.success && response.data) {
+          const template = response.data.workflowTemplate as WorkflowTemplate;
+          if (template) {
+            setWorkflowTemplate(template);
+          }
         }
       }
     } catch (err) {
       console.error("Failed to load project config:", err);
     }
-  }, [currentProject]);
+  }, [currentProject, usingV2, getProjectRef]);
 
   useEffect(() => {
     loadProjectConfig();
   }, [loadProjectConfig]);
 
   const handleTaskClick = (task: Task) => {
-    navigate(`/tasks/${task.id}`);
+    // Use publicId for v2 tasks, id for v1
+    const taskWithV2 = task as Task & { publicId?: string };
+    const taskRef = taskWithV2.publicId || task.id;
+    navigate(`/tasks/${taskRef}`);
   };
 
   const handleTaskCreated = () => {
@@ -49,7 +61,10 @@ export default function BoardPage() {
   };
 
   const handleOpenTerminal = (task: Task) => {
-    openTerminalForTask({ id: task.id, title: task.title });
+    // Use publicId for v2 tasks, id for v1
+    const taskWithV2 = task as Task & { publicId?: string };
+    const taskRef = taskWithV2.publicId || String(task.id);
+    openTerminalForTask({ id: taskRef, title: task.title });
   };
 
   if (!currentProject) {
@@ -70,6 +85,8 @@ export default function BoardPage() {
       <KanbanBoard
         key={refreshKey}
         projectId={currentProject.id}
+        projectRef={getProjectRef() ?? undefined}
+        usingV2={usingV2}
         workflowTemplate={workflowTemplate}
         onTaskClick={handleTaskClick}
         onTaskCreate={() => setShowCreateModal(true)}

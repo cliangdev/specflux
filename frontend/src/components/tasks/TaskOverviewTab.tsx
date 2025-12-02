@@ -1,15 +1,31 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { Task, AcceptanceCriterion } from "../../api/generated";
 import { api } from "../../api";
+import { v2Api } from "../../api/v2/client";
 import { AcceptanceCriteriaList } from "../ui/AcceptanceCriteriaList";
 
+// Extended task type for v2 support
+type TaskWithV2Fields = Omit<Task, "epicId"> & {
+  publicId?: string;
+  displayKey?: string;
+  epicId?: number | string | null;
+  epicDisplayKey?: string;
+  priority?: string;
+};
+
 interface TaskOverviewTabProps {
-  task: Task;
+  task: TaskWithV2Fields;
+  /** v2 project reference (publicId) */
+  projectRef?: string;
+  /** Whether to use v2 API */
+  usingV2?: boolean;
   onTaskUpdate?: () => void;
 }
 
 export default function TaskOverviewTab({
   task,
+  projectRef,
+  usingV2 = false,
   onTaskUpdate,
 }: TaskOverviewTabProps) {
   const [criteria, setCriteria] = useState<AcceptanceCriterion[]>([]);
@@ -23,14 +39,38 @@ export default function TaskOverviewTab({
   const fetchCriteria = useCallback(async () => {
     try {
       setCriteriaLoading(true);
-      const response = await api.tasks.listTaskCriteria({ id: task.id });
-      setCriteria(response.data ?? []);
+      if (usingV2 && projectRef && task.publicId) {
+        // Use v2 API
+        const response = await v2Api.tasks.listTaskAcceptanceCriteria({
+          projectRef,
+          taskRef: task.publicId,
+        });
+        const v2Criteria = response.data ?? [];
+        // Convert v2 criteria to v1 format
+        const convertedCriteria: AcceptanceCriterion[] = v2Criteria.map(
+          (c) => ({
+            id: c.id,
+            entityType: "task" as const,
+            entityId: 0,
+            text: c.criteria,
+            checked: c.isMet ?? false,
+            position: c.orderIndex ?? 0,
+            createdAt: new Date(c.createdAt),
+            updatedAt: new Date(c.createdAt),
+          }),
+        );
+        setCriteria(convertedCriteria);
+      } else {
+        // Use v1 API
+        const response = await api.tasks.listTaskCriteria({ id: task.id });
+        setCriteria(response.data ?? []);
+      }
     } catch (err) {
       console.error("Failed to fetch criteria:", err);
     } finally {
       setCriteriaLoading(false);
     }
-  }, [task.id]);
+  }, [task.id, task.publicId, projectRef, usingV2]);
 
   useEffect(() => {
     fetchCriteria();
@@ -69,10 +109,18 @@ export default function TaskOverviewTab({
       setDescriptionValue(trimmed);
 
       try {
-        await api.tasks.updateTask({
-          id: task.id,
-          updateTaskRequest: { description: trimmed || null },
-        });
+        if (usingV2 && projectRef && task.publicId) {
+          await v2Api.tasks.updateTask({
+            projectRef,
+            taskRef: task.publicId,
+            updateTaskRequest: { description: trimmed || undefined },
+          });
+        } else {
+          await api.tasks.updateTask({
+            id: task.id,
+            updateTaskRequest: { description: trimmed || null },
+          });
+        }
         onTaskUpdate?.();
       } catch (err) {
         console.error("Failed to update description:", err);

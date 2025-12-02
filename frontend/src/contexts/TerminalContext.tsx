@@ -8,21 +8,21 @@ import {
 } from "react";
 
 export interface TaskInfo {
-  id: number;
+  id: number | string; // v1 uses number, v2 uses publicId string
   title: string;
 }
 
 export type ContextType = "task" | "epic" | "project";
 
 export interface AgentInfo {
-  id: number;
+  id: number | string; // v1 uses number, v2 uses publicId string
   name: string;
   emoji: string;
 }
 
 export interface ContextInfo {
   type: ContextType;
-  id: number;
+  id: number | string; // v1 uses number, v2 uses publicId string
   title: string;
   agent?: AgentInfo;
 }
@@ -30,12 +30,12 @@ export interface ContextInfo {
 export interface TerminalSession {
   id: string; // e.g., "task-123", "epic-5", "project-2"
   contextType: ContextType;
-  contextId: number;
+  contextId: number | string; // v1 uses number, v2 uses publicId string
   contextTitle: string;
   // Agent assigned to this session (for task contexts)
   agent?: AgentInfo;
   // Backwards compatibility aliases
-  taskId: number;
+  taskId: number | string; // v1 uses number, v2 uses publicId string
   taskTitle: string;
   isRunning: boolean;
   isConnected: boolean;
@@ -84,7 +84,7 @@ const MAX_PANEL_HEIGHT_PERCENT = 0.8;
 interface StoredSession {
   id: string;
   contextType: ContextType;
-  contextId: number;
+  contextId: number | string; // v1 uses number, v2 uses publicId string
   contextTitle: string;
   agent?: AgentInfo;
 }

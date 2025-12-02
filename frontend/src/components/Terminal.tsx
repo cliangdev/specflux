@@ -20,8 +20,8 @@ type ContextType = "task" | "epic" | "project";
 
 interface TerminalProps {
   contextType?: ContextType;
-  contextId?: number;
-  taskId?: number; // Deprecated: use contextType + contextId instead
+  contextId?: number | string; // v1 uses number, v2 uses publicId string
+  taskId?: number | string; // Deprecated: use contextType + contextId instead
   wsUrl?: string;
   onStatusChange?: (running: boolean) => void;
   onConnectionChange?: (connected: boolean) => void;

@@ -2,10 +2,25 @@
  * API Module
  *
  * Re-exports the API client and commonly used types.
+ *
+ * The API router automatically switches between v1 (Node.js/SQLite) and v2 (Spring Boot/PostgreSQL)
+ * based on backend settings. See router.ts for routing logic.
  */
 
-// API client
-export { api, setUserId, getUserId } from "./client";
+// API client (routed via router.ts)
+export { api, setUserId, getUserId } from "./router";
+
+// Backend settings
+export {
+  isV2Enabled,
+  enableV2,
+  disableV2,
+  getBackendSettings,
+  updateBackendSettings,
+  subscribeToBackendSettings,
+  resetMigration,
+  type BackendSettings,
+} from "./router";
 
 // API classes for custom configuration
 export {

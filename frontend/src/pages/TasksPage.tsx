@@ -1,19 +1,35 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProject } from "../contexts";
-import { api, type Task, type Epic } from "../api";
+import { api } from "../api";
+import { v2Api } from "../api/v2/client";
 import {
   ListTasksStatusEnum,
   ListTasksSortEnum,
   ListTasksOrderEnum,
 } from "../api/generated";
+import {
+  ListTasksSortEnum as V2SortEnum,
+  ListTasksOrderEnum as V2OrderEnum,
+  TaskStatus as V2TaskStatus,
+} from "../api/v2/generated";
 import { TaskCreateModal, Pagination } from "../components/ui";
+import {
+  type TaskDisplay,
+  v1TasksToDisplay,
+  v2TasksToDisplay,
+} from "../api/adapters/taskAdapter";
+import {
+  type EpicDisplay,
+  v1EpicsToDisplay,
+  v2EpicsToDisplay,
+} from "../api/adapters/epicAdapter";
 
 const FILTERS_STORAGE_KEY = "specflux-tasks-filters";
 
 interface TasksFilters {
   status: string;
-  epicId: number | undefined;
+  epicId: string | number | undefined;
   sortField: ListTasksSortEnum;
   sortOrder: ListTasksOrderEnum;
 }
@@ -54,6 +70,16 @@ const STATUS_OPTIONS = [
   { value: "approved", label: "Approved" },
   { value: "done", label: "Done" },
 ];
+
+// Map v1 status values to v2 TaskStatus enum values
+const V1_TO_V2_STATUS_MAP: Record<string, V2TaskStatus> = {
+  backlog: V2TaskStatus.Backlog,
+  ready: V2TaskStatus.Ready,
+  in_progress: V2TaskStatus.InProgress,
+  pending_review: V2TaskStatus.InReview,
+  approved: V2TaskStatus.Completed, // v2 doesn't have approved, map to completed
+  done: V2TaskStatus.Completed,
+};
 
 // Status badge configuration matching the mock design
 const STATUS_CONFIG: Record<
@@ -246,9 +272,9 @@ function SortableHeader({
 }
 
 export default function TasksPage() {
-  const { currentProject } = useProject();
+  const { currentProject, usingV2, getProjectRef } = useProject();
   const navigate = useNavigate();
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<TaskDisplay[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -258,10 +284,10 @@ export default function TasksPage() {
 
   // Filters
   const [statusFilter, setStatusFilter] = useState(initialFilters.status);
-  const [epicFilter, setEpicFilter] = useState<number | undefined>(
+  const [epicFilter, setEpicFilter] = useState<string | number | undefined>(
     initialFilters.epicId,
   );
-  const [epics, setEpics] = useState<Epic[]>([]);
+  const [epics, setEpics] = useState<EpicDisplay[]>([]);
 
   // Sorting
   const [sortField, setSortField] = useState<ListTasksSortEnum>(
@@ -295,15 +321,37 @@ export default function TasksPage() {
   useEffect(() => {
     if (!currentProject) return;
 
-    api.epics
-      .listEpics({ id: currentProject.id })
-      .then((response) => {
-        setEpics(response.data ?? []);
-      })
-      .catch((err) => {
+    const fetchEpics = async () => {
+      try {
+        if (usingV2) {
+          const projectRef = getProjectRef();
+          if (!projectRef) return;
+          console.log("[TasksPage] Fetching epics from v2 API");
+          const response = await v2Api.epics.listEpics({ projectRef });
+          setEpics(v2EpicsToDisplay(response.data ?? []));
+        } else {
+          console.log("[TasksPage] Fetching epics from v1 API");
+          const response = await api.epics.listEpics({ id: currentProject.id });
+          setEpics(v1EpicsToDisplay(response.data ?? []));
+        }
+      } catch (err) {
         console.error("Failed to fetch epics:", err);
-      });
-  }, [currentProject]);
+      }
+    };
+
+    fetchEpics();
+  }, [currentProject, usingV2, getProjectRef]);
+
+  // Validate epicFilter against loaded epics - clear if invalid
+  // (handles v1 -> v2 migration where epicId type changes from number to string)
+  useEffect(() => {
+    if (epics.length > 0 && epicFilter !== undefined) {
+      const isValid = epics.some((epic) => epic.id === epicFilter);
+      if (!isValid) {
+        setEpicFilter(undefined);
+      }
+    }
+  }, [epics, epicFilter]);
 
   const fetchTasks = useCallback(
     async (cursor?: string, append = false) => {
@@ -321,20 +369,62 @@ export default function TasksPage() {
         }
         setError(null);
 
-        const response = await api.tasks.listTasks({
-          id: currentProject.id,
-          status: (statusFilter || undefined) as
-            | ListTasksStatusEnum
-            | undefined,
-          epicId: epicFilter,
-          sort: sortField,
-          order: sortOrder,
-          cursor,
-          limit: 20,
-        });
+        let newTasks: TaskDisplay[];
+        let paginationData:
+          | {
+              nextCursor?: string | null;
+              prevCursor?: string | null;
+              hasMore?: boolean;
+              total?: number;
+            }
+          | undefined;
 
-        const newTasks = response.data ?? [];
-        const paginationData = response.pagination;
+        if (usingV2) {
+          const projectRef = getProjectRef();
+          if (!projectRef) {
+            setError("No project selected");
+            return;
+          }
+
+          // Map v1 sort enum to v2 sort enum
+          const v2Sort = sortField as unknown as V2SortEnum;
+          const v2Order = sortOrder as unknown as V2OrderEnum;
+
+          // Map status filter to v2 TaskStatus enum using the mapping
+          const v2Status = statusFilter
+            ? V1_TO_V2_STATUS_MAP[statusFilter]
+            : undefined;
+
+          const response = await v2Api.tasks.listTasks({
+            projectRef,
+            status: v2Status,
+            epicRef: epicFilter ? String(epicFilter) : undefined,
+            sort: v2Sort,
+            order: v2Order,
+            cursor,
+            limit: 20,
+          });
+
+          newTasks = v2TasksToDisplay(response.data ?? []);
+          paginationData = response.pagination;
+        } else {
+          console.log("[TasksPage] Fetching tasks from v1 API");
+
+          const response = await api.tasks.listTasks({
+            id: currentProject.id,
+            status: (statusFilter || undefined) as
+              | ListTasksStatusEnum
+              | undefined,
+            epicId: typeof epicFilter === "number" ? epicFilter : undefined,
+            sort: sortField,
+            order: sortOrder,
+            cursor,
+            limit: 20,
+          });
+
+          newTasks = v1TasksToDisplay(response.data ?? []);
+          paginationData = response.pagination;
+        }
 
         if (append) {
           setTasks((prev) => [...prev, ...newTasks]);
@@ -358,7 +448,15 @@ export default function TasksPage() {
         setLoadingMore(false);
       }
     },
-    [currentProject, statusFilter, epicFilter, sortField, sortOrder],
+    [
+      currentProject,
+      statusFilter,
+      epicFilter,
+      sortField,
+      sortOrder,
+      usingV2,
+      getProjectRef,
+    ],
   );
 
   useEffect(() => {
@@ -422,9 +520,15 @@ export default function TasksPage() {
           {/* Epic filter */}
           <select
             value={epicFilter ?? ""}
-            onChange={(e) =>
-              setEpicFilter(e.target.value ? Number(e.target.value) : undefined)
-            }
+            onChange={(e) => {
+              const val = e.target.value;
+              if (!val) {
+                setEpicFilter(undefined);
+              } else {
+                // For v2, epic.id is a string (publicId), for v1 it's a number
+                setEpicFilter(usingV2 ? val : Number(val));
+              }
+            }}
             className="select w-[160px]"
           >
             <option value="">All Epics</option>
@@ -574,10 +678,15 @@ export default function TasksPage() {
                 <tr
                   key={task.id}
                   className="hover:bg-system-50 dark:hover:bg-system-800/50 transition-colors cursor-pointer"
-                  onClick={() => navigate(`/tasks/${task.id}`)}
+                  onClick={() => {
+                    // For v2, task.id is the publicId (string like "task_xxx")
+                    // For v1, task.id is a number
+                    // TaskDetailPage will need to handle both
+                    navigate(`/tasks/${task.id}`);
+                  }}
                 >
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-system-500 dark:text-system-400">
-                    #{task.id}
+                    {task.displayKey}
                   </td>
                   <td className="px-6 py-4 max-w-md">
                     <div className="text-sm font-medium text-system-900 dark:text-white truncate">
@@ -596,7 +705,7 @@ export default function TasksPage() {
                     {task.repoName || "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-system-500 dark:text-system-400">
-                    {new Date(task.createdAt).toLocaleDateString()}
+                    {task.createdAt.toLocaleDateString()}
                   </td>
                 </tr>
               ))}

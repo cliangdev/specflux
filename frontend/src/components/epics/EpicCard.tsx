@@ -70,6 +70,12 @@ const EPIC_STATUS_CONFIG: Record<
   },
 };
 
+// Extended type to support v2 fields
+type EpicWithV2Fields = Epic & {
+  publicId?: string;
+  displayKey?: string;
+};
+
 interface EpicCardProps {
   epic: Epic;
 }
@@ -81,8 +87,13 @@ export default function EpicCard({ epic }: EpicCardProps) {
   const taskStats = epic.taskStats || { total: 0, done: 0, inProgress: 0 };
   const progressPercent = epic.progressPercentage ?? 0;
 
+  // Support both v1 (numeric id) and v2 (publicId/displayKey)
+  const epicV2 = epic as EpicWithV2Fields;
+  const epicRef = epicV2.publicId || epic.id;
+  const epicDisplayId = epicV2.displayKey || `#${epic.id}`;
+
   const handleClick = () => {
-    navigate(`/epics/${epic.id}`);
+    navigate(`/epics/${epicRef}`);
   };
 
   return (
@@ -93,7 +104,7 @@ export default function EpicCard({ epic }: EpicCardProps) {
       {/* Header: ID and Status */}
       <div className="flex items-center justify-between mb-3">
         <span className="text-sm font-mono text-system-500 dark:text-system-400">
-          #{epic.id}
+          {epicDisplayId}
         </span>
         <span
           className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusConfig.classes}`}

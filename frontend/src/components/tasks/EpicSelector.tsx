@@ -1,11 +1,24 @@
 import { useState, useEffect, useRef } from "react";
 import type { Epic } from "../../api/generated";
 import { api } from "../../api";
+import { v2Api } from "../../api/v2/client";
+
+// Unified epic type for the selector
+interface EpicOption {
+  id: string | number;
+  publicId?: string;
+  title: string;
+  status: string;
+}
 
 interface EpicSelectorProps {
   projectId: number;
-  selectedEpicId?: number | null;
-  onChange: (epicId: number | null) => void;
+  /** v2 project reference (publicId) */
+  projectRef?: string;
+  /** Whether to use v2 API */
+  usingV2?: boolean;
+  selectedEpicId?: number | string | null;
+  onChange: (epicId: number | string | null) => void;
   disabled?: boolean;
 }
 
@@ -28,11 +41,13 @@ const EpicIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
 
 export default function EpicSelector({
   projectId,
+  projectRef,
+  usingV2 = false,
   selectedEpicId,
   onChange,
   disabled = false,
 }: EpicSelectorProps) {
-  const [epics, setEpics] = useState<Epic[]>([]);
+  const [epics, setEpics] = useState<EpicOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -42,8 +57,35 @@ export default function EpicSelector({
     const fetchEpics = async () => {
       try {
         setLoading(true);
-        const response = await api.epics.listEpics({ id: projectId });
-        setEpics(response.data ?? []);
+        if (usingV2 && projectRef) {
+          // Use v2 API
+          const response = await v2Api.epics.listEpics({ projectRef });
+          const v2Epics = response.data ?? [];
+          // Map v2 status to lowercase
+          const statusMap: Record<string, string> = {
+            PLANNING: "planning",
+            IN_PROGRESS: "active",
+            COMPLETED: "completed",
+          };
+          setEpics(
+            v2Epics.map((e) => ({
+              id: e.publicId,
+              publicId: e.publicId,
+              title: e.title,
+              status: statusMap[e.status] || "planning",
+            })),
+          );
+        } else {
+          // Use v1 API
+          const response = await api.epics.listEpics({ id: projectId });
+          setEpics(
+            (response.data ?? []).map((e) => ({
+              id: e.id,
+              title: e.title,
+              status: e.status,
+            })),
+          );
+        }
       } catch (err) {
         console.error("Failed to fetch epics:", err);
       } finally {
@@ -51,7 +93,7 @@ export default function EpicSelector({
       }
     };
     fetchEpics();
-  }, [projectId]);
+  }, [projectId, projectRef, usingV2]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -69,7 +111,7 @@ export default function EpicSelector({
 
   const selectedEpic = epics.find((e) => e.id === selectedEpicId);
 
-  const handleSelect = (epic: Epic | null) => {
+  const handleSelect = (epic: EpicOption | null) => {
     onChange(epic?.id ?? null);
     setIsOpen(false);
   };

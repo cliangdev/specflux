@@ -4,13 +4,15 @@ import { RepositorySettings } from "../components/settings/RepositorySettings";
 import { AgentSettings } from "../components/settings/AgentSettings";
 import { SkillSettings } from "../components/settings/SkillSettings";
 import { McpServerSettings } from "../components/settings/McpServerSettings";
+import { BackendSettings } from "../components/settings/BackendSettings";
 
 type SettingsTab =
   | "general"
   | "repositories"
   | "agents"
   | "skills"
-  | "mcp-servers";
+  | "mcp-servers"
+  | "backend";
 
 interface TabGroup {
   label: string;
@@ -32,6 +34,10 @@ const tabGroups: TabGroup[] = [
       { id: "skills", label: "Skills" },
       { id: "mcp-servers", label: "MCP Servers" },
     ],
+  },
+  {
+    label: "Cloud",
+    tabs: [{ id: "backend", label: "Backend" }],
   },
 ];
 
@@ -86,6 +92,7 @@ export default function SettingsPage() {
             {activeTab === "agents" && <AgentSettings />}
             {activeTab === "skills" && <SkillSettings />}
             {activeTab === "mcp-servers" && <McpServerSettings />}
+            {activeTab === "backend" && <BackendSettings />}
           </div>
         </div>
       </div>

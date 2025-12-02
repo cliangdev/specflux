@@ -187,6 +187,14 @@ export default function DependencyList({
           STATUS_BADGE_CONFIG[task.status] || STATUS_BADGE_CONFIG.backlog;
         const isComplete = task.status === "approved" || task.status === "done";
 
+        // Use publicId for v2 tasks, id for v1
+        const taskWithV2 = task as typeof task & {
+          publicId?: string;
+          displayKey?: string;
+        };
+        const taskRef = taskWithV2.publicId || task.id;
+        const displayId = taskWithV2.displayKey || `#${task.id}`;
+
         return (
           <div
             key={dep.id}
@@ -197,11 +205,11 @@ export default function DependencyList({
 
             {/* Task ID and Title - Clickable */}
             <button
-              onClick={() => navigate(`/tasks/${task.id}`)}
+              onClick={() => navigate(`/tasks/${taskRef}`)}
               className="flex-1 flex items-center gap-2 text-left min-w-0"
             >
               <span className="text-xs font-mono text-system-500 dark:text-system-400">
-                #{task.id}
+                {displayId}
               </span>
               <span
                 className={`text-sm truncate ${

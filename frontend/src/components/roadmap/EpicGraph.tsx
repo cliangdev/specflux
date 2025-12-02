@@ -16,11 +16,16 @@ import type { Epic } from "../../api/generated";
 import { useGraphLayout } from "./useGraphLayout";
 import {
   transformEpicsToGraph,
+  getEpicId,
   type EpicNodeData,
 } from "./transformEpicsToGraph";
+
 import EpicNode from "./EpicNode";
 import EpicDetailPopup from "./EpicDetailPopup";
 import GraphToolbar from "./GraphToolbar";
+
+// Extended Epic type that includes v2 fields
+type EpicWithV2 = Epic & { publicId?: string };
 
 // Register custom node types - must be defined outside component to prevent re-renders
 const nodeTypes: NodeTypes = {
@@ -105,8 +110,9 @@ function EpicGraphInner({
   const onNodeDoubleClick = useCallback(
     (_event: React.MouseEvent, node: Node<EpicNodeData>) => {
       if (node.data?.epic) {
-        // Navigate to epic detail page
-        navigate(`/epics/${node.data.epic.id}`);
+        // Navigate to epic detail page using publicId if available (v2), otherwise id (v1)
+        const epicId = getEpicId(node.data.epic as EpicWithV2);
+        navigate(`/epics/${epicId}`);
         onEpicDoubleClick?.(node.data.epic);
       }
     },
@@ -119,7 +125,8 @@ function EpicGraphInner({
 
   const handleNavigateToEpic = useCallback(() => {
     if (popup?.epic) {
-      navigate(`/epics/${popup.epic.id}`);
+      const epicId = getEpicId(popup.epic as EpicWithV2);
+      navigate(`/epics/${epicId}`);
       setPopup(null);
     }
   }, [popup, navigate]);

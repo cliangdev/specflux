@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { MainLayout } from "./components/layout";
 import { ProjectProvider } from "./contexts";
+import { AuthProvider } from "./contexts/AuthContext";
 import {
   BoardPage,
   TasksPage,
@@ -15,24 +16,26 @@ import {
 
 function App() {
   return (
-    <ProjectProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<MainLayout />}>
-            <Route index element={<Navigate to="/board" replace />} />
-            <Route path="board" element={<BoardPage />} />
-            <Route path="tasks" element={<TasksPage />} />
-            <Route path="tasks/:taskId" element={<TaskDetailPage />} />
-            <Route path="roadmap" element={<RoadmapPage />} />
-            <Route path="epics" element={<EpicsPage />} />
-            <Route path="epics/:id" element={<EpicDetailPage />} />
-            <Route path="files" element={<FilesPage />} />
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="settings/agents/:id" element={<AgentDetailPage />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </ProjectProvider>
+    <AuthProvider>
+      <ProjectProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<MainLayout />}>
+              <Route index element={<Navigate to="/board" replace />} />
+              <Route path="board" element={<BoardPage />} />
+              <Route path="tasks" element={<TasksPage />} />
+              <Route path="tasks/:taskId" element={<TaskDetailPage />} />
+              <Route path="roadmap" element={<RoadmapPage />} />
+              <Route path="epics" element={<EpicsPage />} />
+              <Route path="epics/:id" element={<EpicDetailPage />} />
+              <Route path="files" element={<FilesPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+              <Route path="settings/agents/:id" element={<AgentDetailPage />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </ProjectProvider>
+    </AuthProvider>
   );
 }
 

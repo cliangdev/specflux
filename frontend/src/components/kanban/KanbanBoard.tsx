@@ -10,7 +10,9 @@ import {
   rectIntersection,
 } from "@dnd-kit/core";
 import { Task, TaskStatusEnum } from "../../api/generated/models/Task";
+import { TaskStatus as V2TaskStatus } from "../../api/v2/generated";
 import { api } from "../../api";
+import { v2Api } from "../../api/v2/client";
 import {
   KanbanColumn as KanbanColumnType,
   WorkflowTemplate,
@@ -27,6 +29,10 @@ import {
 
 interface KanbanBoardProps {
   projectId: number;
+  /** Project reference for v2 API (projectKey or publicId) */
+  projectRef?: string;
+  /** Whether to use v2 API */
+  usingV2?: boolean;
   workflowTemplate?: WorkflowTemplate;
   onTaskClick?: (task: Task) => void;
   onTaskCreate?: () => void;
@@ -44,6 +50,8 @@ interface KanbanBoardProps {
  */
 export function KanbanBoard({
   projectId,
+  projectRef,
+  usingV2 = false,
   workflowTemplate = "startup-fast",
   onTaskClick,
   onTaskCreate,
@@ -81,10 +89,61 @@ export function KanbanBoard({
     try {
       setLoading(true);
       setError(null);
-      // Fetch all tasks with a high limit to avoid pagination issues on the board
-      const response = await api.tasks.listTasks({ id: projectId, limit: 200 });
-      if (response.success && response.data) {
-        setTasks(response.data);
+
+      if (usingV2 && projectRef) {
+        // Use v2 API (max limit is 100)
+        console.log("[KanbanBoard] Loading tasks from v2 API");
+        const response = await v2Api.tasks.listTasks({
+          projectRef,
+          limit: 100,
+        });
+        // Convert v2 tasks to v1 Task format for KanbanBoard compatibility
+        const v2Tasks = response.data ?? [];
+        console.log(
+          "[KanbanBoard] v2 tasks:",
+          v2Tasks.map((t) => ({ title: t.title, status: t.status })),
+        );
+        // Map v2 status to v1 status format
+        const statusMap: Record<string, TaskStatusEnum> = {
+          BACKLOG: TaskStatusEnum.Backlog,
+          READY: TaskStatusEnum.Ready,
+          IN_PROGRESS: TaskStatusEnum.InProgress,
+          PENDING_REVIEW: TaskStatusEnum.PendingReview,
+          APPROVED: TaskStatusEnum.Approved,
+          DONE: TaskStatusEnum.Done,
+        };
+        const convertedTasks: Task[] = v2Tasks.map((t) => ({
+          id: 0, // v2 uses publicId, but KanbanBoard needs numeric id for drag-drop
+          publicId: t.publicId,
+          displayKey: t.displayKey,
+          title: t.title,
+          description: t.description ?? null,
+          status: statusMap[t.status] || TaskStatusEnum.Backlog,
+          projectId: 0,
+          epicId: null,
+          epicDisplayKey: t.epicDisplayKey ?? null,
+          repoName: null,
+          priority: t.priority,
+          requiresApproval: t.requiresApproval,
+          progressPercentage: 0, // Required field
+          createdByUserId: 0, // Required field
+          estimatedDuration: t.estimatedDuration ?? null,
+          actualDuration: t.actualDuration ?? null,
+          createdAt: t.createdAt,
+          updatedAt: t.updatedAt,
+          githubPrUrl: t.githubPrUrl ?? null,
+        }));
+        setTasks(convertedTasks);
+      } else {
+        // Use v1 API
+        console.log("[KanbanBoard] Loading tasks from v1 API");
+        const response = await api.tasks.listTasks({
+          id: projectId,
+          limit: 200,
+        });
+        if (response.success && response.data) {
+          setTasks(response.data);
+        }
       }
     } catch (err) {
       setError("Failed to load tasks");
@@ -92,7 +151,7 @@ export function KanbanBoard({
     } finally {
       setLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, projectRef, usingV2]);
 
   useEffect(() => {
     loadTasks();
@@ -155,15 +214,25 @@ export function KanbanBoard({
     const { active, over } = event;
     if (!over) return;
 
-    const taskId = active.id as number;
-    const task = tasks.find((t) => t.id === taskId);
+    // For v2, we use publicId stored in the task; for v1, we use numeric id
+    const taskIdentifier = active.id;
+    const task = usingV2
+      ? tasks.find(
+          (t) =>
+            (t as Task & { publicId?: string }).publicId === taskIdentifier,
+        )
+      : tasks.find((t) => t.id === taskIdentifier);
     if (!task) return;
 
     // Find the target column (over can be column id or another task)
     let targetColumnId = over.id as string;
 
     // If dropped over a task, find its column
-    const overTask = tasks.find((t) => t.id === over.id);
+    const overTask = usingV2
+      ? tasks.find(
+          (t) => (t as Task & { publicId?: string }).publicId === over.id,
+        )
+      : tasks.find((t) => t.id === over.id);
     if (overTask) {
       const column = findColumnByStatus(overTask.status);
       if (column) {
@@ -180,17 +249,30 @@ export function KanbanBoard({
 
     // Optimistically update UI
     setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId ? { ...t, status: targetColumn.status } : t,
-      ),
+      prev.map((t) => {
+        const matches = usingV2
+          ? (t as Task & { publicId?: string }).publicId === taskIdentifier
+          : t.id === taskIdentifier;
+        return matches ? { ...t, status: targetColumn.status } : t;
+      }),
     );
 
     // Update on server
     try {
-      await api.tasks.updateTask({
-        id: taskId,
-        updateTaskRequest: { status: targetColumn.status },
-      });
+      if (usingV2 && projectRef) {
+        // Convert status to v2 format (UPPER_CASE)
+        const v2Status = targetColumn.status.toUpperCase() as V2TaskStatus;
+        await v2Api.tasks.updateTask({
+          projectRef,
+          taskRef: taskIdentifier as string,
+          updateTaskRequest: { status: v2Status },
+        });
+      } else {
+        await api.tasks.updateTask({
+          id: task.id,
+          updateTaskRequest: { status: targetColumn.status },
+        });
+      }
     } catch (err) {
       console.error("Failed to update task status:", err);
       // Revert on error

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useProject } from "../contexts";
 import { useSearchParams } from "react-router-dom";
 import { api, type Release, type ReleaseWithEpics, type Epic } from "../api";
+import { v2Api } from "../api/v2/client";
 import { UpdateReleaseRequestStatusEnum } from "../api/generated";
 import { PhaseSection } from "../components/roadmap";
 import { EpicEditModal, EpicCreateModal } from "../components/epics";
@@ -506,7 +507,7 @@ function ReleaseHeader({ release, onUpdate }: ReleaseHeaderProps) {
 }
 
 export default function RoadmapPage() {
-  const { currentProject } = useProject();
+  const { currentProject, usingV2, getProjectRef } = useProject();
   const [searchParams, setSearchParams] = useSearchParams();
   const [releases, setReleases] = useState<Release[]>([]);
 
@@ -576,10 +577,44 @@ export default function RoadmapPage() {
     try {
       setLoading(true);
       setError(null);
-      const response = await api.releases.listReleases({
-        id: currentProject.id,
-      });
-      const releaseList = response.data ?? [];
+
+      let releaseList: Release[];
+
+      if (usingV2) {
+        const projectRef = getProjectRef();
+        if (!projectRef) {
+          setReleases([]);
+          setLoading(false);
+          return;
+        }
+        console.log("[RoadmapPage] Fetching releases from v2 API");
+        const response = await v2Api.releases.listReleases({ projectRef });
+        // Convert v2 releases to v1 format
+        const v2Releases = response.data ?? [];
+        releaseList = v2Releases.map((r) => ({
+          id: 0, // v2 uses publicId
+          publicId: r.publicId,
+          name: r.name,
+          description: r.description ?? null,
+          status: r.status.toLowerCase() as
+            | "planned"
+            | "in_progress"
+            | "released",
+          targetDate: r.targetDate ?? null,
+          projectId: 0,
+          createdAt: r.createdAt,
+          updatedAt: r.updatedAt,
+          epicCount: (r as { epicCount?: number }).epicCount,
+          progressPercentage: (r as { progressPercentage?: number })
+            .progressPercentage,
+        }));
+      } else {
+        const response = await api.releases.listReleases({
+          id: currentProject.id,
+        });
+        releaseList = response.data ?? [];
+      }
+
       setReleases(releaseList);
 
       // Auto-select "all" if none selected and releases exist
@@ -594,7 +629,7 @@ export default function RoadmapPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentProject, selectedReleaseId]);
+  }, [currentProject, selectedReleaseId, usingV2, getProjectRef]);
 
   // Fetch roadmap data for selected release(s)
   const fetchRoadmap = useCallback(async () => {
@@ -607,24 +642,57 @@ export default function RoadmapPage() {
     try {
       setError(null);
 
-      if (selectedReleaseId === "all") {
-        // Fetch roadmap for all releases
-        const roadmapPromises = releases.map((release) =>
-          api.releases.getReleaseRoadmap({ id: release.id }),
-        );
-        const responses = await Promise.all(roadmapPromises);
-        const allData = responses
-          .map((r) => r.data)
-          .filter((d): d is ReleaseWithEpics => d !== null && d !== undefined);
-        setAllRoadmapData(allData);
-        setRoadmapData(null);
+      if (usingV2) {
+        // v2 API may not have getReleaseRoadmap yet
+        // For now, show a simplified view with just releases and their epics
+        console.log("[RoadmapPage] v2 roadmap API not fully implemented yet");
+        // Create empty roadmap data based on releases
+        if (selectedReleaseId === "all") {
+          const allData: ReleaseWithEpics[] = releases.map((release) => ({
+            release,
+            epics: [],
+            phases: [],
+          }));
+          setAllRoadmapData(allData);
+          setRoadmapData(null);
+        } else {
+          const release = releases.find(
+            (r) =>
+              r.id === selectedReleaseId ||
+              (r as Release & { publicId?: string }).publicId ===
+                String(selectedReleaseId),
+          );
+          if (release) {
+            setRoadmapData({
+              release,
+              epics: [],
+              phases: [],
+            });
+          }
+          setAllRoadmapData([]);
+        }
       } else {
-        // Fetch roadmap for single release
-        const response = await api.releases.getReleaseRoadmap({
-          id: selectedReleaseId,
-        });
-        setRoadmapData(response.data ?? null);
-        setAllRoadmapData([]);
+        if (selectedReleaseId === "all") {
+          // Fetch roadmap for all releases
+          const roadmapPromises = releases.map((release) =>
+            api.releases.getReleaseRoadmap({ id: release.id }),
+          );
+          const responses = await Promise.all(roadmapPromises);
+          const allData = responses
+            .map((r) => r.data)
+            .filter(
+              (d): d is ReleaseWithEpics => d !== null && d !== undefined,
+            );
+          setAllRoadmapData(allData);
+          setRoadmapData(null);
+        } else {
+          // Fetch roadmap for single release
+          const response = await api.releases.getReleaseRoadmap({
+            id: selectedReleaseId,
+          });
+          setRoadmapData(response.data ?? null);
+          setAllRoadmapData([]);
+        }
       }
     } catch (err) {
       const message =
@@ -632,7 +700,7 @@ export default function RoadmapPage() {
       setError(message);
       console.error("Failed to fetch roadmap:", err);
     }
-  }, [selectedReleaseId, releases]);
+  }, [selectedReleaseId, releases, usingV2]);
 
   useEffect(() => {
     fetchReleases();
@@ -759,7 +827,16 @@ export default function RoadmapPage() {
             >
               <option value="all">All Releases</option>
               {releases.map((release) => (
-                <option key={release.id} value={release.id}>
+                <option
+                  key={
+                    (release as Release & { publicId?: string }).publicId ||
+                    release.id
+                  }
+                  value={
+                    (release as Release & { publicId?: string }).publicId ||
+                    release.id
+                  }
+                >
                   {release.name}
                 </option>
               ))}
@@ -921,7 +998,12 @@ export default function RoadmapPage() {
           {/* All releases view */}
           <div className="space-y-8">
             {filteredAllRoadmapData.map((rd) => (
-              <div key={rd.release.id}>
+              <div
+                key={
+                  (rd.release as Release & { publicId?: string }).publicId ||
+                  rd.release.id
+                }
+              >
                 <ReleaseHeader release={rd.release} onUpdate={handleRefresh} />
                 {rd.phases.length === 0 && !hasActiveFilters ? (
                   <div className="text-center py-8 card mt-4">
