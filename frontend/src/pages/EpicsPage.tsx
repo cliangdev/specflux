@@ -168,7 +168,7 @@ export default function EpicsPage() {
         displayKey: e.displayKey,
         title: e.title,
         description: e.description ?? null,
-        status: e.status.toLowerCase() as "planning" | "active" | "completed",
+        status: e.status, // Keep UPPER_CASE status from v2 API
         targetDate: e.targetDate ?? null,
         projectId: 0,
         releaseId: null, // v1 field - not used for v2

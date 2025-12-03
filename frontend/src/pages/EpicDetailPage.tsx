@@ -17,9 +17,10 @@ import { AcceptanceCriteriaList } from "../components/ui/AcceptanceCriteriaList"
 import { calculatePhase } from "../utils/phaseCalculation";
 
 // Extended type to support v2 fields
-type EpicWithV2Fields = Omit<Epic, "dependsOn" | "taskStats"> & {
+type EpicWithV2Fields = Omit<Epic, "dependsOn" | "taskStats" | "status"> & {
   v2Id?: string;
   displayKey?: string;
+  status: string; // Allow UPPER_CASE status from v2 API
   taskStats?: { total?: number; done?: number; inProgress?: number };
   progressPercentage?: number;
   phase?: number;
@@ -225,7 +226,7 @@ export default function EpicDetailPage() {
         projectId: 0,
         title: e.title,
         description: e.description ?? null,
-        status: e.status.toLowerCase() as "planning" | "active" | "completed",
+        status: e.status, // Keep UPPER_CASE status from v2 API
         targetDate: e.targetDate ? new Date(e.targetDate) : null,
         createdByUserId: 0,
         createdAt: new Date(e.createdAt),
@@ -343,14 +344,14 @@ export default function EpicDetailPage() {
     return allEpics.filter((e) => e.v2Id && depsSet.has(e.v2Id));
   }, [epic, allEpics]);
 
-  // Map v1 status to v2 status
+  // Map status to v2 status enum
   const mapStatusToV2 = (status: string): V2EpicStatus => {
-    switch (status.toLowerCase()) {
-      case "planning":
+    switch (status) {
+      case "PLANNING":
         return V2EpicStatus.Planning;
-      case "active":
+      case "IN_PROGRESS":
         return V2EpicStatus.InProgress;
-      case "completed":
+      case "COMPLETED":
         return V2EpicStatus.Completed;
       default:
         return V2EpicStatus.Planning;

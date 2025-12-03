@@ -57,17 +57,11 @@ export default function EpicSelector({
           // Use v2 API
           const response = await v2Api.epics.listEpics({ projectRef });
           const v2Epics = response.data ?? [];
-          // Map v2 status to lowercase
-          const statusMap: Record<string, string> = {
-            PLANNING: "planning",
-            IN_PROGRESS: "active",
-            COMPLETED: "completed",
-          };
           setEpics(
             v2Epics.map((e) => ({
               id: e.id,
               title: e.title,
-              status: statusMap[e.status] || "planning",
+              status: e.status, // Keep UPPER_CASE status from v2 API
             })),
           );
         } else {

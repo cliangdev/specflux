@@ -158,7 +158,8 @@ export default function EpicDetailHeader({
     }
   };
 
-  const currentStatus = STATUS_CONFIG[epic.status] || STATUS_CONFIG.planning;
+  const currentStatus =
+    STATUS_CONFIG[epic.status as string] || STATUS_CONFIG.PLANNING;
   const currentRelease = releases.find((r) => r.id === epic.releaseId);
 
   return (

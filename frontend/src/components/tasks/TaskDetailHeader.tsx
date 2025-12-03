@@ -210,7 +210,7 @@ export default function TaskDetailHeader({
     }
   };
 
-  const currentStatus = STATUS_CONFIG[task.status] || STATUS_CONFIG.backlog;
+  const currentStatus = STATUS_CONFIG[task.status] || STATUS_CONFIG.BACKLOG;
 
   return (
     <div className="space-y-3 mb-4">

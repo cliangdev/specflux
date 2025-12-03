@@ -212,15 +212,8 @@ export default function TaskDetailPage() {
         taskRef: taskId,
       });
 
-      // Convert v2 task to internal format (matching v1 Task interface)
-      // Map v2 status to v1 status format (v2 uses UPPER_CASE, v1 uses lower_case)
-      const statusMap: Record<string, Task["status"]> = {
-        BACKLOG: "backlog",
-        READY: "ready",
-        IN_PROGRESS: "in_progress",
-        IN_REVIEW: "pending_review",
-        COMPLETED: "done",
-      };
+      // Convert v2 task to internal format
+      // Keep UPPER_CASE status from v2 API
       const taskData: TaskWithV2Fields = {
         id: 0, // v2 uses v2Id
         v2Id: v2Task.id,
@@ -230,7 +223,7 @@ export default function TaskDetailPage() {
         epicDisplayKey: v2Task.epicDisplayKey,
         title: v2Task.title,
         description: v2Task.description ?? null,
-        status: statusMap[v2Task.status] || "backlog",
+        status: v2Task.status as Task["status"], // Keep UPPER_CASE status
         priority: v2Task.priority,
         requiresApproval: v2Task.requiresApproval,
         progressPercentage: 0, // v2 doesn't track this yet
@@ -449,9 +442,9 @@ export default function TaskDetailPage() {
     fetchDependencies();
   }, [fetchTask, fetchAgentStatus, fetchDependencies]);
 
-  // Fetch diff when task is in pending_review
+  // Fetch diff when task is IN_REVIEW
   useEffect(() => {
-    if (task?.status === "pending_review") {
+    if ((task?.status as string) === "IN_REVIEW") {
       fetchDiff();
     }
   }, [task?.status, fetchDiff]);

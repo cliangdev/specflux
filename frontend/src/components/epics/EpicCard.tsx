@@ -2,12 +2,12 @@ import { useNavigate } from "react-router-dom";
 import type { Epic } from "../../api";
 import { ProgressBar } from "../ui";
 
-// Epic status badge configuration
+// Epic status badge configuration (UPPER_CASE keys for v2 API)
 const EPIC_STATUS_CONFIG: Record<
   string,
   { label: string; icon: JSX.Element; classes: string }
 > = {
-  planning: {
+  PLANNING: {
     label: "Planning",
     icon: (
       <svg
@@ -23,8 +23,8 @@ const EPIC_STATUS_CONFIG: Record<
     classes:
       "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
   },
-  active: {
-    label: "Active",
+  IN_PROGRESS: {
+    label: "In Progress",
     icon: (
       <svg
         className="w-3.5 h-3.5"
@@ -48,7 +48,7 @@ const EPIC_STATUS_CONFIG: Record<
     classes:
       "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 border-brand-200 dark:border-brand-800",
   },
-  completed: {
+  COMPLETED: {
     label: "Completed",
     icon: (
       <svg
@@ -83,7 +83,7 @@ interface EpicCardProps {
 export default function EpicCard({ epic }: EpicCardProps) {
   const navigate = useNavigate();
   const statusConfig =
-    EPIC_STATUS_CONFIG[epic.status] || EPIC_STATUS_CONFIG.planning;
+    EPIC_STATUS_CONFIG[epic.status as string] || EPIC_STATUS_CONFIG.PLANNING;
   const taskStats = epic.taskStats || { total: 0, done: 0, inProgress: 0 };
   const progressPercent = epic.progressPercentage ?? 0;
 
