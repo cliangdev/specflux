@@ -49,53 +49,44 @@ function saveFilters(filters: TasksFilters): void {
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
-  { value: "backlog", label: "Backlog" },
-  { value: "ready", label: "Ready" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "pending_review", label: "Pending Review" },
-  { value: "done", label: "Done" },
+  { value: TaskStatus.Backlog, label: "Backlog" },
+  { value: TaskStatus.Ready, label: "Ready" },
+  { value: TaskStatus.InProgress, label: "In Progress" },
+  { value: TaskStatus.InReview, label: "In Review" },
+  { value: TaskStatus.Completed, label: "Completed" },
 ];
-
-// Map lowercase status values to TaskStatus enum
-const STATUS_TO_ENUM: Record<string, TaskStatus> = {
-  backlog: TaskStatus.Backlog,
-  ready: TaskStatus.Ready,
-  in_progress: TaskStatus.InProgress,
-  pending_review: TaskStatus.InReview,
-  done: TaskStatus.Completed,
-};
 
 // Status badge configuration matching the mock design
 const STATUS_CONFIG: Record<
   string,
   { label: string; icon: string; classes: string }
 > = {
-  backlog: {
+  BACKLOG: {
     label: "Backlog",
     icon: "inbox",
     classes:
       "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
   },
-  ready: {
+  READY: {
     label: "Ready",
     icon: "circle-dashed",
     classes:
       "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
   },
-  in_progress: {
+  IN_PROGRESS: {
     label: "In Progress",
     icon: "timer",
     classes:
       "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 border-brand-200 dark:border-brand-800",
   },
-  pending_review: {
-    label: "Pending Review",
+  IN_REVIEW: {
+    label: "In Review",
     icon: "eye",
     classes:
       "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800",
   },
-  done: {
-    label: "Done",
+  COMPLETED: {
+    label: "Completed",
     icon: "check-circle",
     classes:
       "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
@@ -346,10 +337,10 @@ export default function TasksPage() {
           return;
         }
 
-        // Map status filter to TaskStatus enum
-        const statusEnum = statusFilter
-          ? STATUS_TO_ENUM[statusFilter]
-          : undefined;
+        // Use status filter directly (already UPPER_CASE from TaskStatus enum)
+        const statusEnum = (statusFilter || undefined) as
+          | TaskStatus
+          | undefined;
 
         const response = await v2Api.tasks.listTasks({
           projectRef,

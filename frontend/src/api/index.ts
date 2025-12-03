@@ -3,8 +3,9 @@
  *
  * Re-exports the API client and commonly used types.
  *
- * The API router automatically switches between v1 (Node.js/SQLite) and v2 (Spring Boot/PostgreSQL)
- * based on backend settings. See router.ts for routing logic.
+ * The codebase is migrating from v1 (Node.js/SQLite) to v2 (Spring Boot/PostgreSQL).
+ * - v1 API: Used for local features (agents, skills, terminal, file changes)
+ * - v2 API: Used for core domain (projects, epics, tasks, releases)
  */
 
 // API client (routed via router.ts)
@@ -93,6 +94,14 @@ export {
   ControlTaskAgentRequestActionEnum,
   AgentStatusStatusEnum,
 } from "./generated";
+
+// v2 Status enums (for components using UPPER_CASE statuses)
+export {
+  EpicStatus,
+  TaskStatus,
+  TaskPriority,
+  ReleaseStatus,
+} from "./v2/generated";
 
 // Runtime error class (for error handling)
 export { ResponseError } from "./generated/runtime";

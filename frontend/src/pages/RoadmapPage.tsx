@@ -932,9 +932,9 @@ export default function RoadmapPage() {
                 className="select"
               >
                 <option value="all">All Statuses</option>
-                <option value="planning">Planning</option>
-                <option value="active">Active</option>
-                <option value="completed">Completed</option>
+                <option value="PLANNING">Planning</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="COMPLETED">Completed</option>
               </select>
               <div className="text-sm text-system-500 dark:text-system-400">
                 {hasActiveFilters ? (
@@ -1060,9 +1060,9 @@ export default function RoadmapPage() {
                 className="select"
               >
                 <option value="all">All Statuses</option>
-                <option value="planning">Planning</option>
-                <option value="active">Active</option>
-                <option value="completed">Completed</option>
+                <option value="PLANNING">Planning</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="COMPLETED">Completed</option>
               </select>
 
               {/* Result count */}

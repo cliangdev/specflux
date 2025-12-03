@@ -96,8 +96,12 @@ export function calculatePhaseStatus(
 ): "ready" | "in_progress" | "blocked" | "completed" {
   if (epics.length === 0) return "ready";
 
-  const completedCount = epics.filter((e) => e.status === "completed").length;
-  const activeCount = epics.filter((e) => e.status === "active").length;
+  const completedCount = epics.filter(
+    (e) => (e.status as string) === "COMPLETED",
+  ).length;
+  const activeCount = epics.filter(
+    (e) => (e.status as string) === "IN_PROGRESS",
+  ).length;
 
   // All epics completed
   if (completedCount === epics.length) {
@@ -109,7 +113,7 @@ export function calculatePhaseStatus(
     for (let i = 1; i < phaseNumber; i++) {
       const prevPhaseEpics = allPhases.get(i) ?? [];
       const prevCompleted = prevPhaseEpics.filter(
-        (e) => e.status === "completed",
+        (e) => (e.status as string) === "COMPLETED",
       ).length;
       if (prevCompleted < prevPhaseEpics.length) {
         return "blocked";
@@ -141,7 +145,9 @@ export function getPhaseInfo(epics: Epic[]): PhaseInfo[] {
       phaseNumber,
       status: calculatePhaseStatus(phaseEpics, phaseNumber, groups),
       epics: phaseEpics,
-      completedCount: phaseEpics.filter((e) => e.status === "completed").length,
+      completedCount: phaseEpics.filter(
+        (e) => (e.status as string) === "COMPLETED",
+      ).length,
       totalCount: phaseEpics.length,
     });
   }

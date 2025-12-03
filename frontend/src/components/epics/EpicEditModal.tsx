@@ -239,9 +239,9 @@ export default function EpicEditModal({
                 onChange={(e) => setStatus(e.target.value as Epic["status"])}
                 className="select w-full"
               >
-                <option value="planning">Planning</option>
-                <option value="active">Active</option>
-                <option value="completed">Completed</option>
+                <option value="PLANNING">Planning</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="COMPLETED">Completed</option>
               </select>
             </div>
 

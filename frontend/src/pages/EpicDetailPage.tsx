@@ -28,33 +28,28 @@ type EpicWithV2Fields = Omit<Epic, "dependsOn" | "taskStats"> & {
 
 // Task status badge configuration
 const TASK_STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
-  backlog: {
+  BACKLOG: {
     label: "Backlog",
     classes:
       "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
   },
-  ready: {
+  READY: {
     label: "Ready",
     classes:
       "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
   },
-  in_progress: {
+  IN_PROGRESS: {
     label: "In Progress",
     classes:
       "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300",
   },
-  pending_review: {
-    label: "Pending Review",
+  IN_REVIEW: {
+    label: "In Review",
     classes:
       "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
   },
-  approved: {
-    label: "Approved",
-    classes:
-      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-  },
-  done: {
-    label: "Done",
+  COMPLETED: {
+    label: "Completed",
     classes:
       "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
   },
@@ -958,7 +953,7 @@ export default function EpicDetailPage() {
                 {tasks.map((task) => {
                   const taskStatusConfig =
                     TASK_STATUS_CONFIG[task.status] ||
-                    TASK_STATUS_CONFIG.backlog;
+                    TASK_STATUS_CONFIG.BACKLOG;
                   // Get task ref and display id for v2 support
                   const taskWithV2 = task as Task & {
                     v2Id?: string;

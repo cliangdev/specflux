@@ -15,12 +15,11 @@ interface TaskEditModalProps {
 }
 
 const STATUS_OPTIONS = [
-  { value: "backlog", label: "Backlog" },
-  { value: "ready", label: "Ready" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "pending_review", label: "Pending Review" },
-  { value: "approved", label: "Approved" },
-  { value: "done", label: "Done" },
+  { value: "BACKLOG", label: "Backlog" },
+  { value: "READY", label: "Ready" },
+  { value: "IN_PROGRESS", label: "In Progress" },
+  { value: "IN_REVIEW", label: "In Review" },
+  { value: "COMPLETED", label: "Completed" },
 ];
 
 export default function TaskEditModal({

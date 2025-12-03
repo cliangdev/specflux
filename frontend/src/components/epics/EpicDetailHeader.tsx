@@ -6,7 +6,7 @@ const STATUS_CONFIG: Record<
   string,
   { label: string; icon: JSX.Element; classes: string; dropdownClasses: string }
 > = {
-  planning: {
+  PLANNING: {
     label: "Planning",
     icon: (
       <svg
@@ -23,8 +23,8 @@ const STATUS_CONFIG: Record<
       "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
     dropdownClasses: "hover:bg-slate-100 dark:hover:bg-slate-800",
   },
-  active: {
-    label: "Active",
+  IN_PROGRESS: {
+    label: "In Progress",
     icon: (
       <svg
         className="w-3.5 h-3.5"
@@ -49,7 +49,7 @@ const STATUS_CONFIG: Record<
       "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 border-brand-200 dark:border-brand-800",
     dropdownClasses: "hover:bg-brand-50 dark:hover:bg-brand-900/20",
   },
-  completed: {
+  COMPLETED: {
     label: "Completed",
     icon: (
       <svg
@@ -72,7 +72,7 @@ const STATUS_CONFIG: Record<
   },
 };
 
-const STATUSES = ["planning", "active", "completed"] as const;
+const STATUSES = ["PLANNING", "IN_PROGRESS", "COMPLETED"] as const;
 
 interface EpicDetailHeaderProps {
   epic: Epic;
@@ -256,7 +256,7 @@ export default function EpicDetailHeader({
             <div className="absolute z-50 mt-1 w-44 bg-white dark:bg-system-800 rounded-lg shadow-lg border border-system-200 dark:border-system-700 py-1">
               {STATUSES.map((status) => {
                 const config = STATUS_CONFIG[status];
-                const isSelected = epic.status === status;
+                const isSelected = (epic.status as string) === status;
                 return (
                   <button
                     key={status}

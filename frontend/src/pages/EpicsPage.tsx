@@ -41,9 +41,9 @@ function saveFilters(filters: EpicsFilters): void {
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
-  { value: "planning", label: "Planning" },
-  { value: "active", label: "Active" },
-  { value: "completed", label: "Completed" },
+  { value: V2EpicStatus.Planning, label: "Planning" },
+  { value: V2EpicStatus.InProgress, label: "In Progress" },
+  { value: V2EpicStatus.Completed, label: "Completed" },
 ];
 
 export default function EpicsPage() {
@@ -152,11 +152,8 @@ export default function EpicsPage() {
       setLoading(true);
       setError(null);
 
-      // Map status filter to v2 format
-      let v2Status: V2EpicStatus | undefined;
-      if (statusFilter) {
-        v2Status = statusFilter.toUpperCase() as V2EpicStatus;
-      }
+      // Status filter is already in UPPER_CASE format from V2EpicStatus enum
+      const v2Status = statusFilter as V2EpicStatus | undefined;
       const response = await v2Api.epics.listEpics({
         projectRef,
         status: v2Status,

@@ -11,19 +11,19 @@ function getStatusStyles(status: string): {
   iconColor: string;
 } {
   switch (status) {
-    case "completed":
+    case "COMPLETED":
       return {
         borderColor: "border-semantic-success",
         bgColor: "bg-emerald-100 dark:bg-emerald-900/50",
         iconColor: "text-semantic-success",
       };
-    case "active":
+    case "IN_PROGRESS":
       return {
         borderColor: "border-brand-500",
         bgColor: "bg-blue-100 dark:bg-blue-900/50",
         iconColor: "text-brand-600 dark:text-brand-400",
       };
-    default: // planning
+    default: // PLANNING
       return {
         borderColor: "border-system-300 dark:border-system-600",
         bgColor: "bg-system-100 dark:bg-system-800",
@@ -40,7 +40,7 @@ function getStatusDisplay(status: string): {
   label: string;
 } {
   switch (status) {
-    case "completed":
+    case "COMPLETED":
       return {
         label: "Completed",
         icon: (
@@ -59,9 +59,9 @@ function getStatusDisplay(status: string): {
           </svg>
         ),
       };
-    case "active":
+    case "IN_PROGRESS":
       return {
-        label: "Active",
+        label: "In Progress",
         icon: (
           <svg
             className="w-3.5 h-3.5"
@@ -78,7 +78,7 @@ function getStatusDisplay(status: string): {
           </svg>
         ),
       };
-    default: // planning
+    default: // PLANNING
       return {
         label: "Planning",
         icon: (
@@ -155,7 +155,7 @@ function EpicNode({ data, selected }: NodeProps<EpicNodeData>) {
           <div className="h-1.5 bg-system-200 dark:bg-system-700 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-300 ${
-                status === "completed" ? "bg-semantic-success" : "bg-brand-500"
+                status === "COMPLETED" ? "bg-semantic-success" : "bg-brand-500"
               }`}
               style={{ width: `${progress}%` }}
             />

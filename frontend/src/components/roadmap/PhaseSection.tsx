@@ -44,14 +44,14 @@ function getEpicStatusBadge(status: string): {
   className: string;
 } {
   switch (status) {
-    case "completed":
+    case "COMPLETED":
       return {
         label: "Completed",
         className: "bg-semantic-success/20 text-semantic-success",
       };
-    case "active":
+    case "IN_PROGRESS":
       return {
-        label: "Active",
+        label: "In Progress",
         className: "bg-brand-500/20 text-brand-600 dark:text-brand-400",
       };
     default:
@@ -184,9 +184,9 @@ function EpicRow({
                       >
                         <span
                           className={`w-2 h-2 rounded-full ${
-                            e.status === "completed"
+                            (e.status as string) === "COMPLETED"
                               ? "bg-semantic-success"
-                              : e.status === "active"
+                              : (e.status as string) === "IN_PROGRESS"
                                 ? "bg-brand-500"
                                 : "bg-system-400"
                           }`}
@@ -229,9 +229,9 @@ function EpicRow({
                       >
                         <span
                           className={`w-2 h-2 rounded-full ${
-                            e.status === "completed"
+                            (e.status as string) === "COMPLETED"
                               ? "bg-semantic-success"
-                              : e.status === "active"
+                              : (e.status as string) === "IN_PROGRESS"
                                 ? "bg-brand-500"
                                 : "bg-system-400"
                           }`}
