@@ -17,6 +17,7 @@ import {
   AgentStatusStatusEnum,
 } from "../api";
 import { v2Api } from "../api/v2/client";
+import type { Task as V2Task } from "../api/v2/generated";
 import { useProject } from "../contexts";
 import FileChanges from "../components/FileChanges";
 import {
@@ -27,10 +28,11 @@ import {
 import TaskDetailHeader from "../components/tasks/TaskDetailHeader";
 import { TabNavigation } from "../components/ui";
 import { useTerminal, type AgentInfo } from "../contexts/TerminalContext";
+import { isV2TaskId } from "../utils/idUtils";
 
 // Extended type to support v2 fields (for easy cleanup when removing v1)
 type TaskWithV2Fields = Omit<Task, "epicId"> & {
-  publicId?: string;
+  v2Id?: string; // v2 public ID (e.g., task_xxx)
   displayKey?: string;
   epicId?: number | string | null;
   epicDisplayKey?: string;
@@ -147,7 +149,7 @@ export default function TaskDetailPage() {
   const { taskId } = useParams<{ taskId: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { usingV2, getProjectRef } = useProject();
+  const { getProjectRef } = useProject();
   const {
     openTerminalForContext,
     activeTask,
@@ -198,58 +200,50 @@ export default function TaskDetailPage() {
       setLoading(true);
       setError(null);
 
-      // === V2 API ===
-      if (usingV2) {
-        const projectRef = getProjectRef();
-        if (!projectRef) {
-          setError("No project selected");
-          setLoading(false);
-          return;
-        }
-
-        const v2Task = await v2Api.tasks.getTask({
-          projectRef,
-          taskRef: taskId,
-        });
-
-        // Convert v2 task to internal format (matching v1 Task interface)
-        // Map v2 status to v1 status format (v2 uses UPPER_CASE, v1 uses lower_case)
-        const statusMap: Record<string, Task["status"]> = {
-          BACKLOG: "backlog",
-          READY: "ready",
-          IN_PROGRESS: "in_progress",
-          PENDING_REVIEW: "pending_review",
-          APPROVED: "approved",
-          DONE: "done",
-        };
-        const taskData: TaskWithV2Fields = {
-          id: 0, // v2 uses publicId
-          publicId: v2Task.publicId,
-          displayKey: v2Task.displayKey,
-          projectId: 0, // v2 uses projectRef
-          epicId: v2Task.epicId ?? null, // v2 uses epicId as string publicId
-          epicDisplayKey: v2Task.epicDisplayKey,
-          title: v2Task.title,
-          description: v2Task.description ?? null,
-          status: statusMap[v2Task.status] || "backlog",
-          priority: v2Task.priority,
-          requiresApproval: v2Task.requiresApproval,
-          progressPercentage: 0, // v2 doesn't track this yet
-          estimatedDuration: v2Task.estimatedDuration ?? null,
-          actualDuration: v2Task.actualDuration ?? null,
-          githubPrUrl: v2Task.githubPrUrl ?? null,
-          assignedAgentId: null, // v2 uses assignedToId (string)
-          createdByUserId: 0, // v2 uses createdById (string)
-          executorType: "agent",
-          createdAt: new Date(v2Task.createdAt),
-          updatedAt: new Date(v2Task.updatedAt),
-        };
-        setTask(taskData);
-      } else {
-        // === V1 API ===
-        const response = await api.tasks.getTask({ id: Number(taskId) });
-        setTask(response.data ?? null);
+      const projectRef = getProjectRef();
+      if (!projectRef) {
+        setError("No project selected");
+        setLoading(false);
+        return;
       }
+
+      const v2Task = await v2Api.tasks.getTask({
+        projectRef,
+        taskRef: taskId,
+      });
+
+      // Convert v2 task to internal format (matching v1 Task interface)
+      // Map v2 status to v1 status format (v2 uses UPPER_CASE, v1 uses lower_case)
+      const statusMap: Record<string, Task["status"]> = {
+        BACKLOG: "backlog",
+        READY: "ready",
+        IN_PROGRESS: "in_progress",
+        IN_REVIEW: "pending_review",
+        COMPLETED: "done",
+      };
+      const taskData: TaskWithV2Fields = {
+        id: 0, // v2 uses v2Id
+        v2Id: v2Task.id,
+        displayKey: v2Task.displayKey,
+        projectId: 0, // v2 uses projectRef
+        epicId: v2Task.epicId ?? null, // v2 uses epicId as string publicId
+        epicDisplayKey: v2Task.epicDisplayKey,
+        title: v2Task.title,
+        description: v2Task.description ?? null,
+        status: statusMap[v2Task.status] || "backlog",
+        priority: v2Task.priority,
+        requiresApproval: v2Task.requiresApproval,
+        progressPercentage: 0, // v2 doesn't track this yet
+        estimatedDuration: v2Task.estimatedDuration ?? null,
+        actualDuration: v2Task.actualDuration ?? null,
+        githubPrUrl: v2Task.githubPrUrl ?? null,
+        assignedAgentId: null, // v2 uses assignedToId (string)
+        createdByUserId: 0, // v2 uses createdById (string)
+        executorType: "agent",
+        createdAt: new Date(v2Task.createdAt),
+        updatedAt: new Date(v2Task.updatedAt),
+      };
+      setTask(taskData);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to load task";
@@ -258,34 +252,23 @@ export default function TaskDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [taskId, usingV2, getProjectRef]);
+  }, [taskId, getProjectRef]);
 
   // Fetch epics for the project when task is loaded
-  const fetchEpics = useCallback(
-    async (projectId: number) => {
-      // Skip for v2 - epics are fetched differently
-      if (usingV2) {
-        setEpics([]);
-        return;
-      }
-      try {
-        const response = await api.epics.listEpics({ id: projectId });
-        setEpics(response.data ?? []);
-      } catch (err) {
-        console.error("Failed to fetch epics:", err);
-      }
-    },
-    [usingV2],
-  );
-
-  // Fetch task dependencies
-  const fetchDependencies = useCallback(async () => {
-    if (!taskId) return;
-    // Skip for v2 - dependencies API not yet integrated
-    if (usingV2) {
-      setDependencies([]);
-      return;
+  // Note: v1 API for local features - will only work when local backend is running
+  const fetchEpics = useCallback(async (projectId: number) => {
+    try {
+      const response = await api.epics.listEpics({ id: projectId });
+      setEpics(response.data ?? []);
+    } catch (err) {
+      console.error("Failed to fetch epics:", err);
+      setEpics([]);
     }
+  }, []);
+
+  // Fetch task dependencies (v1 API for local features - only works with v1 numeric IDs)
+  const fetchDependencies = useCallback(async () => {
+    if (!taskId || isV2TaskId(taskId)) return;
     try {
       const response = await api.tasks.listTaskDependencies({
         id: Number(taskId),
@@ -293,18 +276,13 @@ export default function TaskDetailPage() {
       setDependencies(response.data ?? []);
     } catch (err) {
       console.error("Failed to fetch dependencies:", err);
+      setDependencies([]);
     }
-  }, [taskId, usingV2]);
+  }, [taskId]);
 
-  // Update task's epic assignment
+  // Update task's epic assignment (v1 API for local features)
   const handleEpicChange = async (newEpicId: number | string | null) => {
     if (!task) return;
-
-    // Skip for v2 - epic assignment not yet integrated
-    if (usingV2) {
-      console.log("[v2] Epic assignment not yet implemented");
-      return;
-    }
 
     try {
       setEpicLoading(true);
@@ -314,7 +292,6 @@ export default function TaskDetailPage() {
           epicId: typeof newEpicId === "number" ? newEpicId : null,
         },
       });
-      // Refresh task data
       fetchTask();
     } catch (err) {
       const message =
@@ -326,15 +303,9 @@ export default function TaskDetailPage() {
     }
   };
 
-  // Update task status
+  // Update task status (v1 API for local features)
   const handleStatusChange = async (newStatus: string) => {
     if (!task) return;
-
-    // Skip for v2 - status updates not yet integrated
-    if (usingV2) {
-      console.log("[v2] Status updates not yet implemented");
-      return;
-    }
 
     try {
       await api.tasks.updateTask({
@@ -349,7 +320,6 @@ export default function TaskDetailPage() {
             | "done",
         },
       });
-      // Refresh task data
       fetchTask();
     } catch (err) {
       const message =
@@ -359,15 +329,9 @@ export default function TaskDetailPage() {
     }
   };
 
-  // Update task title inline
+  // Update task title inline (v1 API for local features)
   const handleTitleChange = async (newTitle: string) => {
     if (!task) return;
-
-    // Skip for v2 - title updates not yet integrated
-    if (usingV2) {
-      console.log("[v2] Title updates not yet implemented");
-      return;
-    }
 
     try {
       await api.tasks.updateTask({
@@ -383,26 +347,18 @@ export default function TaskDetailPage() {
     }
   };
 
-  // Update task's assigned agent
+  // Update task's assigned agent (v1 API for local features)
   const handleAgentChange = async (agentId: number | null) => {
     if (!task) return;
-
-    // Skip for v2 - agent assignment not available
-    if (usingV2) {
-      console.log("[v2] Agent assignment not available");
-      return;
-    }
 
     try {
       await api.tasks.updateTask({
         id: task.id,
         updateTaskRequest: {
           assignedAgentId: agentId,
-          // Automatically set executor type to 'agent' if an agent is assigned
           executorType: agentId ? "agent" : undefined,
         },
       });
-      // Refresh task data
       fetchTask();
     } catch (err) {
       const message =
@@ -412,22 +368,15 @@ export default function TaskDetailPage() {
     }
   };
 
-  // Remove dependency
+  // Remove dependency (v1 API for local features - only works with v1 numeric IDs)
   const handleRemoveDependency = async (dependencyId: number) => {
-    if (!taskId) return;
-
-    // Skip for v2 - dependencies not yet integrated
-    if (usingV2) {
-      console.log("[v2] Dependencies not yet implemented");
-      return;
-    }
+    if (!taskId || isV2TaskId(taskId)) return;
 
     try {
       await api.tasks.removeTaskDependency({
         id: Number(taskId),
         depId: dependencyId,
       });
-      // Refresh dependencies and task (blocked_by_count may change)
       fetchDependencies();
       fetchTask();
     } catch (err) {
@@ -438,28 +387,19 @@ export default function TaskDetailPage() {
     }
   };
 
-  // Handle dependency added from modal
+  // Handle dependency added from modal (v1 API for local features)
   const handleDependencyAdded = () => {
-    // Skip for v2
-    if (usingV2) return;
     fetchDependencies();
-    fetchTask(); // Refresh task to update blocked_by_count
+    fetchTask();
   };
 
-  // Handle task deletion
+  // Handle task deletion (v1 API for local features)
   const handleDelete = async () => {
     if (!task) return;
-
-    // Skip for v2 - delete not yet integrated
-    if (usingV2) {
-      console.log("[v2] Task deletion not yet implemented");
-      return;
-    }
 
     try {
       setDeleting(true);
       await api.tasks.deleteTask({ id: task.id });
-      // Navigate back to tasks list after successful deletion
       navigate("/tasks");
     } catch (err) {
       const message = await getApiErrorMessage(err, "Failed to delete task");
@@ -469,14 +409,9 @@ export default function TaskDetailPage() {
     }
   };
 
+  // Fetch agent status (v1 API for local features - only works with v1 numeric IDs)
   const fetchAgentStatus = useCallback(async () => {
-    if (!taskId) return;
-
-    // Skip for v2 - agent status not available
-    if (usingV2) {
-      setAgentStatus(null);
-      return;
-    }
+    if (!taskId || isV2TaskId(taskId)) return;
 
     try {
       setAgentLoading(true);
@@ -486,19 +421,15 @@ export default function TaskDetailPage() {
       setAgentStatus(response.data ?? null);
     } catch (err) {
       console.error("Failed to fetch agent status:", err);
+      setAgentStatus(null);
     } finally {
       setAgentLoading(false);
     }
-  }, [taskId, usingV2]);
+  }, [taskId]);
 
+  // Fetch diff (v1 API for local features - only works with v1 numeric IDs)
   const fetchDiff = useCallback(async () => {
-    if (!taskId) return;
-
-    // Skip for v2 - diff not available
-    if (usingV2) {
-      setTaskDiff(null);
-      return;
-    }
+    if (!taskId || isV2TaskId(taskId)) return;
 
     try {
       setDiffLoading(true);
@@ -506,10 +437,11 @@ export default function TaskDetailPage() {
       setTaskDiff(response.data ?? null);
     } catch (err) {
       console.error("Failed to fetch diff:", err);
+      setTaskDiff(null);
     } finally {
       setDiffLoading(false);
     }
-  }, [taskId, usingV2]);
+  }, [taskId]);
 
   useEffect(() => {
     fetchTask();
@@ -531,14 +463,9 @@ export default function TaskDetailPage() {
     }
   }, [task?.projectId, fetchEpics]);
 
-  // Fetch assigned agent when task has one (v1 only)
+  // Fetch assigned agent when task has one (v1 API for local features)
   useEffect(() => {
     const fetchAssignedAgent = async () => {
-      // Skip for v2 - agents not available
-      if (usingV2) {
-        setAssignedAgent(null);
-        return;
-      }
       if (!task?.assignedAgentId) {
         setAssignedAgent(null);
         return;
@@ -554,14 +481,14 @@ export default function TaskDetailPage() {
       }
     };
     fetchAssignedAgent();
-  }, [task?.assignedAgentId, usingV2]);
+  }, [task?.assignedAgentId]);
 
+  // Create PR (v1 API for local features - only works with v1 numeric IDs)
   const handleCreatePR = async () => {
-    if (!taskId) return;
-
-    // Skip for v2 - PR creation not available
-    if (usingV2) {
-      console.log("[v2] PR creation not available");
+    if (!taskId || isV2TaskId(taskId)) {
+      if (isV2TaskId(taskId)) {
+        setError("PR creation not available for v2 tasks yet");
+      }
       return;
     }
 
@@ -594,12 +521,12 @@ export default function TaskDetailPage() {
     }
   };
 
+  // Approve task (v1 API for local features - only works with v1 numeric IDs)
   const handleApprove = async () => {
-    if (!taskId) return;
-
-    // Skip for v2 - approval not available
-    if (usingV2) {
-      console.log("[v2] Task approval not available");
+    if (!taskId || isV2TaskId(taskId)) {
+      if (isV2TaskId(taskId)) {
+        setError("Task approval not available for v2 tasks yet");
+      }
       return;
     }
 
@@ -630,14 +557,14 @@ export default function TaskDetailPage() {
     };
   };
 
+  // Control agent (v1 API for local features - only works with v1 numeric IDs)
   const handleAgentAction = async (
     action: ControlTaskAgentRequestActionEnum,
   ) => {
-    if (!taskId || !task) return;
-
-    // Skip for v2 - agent controls not available
-    if (usingV2) {
-      console.log("[v2] Agent controls not available");
+    if (!taskId || !task || isV2TaskId(taskId)) {
+      if (isV2TaskId(taskId)) {
+        setError("Agent control not available for v2 tasks yet");
+      }
       return;
     }
 
@@ -679,8 +606,8 @@ export default function TaskDetailPage() {
   // Handle opening terminal for this task
   const handleOpenInTerminal = () => {
     if (task) {
-      // Use publicId for v2 tasks, id for v1
-      const taskRef = task.publicId || task.id;
+      // Use v2Id if available, otherwise fall back to id
+      const taskRef = task.v2Id || task.id;
       openTerminalForContext({
         type: "task",
         id: taskRef,
@@ -760,7 +687,6 @@ export default function TaskDetailPage() {
       <TaskDetailHeader
         task={task}
         projectRef={getProjectRef() ?? undefined}
-        usingV2={usingV2}
         onStatusChange={handleStatusChange}
         onEpicChange={handleEpicChange}
         onAgentChange={handleAgentChange}
@@ -821,7 +747,6 @@ export default function TaskDetailPage() {
               <TaskOverviewTab
                 task={task}
                 projectRef={getProjectRef() ?? undefined}
-                usingV2={usingV2}
                 onTaskUpdate={fetchTask}
               />
             )}

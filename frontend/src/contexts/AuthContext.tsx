@@ -9,6 +9,7 @@ import {
 import {
   initializeFirebase,
   signInWithGitHub as firebaseSignInWithGitHub,
+  signInWithTestAccount,
   signOut as firebaseSignOut,
   getIdToken as firebaseGetIdToken,
   onAuthStateChange,
@@ -26,6 +27,8 @@ interface AuthContextValue {
   loading: boolean;
   /** Whether user is signed in */
   isSignedIn: boolean;
+  /** Sign in with email and password */
+  signInWithEmail: (email: string, password: string) => Promise<void>;
   /** Sign in with GitHub OAuth */
   signInWithGitHub: () => Promise<void>;
   /** Sign out */
@@ -95,6 +98,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => unsubscribe();
   }, []);
 
+  const signInWithEmail = useCallback(
+    async (email: string, password: string) => {
+      setLoading(true);
+      setError(null);
+      try {
+        await signInWithTestAccount(email, password);
+        // Sync user to v2 backend (creates user if not exists)
+        try {
+          await v2Api.users.getCurrentUser();
+          console.log("User synced to v2 backend");
+        } catch (syncErr) {
+          console.warn("Failed to sync user to v2 backend:", syncErr);
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Sign in failed";
+        setError(message);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
   const signInWithGitHub = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -142,6 +169,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     user,
     loading,
     isSignedIn: user !== null,
+    signInWithEmail,
     signInWithGitHub,
     signOut,
     getIdToken,

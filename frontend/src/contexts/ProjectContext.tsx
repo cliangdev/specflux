@@ -7,37 +7,18 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import { api, type Project } from "../api";
 import { v2Api } from "../api/v2/client";
-import type { Project as V2Project } from "../api/v2/generated";
-import {
-  getBackendSettings,
-  subscribeToBackendSettings,
-} from "../stores/backendStore";
-
-/**
- * Unified project type that works with both v1 and v2 backends.
- * Extends v1 Project with optional v2 fields.
- */
-export interface UnifiedProject extends Project {
-  /** v2 publicId (when using v2 backend) */
-  v2PublicId?: string;
-  /** v2 projectKey (when using v2 backend) */
-  v2ProjectKey?: string;
-  /** Source backend */
-  _source?: "v1" | "v2";
-}
+import type { Project } from "../api/v2/generated";
+import { useAuth } from "./AuthContext";
 
 interface ProjectContextValue {
-  projects: UnifiedProject[];
-  currentProject: UnifiedProject | null;
+  projects: Project[];
+  currentProject: Project | null;
   loading: boolean;
   error: string | null;
-  selectProject: (project: UnifiedProject) => void;
+  selectProject: (project: Project) => void;
   refreshProjects: () => Promise<void>;
-  /** Whether v2 backend is currently being used */
-  usingV2: boolean;
-  /** Get the projectRef for v2 API calls (projectKey or publicId) */
+  /** Get the projectRef for API calls (projectKey or id) */
   getProjectRef: () => string | null;
 }
 
@@ -47,73 +28,25 @@ interface ProjectProviderProps {
   children: ReactNode;
 }
 
-/**
- * Convert v2 Project to UnifiedProject.
- */
-function v2ToUnifiedProject(v2Project: V2Project): UnifiedProject {
-  return {
-    // Generate a fake v1 id (not used when v2 is enabled)
-    id: 0,
-    name: v2Project.name,
-    projectId: v2Project.projectKey,
-    localPath: "",
-    workflowTemplate: "startup-fast",
-    ownerUserId: 0,
-    createdAt: v2Project.createdAt,
-    updatedAt: v2Project.updatedAt,
-    // v2 specific fields
-    v2PublicId: v2Project.publicId,
-    v2ProjectKey: v2Project.projectKey,
-    _source: "v2",
-  };
-}
-
 export function ProjectProvider({ children }: ProjectProviderProps) {
-  const [projects, setProjects] = useState<UnifiedProject[]>([]);
-  const [currentProject, setCurrentProject] = useState<UnifiedProject | null>(
-    null,
-  );
+  const { isSignedIn } = useAuth();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [usingV2, setUsingV2] = useState(false);
 
   // Use ref to access currentProject without adding to dependency array
   const currentProjectRef = useRef(currentProject);
   currentProjectRef.current = currentProject;
-
-  // Listen to backend settings changes
-  useEffect(() => {
-    const settings = getBackendSettings();
-    setUsingV2(settings.v2Enabled && settings.migrationComplete);
-
-    const unsubscribe = subscribeToBackendSettings((newSettings) => {
-      setUsingV2(newSettings.v2Enabled && newSettings.migrationComplete);
-    });
-
-    return unsubscribe;
-  }, []);
 
   const fetchProjects = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      let projectList: UnifiedProject[];
-
-      if (usingV2) {
-        // Fetch from v2 (Spring Boot) backend
-        console.log("[ProjectContext] Fetching projects from v2 API");
-        const response = await v2Api.projects.listProjects({});
-        projectList = (response.data ?? []).map(v2ToUnifiedProject);
-      } else {
-        // Fetch from v1 (Node.js) backend
-        console.log("[ProjectContext] Fetching projects from v1 API");
-        const response = await api.projects.listProjects();
-        projectList = (response.data ?? []).map((p) => ({
-          ...p,
-          _source: "v1" as const,
-        }));
-      }
+      console.log("[ProjectContext] Fetching projects from v2 API");
+      const response = await v2Api.projects.listProjects({});
+      const projectList = response.data ?? [];
 
       setProjects(projectList);
 
@@ -124,8 +57,8 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
       if (!currentProj && projectList.length > 0) {
         setCurrentProject(projectList[0]);
       } else if (currentProj) {
-        // Re-find current project in new list (may have different id if backend changed)
-        const found = projectList.find((p) => p.name === currentProj.name);
+        // Re-find current project in new list
+        const found = projectList.find((p) => p.id === currentProj.id);
         if (found) {
           setCurrentProject(found);
         } else if (projectList.length > 0) {
@@ -140,20 +73,23 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
     } finally {
       setLoading(false);
     }
-  }, [usingV2]); // Removed currentProject from dependencies to prevent infinite loop
+  }, []);
 
+  // Fetch projects when signed in, refetch if auth state changes
   useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects]);
+    if (isSignedIn) {
+      fetchProjects();
+    }
+  }, [isSignedIn, fetchProjects]);
 
-  const selectProject = useCallback((project: UnifiedProject) => {
+  const selectProject = useCallback((project: Project) => {
     setCurrentProject(project);
   }, []);
 
   const getProjectRef = useCallback((): string | null => {
     if (!currentProject) return null;
-    // For v2, use projectKey or publicId
-    return currentProject.v2ProjectKey ?? currentProject.v2PublicId ?? null;
+    // Use projectKey or id for API calls
+    return currentProject.projectKey ?? currentProject.id ?? null;
   }, [currentProject]);
 
   const value: ProjectContextValue = {
@@ -163,7 +99,6 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
     error,
     selectProject,
     refreshProjects: fetchProjects,
-    usingV2,
     getProjectRef,
   };
 

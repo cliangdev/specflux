@@ -18,7 +18,7 @@ import { calculatePhase } from "../utils/phaseCalculation";
 
 // Extended type to support v2 fields
 type EpicWithV2Fields = Omit<Epic, "dependsOn" | "taskStats"> & {
-  publicId?: string;
+  v2Id?: string;
   displayKey?: string;
   taskStats?: { total?: number; done?: number; inProgress?: number };
   progressPercentage?: number;
@@ -63,7 +63,7 @@ const TASK_STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
 export default function EpicDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { usingV2, getProjectRef } = useProject();
+  const { getProjectRef } = useProject();
   const [epic, setEpic] = useState<EpicWithV2Fields | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [criteria, setCriteria] = useState<AcceptanceCriterion[]>([]);
@@ -128,160 +128,138 @@ export default function EpicDetailPage() {
   const fetchEpicData = useCallback(async () => {
     if (!id) return;
 
+    const projectRef = getProjectRef();
+    if (!projectRef) {
+      setError("No project selected");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
 
-      // === V2 API ===
-      if (usingV2) {
-        const projectRef = getProjectRef();
-        if (!projectRef) {
-          setError("No project selected");
-          setLoading(false);
-          return;
-        }
+      // Fetch epic from v2 API
+      const epicResponse = await v2Api.epics.getEpic({
+        projectRef,
+        epicRef: id,
+      });
 
-        // Fetch epic from v2 API
-        const epicResponse = await v2Api.epics.getEpic({
+      // Convert v2 epic to internal format
+      const v2Epic = epicResponse;
+      // Map v2 status to v1 status format
+      const statusMap: Record<string, "planning" | "active" | "completed"> = {
+        PLANNING: "planning",
+        IN_PROGRESS: "active",
+        COMPLETED: "completed",
+      };
+      const epicData: EpicWithV2Fields = {
+        id: 0, // v2 uses id as string
+        v2Id: v2Epic.id,
+        displayKey: v2Epic.displayKey,
+        projectId: 0, // v2 uses projectRef
+        title: v2Epic.title,
+        description: v2Epic.description ?? null,
+        status: statusMap[v2Epic.status] || "planning",
+        targetDate: v2Epic.targetDate ? new Date(v2Epic.targetDate) : null,
+        createdByUserId: 0,
+        createdAt: new Date(v2Epic.createdAt),
+        updatedAt: new Date(v2Epic.updatedAt),
+        releaseId: null, // v2 uses releaseId as string
+        prdFilePath: v2Epic.prdFilePath ?? null,
+        epicFilePath: v2Epic.epicFilePath ?? null,
+        dependsOn: v2Epic.dependsOn ?? [],
+        taskStats: v2Epic.taskStats ?? { total: 0, done: 0, inProgress: 0 },
+        progressPercentage: v2Epic.progressPercentage ?? 0,
+        phase: v2Epic.phase ?? 1,
+      };
+      setEpic(epicData);
+
+      // Fetch tasks from v2 API
+      try {
+        const tasksResponse = await v2Api.epics.listEpicTasks({
           projectRef,
           epicRef: id,
+          limit: 100, // Fetch up to 100 tasks
         });
-
-        // Convert v2 epic to internal format
-        const v2Epic = epicResponse;
-        // Map v2 status to v1 status format
-        const statusMap: Record<string, "planning" | "active" | "completed"> = {
-          PLANNING: "planning",
-          IN_PROGRESS: "active",
-          COMPLETED: "completed",
+        const v2Tasks = tasksResponse.data ?? [];
+        // Map v2 task status to v1 format
+        const taskStatusMap: Record<string, string> = {
+          BACKLOG: "backlog",
+          READY: "ready",
+          IN_PROGRESS: "in_progress",
+          PENDING_REVIEW: "pending_review",
+          APPROVED: "approved",
+          DONE: "done",
         };
-        const epicData: EpicWithV2Fields = {
-          id: 0, // v2 uses publicId
-          publicId: v2Epic.publicId,
-          displayKey: v2Epic.displayKey,
-          projectId: 0, // v2 uses projectRef
-          title: v2Epic.title,
-          description: v2Epic.description ?? null,
-          status: statusMap[v2Epic.status] || "planning",
-          targetDate: v2Epic.targetDate ? new Date(v2Epic.targetDate) : null,
-          createdByUserId: 0,
-          createdAt: new Date(v2Epic.createdAt),
-          updatedAt: new Date(v2Epic.updatedAt),
-          releaseId: null, // v2 uses releaseId as string publicId
-          prdFilePath: v2Epic.prdFilePath ?? null,
-          epicFilePath: v2Epic.epicFilePath ?? null,
-          dependsOn: v2Epic.dependsOn ?? [],
-          taskStats: v2Epic.taskStats ?? { total: 0, done: 0, inProgress: 0 },
-          progressPercentage: v2Epic.progressPercentage ?? 0,
-          phase: v2Epic.phase ?? 1,
-        };
-        setEpic(epicData);
-
-        // Fetch tasks from v2 API
-        try {
-          const tasksResponse = await v2Api.epics.listEpicTasks({
-            projectRef,
-            epicRef: id,
-            limit: 100, // Fetch up to 100 tasks
-          });
-          const v2Tasks = tasksResponse.data ?? [];
-          // Map v2 task status to v1 format
-          const taskStatusMap: Record<string, string> = {
-            BACKLOG: "backlog",
-            READY: "ready",
-            IN_PROGRESS: "in_progress",
-            PENDING_REVIEW: "pending_review",
-            APPROVED: "approved",
-            DONE: "done",
-          };
-          // Convert v2 tasks to a compatible format for display
-          const convertedTasks = v2Tasks.map((t) => ({
-            id: 0,
-            publicId: t.publicId,
-            displayKey: t.displayKey,
-            projectId: 0,
-            epicId: null,
-            epicDisplayKey: t.epicDisplayKey ?? null,
-            title: t.title,
-            description: t.description ?? null,
-            status: taskStatusMap[t.status] || "backlog",
-            priority: t.priority,
-            requiresApproval: t.requiresApproval,
-            estimatedDuration: t.estimatedDuration ?? null,
-            actualDuration: t.actualDuration ?? null,
-            githubPrUrl: t.githubPrUrl ?? null,
-            createdByUserId: 0,
-            assignedToUserId: null,
-            progressPercentage: 0,
-            createdAt: new Date(t.createdAt),
-            updatedAt: new Date(t.updatedAt),
-          })) as unknown as Task[];
-          setTasks(convertedTasks);
-        } catch (err) {
-          console.error("Failed to fetch epic tasks:", err);
-          setTasks([]);
-        }
-
-        // Fetch all epics for dependencies (v2)
-        const allEpicsResponse = await v2Api.epics.listEpics({ projectRef });
-        const v2Epics = allEpicsResponse.data ?? [];
-        const convertedEpics: EpicWithV2Fields[] = v2Epics.map((e) => ({
+        // Convert v2 tasks to a compatible format for display
+        const convertedTasks = v2Tasks.map((t) => ({
           id: 0,
-          publicId: e.publicId,
-          displayKey: e.displayKey,
+          v2Id: t.id,
+          displayKey: t.displayKey,
           projectId: 0,
-          title: e.title,
-          description: e.description ?? null,
-          status: e.status.toLowerCase() as "planning" | "active" | "completed",
-          targetDate: e.targetDate ? new Date(e.targetDate) : null,
+          epicId: null,
+          epicDisplayKey: t.epicDisplayKey ?? null,
+          title: t.title,
+          description: t.description ?? null,
+          status: taskStatusMap[t.status] || "backlog",
+          priority: t.priority,
+          requiresApproval: t.requiresApproval,
+          estimatedDuration: t.estimatedDuration ?? null,
+          actualDuration: t.actualDuration ?? null,
+          githubPrUrl: t.githubPrUrl ?? null,
           createdByUserId: 0,
-          createdAt: new Date(e.createdAt),
-          updatedAt: new Date(e.updatedAt),
-          releaseId: null,
-        }));
-        setAllEpics(convertedEpics);
-
-        // Fetch releases from v2 API
-        const releasesResponse = await v2Api.releases.listReleases({
-          projectRef,
-        });
-        const v2Releases = releasesResponse.data ?? [];
-        const convertedReleases: Release[] = v2Releases.map((r) => ({
-          id: 0,
-          publicId: r.publicId,
-          name: r.name,
-          description: r.description ?? null,
-          status: r.status.toLowerCase() as
-            | "planned"
-            | "in_progress"
-            | "released",
-          targetDate: r.targetDate ?? null,
-          projectId: 0,
-          createdAt: r.createdAt,
-          updatedAt: r.updatedAt,
-        }));
-        setReleases(convertedReleases);
-      } else {
-        // === V1 API ===
-        const [epicResponse, tasksResponse] = await Promise.all([
-          api.epics.getEpic({ id: parseInt(id, 10) }),
-          api.epics.getEpicTasks({ id: parseInt(id, 10) }),
-        ]);
-
-        const epicData = epicResponse.data ?? null;
-        setEpic(epicData);
-        setTasks(tasksResponse.data ?? []);
-
-        // Fetch all epics and releases for the project
-        if (epicData?.projectId) {
-          const [allEpicsResponse, releasesResponse] = await Promise.all([
-            api.epics.listEpics({ id: epicData.projectId }),
-            api.releases.listReleases({ id: epicData.projectId }),
-          ]);
-          setAllEpics(allEpicsResponse.data ?? []);
-          setReleases(releasesResponse.data ?? []);
-        }
+          assignedToUserId: null,
+          progressPercentage: 0,
+          createdAt: new Date(t.createdAt),
+          updatedAt: new Date(t.updatedAt),
+        })) as unknown as Task[];
+        setTasks(convertedTasks);
+      } catch (err) {
+        console.error("Failed to fetch epic tasks:", err);
+        setTasks([]);
       }
+
+      // Fetch all epics for dependencies
+      const allEpicsResponse = await v2Api.epics.listEpics({ projectRef });
+      const v2Epics = allEpicsResponse.data ?? [];
+      const convertedEpics: EpicWithV2Fields[] = v2Epics.map((e) => ({
+        id: 0,
+        v2Id: e.id,
+        displayKey: e.displayKey,
+        projectId: 0,
+        title: e.title,
+        description: e.description ?? null,
+        status: e.status.toLowerCase() as "planning" | "active" | "completed",
+        targetDate: e.targetDate ? new Date(e.targetDate) : null,
+        createdByUserId: 0,
+        createdAt: new Date(e.createdAt),
+        updatedAt: new Date(e.updatedAt),
+        releaseId: null,
+        phase: e.phase,
+      }));
+      setAllEpics(convertedEpics);
+
+      // Fetch releases from v2 API
+      const releasesResponse = await v2Api.releases.listReleases({
+        projectRef,
+      });
+      const v2Releases = releasesResponse.data ?? [];
+      const convertedReleases: Release[] = v2Releases.map((r) => ({
+        id: 0,
+        v2Id: r.id,
+        name: r.name,
+        description: r.description ?? null,
+        status: r.status.toLowerCase() as
+          | "planned"
+          | "in_progress"
+          | "released",
+        targetDate: r.targetDate ?? null,
+        projectId: 0,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      })) as unknown as Release[];
+      setReleases(convertedReleases);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to load epic";
@@ -290,7 +268,7 @@ export default function EpicDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id, usingV2, getProjectRef]);
+  }, [id, getProjectRef]);
 
   const fetchCriteria = useCallback(async () => {
     if (!id) return;
@@ -298,67 +276,49 @@ export default function EpicDetailPage() {
     try {
       setCriteriaLoading(true);
 
-      if (usingV2) {
-        const projectRef = getProjectRef();
-        if (!projectRef) {
-          setCriteria([]);
-          setCriteriaLoading(false);
-          return;
-        }
-        const response = await v2Api.epics.listEpicAcceptanceCriteria({
-          projectRef,
-          epicRef: id,
-        });
-        const v2Criteria = response.data ?? [];
-        const convertedCriteria: AcceptanceCriterion[] = v2Criteria.map(
-          (c) => ({
-            id: c.id,
-            entityType: "epic" as const,
-            entityId: 0,
-            text: c.criteria,
-            checked: c.isMet ?? false,
-            position: c.orderIndex ?? 0,
-            createdAt: new Date(c.createdAt),
-            updatedAt: new Date(c.createdAt), // v2 doesn't have updatedAt
-          }),
-        );
-        setCriteria(convertedCriteria);
-      } else {
-        const response = await api.epics.listEpicCriteria({
-          id: parseInt(id, 10),
-        });
-        setCriteria(response.data ?? []);
+      const projectRef = getProjectRef();
+      if (!projectRef) {
+        setCriteria([]);
+        setCriteriaLoading(false);
+        return;
       }
+      const response = await v2Api.epics.listEpicAcceptanceCriteria({
+        projectRef,
+        epicRef: id,
+      });
+      const v2Criteria = response.data ?? [];
+      const convertedCriteria: AcceptanceCriterion[] = v2Criteria.map((c) => ({
+        id: c.id,
+        entityType: "epic" as const,
+        entityId: 0,
+        text: c.criteria,
+        checked: c.isMet ?? false,
+        position: c.orderIndex ?? 0,
+        createdAt: new Date(c.createdAt),
+        updatedAt: new Date(c.createdAt), // v2 doesn't have updatedAt
+      }));
+      setCriteria(convertedCriteria);
     } catch (err) {
       console.error("Failed to fetch criteria:", err);
     } finally {
       setCriteriaLoading(false);
     }
-  }, [id, usingV2, getProjectRef]);
+  }, [id, getProjectRef]);
 
   useEffect(() => {
     fetchEpicData();
     fetchCriteria();
   }, [fetchEpicData, fetchCriteria]);
 
-  // Helper to get epic ref (publicId for v2, id for v1)
-  const getEpicRef = (e: EpicWithV2Fields): string | number =>
-    e.publicId || e.id;
+  // Helper to get epic ref (v2Id for v2, id for fallback)
+  const getEpicRef = (e: EpicWithV2Fields): string | number => e.v2Id || e.id;
 
   // Calculate phase from dependencies
   const phase = useMemo(() => {
     if (!epic) return 1;
     // For v2, use the phase from the epic data
-    if (usingV2) {
-      return epic.phase ?? 1;
-    }
-    const epicsMap = new Map<number, { dependsOn: number[] }>();
-    for (const e of allEpics) {
-      // For v1, dependsOn is number[]
-      epicsMap.set(e.id, { dependsOn: (e.dependsOn ?? []) as number[] });
-    }
-    return calculatePhase(epic.id, epicsMap);
-  }, [epic, allEpics, usingV2]);
+    return epic.phase ?? 1;
+  }, [epic]);
 
   // Available epics for dependency selection (exclude current epic and detect circular)
   const availableEpics = useMemo(() => {
@@ -375,7 +335,7 @@ export default function EpicDetailPage() {
       (e) =>
         e.title.toLowerCase().includes(query) ||
         e.displayKey?.toLowerCase().includes(query) ||
-        e.publicId?.toLowerCase().includes(query) ||
+        e.v2Id?.toLowerCase().includes(query) ||
         e.id.toString().includes(query),
     );
   }, [availableEpics, dependencySearch]);
@@ -383,14 +343,10 @@ export default function EpicDetailPage() {
   // Get dependency epic objects
   const dependencyEpics = useMemo(() => {
     if (!epic?.dependsOn || epic.dependsOn.length === 0) return [];
-    if (usingV2) {
-      // For v2, dependsOn contains publicIds (strings)
-      const depsSet = new Set(epic.dependsOn);
-      return allEpics.filter((e) => e.publicId && depsSet.has(e.publicId));
-    }
-    // For v1, dependsOn contains numeric IDs
-    return allEpics.filter((e) => epic.dependsOn?.includes(e.id));
-  }, [epic, allEpics, usingV2]);
+    // For v2, dependsOn contains v2Ids (strings)
+    const depsSet = new Set(epic.dependsOn);
+    return allEpics.filter((e) => e.v2Id && depsSet.has(e.v2Id));
+  }, [epic, allEpics]);
 
   // Map v1 status to v2 status
   const mapStatusToV2 = (status: string): V2EpicStatus => {
@@ -411,24 +367,15 @@ export default function EpicDetailPage() {
     if (!epic) return;
 
     try {
-      if (usingV2) {
-        const projectRef = getProjectRef();
-        if (!projectRef || !epic.publicId) return;
-        await v2Api.epics.updateEpic({
-          projectRef,
-          epicRef: epic.publicId,
-          updateEpicRequest: {
-            status: mapStatusToV2(newStatus),
-          },
-        });
-      } else {
-        await api.epics.updateEpic({
-          id: epic.id,
-          updateEpicRequest: {
-            status: newStatus as "planning" | "active" | "completed",
-          },
-        });
-      }
+      const projectRef = getProjectRef();
+      if (!projectRef || !epic.v2Id) return;
+      await v2Api.epics.updateEpic({
+        projectRef,
+        epicRef: epic.v2Id,
+        updateEpicRequest: {
+          status: mapStatusToV2(newStatus),
+        },
+      });
       fetchEpicData();
     } catch (err) {
       const message =
@@ -443,20 +390,13 @@ export default function EpicDetailPage() {
     if (!epic) return;
 
     try {
-      if (usingV2) {
-        const projectRef = getProjectRef();
-        if (!projectRef || !epic.publicId) return;
-        await v2Api.epics.updateEpic({
-          projectRef,
-          epicRef: epic.publicId,
-          updateEpicRequest: { title: newTitle },
-        });
-      } else {
-        await api.epics.updateEpic({
-          id: epic.id,
-          updateEpicRequest: { title: newTitle },
-        });
-      }
+      const projectRef = getProjectRef();
+      if (!projectRef || !epic.v2Id) return;
+      await v2Api.epics.updateEpic({
+        projectRef,
+        epicRef: epic.v2Id,
+        updateEpicRequest: { title: newTitle },
+      });
       fetchEpicData();
     } catch (err) {
       const message =
@@ -471,23 +411,8 @@ export default function EpicDetailPage() {
     if (!epic) return;
 
     // Release assignment not yet implemented for v2
-    if (usingV2) {
-      console.log("Release assignment not yet implemented for v2");
-      return;
-    }
-
-    try {
-      await api.epics.updateEpic({
-        id: epic.id,
-        updateEpicRequest: { releaseId },
-      });
-      fetchEpicData();
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to update release";
-      setError(message);
-      console.error("Failed to update release:", err);
-    }
+    console.log("Release assignment not yet implemented for v2");
+    return;
   };
 
   // Handle description save
@@ -496,20 +421,13 @@ export default function EpicDetailPage() {
     const trimmed = descriptionValue.trim();
     if (trimmed !== (epic.description ?? "")) {
       try {
-        if (usingV2) {
-          const projectRef = getProjectRef();
-          if (!projectRef || !epic.publicId) return;
-          await v2Api.epics.updateEpic({
-            projectRef,
-            epicRef: epic.publicId,
-            updateEpicRequest: { description: trimmed || undefined },
-          });
-        } else {
-          await api.epics.updateEpic({
-            id: epic.id,
-            updateEpicRequest: { description: trimmed || null },
-          });
-        }
+        const projectRef = getProjectRef();
+        if (!projectRef || !epic.v2Id) return;
+        await v2Api.epics.updateEpic({
+          projectRef,
+          epicRef: epic.v2Id,
+          updateEpicRequest: { description: trimmed || undefined },
+        });
         fetchEpicData();
       } catch (err) {
         console.error("Failed to update description:", err);
@@ -524,78 +442,27 @@ export default function EpicDetailPage() {
     if (!epic) return;
 
     // PRD path not yet implemented for v2
-    if (usingV2) {
-      console.log("PRD path not yet implemented for v2");
-      setEditingPrd(false);
-      return;
-    }
-
-    const trimmed = prdValue.trim();
-    if (trimmed !== (epic.prdFilePath ?? "")) {
-      try {
-        await api.epics.updateEpic({
-          id: epic.id,
-          updateEpicRequest: { prdFilePath: trimmed || null },
-        });
-        fetchEpicData();
-      } catch (err) {
-        console.error("Failed to update PRD path:", err);
-        setPrdValue(epic.prdFilePath ?? "");
-      }
-    }
+    console.log("PRD path not yet implemented for v2");
     setEditingPrd(false);
+    return;
   };
 
-  // Handle add dependency (uses publicId for v2, numeric id for v1)
+  // Handle add dependency (uses v2Id)
   const handleAddDependency = async (depEpicRef: number | string) => {
     if (!epic) return;
 
     // Dependencies not yet implemented for v2
-    if (usingV2) {
-      console.log("Dependencies not yet implemented for v2");
-      return;
-    }
-
-    const currentDeps = (epic.dependsOn ?? []) as number[];
-    if (currentDeps.includes(depEpicRef as number)) return;
-
-    try {
-      await api.epics.updateEpic({
-        id: epic.id,
-        updateEpicRequest: {
-          dependsOn: [...currentDeps, depEpicRef as number],
-        },
-      });
-      fetchEpicData();
-    } catch (err) {
-      console.error("Failed to add dependency:", err);
-    }
-    setShowDependencyPicker(false);
-    setDependencySearch("");
+    console.log("Dependencies not yet implemented for v2");
+    return;
   };
 
-  // Handle remove dependency (uses publicId for v2, numeric id for v1)
+  // Handle remove dependency (uses v2Id)
   const handleRemoveDependency = async (depEpicRef: number | string) => {
     if (!epic) return;
 
     // Dependencies not yet implemented for v2
-    if (usingV2) {
-      console.log("Dependencies not yet implemented for v2");
-      return;
-    }
-
-    const currentDeps = (epic.dependsOn ?? []) as number[];
-    const newDeps = currentDeps.filter((id) => id !== depEpicRef);
-
-    try {
-      await api.epics.updateEpic({
-        id: epic.id,
-        updateEpicRequest: { dependsOn: newDeps },
-      });
-      fetchEpicData();
-    } catch (err) {
-      console.error("Failed to remove dependency:", err);
-    }
+    console.log("Dependencies not yet implemented for v2");
+    return;
   };
 
   // Handle epic deletion
@@ -604,16 +471,12 @@ export default function EpicDetailPage() {
 
     try {
       setDeleting(true);
-      if (usingV2) {
-        const projectRef = getProjectRef();
-        if (!projectRef || !epic.publicId) return;
-        await v2Api.epics.deleteEpic({
-          projectRef,
-          epicRef: epic.publicId,
-        });
-      } else {
-        await api.epics.deleteEpic({ id: epic.id });
-      }
+      const projectRef = getProjectRef();
+      if (!projectRef || !epic.v2Id) return;
+      await v2Api.epics.deleteEpic({
+        projectRef,
+        epicRef: epic.v2Id,
+      });
       navigate("/epics");
     } catch (err) {
       const message = await getApiErrorMessage(err, "Failed to delete epic");
@@ -932,14 +795,12 @@ export default function EpicDetailPage() {
                   ) : (
                     filteredAvailableEpics.map((e) => {
                       const epicRef = getEpicRef(e);
-                      // For v2, check if publicId is in dependsOn (which contains publicIds)
-                      // For v1, check if id is in dependsOn (which contains numeric ids)
-                      const isSelected = usingV2
-                        ? epic.dependsOn?.includes(e.publicId as string)
-                        : epic.dependsOn?.includes(e.id);
+                      // For v2, check if v2Id is in dependsOn (which contains v2Ids)
+                      const isSelected = epic.dependsOn?.includes(
+                        e.v2Id as string,
+                      );
                       const epicPhase = e.phase ?? 1;
-                      const displayId =
-                        e.displayKey || e.publicId || `#${e.id}`;
+                      const displayId = e.displayKey || e.v2Id || `#${e.id}`;
                       return (
                         <button
                           key={epicRef}
@@ -992,7 +853,7 @@ export default function EpicDetailPage() {
               {dependencyEpics.map((depEpic) => {
                 const depRef = getEpicRef(depEpic);
                 const displayId =
-                  depEpic.displayKey || depEpic.publicId || `#${depEpic.id}`;
+                  depEpic.displayKey || depEpic.v2Id || `#${depEpic.id}`;
                 return (
                   <div
                     key={depRef}
@@ -1100,12 +961,15 @@ export default function EpicDetailPage() {
                     TASK_STATUS_CONFIG.backlog;
                   // Get task ref and display id for v2 support
                   const taskWithV2 = task as Task & {
+                    v2Id?: string;
                     publicId?: string;
                     displayKey?: string;
                   };
-                  const taskRef = taskWithV2.publicId || task.id;
+                  const taskRef =
+                    taskWithV2.v2Id || taskWithV2.publicId || task.id;
                   const displayId =
                     taskWithV2.displayKey ||
+                    taskWithV2.v2Id ||
                     taskWithV2.publicId ||
                     `#${task.id}`;
                   return (
