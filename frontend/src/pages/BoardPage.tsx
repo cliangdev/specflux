@@ -2,13 +2,12 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProject } from "../contexts";
 import { useTerminal } from "../contexts/TerminalContext";
-import { api, type Task } from "../api";
-import { v2Api } from "../api/v2/client";
+import { type Task } from "../api";
 import { KanbanBoard, WorkflowTemplate } from "../components/kanban";
 import TaskCreateModal from "../components/ui/TaskCreateModal";
 
 export default function BoardPage() {
-  const { currentProject, usingV2, getProjectRef } = useProject();
+  const { currentProject, getProjectRef } = useProject();
   const navigate = useNavigate();
   const { openTerminalForTask } = useTerminal();
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -17,31 +16,12 @@ export default function BoardPage() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Load project config to get workflow template
+  // Note: v2 API doesn't have projectConfig endpoint yet, using default template
   const loadProjectConfig = useCallback(async () => {
     if (!currentProject) return;
-
-    try {
-      if (usingV2) {
-        const projectRef = getProjectRef();
-        if (!projectRef) return;
-        // v2 API may not have projectConfig endpoint yet, use default
-        // TODO: Add v2 project config endpoint
-        console.log("[BoardPage] Using default workflow template for v2");
-      } else {
-        const response = await api.projects.getProjectConfig({
-          id: currentProject.id,
-        });
-        if (response.success && response.data) {
-          const template = response.data.workflowTemplate as WorkflowTemplate;
-          if (template) {
-            setWorkflowTemplate(template);
-          }
-        }
-      }
-    } catch (err) {
-      console.error("Failed to load project config:", err);
-    }
-  }, [currentProject, usingV2, getProjectRef]);
+    // TODO: Add v2 project config endpoint when available
+    // For now, use default "startup-fast" workflow template
+  }, [currentProject]);
 
   useEffect(() => {
     loadProjectConfig();
@@ -86,7 +66,6 @@ export default function BoardPage() {
         key={refreshKey}
         projectId={currentProject.id}
         projectRef={getProjectRef() ?? undefined}
-        usingV2={usingV2}
         workflowTemplate={workflowTemplate}
         onTaskClick={handleTaskClick}
         onTaskCreate={() => setShowCreateModal(true)}

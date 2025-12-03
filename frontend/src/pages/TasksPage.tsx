@@ -1,35 +1,21 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProject } from "../contexts";
-import { api } from "../api";
 import { v2Api } from "../api/v2/client";
 import {
-  ListTasksStatusEnum,
   ListTasksSortEnum,
   ListTasksOrderEnum,
-} from "../api/generated";
-import {
-  ListTasksSortEnum as V2SortEnum,
-  ListTasksOrderEnum as V2OrderEnum,
-  TaskStatus as V2TaskStatus,
+  TaskStatus,
 } from "../api/v2/generated";
 import { TaskCreateModal, Pagination } from "../components/ui";
-import {
-  type TaskDisplay,
-  v1TasksToDisplay,
-  v2TasksToDisplay,
-} from "../api/adapters/taskAdapter";
-import {
-  type EpicDisplay,
-  v1EpicsToDisplay,
-  v2EpicsToDisplay,
-} from "../api/adapters/epicAdapter";
+import { type TaskDisplay, tasksToDisplay } from "../api/adapters/taskAdapter";
+import { type EpicDisplay, epicsToDisplay } from "../api/adapters/epicAdapter";
 
 const FILTERS_STORAGE_KEY = "specflux-tasks-filters";
 
 interface TasksFilters {
   status: string;
-  epicId: string | number | undefined;
+  epicId: string | undefined;
   sortField: ListTasksSortEnum;
   sortOrder: ListTasksOrderEnum;
 }
@@ -67,18 +53,16 @@ const STATUS_OPTIONS = [
   { value: "ready", label: "Ready" },
   { value: "in_progress", label: "In Progress" },
   { value: "pending_review", label: "Pending Review" },
-  { value: "approved", label: "Approved" },
   { value: "done", label: "Done" },
 ];
 
-// Map v1 status values to v2 TaskStatus enum values
-const V1_TO_V2_STATUS_MAP: Record<string, V2TaskStatus> = {
-  backlog: V2TaskStatus.Backlog,
-  ready: V2TaskStatus.Ready,
-  in_progress: V2TaskStatus.InProgress,
-  pending_review: V2TaskStatus.InReview,
-  approved: V2TaskStatus.Completed, // v2 doesn't have approved, map to completed
-  done: V2TaskStatus.Completed,
+// Map lowercase status values to TaskStatus enum
+const STATUS_TO_ENUM: Record<string, TaskStatus> = {
+  backlog: TaskStatus.Backlog,
+  ready: TaskStatus.Ready,
+  in_progress: TaskStatus.InProgress,
+  pending_review: TaskStatus.InReview,
+  done: TaskStatus.Completed,
 };
 
 // Status badge configuration matching the mock design
@@ -109,12 +93,6 @@ const STATUS_CONFIG: Record<
     icon: "eye",
     classes:
       "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800",
-  },
-  approved: {
-    label: "Approved",
-    icon: "check-circle",
-    classes:
-      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
   },
   done: {
     label: "Done",
@@ -272,7 +250,7 @@ function SortableHeader({
 }
 
 export default function TasksPage() {
-  const { currentProject, usingV2, getProjectRef } = useProject();
+  const { currentProject, getProjectRef } = useProject();
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<TaskDisplay[]>([]);
   const [loading, setLoading] = useState(true);
@@ -284,7 +262,7 @@ export default function TasksPage() {
 
   // Filters
   const [statusFilter, setStatusFilter] = useState(initialFilters.status);
-  const [epicFilter, setEpicFilter] = useState<string | number | undefined>(
+  const [epicFilter, setEpicFilter] = useState<string | undefined>(
     initialFilters.epicId,
   );
   const [epics, setEpics] = useState<EpicDisplay[]>([]);
@@ -323,27 +301,20 @@ export default function TasksPage() {
 
     const fetchEpics = async () => {
       try {
-        if (usingV2) {
-          const projectRef = getProjectRef();
-          if (!projectRef) return;
-          console.log("[TasksPage] Fetching epics from v2 API");
-          const response = await v2Api.epics.listEpics({ projectRef });
-          setEpics(v2EpicsToDisplay(response.data ?? []));
-        } else {
-          console.log("[TasksPage] Fetching epics from v1 API");
-          const response = await api.epics.listEpics({ id: currentProject.id });
-          setEpics(v1EpicsToDisplay(response.data ?? []));
-        }
+        const projectRef = getProjectRef();
+        if (!projectRef) return;
+        console.log("[TasksPage] Fetching epics from v2 API");
+        const response = await v2Api.epics.listEpics({ projectRef });
+        setEpics(epicsToDisplay(response.data ?? []));
       } catch (err) {
         console.error("Failed to fetch epics:", err);
       }
     };
 
     fetchEpics();
-  }, [currentProject, usingV2, getProjectRef]);
+  }, [currentProject, getProjectRef]);
 
   // Validate epicFilter against loaded epics - clear if invalid
-  // (handles v1 -> v2 migration where epicId type changes from number to string)
   useEffect(() => {
     if (epics.length > 0 && epicFilter !== undefined) {
       const isValid = epics.some((epic) => epic.id === epicFilter);
@@ -369,62 +340,29 @@ export default function TasksPage() {
         }
         setError(null);
 
-        let newTasks: TaskDisplay[];
-        let paginationData:
-          | {
-              nextCursor?: string | null;
-              prevCursor?: string | null;
-              hasMore?: boolean;
-              total?: number;
-            }
-          | undefined;
-
-        if (usingV2) {
-          const projectRef = getProjectRef();
-          if (!projectRef) {
-            setError("No project selected");
-            return;
-          }
-
-          // Map v1 sort enum to v2 sort enum
-          const v2Sort = sortField as unknown as V2SortEnum;
-          const v2Order = sortOrder as unknown as V2OrderEnum;
-
-          // Map status filter to v2 TaskStatus enum using the mapping
-          const v2Status = statusFilter
-            ? V1_TO_V2_STATUS_MAP[statusFilter]
-            : undefined;
-
-          const response = await v2Api.tasks.listTasks({
-            projectRef,
-            status: v2Status,
-            epicRef: epicFilter ? String(epicFilter) : undefined,
-            sort: v2Sort,
-            order: v2Order,
-            cursor,
-            limit: 20,
-          });
-
-          newTasks = v2TasksToDisplay(response.data ?? []);
-          paginationData = response.pagination;
-        } else {
-          console.log("[TasksPage] Fetching tasks from v1 API");
-
-          const response = await api.tasks.listTasks({
-            id: currentProject.id,
-            status: (statusFilter || undefined) as
-              | ListTasksStatusEnum
-              | undefined,
-            epicId: typeof epicFilter === "number" ? epicFilter : undefined,
-            sort: sortField,
-            order: sortOrder,
-            cursor,
-            limit: 20,
-          });
-
-          newTasks = v1TasksToDisplay(response.data ?? []);
-          paginationData = response.pagination;
+        const projectRef = getProjectRef();
+        if (!projectRef) {
+          setError("No project selected");
+          return;
         }
+
+        // Map status filter to TaskStatus enum
+        const statusEnum = statusFilter
+          ? STATUS_TO_ENUM[statusFilter]
+          : undefined;
+
+        const response = await v2Api.tasks.listTasks({
+          projectRef,
+          status: statusEnum,
+          epicRef: epicFilter,
+          sort: sortField,
+          order: sortOrder,
+          cursor,
+          limit: 20,
+        });
+
+        const newTasks = tasksToDisplay(response.data ?? []);
+        const paginationData = response.pagination;
 
         if (append) {
           setTasks((prev) => [...prev, ...newTasks]);
@@ -454,7 +392,6 @@ export default function TasksPage() {
       epicFilter,
       sortField,
       sortOrder,
-      usingV2,
       getProjectRef,
     ],
   );
@@ -522,12 +459,7 @@ export default function TasksPage() {
             value={epicFilter ?? ""}
             onChange={(e) => {
               const val = e.target.value;
-              if (!val) {
-                setEpicFilter(undefined);
-              } else {
-                // For v2, epic.id is a string (publicId), for v1 it's a number
-                setEpicFilter(usingV2 ? val : Number(val));
-              }
+              setEpicFilter(val || undefined);
             }}
             className="select w-[160px]"
           >
@@ -654,15 +586,11 @@ export default function TasksPage() {
                   currentOrder={sortOrder}
                   onSort={handleSort}
                 />
-                <SortableHeader
-                  label="Status"
-                  field={ListTasksSortEnum.Status}
-                  currentSort={sortField}
-                  currentOrder={sortOrder}
-                  onSort={handleSort}
-                />
                 <th className="px-6 py-3 text-left text-xs font-medium text-system-500 dark:text-system-400 uppercase tracking-wider">
-                  Repository
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-system-500 dark:text-system-400 uppercase tracking-wider">
+                  Epic
                 </th>
                 <SortableHeader
                   label="Created"
@@ -678,12 +606,7 @@ export default function TasksPage() {
                 <tr
                   key={task.id}
                   className="hover:bg-system-50 dark:hover:bg-system-800/50 transition-colors cursor-pointer"
-                  onClick={() => {
-                    // For v2, task.id is the publicId (string like "task_xxx")
-                    // For v1, task.id is a number
-                    // TaskDetailPage will need to handle both
-                    navigate(`/tasks/${task.id}`);
-                  }}
+                  onClick={() => navigate(`/tasks/${task.id}`)}
                 >
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-system-500 dark:text-system-400">
                     {task.displayKey}
@@ -702,7 +625,7 @@ export default function TasksPage() {
                     <StatusBadge status={task.status} />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-system-500 dark:text-system-400">
-                    {task.repoName || "-"}
+                    {task.epicDisplayKey || "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-system-500 dark:text-system-400">
                     {task.createdAt.toLocaleDateString()}

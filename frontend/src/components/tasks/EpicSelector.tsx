@@ -6,17 +6,14 @@ import { v2Api } from "../../api/v2/client";
 // Unified epic type for the selector
 interface EpicOption {
   id: string | number;
-  publicId?: string;
   title: string;
   status: string;
 }
 
 interface EpicSelectorProps {
   projectId: number;
-  /** v2 project reference (publicId) */
+  /** v2 project reference (projectKey or id) */
   projectRef?: string;
-  /** Whether to use v2 API */
-  usingV2?: boolean;
   selectedEpicId?: number | string | null;
   onChange: (epicId: number | string | null) => void;
   disabled?: boolean;
@@ -42,7 +39,6 @@ const EpicIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
 export default function EpicSelector({
   projectId,
   projectRef,
-  usingV2 = false,
   selectedEpicId,
   onChange,
   disabled = false,
@@ -57,7 +53,7 @@ export default function EpicSelector({
     const fetchEpics = async () => {
       try {
         setLoading(true);
-        if (usingV2 && projectRef) {
+        if (projectRef) {
           // Use v2 API
           const response = await v2Api.epics.listEpics({ projectRef });
           const v2Epics = response.data ?? [];
@@ -69,14 +65,13 @@ export default function EpicSelector({
           };
           setEpics(
             v2Epics.map((e) => ({
-              id: e.publicId,
-              publicId: e.publicId,
+              id: e.id,
               title: e.title,
               status: statusMap[e.status] || "planning",
             })),
           );
         } else {
-          // Use v1 API
+          // Fallback to v1 API for local-only mode
           const response = await api.epics.listEpics({ id: projectId });
           setEpics(
             (response.data ?? []).map((e) => ({
@@ -93,7 +88,7 @@ export default function EpicSelector({
       }
     };
     fetchEpics();
-  }, [projectId, projectRef, usingV2]);
+  }, [projectId, projectRef]);
 
   // Close dropdown when clicking outside
   useEffect(() => {

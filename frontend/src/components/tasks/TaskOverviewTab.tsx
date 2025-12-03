@@ -6,7 +6,7 @@ import { AcceptanceCriteriaList } from "../ui/AcceptanceCriteriaList";
 
 // Extended task type for v2 support
 type TaskWithV2Fields = Omit<Task, "epicId"> & {
-  publicId?: string;
+  v2Id?: string;
   displayKey?: string;
   epicId?: number | string | null;
   epicDisplayKey?: string;
@@ -15,17 +15,14 @@ type TaskWithV2Fields = Omit<Task, "epicId"> & {
 
 interface TaskOverviewTabProps {
   task: TaskWithV2Fields;
-  /** v2 project reference (publicId) */
+  /** v2 project reference (projectKey or id) */
   projectRef?: string;
-  /** Whether to use v2 API */
-  usingV2?: boolean;
   onTaskUpdate?: () => void;
 }
 
 export default function TaskOverviewTab({
   task,
   projectRef,
-  usingV2 = false,
   onTaskUpdate,
 }: TaskOverviewTabProps) {
   const [criteria, setCriteria] = useState<AcceptanceCriterion[]>([]);
@@ -39,11 +36,11 @@ export default function TaskOverviewTab({
   const fetchCriteria = useCallback(async () => {
     try {
       setCriteriaLoading(true);
-      if (usingV2 && projectRef && task.publicId) {
+      if (projectRef && task.v2Id) {
         // Use v2 API
         const response = await v2Api.tasks.listTaskAcceptanceCriteria({
           projectRef,
-          taskRef: task.publicId,
+          taskRef: task.v2Id,
         });
         const v2Criteria = response.data ?? [];
         // Convert v2 criteria to v1 format
@@ -61,7 +58,7 @@ export default function TaskOverviewTab({
         );
         setCriteria(convertedCriteria);
       } else {
-        // Use v1 API
+        // Fallback to v1 API for local-only tasks
         const response = await api.tasks.listTaskCriteria({ id: task.id });
         setCriteria(response.data ?? []);
       }
@@ -70,7 +67,7 @@ export default function TaskOverviewTab({
     } finally {
       setCriteriaLoading(false);
     }
-  }, [task.id, task.publicId, projectRef, usingV2]);
+  }, [task.id, task.v2Id, projectRef]);
 
   useEffect(() => {
     fetchCriteria();
@@ -109,13 +106,14 @@ export default function TaskOverviewTab({
       setDescriptionValue(trimmed);
 
       try {
-        if (usingV2 && projectRef && task.publicId) {
+        if (projectRef && task.v2Id) {
           await v2Api.tasks.updateTask({
             projectRef,
-            taskRef: task.publicId,
+            taskRef: task.v2Id,
             updateTaskRequest: { description: trimmed || undefined },
           });
         } else {
+          // Fallback to v1 API for local-only tasks
           await api.tasks.updateTask({
             id: task.id,
             updateTaskRequest: { description: trimmed || null },

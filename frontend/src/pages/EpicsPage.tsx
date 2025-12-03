@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useProject } from "../contexts";
-import { api, type Epic, type Release } from "../api";
+import { type Epic, type Release } from "../api";
 import { v2Api } from "../api/v2/client";
-import { EpicStatusEnum } from "../api/generated";
 import { EpicStatus as V2EpicStatus } from "../api/v2/generated";
 import { EpicCard, EpicCreateModal } from "../components/epics";
 import { EpicGraph } from "../components/roadmap";
@@ -48,7 +47,7 @@ const STATUS_OPTIONS = [
 ];
 
 export default function EpicsPage() {
-  const { currentProject, usingV2, getProjectRef } = useProject();
+  const { currentProject, getProjectRef } = useProject();
   const [searchParams, setSearchParams] = useSearchParams();
   const [epics, setEpics] = useState<Epic[]>([]);
   const [releases, setReleases] = useState<Release[]>([]);
@@ -105,42 +104,35 @@ export default function EpicsPage() {
 
   const fetchReleases = useCallback(async () => {
     if (!currentProject) return;
+    const projectRef = getProjectRef();
+    if (!projectRef) return;
+
     try {
-      if (usingV2) {
-        const projectRef = getProjectRef();
-        if (!projectRef) return;
-        console.log("[EpicsPage] Fetching releases from v2 API");
-        const response = await v2Api.releases.listReleases({ projectRef });
-        // Convert v2 releases to v1 format
-        const v2Releases = response.data ?? [];
-        const convertedReleases: Release[] = v2Releases.map((r) => ({
-          id: 0, // v2 uses publicId
-          publicId: r.publicId,
-          name: r.name,
-          description: r.description ?? null,
-          status: r.status.toLowerCase() as
-            | "planned"
-            | "in_progress"
-            | "released",
-          targetDate: r.targetDate ?? null,
-          projectId: 0,
-          createdAt: r.createdAt,
-          updatedAt: r.updatedAt,
-          epicCount: (r as { epicCount?: number }).epicCount,
-          progressPercentage: (r as { progressPercentage?: number })
-            .progressPercentage,
-        }));
-        setReleases(convertedReleases);
-      } else {
-        const response = await api.releases.listReleases({
-          id: currentProject.id,
-        });
-        setReleases(response.data ?? []);
-      }
+      const response = await v2Api.releases.listReleases({ projectRef });
+      // Convert v2 releases to v1 format
+      const v2Releases = response.data ?? [];
+      const convertedReleases: Release[] = v2Releases.map((r) => ({
+        id: 0, // v2 uses id as string
+        publicId: r.id,
+        name: r.name,
+        description: r.description ?? null,
+        status: r.status.toLowerCase() as
+          | "planned"
+          | "in_progress"
+          | "released",
+        targetDate: r.targetDate ?? null,
+        projectId: 0,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+        epicCount: (r as { epicCount?: number }).epicCount,
+        progressPercentage: (r as { progressPercentage?: number })
+          .progressPercentage,
+      }));
+      setReleases(convertedReleases);
     } catch (err) {
       console.error("Failed to fetch releases:", err);
     }
-  }, [currentProject, usingV2, getProjectRef]);
+  }, [currentProject, getProjectRef]);
 
   const fetchEpics = useCallback(async () => {
     if (!currentProject) {
@@ -149,65 +141,52 @@ export default function EpicsPage() {
       return;
     }
 
+    const projectRef = getProjectRef();
+    if (!projectRef) {
+      setError("No project selected");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
 
-      if (usingV2) {
-        const projectRef = getProjectRef();
-        if (!projectRef) {
-          setError("No project selected");
-          setLoading(false);
-          return;
-        }
-        console.log(
-          "[EpicsPage] Fetching epics from v2 API, projectRef:",
-          projectRef,
-        );
-        // Map status filter to v2 format
-        let v2Status: V2EpicStatus | undefined;
-        if (statusFilter) {
-          v2Status = statusFilter.toUpperCase() as V2EpicStatus;
-        }
-        const response = await v2Api.epics.listEpics({
-          projectRef,
-          status: v2Status,
-          limit: 100,
-        });
-        console.log("[EpicsPage] v2 epics response:", response);
-        // Convert v2 epics to v1 format
-        const v2Epics = response.data ?? [];
-        console.log("[EpicsPage] v2 epics count:", v2Epics.length);
-        // Use type assertion to allow string[] dependsOn for v2 (v1 uses number[])
-        const convertedEpics = v2Epics.map((e) => ({
-          id: 0, // v2 uses publicId
-          publicId: e.publicId,
-          displayKey: e.displayKey,
-          title: e.title,
-          description: e.description ?? null,
-          status: e.status.toLowerCase() as "planning" | "active" | "completed",
-          targetDate: e.targetDate ?? null,
-          projectId: 0,
-          releaseId: null, // v1 field - not used for v2
-          releasePublicId: e.releaseId, // v2 uses publicId for release
-          createdByUserId: 0, // Required field
-          createdAt: e.createdAt,
-          updatedAt: e.updatedAt,
-          dependsOn: e.dependsOn ?? [], // Include dependencies for graph view (string[] for v2)
-          taskStats: e.taskStats, // Include task stats
-          progressPercentage: e.progressPercentage, // Include progress percentage
-          phase: e.phase, // Include phase for dependency depth
-          prdFilePath: e.prdFilePath, // Include PRD file path
-          epicFilePath: e.epicFilePath, // Include epic file path
-        })) as unknown as Epic[];
-        setEpics(convertedEpics);
-      } else {
-        const response = await api.epics.listEpics({
-          id: currentProject.id,
-          status: (statusFilter || undefined) as EpicStatusEnum | undefined,
-        });
-        setEpics(response.data ?? []);
+      // Map status filter to v2 format
+      let v2Status: V2EpicStatus | undefined;
+      if (statusFilter) {
+        v2Status = statusFilter.toUpperCase() as V2EpicStatus;
       }
+      const response = await v2Api.epics.listEpics({
+        projectRef,
+        status: v2Status,
+        limit: 100,
+      });
+      // Convert v2 epics to v1 format
+      const v2Epics = response.data ?? [];
+      // Use type assertion to allow string[] dependsOn for v2 (v1 uses number[])
+      const convertedEpics = v2Epics.map((e) => ({
+        id: 0, // v2 uses id as string
+        publicId: e.id,
+        displayKey: e.displayKey,
+        title: e.title,
+        description: e.description ?? null,
+        status: e.status.toLowerCase() as "planning" | "active" | "completed",
+        targetDate: e.targetDate ?? null,
+        projectId: 0,
+        releaseId: null, // v1 field - not used for v2
+        releasePublicId: e.releaseId, // v2 uses id for release
+        createdByUserId: 0, // Required field
+        createdAt: e.createdAt,
+        updatedAt: e.updatedAt,
+        dependsOn: e.dependsOn ?? [], // Include dependencies for graph view (string[] for v2)
+        taskStats: e.taskStats, // Include task stats
+        progressPercentage: e.progressPercentage, // Include progress percentage
+        phase: e.phase, // Include phase for dependency depth
+        prdFilePath: e.prdFilePath, // Include PRD file path
+        epicFilePath: e.epicFilePath, // Include epic file path
+      })) as unknown as Epic[];
+      setEpics(convertedEpics);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to load epics";
@@ -216,7 +195,7 @@ export default function EpicsPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentProject, statusFilter, usingV2, getProjectRef]);
+  }, [currentProject, statusFilter, getProjectRef]);
 
   useEffect(() => {
     fetchReleases();

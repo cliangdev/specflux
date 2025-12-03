@@ -148,7 +148,7 @@ const STATUSES = [
 
 // Extended task type for v2 support
 type TaskWithV2Fields = Omit<Task, "epicId"> & {
-  publicId?: string;
+  v2Id?: string;
   displayKey?: string;
   epicId?: number | string | null;
   epicDisplayKey?: string;
@@ -157,10 +157,8 @@ type TaskWithV2Fields = Omit<Task, "epicId"> & {
 
 interface TaskDetailHeaderProps {
   task: TaskWithV2Fields;
-  /** v2 project reference (publicId) */
+  /** v2 project reference (projectKey or id) */
   projectRef?: string;
-  /** Whether to use v2 API */
-  usingV2?: boolean;
   onStatusChange: (status: string) => void;
   onEpicChange: (epicId: number | string | null) => void;
   onAgentChange: (agentId: number | null, agent: Agent | null) => void;
@@ -173,7 +171,6 @@ interface TaskDetailHeaderProps {
 export default function TaskDetailHeader({
   task,
   projectRef,
-  usingV2 = false,
   onStatusChange,
   onEpicChange,
   onAgentChange,
@@ -392,31 +389,28 @@ export default function TaskDetailHeader({
           <EpicSelector
             projectId={task.projectId}
             projectRef={projectRef}
-            usingV2={usingV2}
             selectedEpicId={task.epicId}
             onChange={onEpicChange}
           />
         </div>
 
-        {/* Agent Selector - only show for v1 (v2 doesn't have agents) */}
-        {!usingV2 && (
-          <>
-            {/* Separator */}
-            <div className="h-5 w-px bg-system-200 dark:bg-system-700" />
+        {/* Agent Selector (v1 API for local features) */}
+        <>
+          {/* Separator */}
+          <div className="h-5 w-px bg-system-200 dark:bg-system-700" />
 
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm text-system-500 dark:text-system-400">
-                Agent:
-              </span>
-              <AgentSelector
-                projectId={task.projectId}
-                selectedAgentId={task.assignedAgentId}
-                onChange={onAgentChange}
-                variant="inline"
-              />
-            </div>
-          </>
-        )}
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm text-system-500 dark:text-system-400">
+              Agent:
+            </span>
+            <AgentSelector
+              projectId={task.projectId}
+              selectedAgentId={task.assignedAgentId}
+              onChange={onAgentChange}
+              variant="inline"
+            />
+          </div>
+        </>
       </div>
 
       {/* Delete Confirmation Modal */}
