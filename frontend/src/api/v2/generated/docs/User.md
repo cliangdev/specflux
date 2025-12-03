@@ -6,7 +6,7 @@
 
 Name | Type
 ------------ | -------------
-`publicId` | string
+`id` | string
 `email` | string
 `displayName` | string
 `avatarUrl` | string
@@ -19,7 +19,7 @@ import type { User } from ''
 
 // TODO: Update the object below with actual values
 const example = {
-  "publicId": usr_abc123def456,
+  "id": usr_abc123def456,
   "email": null,
   "displayName": John Doe,
   "avatarUrl": https://avatars.githubusercontent.com/u/12345,

@@ -6,7 +6,7 @@
 
 Name | Type
 ------------ | -------------
-`publicId` | string
+`id` | string
 `projectKey` | string
 `name` | string
 `description` | string
@@ -21,7 +21,7 @@ import type { Project } from ''
 
 // TODO: Update the object below with actual values
 const example = {
-  "publicId": null,
+  "id": null,
   "projectKey": null,
   "name": null,
   "description": null,

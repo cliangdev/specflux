@@ -35,11 +35,11 @@ import {
  */
 export interface Task {
   /**
-   *
+   * Unique identifier (e.g., task_def456ghi789)
    * @type {string}
    * @memberof Task
    */
-  publicId: string;
+  id: string;
   /**
    *
    * @type {string}
@@ -142,7 +142,7 @@ export interface Task {
  * Check if a given object implements the Task interface.
  */
 export function instanceOfTask(value: object): value is Task {
-  if (!("publicId" in value) || value["publicId"] === undefined) return false;
+  if (!("id" in value) || value["id"] === undefined) return false;
   if (!("displayKey" in value) || value["displayKey"] === undefined)
     return false;
   if (!("projectId" in value) || value["projectId"] === undefined) return false;
@@ -170,7 +170,7 @@ export function TaskFromJSONTyped(
     return json;
   }
   return {
-    publicId: json["publicId"],
+    id: json["id"],
     displayKey: json["displayKey"],
     projectId: json["projectId"],
     epicId: json["epicId"] == null ? undefined : json["epicId"],
@@ -207,7 +207,7 @@ export function TaskToJSONTyped(
   }
 
   return {
-    publicId: value["publicId"],
+    id: value["id"],
     displayKey: value["displayKey"],
     projectId: value["projectId"],
     epicId: value["epicId"],

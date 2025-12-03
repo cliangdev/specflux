@@ -35,11 +35,11 @@ import {
  */
 export interface Epic {
   /**
-   *
+   * Unique identifier (e.g., epic_xyz789abc123)
    * @type {string}
    * @memberof Epic
    */
-  publicId: string;
+  id: string;
   /**
    *
    * @type {string}
@@ -142,7 +142,7 @@ export interface Epic {
  * Check if a given object implements the Epic interface.
  */
 export function instanceOfEpic(value: object): value is Epic {
-  if (!("publicId" in value) || value["publicId"] === undefined) return false;
+  if (!("id" in value) || value["id"] === undefined) return false;
   if (!("displayKey" in value) || value["displayKey"] === undefined)
     return false;
   if (!("projectId" in value) || value["projectId"] === undefined) return false;
@@ -167,7 +167,7 @@ export function EpicFromJSONTyped(
     return json;
   }
   return {
-    publicId: json["publicId"],
+    id: json["id"],
     displayKey: json["displayKey"],
     projectId: json["projectId"],
     releaseId: json["releaseId"] == null ? undefined : json["releaseId"],
@@ -208,7 +208,7 @@ export function EpicToJSONTyped(
   }
 
   return {
-    publicId: value["publicId"],
+    id: value["id"],
     displayKey: value["displayKey"],
     projectId: value["projectId"],
     releaseId: value["releaseId"],

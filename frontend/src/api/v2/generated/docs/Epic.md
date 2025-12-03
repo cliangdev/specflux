@@ -6,7 +6,7 @@
 
 Name | Type
 ------------ | -------------
-`publicId` | string
+`id` | string
 `displayKey` | string
 `projectId` | string
 `releaseId` | string
@@ -31,7 +31,7 @@ import type { Epic } from ''
 
 // TODO: Update the object below with actual values
 const example = {
-  "publicId": null,
+  "id": null,
   "displayKey": null,
   "projectId": null,
   "releaseId": null,

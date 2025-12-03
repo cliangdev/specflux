@@ -6,7 +6,7 @@
 
 Name | Type
 ------------ | -------------
-`publicId` | string
+`id` | string
 `displayKey` | string
 `projectId` | string
 `epicId` | string
@@ -31,7 +31,7 @@ import type { Task } from ''
 
 // TODO: Update the object below with actual values
 const example = {
-  "publicId": null,
+  "id": null,
   "displayKey": null,
   "projectId": null,
   "epicId": null,

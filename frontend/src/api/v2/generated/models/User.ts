@@ -20,11 +20,11 @@ import { mapValues } from "../runtime";
  */
 export interface User {
   /**
-   * Public user identifier (usr_xxx)
+   * Unique user identifier (e.g., usr_abc123def456)
    * @type {string}
    * @memberof User
    */
-  publicId: string;
+  id: string;
   /**
    * User's email address from OAuth provider
    * @type {string}
@@ -55,7 +55,7 @@ export interface User {
  * Check if a given object implements the User interface.
  */
 export function instanceOfUser(value: object): value is User {
-  if (!("publicId" in value) || value["publicId"] === undefined) return false;
+  if (!("id" in value) || value["id"] === undefined) return false;
   if (!("email" in value) || value["email"] === undefined) return false;
   if (!("displayName" in value) || value["displayName"] === undefined)
     return false;
@@ -75,7 +75,7 @@ export function UserFromJSONTyped(
     return json;
   }
   return {
-    publicId: json["publicId"],
+    id: json["id"],
     email: json["email"],
     displayName: json["displayName"],
     avatarUrl: json["avatarUrl"] == null ? undefined : json["avatarUrl"],
@@ -96,7 +96,7 @@ export function UserToJSONTyped(
   }
 
   return {
-    publicId: value["publicId"],
+    id: value["id"],
     email: value["email"],
     displayName: value["displayName"],
     avatarUrl: value["avatarUrl"],

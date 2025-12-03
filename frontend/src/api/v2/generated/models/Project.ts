@@ -20,11 +20,11 @@ import { mapValues } from "../runtime";
  */
 export interface Project {
   /**
-   *
+   * Unique identifier (e.g., proj_abc123xyz789)
    * @type {string}
    * @memberof Project
    */
-  publicId: string;
+  id: string;
   /**
    *
    * @type {string}
@@ -67,7 +67,7 @@ export interface Project {
  * Check if a given object implements the Project interface.
  */
 export function instanceOfProject(value: object): value is Project {
-  if (!("publicId" in value) || value["publicId"] === undefined) return false;
+  if (!("id" in value) || value["id"] === undefined) return false;
   if (!("projectKey" in value) || value["projectKey"] === undefined)
     return false;
   if (!("name" in value) || value["name"] === undefined) return false;
@@ -89,7 +89,7 @@ export function ProjectFromJSONTyped(
     return json;
   }
   return {
-    publicId: json["publicId"],
+    id: json["id"],
     projectKey: json["projectKey"],
     name: json["name"],
     description: json["description"] == null ? undefined : json["description"],
@@ -112,7 +112,7 @@ export function ProjectToJSONTyped(
   }
 
   return {
-    publicId: value["publicId"],
+    id: value["id"],
     projectKey: value["projectKey"],
     name: value["name"],
     description: value["description"],

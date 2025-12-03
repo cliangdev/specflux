@@ -28,11 +28,11 @@ import {
  */
 export interface Release {
   /**
-   *
+   * Unique identifier (e.g., rel_abc123xyz789)
    * @type {string}
    * @memberof Release
    */
-  publicId: string;
+  id: string;
   /**
    *
    * @type {string}
@@ -87,7 +87,7 @@ export interface Release {
  * Check if a given object implements the Release interface.
  */
 export function instanceOfRelease(value: object): value is Release {
-  if (!("publicId" in value) || value["publicId"] === undefined) return false;
+  if (!("id" in value) || value["id"] === undefined) return false;
   if (!("displayKey" in value) || value["displayKey"] === undefined)
     return false;
   if (!("projectId" in value) || value["projectId"] === undefined) return false;
@@ -110,7 +110,7 @@ export function ReleaseFromJSONTyped(
     return json;
   }
   return {
-    publicId: json["publicId"],
+    id: json["id"],
     displayKey: json["displayKey"],
     projectId: json["projectId"],
     name: json["name"],
@@ -136,7 +136,7 @@ export function ReleaseToJSONTyped(
   }
 
   return {
-    publicId: value["publicId"],
+    id: value["id"],
     displayKey: value["displayKey"],
     projectId: value["projectId"],
     name: value["name"],
