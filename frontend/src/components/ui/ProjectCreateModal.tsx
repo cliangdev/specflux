@@ -1,36 +1,55 @@
 import { useState, type FormEvent } from "react";
-import { api, type CreateProjectRequest } from "../../api";
+import { v2Api } from "../../api/v2/client";
+import type { CreateProjectRequest } from "../../api/v2/generated";
 
 interface ProjectCreateModalProps {
   onClose: () => void;
   onCreated: () => void;
 }
 
-const WORKFLOW_OPTIONS = [
+type PrdOption = "workshop" | "import" | "skip";
+
+const PRD_OPTIONS = [
   {
-    value: "startup-fast",
-    label: "Startup Fast",
-    description: "Planning + Implementation. Perfect for MVPs.",
+    value: "workshop" as PrdOption,
+    label: "Start PRD Workshop",
+    description: "Claude will guide you through creating a product spec.",
+    recommended: true,
   },
   {
-    value: "design-first",
-    label: "Design First",
-    description: "Discovery + Design + Planning + Implementation.",
+    value: "import" as PrdOption,
+    label: "Import Existing PRD",
+    description: "Upload or paste an existing product spec.",
+    recommended: false,
   },
   {
-    value: "full-lifecycle",
-    label: "Full Lifecycle",
-    description: "All phases including testing, docs, security.",
+    value: "skip" as PrdOption,
+    label: "Skip for now",
+    description: "I'll create PRDs later from the PRDs page.",
+    recommended: false,
   },
 ];
+
+/**
+ * Generate a project key from the name
+ * e.g. "My Awesome Project" -> "MYAWESOME"
+ */
+function generateProjectKey(name: string): string {
+  return (
+    name
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .substring(0, 10) || "PROJECT"
+  );
+}
 
 export default function ProjectCreateModal({
   onClose,
   onCreated,
 }: ProjectCreateModalProps) {
   const [name, setName] = useState("");
-  const [localPath, setLocalPath] = useState("");
-  const [workflowTemplate, setWorkflowTemplate] = useState("startup-fast");
+  const [description, setDescription] = useState("");
+  const [prdOption, setPrdOption] = useState<PrdOption>("workshop");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,25 +61,39 @@ export default function ProjectCreateModal({
       return;
     }
 
-    if (!localPath.trim()) {
-      setError("Local path is required");
-      return;
-    }
-
     try {
       setSubmitting(true);
       setError(null);
 
+      const projectKey = generateProjectKey(name);
       const request: CreateProjectRequest = {
+        projectKey,
         name: name.trim(),
-        localPath: localPath.trim(),
-        workflowTemplate:
-          workflowTemplate as CreateProjectRequest["workflowTemplate"],
+        description: description.trim() || undefined,
       };
 
-      await api.projects.createProject({
+      await v2Api.projects.createProject({
         createProjectRequest: request,
       });
+
+      // Handle post-creation flow based on PRD option
+      // Phase 1B will implement actual PRD workshop and import flows
+      // For now, just show appropriate feedback
+      switch (prdOption) {
+        case "workshop":
+          // TODO (Phase 1B): Navigate to PRD workshop or open terminal with /prd
+          console.log(
+            "PRD Workshop selected - will be implemented in Phase 1B",
+          );
+          break;
+        case "import":
+          // TODO (Phase 1B): Open import dialog
+          console.log("Import PRD selected - will be implemented in Phase 1B");
+          break;
+        case "skip":
+          // Just close
+          break;
+      }
 
       onCreated();
       onClose();
@@ -117,6 +150,7 @@ export default function ProjectCreateModal({
               </div>
             )}
 
+            {/* Project Name */}
             <div>
               <label
                 htmlFor="name"
@@ -133,53 +167,67 @@ export default function ProjectCreateModal({
                 className="input"
                 autoFocus
               />
+              {name && (
+                <p className="mt-1 text-xs text-system-500">
+                  Project key:{" "}
+                  <span className="font-mono">{generateProjectKey(name)}</span>
+                </p>
+              )}
             </div>
 
+            {/* Description */}
             <div>
               <label
-                htmlFor="localPath"
+                htmlFor="description"
                 className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
               >
-                Local Path <span className="text-red-500">*</span>
+                Description <span className="text-system-400">(optional)</span>
               </label>
-              <input
-                id="localPath"
-                type="text"
-                value={localPath}
-                onChange={(e) => setLocalPath(e.target.value)}
-                placeholder="/Users/you/projects/my-project"
-                className="input"
+              <textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Brief description of what you're building"
+                className="input resize-none"
+                rows={2}
               />
-              <p className="mt-1 text-xs text-system-500">
-                The directory where your project files are located
-              </p>
             </div>
 
+            {/* PRD Options */}
             <div>
               <label className="block text-sm font-medium text-system-700 dark:text-system-300 mb-2">
-                Workflow Template
+                After creation
               </label>
               <div className="space-y-2">
-                {WORKFLOW_OPTIONS.map((option) => (
+                {PRD_OPTIONS.map((option) => (
                   <label
                     key={option.value}
                     className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                      workflowTemplate === option.value
+                      prdOption === option.value
                         ? "border-brand-500 bg-brand-50 dark:bg-brand-900/20"
                         : "border-system-200 dark:border-system-700 hover:border-system-300 dark:hover:border-system-600"
                     }`}
                   >
                     <input
                       type="radio"
-                      name="workflowTemplate"
+                      name="prdOption"
                       value={option.value}
-                      checked={workflowTemplate === option.value}
-                      onChange={(e) => setWorkflowTemplate(e.target.value)}
+                      checked={prdOption === option.value}
+                      onChange={(e) =>
+                        setPrdOption(e.target.value as PrdOption)
+                      }
                       className="mt-1 w-4 h-4 text-brand-600 border-system-300 dark:border-system-600 bg-white dark:bg-system-900 focus:ring-brand-500 focus:ring-offset-white dark:focus:ring-offset-system-800"
                     />
-                    <div>
-                      <div className="text-sm font-medium text-system-900 dark:text-white">
-                        {option.label}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-system-900 dark:text-white">
+                          {option.label}
+                        </span>
+                        {option.recommended && (
+                          <span className="px-1.5 py-0.5 text-xs font-medium bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 rounded">
+                            Recommended
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-system-500 dark:text-system-400">
                         {option.description}
@@ -202,7 +250,7 @@ export default function ProjectCreateModal({
             </button>
             <button
               type="submit"
-              disabled={submitting || !name.trim() || !localPath.trim()}
+              disabled={submitting || !name.trim()}
               className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting && (
