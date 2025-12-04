@@ -2,12 +2,12 @@ import { useNavigate } from "react-router-dom";
 import type { Epic } from "../../api";
 import { ProgressBar } from "../ui";
 
-// Epic status badge configuration
+// Epic status badge configuration (UPPER_CASE keys for v2 API)
 const EPIC_STATUS_CONFIG: Record<
   string,
   { label: string; icon: JSX.Element; classes: string }
 > = {
-  planning: {
+  PLANNING: {
     label: "Planning",
     icon: (
       <svg
@@ -23,8 +23,8 @@ const EPIC_STATUS_CONFIG: Record<
     classes:
       "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
   },
-  active: {
-    label: "Active",
+  IN_PROGRESS: {
+    label: "In Progress",
     icon: (
       <svg
         className="w-3.5 h-3.5"
@@ -48,7 +48,7 @@ const EPIC_STATUS_CONFIG: Record<
     classes:
       "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 border-brand-200 dark:border-brand-800",
   },
-  completed: {
+  COMPLETED: {
     label: "Completed",
     icon: (
       <svg
@@ -70,6 +70,12 @@ const EPIC_STATUS_CONFIG: Record<
   },
 };
 
+// Extended type to support v2 fields
+type EpicWithV2Fields = Epic & {
+  publicId?: string;
+  displayKey?: string;
+};
+
 interface EpicCardProps {
   epic: Epic;
 }
@@ -77,12 +83,17 @@ interface EpicCardProps {
 export default function EpicCard({ epic }: EpicCardProps) {
   const navigate = useNavigate();
   const statusConfig =
-    EPIC_STATUS_CONFIG[epic.status] || EPIC_STATUS_CONFIG.planning;
+    EPIC_STATUS_CONFIG[epic.status as string] || EPIC_STATUS_CONFIG.PLANNING;
   const taskStats = epic.taskStats || { total: 0, done: 0, inProgress: 0 };
   const progressPercent = epic.progressPercentage ?? 0;
 
+  // Support both v1 (numeric id) and v2 (publicId/displayKey)
+  const epicV2 = epic as EpicWithV2Fields;
+  const epicRef = epicV2.publicId || epic.id;
+  const epicDisplayId = epicV2.displayKey || `#${epic.id}`;
+
   const handleClick = () => {
-    navigate(`/epics/${epic.id}`);
+    navigate(`/epics/${epicRef}`);
   };
 
   return (
@@ -93,7 +104,7 @@ export default function EpicCard({ epic }: EpicCardProps) {
       {/* Header: ID and Status */}
       <div className="flex items-center justify-between mb-3">
         <span className="text-sm font-mono text-system-500 dark:text-system-400">
-          #{epic.id}
+          {epicDisplayId}
         </span>
         <span
           className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusConfig.classes}`}

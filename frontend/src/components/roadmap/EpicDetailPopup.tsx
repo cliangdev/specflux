@@ -39,17 +39,17 @@ export default function EpicDetailPopup({
     className: string;
   } {
     switch (status) {
-      case "completed":
+      case "COMPLETED":
         return {
           label: "Completed",
           className: "bg-semantic-success/20 text-semantic-success",
         };
-      case "active":
+      case "IN_PROGRESS":
         return {
-          label: "Active",
+          label: "In Progress",
           className: "bg-brand-500/20 text-brand-600 dark:text-brand-400",
         };
-      default:
+      default: // PLANNING
         return {
           label: "Planning",
           className:
@@ -108,7 +108,7 @@ export default function EpicDetailPopup({
             <div className="h-1.5 bg-system-200 dark:bg-system-700 rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all ${
-                  epic.status === "completed"
+                  (epic.status as string) === "COMPLETED"
                     ? "bg-semantic-success"
                     : "bg-brand-500"
                 }`}

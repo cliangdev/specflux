@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import type { Agent } from "../../api/generated";
 import { api } from "../../api";
+import { isV2Id } from "../../utils/idUtils";
 
 interface AgentSelectorProps {
-  projectId: number;
+  projectId: number | string;
   selectedAgentId?: number | null;
   onChange: (agentId: number | null, agent: Agent | null) => void;
   disabled?: boolean;
@@ -40,13 +41,18 @@ export default function AgentSelector({
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Fetch agents for the project
+  // Fetch agents for the project (v1 API - skip for v2 project IDs)
   useEffect(() => {
     const fetchAgents = async () => {
+      // Skip v1 API call for v2 project IDs
+      if (isV2Id(projectId)) {
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
         const response = await api.agents.projectsIdAgentsGet({
-          id: projectId,
+          id: Number(projectId),
         });
         setAgents(response.data ?? []);
       } catch (err) {

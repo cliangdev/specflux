@@ -8,7 +8,7 @@ const STATUS_CONFIG: Record<
   string,
   { label: string; icon: JSX.Element; classes: string; dropdownClasses: string }
 > = {
-  backlog: {
+  BACKLOG: {
     label: "Backlog",
     icon: (
       <svg
@@ -29,7 +29,7 @@ const STATUS_CONFIG: Record<
       "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
     dropdownClasses: "hover:bg-slate-100 dark:hover:bg-slate-800",
   },
-  ready: {
+  READY: {
     label: "Ready",
     icon: (
       <svg
@@ -46,7 +46,7 @@ const STATUS_CONFIG: Record<
       "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
     dropdownClasses: "hover:bg-slate-100 dark:hover:bg-slate-800",
   },
-  in_progress: {
+  IN_PROGRESS: {
     label: "In Progress",
     icon: (
       <svg
@@ -67,8 +67,8 @@ const STATUS_CONFIG: Record<
       "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 border-brand-200 dark:border-brand-800",
     dropdownClasses: "hover:bg-brand-50 dark:hover:bg-brand-900/20",
   },
-  pending_review: {
-    label: "Pending Review",
+  IN_REVIEW: {
+    label: "In Review",
     icon: (
       <svg
         className="w-3.5 h-3.5"
@@ -93,29 +93,8 @@ const STATUS_CONFIG: Record<
       "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800",
     dropdownClasses: "hover:bg-amber-50 dark:hover:bg-amber-900/20",
   },
-  approved: {
-    label: "Approved",
-    icon: (
-      <svg
-        className="w-3.5 h-3.5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-        />
-      </svg>
-    ),
-    classes:
-      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
-    dropdownClasses: "hover:bg-emerald-50 dark:hover:bg-emerald-900/20",
-  },
-  done: {
-    label: "Done",
+  COMPLETED: {
+    label: "Completed",
     icon: (
       <svg
         className="w-3.5 h-3.5"
@@ -138,18 +117,28 @@ const STATUS_CONFIG: Record<
 };
 
 const STATUSES = [
-  "backlog",
-  "ready",
-  "in_progress",
-  "pending_review",
-  "approved",
-  "done",
+  "BACKLOG",
+  "READY",
+  "IN_PROGRESS",
+  "IN_REVIEW",
+  "COMPLETED",
 ] as const;
 
+// Extended task type for v2 support
+type TaskWithV2Fields = Omit<Task, "epicId"> & {
+  v2Id?: string;
+  displayKey?: string;
+  epicId?: number | string | null;
+  epicDisplayKey?: string;
+  priority?: string;
+};
+
 interface TaskDetailHeaderProps {
-  task: Task;
+  task: TaskWithV2Fields;
+  /** v2 project reference (projectKey or id) */
+  projectRef?: string;
   onStatusChange: (status: string) => void;
-  onEpicChange: (epicId: number | null) => void;
+  onEpicChange: (epicId: number | string | null) => void;
   onAgentChange: (agentId: number | null, agent: Agent | null) => void;
   onTitleChange: (title: string) => void;
   onDelete: () => void;
@@ -159,6 +148,7 @@ interface TaskDetailHeaderProps {
 
 export default function TaskDetailHeader({
   task,
+  projectRef,
   onStatusChange,
   onEpicChange,
   onAgentChange,
@@ -220,7 +210,7 @@ export default function TaskDetailHeader({
     }
   };
 
-  const currentStatus = STATUS_CONFIG[task.status] || STATUS_CONFIG.backlog;
+  const currentStatus = STATUS_CONFIG[task.status] || STATUS_CONFIG.BACKLOG;
 
   return (
     <div className="space-y-3 mb-4">
@@ -317,7 +307,7 @@ export default function TaskDetailHeader({
             <div className="absolute z-50 mt-1 w-44 bg-white dark:bg-system-800 rounded-lg shadow-lg border border-system-200 dark:border-system-700 py-1">
               {STATUSES.map((status) => {
                 const config = STATUS_CONFIG[status];
-                const isSelected = task.status === status;
+                const isSelected = (task.status as string) === status;
                 return (
                   <button
                     key={status}
@@ -376,26 +366,29 @@ export default function TaskDetailHeader({
           </span>
           <EpicSelector
             projectId={task.projectId}
+            projectRef={projectRef}
             selectedEpicId={task.epicId}
             onChange={onEpicChange}
           />
         </div>
 
-        {/* Separator */}
-        <div className="h-5 w-px bg-system-200 dark:bg-system-700" />
+        {/* Agent Selector (v1 API for local features) */}
+        <>
+          {/* Separator */}
+          <div className="h-5 w-px bg-system-200 dark:bg-system-700" />
 
-        {/* Agent Selector */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-sm text-system-500 dark:text-system-400">
-            Agent:
-          </span>
-          <AgentSelector
-            projectId={task.projectId}
-            selectedAgentId={task.assignedAgentId}
-            onChange={onAgentChange}
-            variant="inline"
-          />
-        </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm text-system-500 dark:text-system-400">
+              Agent:
+            </span>
+            <AgentSelector
+              projectId={task.projectId}
+              selectedAgentId={task.assignedAgentId}
+              onChange={onAgentChange}
+              variant="inline"
+            />
+          </div>
+        </>
       </div>
 
       {/* Delete Confirmation Modal */}

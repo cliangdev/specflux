@@ -1,19 +1,21 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProject } from "../contexts";
-import { api, type Task, type Epic } from "../api";
+import { v2Api } from "../api/v2/client";
 import {
-  ListTasksStatusEnum,
   ListTasksSortEnum,
   ListTasksOrderEnum,
-} from "../api/generated";
+  TaskStatus,
+} from "../api/v2/generated";
 import { TaskCreateModal, Pagination } from "../components/ui";
+import { type TaskDisplay, tasksToDisplay } from "../api/adapters/taskAdapter";
+import { type EpicDisplay, epicsToDisplay } from "../api/adapters/epicAdapter";
 
 const FILTERS_STORAGE_KEY = "specflux-tasks-filters";
 
 interface TasksFilters {
   status: string;
-  epicId: number | undefined;
+  epicId: string | undefined;
   sortField: ListTasksSortEnum;
   sortOrder: ListTasksOrderEnum;
 }
@@ -47,12 +49,11 @@ function saveFilters(filters: TasksFilters): void {
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
-  { value: "backlog", label: "Backlog" },
-  { value: "ready", label: "Ready" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "pending_review", label: "Pending Review" },
-  { value: "approved", label: "Approved" },
-  { value: "done", label: "Done" },
+  { value: TaskStatus.Backlog, label: "Backlog" },
+  { value: TaskStatus.Ready, label: "Ready" },
+  { value: TaskStatus.InProgress, label: "In Progress" },
+  { value: TaskStatus.InReview, label: "In Review" },
+  { value: TaskStatus.Completed, label: "Completed" },
 ];
 
 // Status badge configuration matching the mock design
@@ -60,38 +61,32 @@ const STATUS_CONFIG: Record<
   string,
   { label: string; icon: string; classes: string }
 > = {
-  backlog: {
+  BACKLOG: {
     label: "Backlog",
     icon: "inbox",
     classes:
       "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
   },
-  ready: {
+  READY: {
     label: "Ready",
     icon: "circle-dashed",
     classes:
       "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
   },
-  in_progress: {
+  IN_PROGRESS: {
     label: "In Progress",
     icon: "timer",
     classes:
       "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 border-brand-200 dark:border-brand-800",
   },
-  pending_review: {
-    label: "Pending Review",
+  IN_REVIEW: {
+    label: "In Review",
     icon: "eye",
     classes:
       "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800",
   },
-  approved: {
-    label: "Approved",
-    icon: "check-circle",
-    classes:
-      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
-  },
-  done: {
-    label: "Done",
+  COMPLETED: {
+    label: "Completed",
     icon: "check-circle",
     classes:
       "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
@@ -246,9 +241,9 @@ function SortableHeader({
 }
 
 export default function TasksPage() {
-  const { currentProject } = useProject();
+  const { currentProject, getProjectRef } = useProject();
   const navigate = useNavigate();
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<TaskDisplay[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -258,10 +253,10 @@ export default function TasksPage() {
 
   // Filters
   const [statusFilter, setStatusFilter] = useState(initialFilters.status);
-  const [epicFilter, setEpicFilter] = useState<number | undefined>(
+  const [epicFilter, setEpicFilter] = useState<string | undefined>(
     initialFilters.epicId,
   );
-  const [epics, setEpics] = useState<Epic[]>([]);
+  const [epics, setEpics] = useState<EpicDisplay[]>([]);
 
   // Sorting
   const [sortField, setSortField] = useState<ListTasksSortEnum>(
@@ -295,15 +290,30 @@ export default function TasksPage() {
   useEffect(() => {
     if (!currentProject) return;
 
-    api.epics
-      .listEpics({ id: currentProject.id })
-      .then((response) => {
-        setEpics(response.data ?? []);
-      })
-      .catch((err) => {
+    const fetchEpics = async () => {
+      try {
+        const projectRef = getProjectRef();
+        if (!projectRef) return;
+        console.log("[TasksPage] Fetching epics from v2 API");
+        const response = await v2Api.epics.listEpics({ projectRef });
+        setEpics(epicsToDisplay(response.data ?? []));
+      } catch (err) {
         console.error("Failed to fetch epics:", err);
-      });
-  }, [currentProject]);
+      }
+    };
+
+    fetchEpics();
+  }, [currentProject, getProjectRef]);
+
+  // Validate epicFilter against loaded epics - clear if invalid
+  useEffect(() => {
+    if (epics.length > 0 && epicFilter !== undefined) {
+      const isValid = epics.some((epic) => epic.id === epicFilter);
+      if (!isValid) {
+        setEpicFilter(undefined);
+      }
+    }
+  }, [epics, epicFilter]);
 
   const fetchTasks = useCallback(
     async (cursor?: string, append = false) => {
@@ -321,19 +331,28 @@ export default function TasksPage() {
         }
         setError(null);
 
-        const response = await api.tasks.listTasks({
-          id: currentProject.id,
-          status: (statusFilter || undefined) as
-            | ListTasksStatusEnum
-            | undefined,
-          epicId: epicFilter,
+        const projectRef = getProjectRef();
+        if (!projectRef) {
+          setError("No project selected");
+          return;
+        }
+
+        // Use status filter directly (already UPPER_CASE from TaskStatus enum)
+        const statusEnum = (statusFilter || undefined) as
+          | TaskStatus
+          | undefined;
+
+        const response = await v2Api.tasks.listTasks({
+          projectRef,
+          status: statusEnum,
+          epicRef: epicFilter,
           sort: sortField,
           order: sortOrder,
           cursor,
           limit: 20,
         });
 
-        const newTasks = response.data ?? [];
+        const newTasks = tasksToDisplay(response.data ?? []);
         const paginationData = response.pagination;
 
         if (append) {
@@ -358,7 +377,14 @@ export default function TasksPage() {
         setLoadingMore(false);
       }
     },
-    [currentProject, statusFilter, epicFilter, sortField, sortOrder],
+    [
+      currentProject,
+      statusFilter,
+      epicFilter,
+      sortField,
+      sortOrder,
+      getProjectRef,
+    ],
   );
 
   useEffect(() => {
@@ -422,9 +448,10 @@ export default function TasksPage() {
           {/* Epic filter */}
           <select
             value={epicFilter ?? ""}
-            onChange={(e) =>
-              setEpicFilter(e.target.value ? Number(e.target.value) : undefined)
-            }
+            onChange={(e) => {
+              const val = e.target.value;
+              setEpicFilter(val || undefined);
+            }}
             className="select w-[160px]"
           >
             <option value="">All Epics</option>
@@ -550,15 +577,11 @@ export default function TasksPage() {
                   currentOrder={sortOrder}
                   onSort={handleSort}
                 />
-                <SortableHeader
-                  label="Status"
-                  field={ListTasksSortEnum.Status}
-                  currentSort={sortField}
-                  currentOrder={sortOrder}
-                  onSort={handleSort}
-                />
                 <th className="px-6 py-3 text-left text-xs font-medium text-system-500 dark:text-system-400 uppercase tracking-wider">
-                  Repository
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-system-500 dark:text-system-400 uppercase tracking-wider">
+                  Epic
                 </th>
                 <SortableHeader
                   label="Created"
@@ -577,7 +600,7 @@ export default function TasksPage() {
                   onClick={() => navigate(`/tasks/${task.id}`)}
                 >
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-system-500 dark:text-system-400">
-                    #{task.id}
+                    {task.displayKey}
                   </td>
                   <td className="px-6 py-4 max-w-md">
                     <div className="text-sm font-medium text-system-900 dark:text-white truncate">
@@ -593,10 +616,10 @@ export default function TasksPage() {
                     <StatusBadge status={task.status} />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-system-500 dark:text-system-400">
-                    {task.repoName || "-"}
+                    {task.epicDisplayKey || "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-system-500 dark:text-system-400">
-                    {new Date(task.createdAt).toLocaleDateString()}
+                    {task.createdAt.toLocaleDateString()}
                   </td>
                 </tr>
               ))}

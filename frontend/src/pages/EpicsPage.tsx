@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useProject } from "../contexts";
-import { api, type Epic, type Release } from "../api";
-import { EpicStatusEnum } from "../api/generated";
+import { type Epic, type Release } from "../api";
+import { v2Api } from "../api/v2/client";
+import { EpicStatus as V2EpicStatus } from "../api/v2/generated";
 import { EpicCard, EpicCreateModal } from "../components/epics";
 import { EpicGraph } from "../components/roadmap";
 
@@ -40,13 +41,13 @@ function saveFilters(filters: EpicsFilters): void {
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
-  { value: "planning", label: "Planning" },
-  { value: "active", label: "Active" },
-  { value: "completed", label: "Completed" },
+  { value: V2EpicStatus.Planning, label: "Planning" },
+  { value: V2EpicStatus.InProgress, label: "In Progress" },
+  { value: V2EpicStatus.Completed, label: "Completed" },
 ];
 
 export default function EpicsPage() {
-  const { currentProject } = useProject();
+  const { currentProject, getProjectRef } = useProject();
   const [searchParams, setSearchParams] = useSearchParams();
   const [epics, setEpics] = useState<Epic[]>([]);
   const [releases, setReleases] = useState<Release[]>([]);
@@ -103,15 +104,35 @@ export default function EpicsPage() {
 
   const fetchReleases = useCallback(async () => {
     if (!currentProject) return;
+    const projectRef = getProjectRef();
+    if (!projectRef) return;
+
     try {
-      const response = await api.releases.listReleases({
-        id: currentProject.id,
-      });
-      setReleases(response.data ?? []);
+      const response = await v2Api.releases.listReleases({ projectRef });
+      // Convert v2 releases to v1 format
+      const v2Releases = response.data ?? [];
+      const convertedReleases: Release[] = v2Releases.map((r) => ({
+        id: 0, // v2 uses id as string
+        publicId: r.id,
+        name: r.name,
+        description: r.description ?? null,
+        status: r.status.toLowerCase() as
+          | "planned"
+          | "in_progress"
+          | "released",
+        targetDate: r.targetDate ?? null,
+        projectId: 0,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+        epicCount: (r as { epicCount?: number }).epicCount,
+        progressPercentage: (r as { progressPercentage?: number })
+          .progressPercentage,
+      }));
+      setReleases(convertedReleases);
     } catch (err) {
       console.error("Failed to fetch releases:", err);
     }
-  }, [currentProject]);
+  }, [currentProject, getProjectRef]);
 
   const fetchEpics = useCallback(async () => {
     if (!currentProject) {
@@ -120,14 +141,49 @@ export default function EpicsPage() {
       return;
     }
 
+    const projectRef = getProjectRef();
+    if (!projectRef) {
+      setError("No project selected");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
-      const response = await api.epics.listEpics({
-        id: currentProject.id,
-        status: (statusFilter || undefined) as EpicStatusEnum | undefined,
+
+      // Status filter is already in UPPER_CASE format from V2EpicStatus enum
+      const v2Status = statusFilter as V2EpicStatus | undefined;
+      const response = await v2Api.epics.listEpics({
+        projectRef,
+        status: v2Status,
+        limit: 100,
       });
-      setEpics(response.data ?? []);
+      // Convert v2 epics to v1 format
+      const v2Epics = response.data ?? [];
+      // Use type assertion to allow string[] dependsOn for v2 (v1 uses number[])
+      const convertedEpics = v2Epics.map((e) => ({
+        id: 0, // v2 uses id as string
+        publicId: e.id,
+        displayKey: e.displayKey,
+        title: e.title,
+        description: e.description ?? null,
+        status: e.status, // Keep UPPER_CASE status from v2 API
+        targetDate: e.targetDate ?? null,
+        projectId: 0,
+        releaseId: null, // v1 field - not used for v2
+        releasePublicId: e.releaseId, // v2 uses id for release
+        createdByUserId: 0, // Required field
+        createdAt: e.createdAt,
+        updatedAt: e.updatedAt,
+        dependsOn: e.dependsOn ?? [], // Include dependencies for graph view (string[] for v2)
+        taskStats: e.taskStats, // Include task stats
+        progressPercentage: e.progressPercentage, // Include progress percentage
+        phase: e.phase, // Include phase for dependency depth
+        prdFilePath: e.prdFilePath, // Include PRD file path
+        epicFilePath: e.epicFilePath, // Include epic file path
+      })) as unknown as Epic[];
+      setEpics(convertedEpics);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to load epics";
@@ -136,7 +192,7 @@ export default function EpicsPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentProject, statusFilter]);
+  }, [currentProject, statusFilter, getProjectRef]);
 
   useEffect(() => {
     fetchReleases();
@@ -145,24 +201,35 @@ export default function EpicsPage() {
 
   // Filter epics by search query and release (client-side)
   const filteredEpics = epics.filter((epic) => {
-    // Release filter
+    // Release filter - handle both v1 (numeric) and v2 (publicId)
     if (releaseFilter) {
+      const epicWithPublicId = epic as Epic & { releasePublicId?: string };
       if (releaseFilter === "unassigned") {
-        if (epic.releaseId) return false;
+        // For unassigned filter, check both releaseId and releasePublicId
+        if (epic.releaseId || epicWithPublicId.releasePublicId) return false;
       } else {
-        if (epic.releaseId !== Number(releaseFilter)) return false;
+        // For v2, compare releasePublicId; for v1, compare numeric releaseId
+        const matchesV2 = epicWithPublicId.releasePublicId === releaseFilter;
+        const matchesV1 = epic.releaseId === Number(releaseFilter);
+        if (!matchesV2 && !matchesV1) return false;
       }
     }
 
-    // Search filter
+    // Search filter - handle both v1 (id) and v2 (displayKey/publicId)
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       const matchesTitle = epic.title.toLowerCase().includes(query);
       const matchesDescription = epic.description
         ?.toLowerCase()
         .includes(query);
-      const matchesId = epic.id.toString().includes(query);
-      if (!matchesTitle && !matchesDescription && !matchesId) return false;
+      const epicWithV2 = epic as Epic & {
+        displayKey?: string;
+        publicId?: string;
+      };
+      const epicRef =
+        epicWithV2.displayKey || epicWithV2.publicId || epic.id.toString();
+      const matchesRef = epicRef.toLowerCase().includes(query);
+      if (!matchesTitle && !matchesDescription && !matchesRef) return false;
     }
 
     return true;
@@ -200,7 +267,16 @@ export default function EpicsPage() {
             <option value="">All Releases</option>
             <option value="unassigned">Unassigned</option>
             {releases.map((release) => (
-              <option key={release.id} value={release.id}>
+              <option
+                key={
+                  (release as Release & { publicId?: string }).publicId ||
+                  release.id
+                }
+                value={
+                  (release as Release & { publicId?: string }).publicId ||
+                  release.id
+                }
+              >
                 {release.name}
               </option>
             ))}
@@ -419,7 +495,10 @@ export default function EpicsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-auto">
           {filteredEpics.map((epic) => (
-            <EpicCard key={epic.id} epic={epic} />
+            <EpicCard
+              key={(epic as Epic & { publicId?: string }).publicId || epic.id}
+              epic={epic}
+            />
           ))}
         </div>
       )}

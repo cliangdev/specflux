@@ -12,8 +12,17 @@ import type {
 } from "../../api/generated";
 import { api } from "../../api";
 
+// Extended task type for v2 support
+type TaskWithV2Fields = Omit<Task, "epicId"> & {
+  publicId?: string;
+  displayKey?: string;
+  epicId?: number | string | null;
+  epicDisplayKey?: string;
+  priority?: string;
+};
+
 interface TaskContextTabProps {
-  task: Task;
+  task: TaskWithV2Fields;
   dependencies: TaskDependency[];
   epic?: Epic | null;
   onAddDependency?: () => void;

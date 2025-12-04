@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { api, type TaskFileChanges } from "../api";
+import { isV2Id } from "../utils/idUtils";
 
 interface FileChangesProps {
-  taskId: number;
+  taskId: number | string;
   isAgentRunning: boolean;
   onHasChanges?: (hasChanges: boolean, count: number) => void;
 }
@@ -17,10 +18,15 @@ export function FileChanges({
 
   const fetchFileChanges = useCallback(
     async (showLoading = true) => {
+      // Skip v1 API call for v2 task IDs
+      if (isV2Id(taskId)) {
+        if (showLoading) setLoading(false);
+        return;
+      }
       try {
         if (showLoading) setLoading(true);
         const response = await api.tasks.getTaskFileChanges({
-          id: taskId,
+          id: Number(taskId),
         });
         setFileChanges(response.data ?? null);
       } catch (err) {

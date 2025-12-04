@@ -37,7 +37,11 @@ export function KanbanColumn({
   });
 
   const colors = getColumnColorClasses(column.color);
-  const taskIds = tasks.map((t) => t.id);
+  // Use publicId for v2 tasks, id for v1
+  const taskIds = tasks.map((t) => {
+    const taskWithV2 = t as Task & { publicId?: string };
+    return taskWithV2.publicId || t.id;
+  });
 
   return (
     <div className="w-80 flex flex-col gap-3 shrink-0 h-full">
@@ -61,14 +65,18 @@ export function KanbanColumn({
         `}
       >
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
-          {tasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onClick={onTaskClick}
-              onContextMenu={onTaskContextMenu}
-            />
-          ))}
+          {tasks.map((task) => {
+            const taskWithV2 = task as Task & { publicId?: string };
+            const taskKey = taskWithV2.publicId || task.id;
+            return (
+              <TaskCard
+                key={taskKey}
+                task={task}
+                onClick={onTaskClick}
+                onContextMenu={onTaskContextMenu}
+              />
+            );
+          })}
         </SortableContext>
 
         {/* Empty state - fills the column for better drop target */}

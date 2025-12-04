@@ -7,41 +7,50 @@ import {
   type Task,
   type Release,
 } from "../api";
+import { v2Api } from "../api/v2/client";
+import { EpicStatus as V2EpicStatus } from "../api/v2/generated";
+import { useProject } from "../contexts";
 import type { AcceptanceCriterion } from "../api/generated";
 import { ProgressBar, TaskCreateModal } from "../components/ui";
 import { EpicDetailHeader } from "../components/epics";
 import { AcceptanceCriteriaList } from "../components/ui/AcceptanceCriteriaList";
 import { calculatePhase } from "../utils/phaseCalculation";
 
+// Extended type to support v2 fields
+type EpicWithV2Fields = Omit<Epic, "dependsOn" | "taskStats" | "status"> & {
+  v2Id?: string;
+  displayKey?: string;
+  status: string; // Allow UPPER_CASE status from v2 API
+  taskStats?: { total?: number; done?: number; inProgress?: number };
+  progressPercentage?: number;
+  phase?: number;
+  dependsOn?: (number | string)[];
+};
+
 // Task status badge configuration
 const TASK_STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
-  backlog: {
+  BACKLOG: {
     label: "Backlog",
     classes:
       "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
   },
-  ready: {
+  READY: {
     label: "Ready",
     classes:
       "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
   },
-  in_progress: {
+  IN_PROGRESS: {
     label: "In Progress",
     classes:
       "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300",
   },
-  pending_review: {
-    label: "Pending Review",
+  IN_REVIEW: {
+    label: "In Review",
     classes:
       "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
   },
-  approved: {
-    label: "Approved",
-    classes:
-      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-  },
-  done: {
-    label: "Done",
+  COMPLETED: {
+    label: "Completed",
     classes:
       "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
   },
@@ -50,7 +59,8 @@ const TASK_STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
 export default function EpicDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [epic, setEpic] = useState<Epic | null>(null);
+  const { getProjectRef } = useProject();
+  const [epic, setEpic] = useState<EpicWithV2Fields | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [criteria, setCriteria] = useState<AcceptanceCriterion[]>([]);
   const [releases, setReleases] = useState<Release[]>([]);
@@ -58,7 +68,7 @@ export default function EpicDetailPage() {
   const [criteriaLoading, setCriteriaLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
-  const [allEpics, setAllEpics] = useState<Epic[]>([]);
+  const [allEpics, setAllEpics] = useState<EpicWithV2Fields[]>([]);
   const [deleting, setDeleting] = useState(false);
 
   // Inline editing state
@@ -114,28 +124,138 @@ export default function EpicDetailPage() {
   const fetchEpicData = useCallback(async () => {
     if (!id) return;
 
+    const projectRef = getProjectRef();
+    if (!projectRef) {
+      setError("No project selected");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
 
-      const [epicResponse, tasksResponse] = await Promise.all([
-        api.epics.getEpic({ id: parseInt(id, 10) }),
-        api.epics.getEpicTasks({ id: parseInt(id, 10) }),
-      ]);
+      // Fetch epic from v2 API
+      const epicResponse = await v2Api.epics.getEpic({
+        projectRef,
+        epicRef: id,
+      });
 
-      const epicData = epicResponse.data ?? null;
+      // Convert v2 epic to internal format
+      const v2Epic = epicResponse;
+      // Map v2 status to v1 status format
+      const statusMap: Record<string, "planning" | "active" | "completed"> = {
+        PLANNING: "planning",
+        IN_PROGRESS: "active",
+        COMPLETED: "completed",
+      };
+      const epicData: EpicWithV2Fields = {
+        id: 0, // v2 uses id as string
+        v2Id: v2Epic.id,
+        displayKey: v2Epic.displayKey,
+        projectId: 0, // v2 uses projectRef
+        title: v2Epic.title,
+        description: v2Epic.description ?? null,
+        status: statusMap[v2Epic.status] || "planning",
+        targetDate: v2Epic.targetDate ? new Date(v2Epic.targetDate) : null,
+        createdByUserId: 0,
+        createdAt: new Date(v2Epic.createdAt),
+        updatedAt: new Date(v2Epic.updatedAt),
+        releaseId: null, // v2 uses releaseId as string
+        prdFilePath: v2Epic.prdFilePath ?? null,
+        epicFilePath: v2Epic.epicFilePath ?? null,
+        dependsOn: v2Epic.dependsOn ?? [],
+        taskStats: v2Epic.taskStats ?? { total: 0, done: 0, inProgress: 0 },
+        progressPercentage: v2Epic.progressPercentage ?? 0,
+        phase: v2Epic.phase ?? 1,
+      };
       setEpic(epicData);
-      setTasks(tasksResponse.data ?? []);
 
-      // Fetch all epics and releases for the project
-      if (epicData?.projectId) {
-        const [allEpicsResponse, releasesResponse] = await Promise.all([
-          api.epics.listEpics({ id: epicData.projectId }),
-          api.releases.listReleases({ id: epicData.projectId }),
-        ]);
-        setAllEpics(allEpicsResponse.data ?? []);
-        setReleases(releasesResponse.data ?? []);
+      // Fetch tasks from v2 API
+      try {
+        const tasksResponse = await v2Api.epics.listEpicTasks({
+          projectRef,
+          epicRef: id,
+          limit: 100, // Fetch up to 100 tasks
+        });
+        const v2Tasks = tasksResponse.data ?? [];
+        // Map v2 task status to v1 format
+        const taskStatusMap: Record<string, string> = {
+          BACKLOG: "backlog",
+          READY: "ready",
+          IN_PROGRESS: "in_progress",
+          PENDING_REVIEW: "pending_review",
+          APPROVED: "approved",
+          DONE: "done",
+        };
+        // Convert v2 tasks to a compatible format for display
+        const convertedTasks = v2Tasks.map((t) => ({
+          id: 0,
+          v2Id: t.id,
+          displayKey: t.displayKey,
+          projectId: 0,
+          epicId: null,
+          epicDisplayKey: t.epicDisplayKey ?? null,
+          title: t.title,
+          description: t.description ?? null,
+          status: taskStatusMap[t.status] || "backlog",
+          priority: t.priority,
+          requiresApproval: t.requiresApproval,
+          estimatedDuration: t.estimatedDuration ?? null,
+          actualDuration: t.actualDuration ?? null,
+          githubPrUrl: t.githubPrUrl ?? null,
+          createdByUserId: 0,
+          assignedToUserId: null,
+          progressPercentage: 0,
+          createdAt: new Date(t.createdAt),
+          updatedAt: new Date(t.updatedAt),
+        })) as unknown as Task[];
+        setTasks(convertedTasks);
+      } catch (err) {
+        console.error("Failed to fetch epic tasks:", err);
+        setTasks([]);
       }
+
+      // Fetch all epics for dependencies
+      const allEpicsResponse = await v2Api.epics.listEpics({ projectRef });
+      const v2Epics = allEpicsResponse.data ?? [];
+      const convertedEpics: EpicWithV2Fields[] = v2Epics.map((e) => ({
+        id: 0,
+        v2Id: e.id,
+        displayKey: e.displayKey,
+        projectId: 0,
+        title: e.title,
+        description: e.description ?? null,
+        status: e.status, // Keep UPPER_CASE status from v2 API
+        targetDate: e.targetDate ? new Date(e.targetDate) : null,
+        createdByUserId: 0,
+        createdAt: new Date(e.createdAt),
+        updatedAt: new Date(e.updatedAt),
+        releaseId: null,
+        phase: e.phase,
+      }));
+      setAllEpics(convertedEpics);
+
+      // Fetch releases from v2 API
+      const releasesResponse = await v2Api.releases.listReleases({
+        projectRef,
+      });
+      const v2Releases = releasesResponse.data ?? [];
+      const convertedReleases: Release[] = v2Releases.map((r) => ({
+        id: 0,
+        v2Id: r.id,
+        name: r.name,
+        description: r.description ?? null,
+        status: r.status.toLowerCase() as
+          | "planned"
+          | "in_progress"
+          | "released",
+        targetDate: r.targetDate ?? null,
+        projectId: 0,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      })) as unknown as Release[];
+      setReleases(convertedReleases);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to load epic";
@@ -144,42 +264,63 @@ export default function EpicDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, getProjectRef]);
 
   const fetchCriteria = useCallback(async () => {
     if (!id) return;
+
     try {
       setCriteriaLoading(true);
-      const response = await api.epics.listEpicCriteria({
-        id: parseInt(id, 10),
+
+      const projectRef = getProjectRef();
+      if (!projectRef) {
+        setCriteria([]);
+        setCriteriaLoading(false);
+        return;
+      }
+      const response = await v2Api.epics.listEpicAcceptanceCriteria({
+        projectRef,
+        epicRef: id,
       });
-      setCriteria(response.data ?? []);
+      const v2Criteria = response.data ?? [];
+      const convertedCriteria: AcceptanceCriterion[] = v2Criteria.map((c) => ({
+        id: c.id,
+        entityType: "epic" as const,
+        entityId: 0,
+        text: c.criteria,
+        checked: c.isMet ?? false,
+        position: c.orderIndex ?? 0,
+        createdAt: new Date(c.createdAt),
+        updatedAt: new Date(c.createdAt), // v2 doesn't have updatedAt
+      }));
+      setCriteria(convertedCriteria);
     } catch (err) {
       console.error("Failed to fetch criteria:", err);
     } finally {
       setCriteriaLoading(false);
     }
-  }, [id]);
+  }, [id, getProjectRef]);
 
   useEffect(() => {
     fetchEpicData();
     fetchCriteria();
   }, [fetchEpicData, fetchCriteria]);
 
+  // Helper to get epic ref (v2Id for v2, id for fallback)
+  const getEpicRef = (e: EpicWithV2Fields): string | number => e.v2Id || e.id;
+
   // Calculate phase from dependencies
   const phase = useMemo(() => {
     if (!epic) return 1;
-    const epicsMap = new Map<number, { dependsOn: number[] }>();
-    for (const e of allEpics) {
-      epicsMap.set(e.id, { dependsOn: e.dependsOn ?? [] });
-    }
-    return calculatePhase(epic.id, epicsMap);
-  }, [epic, allEpics]);
+    // For v2, use the phase from the epic data
+    return epic.phase ?? 1;
+  }, [epic]);
 
   // Available epics for dependency selection (exclude current epic and detect circular)
   const availableEpics = useMemo(() => {
     if (!epic) return [];
-    return allEpics.filter((e) => e.id !== epic.id);
+    const currentRef = getEpicRef(epic);
+    return allEpics.filter((e) => getEpicRef(e) !== currentRef);
   }, [allEpics, epic]);
 
   // Filter available epics by search
@@ -189,25 +330,46 @@ export default function EpicDetailPage() {
     return availableEpics.filter(
       (e) =>
         e.title.toLowerCase().includes(query) ||
+        e.displayKey?.toLowerCase().includes(query) ||
+        e.v2Id?.toLowerCase().includes(query) ||
         e.id.toString().includes(query),
     );
   }, [availableEpics, dependencySearch]);
 
   // Get dependency epic objects
   const dependencyEpics = useMemo(() => {
-    if (!epic?.dependsOn) return [];
-    return allEpics.filter((e) => epic.dependsOn?.includes(e.id));
+    if (!epic?.dependsOn || epic.dependsOn.length === 0) return [];
+    // For v2, dependsOn contains v2Ids (strings)
+    const depsSet = new Set(epic.dependsOn);
+    return allEpics.filter((e) => e.v2Id && depsSet.has(e.v2Id));
   }, [epic, allEpics]);
+
+  // Map status to v2 status enum
+  const mapStatusToV2 = (status: string): V2EpicStatus => {
+    switch (status) {
+      case "PLANNING":
+        return V2EpicStatus.Planning;
+      case "IN_PROGRESS":
+        return V2EpicStatus.InProgress;
+      case "COMPLETED":
+        return V2EpicStatus.Completed;
+      default:
+        return V2EpicStatus.Planning;
+    }
+  };
 
   // Handle status change
   const handleStatusChange = async (newStatus: string) => {
     if (!epic) return;
 
     try {
-      await api.epics.updateEpic({
-        id: epic.id,
+      const projectRef = getProjectRef();
+      if (!projectRef || !epic.v2Id) return;
+      await v2Api.epics.updateEpic({
+        projectRef,
+        epicRef: epic.v2Id,
         updateEpicRequest: {
-          status: newStatus as "planning" | "active" | "completed",
+          status: mapStatusToV2(newStatus),
         },
       });
       fetchEpicData();
@@ -224,8 +386,11 @@ export default function EpicDetailPage() {
     if (!epic) return;
 
     try {
-      await api.epics.updateEpic({
-        id: epic.id,
+      const projectRef = getProjectRef();
+      if (!projectRef || !epic.v2Id) return;
+      await v2Api.epics.updateEpic({
+        projectRef,
+        epicRef: epic.v2Id,
         updateEpicRequest: { title: newTitle },
       });
       fetchEpicData();
@@ -241,18 +406,9 @@ export default function EpicDetailPage() {
   const handleReleaseChange = async (releaseId: number | null) => {
     if (!epic) return;
 
-    try {
-      await api.epics.updateEpic({
-        id: epic.id,
-        updateEpicRequest: { releaseId },
-      });
-      fetchEpicData();
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to update release";
-      setError(message);
-      console.error("Failed to update release:", err);
-    }
+    // Release assignment not yet implemented for v2
+    console.log("Release assignment not yet implemented for v2");
+    return;
   };
 
   // Handle description save
@@ -261,9 +417,12 @@ export default function EpicDetailPage() {
     const trimmed = descriptionValue.trim();
     if (trimmed !== (epic.description ?? "")) {
       try {
-        await api.epics.updateEpic({
-          id: epic.id,
-          updateEpicRequest: { description: trimmed || null },
+        const projectRef = getProjectRef();
+        if (!projectRef || !epic.v2Id) return;
+        await v2Api.epics.updateEpic({
+          projectRef,
+          epicRef: epic.v2Id,
+          updateEpicRequest: { description: trimmed || undefined },
         });
         fetchEpicData();
       } catch (err) {
@@ -277,56 +436,29 @@ export default function EpicDetailPage() {
   // Handle PRD path save
   const handlePrdSave = async () => {
     if (!epic) return;
-    const trimmed = prdValue.trim();
-    if (trimmed !== (epic.prdFilePath ?? "")) {
-      try {
-        await api.epics.updateEpic({
-          id: epic.id,
-          updateEpicRequest: { prdFilePath: trimmed || null },
-        });
-        fetchEpicData();
-      } catch (err) {
-        console.error("Failed to update PRD path:", err);
-        setPrdValue(epic.prdFilePath ?? "");
-      }
-    }
+
+    // PRD path not yet implemented for v2
+    console.log("PRD path not yet implemented for v2");
     setEditingPrd(false);
+    return;
   };
 
-  // Handle add dependency
-  const handleAddDependency = async (depEpicId: number) => {
+  // Handle add dependency (uses v2Id)
+  const handleAddDependency = async (depEpicRef: number | string) => {
     if (!epic) return;
-    const currentDeps = epic.dependsOn ?? [];
-    if (currentDeps.includes(depEpicId)) return;
 
-    try {
-      await api.epics.updateEpic({
-        id: epic.id,
-        updateEpicRequest: { dependsOn: [...currentDeps, depEpicId] },
-      });
-      fetchEpicData();
-    } catch (err) {
-      console.error("Failed to add dependency:", err);
-    }
-    setShowDependencyPicker(false);
-    setDependencySearch("");
+    // Dependencies not yet implemented for v2
+    console.log("Dependencies not yet implemented for v2");
+    return;
   };
 
-  // Handle remove dependency
-  const handleRemoveDependency = async (depEpicId: number) => {
+  // Handle remove dependency (uses v2Id)
+  const handleRemoveDependency = async (depEpicRef: number | string) => {
     if (!epic) return;
-    const currentDeps = epic.dependsOn ?? [];
-    const newDeps = currentDeps.filter((id) => id !== depEpicId);
 
-    try {
-      await api.epics.updateEpic({
-        id: epic.id,
-        updateEpicRequest: { dependsOn: newDeps },
-      });
-      fetchEpicData();
-    } catch (err) {
-      console.error("Failed to remove dependency:", err);
-    }
+    // Dependencies not yet implemented for v2
+    console.log("Dependencies not yet implemented for v2");
+    return;
   };
 
   // Handle epic deletion
@@ -335,7 +467,12 @@ export default function EpicDetailPage() {
 
     try {
       setDeleting(true);
-      await api.epics.deleteEpic({ id: epic.id });
+      const projectRef = getProjectRef();
+      if (!projectRef || !epic.v2Id) return;
+      await v2Api.epics.deleteEpic({
+        projectRef,
+        epicRef: epic.v2Id,
+      });
       navigate("/epics");
     } catch (err) {
       const message = await getApiErrorMessage(err, "Failed to delete epic");
@@ -423,7 +560,7 @@ export default function EpicDetailPage() {
     <div>
       {/* Header */}
       <EpicDetailHeader
-        epic={epic}
+        epic={epic as unknown as Epic}
         releases={releases}
         phase={phase}
         onStatusChange={handleStatusChange}
@@ -653,15 +790,20 @@ export default function EpicDetailPage() {
                     </div>
                   ) : (
                     filteredAvailableEpics.map((e) => {
-                      const isSelected = epic.dependsOn?.includes(e.id);
+                      const epicRef = getEpicRef(e);
+                      // For v2, check if v2Id is in dependsOn (which contains v2Ids)
+                      const isSelected = epic.dependsOn?.includes(
+                        e.v2Id as string,
+                      );
                       const epicPhase = e.phase ?? 1;
+                      const displayId = e.displayKey || e.v2Id || `#${e.id}`;
                       return (
                         <button
-                          key={e.id}
+                          key={epicRef}
                           onClick={() =>
                             isSelected
-                              ? handleRemoveDependency(e.id)
-                              : handleAddDependency(e.id)
+                              ? handleRemoveDependency(epicRef)
+                              : handleAddDependency(epicRef)
                           }
                           className={`w-full flex items-center gap-3 px-3 py-2 text-sm text-left hover:bg-system-100 dark:hover:bg-system-700 ${
                             isSelected ? "bg-brand-50 dark:bg-brand-900/20" : ""
@@ -676,7 +818,7 @@ export default function EpicDetailPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-system-500 dark:text-system-400">
-                                #{e.id}
+                                {displayId}
                               </span>
                               <span className="text-system-900 dark:text-white truncate">
                                 {e.title}
@@ -704,41 +846,46 @@ export default function EpicDetailPage() {
             </p>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {dependencyEpics.map((depEpic) => (
-                <div
-                  key={depEpic.id}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-system-100 dark:bg-system-700 rounded-lg text-sm"
-                >
-                  <Link
-                    to={`/epics/${depEpic.id}`}
-                    className="flex items-center gap-2 text-system-700 dark:text-system-300 hover:text-brand-600 dark:hover:text-brand-400"
+              {dependencyEpics.map((depEpic) => {
+                const depRef = getEpicRef(depEpic);
+                const displayId =
+                  depEpic.displayKey || depEpic.v2Id || `#${depEpic.id}`;
+                return (
+                  <div
+                    key={depRef}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-system-100 dark:bg-system-700 rounded-lg text-sm"
                   >
-                    <span className="text-xs text-system-500 dark:text-system-400">
-                      #{depEpic.id}
-                    </span>
-                    <span>{depEpic.title}</span>
-                  </Link>
-                  <button
-                    onClick={() => handleRemoveDependency(depEpic.id)}
-                    className="text-system-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-                    title="Remove dependency"
-                  >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+                    <Link
+                      to={`/epics/${depRef}`}
+                      className="flex items-center gap-2 text-system-700 dark:text-system-300 hover:text-brand-600 dark:hover:text-brand-400"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              ))}
+                      <span className="text-xs text-system-500 dark:text-system-400">
+                        {displayId}
+                      </span>
+                      <span>{depEpic.title}</span>
+                    </Link>
+                    <button
+                      onClick={() => handleRemoveDependency(depRef)}
+                      className="text-system-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                      title="Remove dependency"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -807,17 +954,30 @@ export default function EpicDetailPage() {
                 {tasks.map((task) => {
                   const taskStatusConfig =
                     TASK_STATUS_CONFIG[task.status] ||
-                    TASK_STATUS_CONFIG.backlog;
+                    TASK_STATUS_CONFIG.BACKLOG;
+                  // Get task ref and display id for v2 support
+                  const taskWithV2 = task as Task & {
+                    v2Id?: string;
+                    publicId?: string;
+                    displayKey?: string;
+                  };
+                  const taskRef =
+                    taskWithV2.v2Id || taskWithV2.publicId || task.id;
+                  const displayId =
+                    taskWithV2.displayKey ||
+                    taskWithV2.v2Id ||
+                    taskWithV2.publicId ||
+                    `#${task.id}`;
                   return (
                     <tr
-                      key={task.id}
-                      onClick={() => navigate(`/tasks/${task.id}`)}
+                      key={taskRef}
+                      onClick={() => navigate(`/tasks/${taskRef}`)}
                       className="hover:bg-system-50 dark:hover:bg-system-800/50 transition-colors cursor-pointer"
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <span className="text-sm text-system-500 dark:text-system-400 font-mono">
-                            #{task.id}
+                            {displayId}
                           </span>
                           <span className="text-sm font-medium text-system-900 dark:text-white">
                             {task.title}

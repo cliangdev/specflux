@@ -2,10 +2,26 @@
  * API Module
  *
  * Re-exports the API client and commonly used types.
+ *
+ * The codebase is migrating from v1 (Node.js/SQLite) to v2 (Spring Boot/PostgreSQL).
+ * - v1 API: Used for local features (agents, skills, terminal, file changes)
+ * - v2 API: Used for core domain (projects, epics, tasks, releases)
  */
 
-// API client
-export { api, setUserId, getUserId } from "./client";
+// API client (routed via router.ts)
+export { api, setUserId, getUserId } from "./router";
+
+// Backend settings
+export {
+  isV2Enabled,
+  enableV2,
+  disableV2,
+  getBackendSettings,
+  updateBackendSettings,
+  subscribeToBackendSettings,
+  resetMigration,
+  type BackendSettings,
+} from "./router";
 
 // API classes for custom configuration
 export {
@@ -78,6 +94,14 @@ export {
   ControlTaskAgentRequestActionEnum,
   AgentStatusStatusEnum,
 } from "./generated";
+
+// v2 Status enums (for components using UPPER_CASE statuses)
+export {
+  EpicStatus,
+  TaskStatus,
+  TaskPriority,
+  ReleaseStatus,
+} from "./v2/generated";
 
 // Runtime error class (for error handling)
 export { ResponseError } from "./generated/runtime";

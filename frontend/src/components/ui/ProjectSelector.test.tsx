@@ -73,7 +73,7 @@ describe("ProjectSelector", () => {
     });
   });
 
-  it("shows error state on failure", async () => {
+  it("shows error state on failure with retry button", async () => {
     vi.mocked(api.projects.listProjects).mockRejectedValue(
       new Error("Network error"),
     );
@@ -81,7 +81,7 @@ describe("ProjectSelector", () => {
     renderWithProvider();
 
     await waitFor(() => {
-      expect(screen.getByText("Error loading")).toBeInTheDocument();
+      expect(screen.getByText("Retry")).toBeInTheDocument();
     });
   });
 
