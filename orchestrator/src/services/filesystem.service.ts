@@ -1,6 +1,15 @@
 import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
+import {
+  getClaudeMdTemplate,
+  getMcpJsonTemplate,
+  getPrdCommandTemplate,
+  getEpicCommandTemplate,
+  getDesignCommandTemplate,
+  getImplementCommandTemplate,
+  getTaskCommandTemplate,
+} from './template.service';
 
 /**
  * SpecFlux directory structure within a project
@@ -16,6 +25,14 @@ export const SPECFLUX_DIRS = {
   TASK_STATES: '.specflux/task-states',
   // Archived task histories (when state files exceed size limits)
   ARCHIVES: '.specflux/archives',
+} as const;
+
+/**
+ * Claude Code directory structure within a project
+ */
+export const CLAUDE_DIRS = {
+  ROOT: '.claude',
+  COMMANDS: '.claude/commands',
 } as const;
 
 export interface MarkdownFile<T extends Record<string, unknown> = Record<string, unknown>> {
@@ -92,6 +109,64 @@ export function initializeProjectStructure(projectPath: string): {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown filesystem error';
     console.error(`[filesystem] Failed to initialize project structure: ${message}`);
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Initialize the .claude directory structure with template commands.
+ * Creates CLAUDE.md, .mcp.json, and command templates (prd.md, epic.md, etc.)
+ * Returns success/error result instead of throwing.
+ */
+export function initializeClaudeDirectory(
+  projectPath: string,
+  projectName: string
+): { success: boolean; error?: string } {
+  try {
+    if (!fs.existsSync(projectPath)) {
+      return { success: false, error: `Project path does not exist: ${projectPath}` };
+    }
+
+    // Create .claude directories
+    for (const dir of Object.values(CLAUDE_DIRS)) {
+      const fullPath = path.join(projectPath, dir);
+      if (!fs.existsSync(fullPath)) {
+        fs.mkdirSync(fullPath, { recursive: true });
+      }
+    }
+
+    // Write CLAUDE.md at project root (don't overwrite existing)
+    const claudeMdPath = path.join(projectPath, 'CLAUDE.md');
+    if (!fs.existsSync(claudeMdPath)) {
+      fs.writeFileSync(claudeMdPath, getClaudeMdTemplate(projectName));
+    }
+
+    // Write .mcp.json (don't overwrite existing)
+    const mcpPath = path.join(projectPath, CLAUDE_DIRS.ROOT, '.mcp.json');
+    if (!fs.existsSync(mcpPath)) {
+      fs.writeFileSync(mcpPath, getMcpJsonTemplate());
+    }
+
+    // Write command templates (don't overwrite existing)
+    const commands = [
+      { name: 'prd.md', content: getPrdCommandTemplate() },
+      { name: 'epic.md', content: getEpicCommandTemplate() },
+      { name: 'design.md', content: getDesignCommandTemplate() },
+      { name: 'implement.md', content: getImplementCommandTemplate() },
+      { name: 'task.md', content: getTaskCommandTemplate() },
+    ];
+
+    for (const cmd of commands) {
+      const cmdPath = path.join(projectPath, CLAUDE_DIRS.COMMANDS, cmd.name);
+      if (!fs.existsSync(cmdPath)) {
+        fs.writeFileSync(cmdPath, cmd.content);
+      }
+    }
+
+    return { success: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error(`[filesystem] Failed to initialize .claude directory: ${message}`);
     return { success: false, error: message };
   }
 }

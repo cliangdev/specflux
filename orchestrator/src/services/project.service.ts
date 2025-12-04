@@ -1,6 +1,6 @@
 import { getDatabase } from '../db';
 import { NotFoundError, ValidationError } from '../types';
-import { initializeProjectStructure } from './filesystem.service';
+import { initializeProjectStructure, initializeClaudeDirectory } from './filesystem.service';
 
 export interface Project {
   id: number;
@@ -141,6 +141,12 @@ export function createProject(input: CreateProjectInput, ownerUserId: number): P
   const fsResult = initializeProjectStructure(project.local_path);
   if (!fsResult.success) {
     console.warn(`[project] Failed to initialize .specflux structure: ${fsResult.error}`);
+  }
+
+  // Initialize .claude directory with template commands (best-effort)
+  const claudeResult = initializeClaudeDirectory(project.local_path, project.name);
+  if (!claudeResult.success) {
+    console.warn(`[project] Failed to initialize .claude structure: ${claudeResult.error}`);
   }
 
   return project;
