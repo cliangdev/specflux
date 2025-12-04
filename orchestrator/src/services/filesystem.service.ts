@@ -75,6 +75,28 @@ export function initializeSpecfluxStructure(projectPath: string): void {
 }
 
 /**
+ * Initialize .specflux structure for a project with error handling.
+ * Returns success/error result instead of throwing.
+ * Use this during project creation - it's best-effort and won't fail project creation.
+ */
+export function initializeProjectStructure(projectPath: string): {
+  success: boolean;
+  error?: string;
+} {
+  try {
+    if (!fs.existsSync(projectPath)) {
+      return { success: false, error: `Project path does not exist: ${projectPath}` };
+    }
+    initializeSpecfluxStructure(projectPath);
+    return { success: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown filesystem error';
+    console.error(`[filesystem] Failed to initialize project structure: ${message}`);
+    return { success: false, error: message };
+  }
+}
+
+/**
  * Ensure task state directories exist (task-states and archives)
  * Use this when starting a task to ensure directories exist without full initialization
  */

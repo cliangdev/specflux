@@ -27,7 +27,7 @@ type EpicWithV2Fields = Omit<Epic, "dependsOn" | "taskStats" | "status"> & {
   dependsOn?: (number | string)[];
 };
 
-// Task status badge configuration
+// Task status badge configuration (v2 UPPER_CASE status values)
 const TASK_STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
   BACKLOG: {
     label: "Backlog",
@@ -49,10 +49,19 @@ const TASK_STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
     classes:
       "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
   },
+  BLOCKED: {
+    label: "Blocked",
+    classes: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+  },
   COMPLETED: {
     label: "Completed",
     classes:
       "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
+  },
+  CANCELLED: {
+    label: "Cancelled",
+    classes:
+      "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
   },
 };
 
@@ -179,16 +188,8 @@ export default function EpicDetailPage() {
           limit: 100, // Fetch up to 100 tasks
         });
         const v2Tasks = tasksResponse.data ?? [];
-        // Map v2 task status to v1 format
-        const taskStatusMap: Record<string, string> = {
-          BACKLOG: "backlog",
-          READY: "ready",
-          IN_PROGRESS: "in_progress",
-          PENDING_REVIEW: "pending_review",
-          APPROVED: "approved",
-          DONE: "done",
-        };
         // Convert v2 tasks to a compatible format for display
+        // Keep UPPER_CASE status from v2 API to match TASK_STATUS_CONFIG
         const convertedTasks = v2Tasks.map((t) => ({
           id: 0,
           v2Id: t.id,
@@ -198,7 +199,7 @@ export default function EpicDetailPage() {
           epicDisplayKey: t.epicDisplayKey ?? null,
           title: t.title,
           description: t.description ?? null,
-          status: taskStatusMap[t.status] || "backlog",
+          status: t.status, // Keep UPPER_CASE status from v2 API
           priority: t.priority,
           requiresApproval: t.requiresApproval,
           estimatedDuration: t.estimatedDuration ?? null,

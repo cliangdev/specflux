@@ -1,5 +1,6 @@
 import { getDatabase } from '../db';
 import { NotFoundError, ValidationError } from '../types';
+import { initializeProjectStructure } from './filesystem.service';
 
 export interface Project {
   id: number;
@@ -134,7 +135,15 @@ export function createProject(input: CreateProjectInput, ownerUserId: number): P
   `
   ).run(newProjectId, workflowTemplate);
 
-  return getProjectById(newProjectId)!;
+  const project = getProjectById(newProjectId)!;
+
+  // Initialize .specflux directory structure (best-effort, don't fail project creation)
+  const fsResult = initializeProjectStructure(project.local_path);
+  if (!fsResult.success) {
+    console.warn(`[project] Failed to initialize .specflux structure: ${fsResult.error}`);
+  }
+
+  return project;
 }
 
 /**
