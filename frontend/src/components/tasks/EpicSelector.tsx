@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import type { Epic } from "../../api/generated";
-import { api } from "../../api";
-import { v2Api } from "../../api/v2/client";
+import { api, type Epic } from "../../api";
 
 // Unified epic type for the selector
 interface EpicOption {
@@ -55,7 +53,7 @@ export default function EpicSelector({
         setLoading(true);
         if (projectRef) {
           // Use v2 API
-          const response = await v2Api.epics.listEpics({ projectRef });
+          const response = await api.epics.listEpics({ projectRef });
           const v2Epics = response.data ?? [];
           setEpics(
             v2Epics.map((e) => ({

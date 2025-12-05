@@ -1,110 +1,24 @@
 /**
  * API Module
  *
- * Re-exports the API client and commonly used types.
- *
- * The codebase is migrating from v1 (Node.js/SQLite) to v2 (Spring Boot/PostgreSQL).
- * - v1 API: Used for local features (agents, skills, terminal, file changes)
- * - v2 API: Used for core domain (projects, epics, tasks, releases)
+ * Provides the unified API client for the Spring Boot backend.
+ * Uses Firebase JWT authentication.
  */
 
-// API client (routed via router.ts)
-export { api, setUserId, getUserId } from "./router";
+// Main API client
+export { api } from "./client";
 
-// Backend settings
-export {
-  isV2Enabled,
-  enableV2,
-  disableV2,
-  getBackendSettings,
-  updateBackendSettings,
-  subscribeToBackendSettings,
-  resetMigration,
-  type BackendSettings,
-} from "./router";
-
-// API classes for custom configuration
-export {
-  Configuration,
-  EpicsApi,
-  FilesApi,
-  HealthApi,
-  NotificationsApi,
-  ProjectsApi,
-  ReleasesApi,
-  RepositoriesApi,
-  TasksApi,
-  UsersApi,
-} from "./client";
-
-// Domain models
-export type {
-  Project,
-  Epic,
-  Task,
-  Repository,
-  Notification,
-  User,
-  ProjectConfig,
-  ProjectStats,
-  DashboardResponse,
-  EpicProgress,
-  TaskDependency,
-  TaskDiff,
-  FileChange,
-  AgentStatus,
-  TerminalOutput,
-  Pagination,
-  ApproveAndPRResult,
-  // Release types
-  Release,
-  ReleaseWithEpics,
-  ReleasePhase,
-  // File tracking types
-  GetTaskFileChanges200ResponseData as TaskFileChanges,
-  GetTaskFileChanges200ResponseDataChangesInner as TrackedFileChange,
-  GetTaskFileChanges200ResponseDataSummary as FileChangeSummary,
-  // Agent types
-  Agent,
-  Skill,
-  McpServer,
-} from "./generated";
-
-// Request types
-export type {
-  CreateProjectRequest,
-  UpdateProjectRequest,
-  CreateEpicRequest,
-  UpdateEpicRequest,
-  CreateTaskRequest,
-  UpdateTaskRequest,
-  CreateRepositoryRequest,
-  UpdateRepositoryRequest,
-  CreateReleaseRequest,
-  UpdateReleaseRequest,
-  ReviewRequest,
-  UpdateUserRequest,
-} from "./generated";
-
-// Error type
-export type { ModelError } from "./generated";
-
-// Enum types
-export {
-  ControlTaskAgentRequestActionEnum,
-  AgentStatusStatusEnum,
-} from "./generated";
-
-// v2 Status enums (for components using UPPER_CASE statuses)
-export {
-  EpicStatus,
-  TaskStatus,
-  TaskPriority,
-  ReleaseStatus,
-} from "./v2/generated";
+// Re-export all generated types, enums, and APIs
+// This includes: Project, Task, Epic, Release, Repository, Skill, Agent, McpServer, etc.
+// As well as all status enums: TaskStatus, EpicStatus, ReleaseStatus, etc.
+export * from "./generated/models";
+export * from "./generated/apis";
 
 // Runtime error class (for error handling)
 export { ResponseError } from "./generated/runtime";
+
+// Re-export Configuration from runtime
+export { Configuration } from "./generated/runtime";
 
 /**
  * Extract a user-friendly error message from an API error.
@@ -118,12 +32,10 @@ export async function getApiErrorMessage(
   error: unknown,
   fallback = "An unexpected error occurred",
 ): Promise<string> {
-  // Import ResponseError dynamically to avoid circular dependencies
   const { ResponseError } = await import("./generated/runtime");
 
   if (error instanceof ResponseError) {
     try {
-      // Clone the response to read the body (can only be read once)
       const body = await error.response.clone().json();
       if (body && typeof body.error === "string") {
         return body.error;
@@ -131,7 +43,6 @@ export async function getApiErrorMessage(
     } catch {
       // If we can't parse the response, fall through to default handling
     }
-    // Use status text as a fallback
     return error.response.statusText || error.message || fallback;
   }
 

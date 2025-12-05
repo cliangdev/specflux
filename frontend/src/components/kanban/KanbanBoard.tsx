@@ -9,9 +9,7 @@ import {
   useSensors,
   rectIntersection,
 } from "@dnd-kit/core";
-import { Task, TaskStatusEnum } from "../../api/generated/models/Task";
-import { TaskStatus as V2TaskStatus } from "../../api/v2/generated";
-import { v2Api } from "../../api/v2/client";
+import { api, type Task, TaskStatus } from "../../api";
 import {
   KanbanColumn as KanbanColumnType,
   WorkflowTemplate,
@@ -92,43 +90,13 @@ export function KanbanBoard({
       setLoading(true);
       setError(null);
 
-      const response = await v2Api.tasks.listTasks({
+      const response = await api.tasks.listTasks({
         projectRef,
         limit: 100,
       });
-      // Convert v2 tasks to v1 Task format for KanbanBoard compatibility
+      // v2 tasks are already in the correct format
       const v2Tasks = response.data ?? [];
-      // Map v2 status to v1 status format
-      const statusMap: Record<string, TaskStatusEnum> = {
-        BACKLOG: TaskStatusEnum.Backlog,
-        READY: TaskStatusEnum.Ready,
-        IN_PROGRESS: TaskStatusEnum.InProgress,
-        PENDING_REVIEW: TaskStatusEnum.PendingReview,
-        APPROVED: TaskStatusEnum.Approved,
-        DONE: TaskStatusEnum.Done,
-      };
-      const convertedTasks: Task[] = v2Tasks.map((t) => ({
-        id: 0, // v2 uses id as string, but KanbanBoard needs numeric id for drag-drop
-        publicId: t.id,
-        displayKey: t.displayKey,
-        title: t.title,
-        description: t.description ?? null,
-        status: statusMap[t.status] || TaskStatusEnum.Backlog,
-        projectId: 0,
-        epicId: null,
-        epicDisplayKey: t.epicDisplayKey ?? null,
-        repoName: null,
-        priority: t.priority,
-        requiresApproval: t.requiresApproval,
-        progressPercentage: 0, // Required field
-        createdByUserId: 0, // Required field
-        estimatedDuration: t.estimatedDuration ?? null,
-        actualDuration: t.actualDuration ?? null,
-        createdAt: t.createdAt,
-        updatedAt: t.updatedAt,
-        githubPrUrl: t.githubPrUrl ?? null,
-      }));
-      setTasks(convertedTasks);
+      setTasks(v2Tasks as Task[]);
     } catch (err) {
       setError("Failed to load tasks");
       console.error("Error loading tasks:", err);
@@ -152,7 +120,7 @@ export function KanbanBoard({
 
   // Find column by status
   const findColumnByStatus = useCallback(
-    (status: TaskStatusEnum): KanbanColumnType | undefined => {
+    (status: TaskStatus): KanbanColumnType | undefined => {
       return columns.find((c) => c.status === status);
     },
     [columns],
@@ -186,7 +154,7 @@ export function KanbanBoard({
 
   // Handle drag start
   const handleDragStart = (event: DragStartEvent) => {
-    const taskId = event.active.id as number;
+    const taskId = event.active.id as string;
     const task = tasks.find((t) => t.id === taskId);
     setActiveTask(task ?? null);
   };
@@ -198,20 +166,16 @@ export function KanbanBoard({
     const { active, over } = event;
     if (!over || !projectRef) return;
 
-    // Use publicId (stored as id string from v2) to find task
-    const taskIdentifier = active.id;
-    const task = tasks.find(
-      (t) => (t as Task & { publicId?: string }).publicId === taskIdentifier,
-    );
+    // Find task by id (v2 API uses string ids)
+    const taskIdentifier = active.id as string;
+    const task = tasks.find((t) => t.id === taskIdentifier);
     if (!task) return;
 
     // Find the target column (over can be column id or another task)
     let targetColumnId = over.id as string;
 
     // If dropped over a task, find its column
-    const overTask = tasks.find(
-      (t) => (t as Task & { publicId?: string }).publicId === over.id,
-    );
+    const overTask = tasks.find((t) => t.id === over.id);
     if (overTask) {
       const column = findColumnByStatus(overTask.status);
       if (column) {
@@ -228,21 +192,19 @@ export function KanbanBoard({
 
     // Optimistically update UI
     setTasks((prev) =>
-      prev.map((t) => {
-        const matches =
-          (t as Task & { publicId?: string }).publicId === taskIdentifier;
-        return matches ? { ...t, status: targetColumn.status } : t;
-      }),
+      prev.map((t) =>
+        t.id === taskIdentifier ? { ...t, status: targetColumn.status } : t,
+      ),
     );
 
     // Update on server using v2 API
     try {
       // Convert status to v2 format (UPPER_CASE)
-      const v2Status = targetColumn.status.toUpperCase() as V2TaskStatus;
-      await v2Api.tasks.updateTask({
+      const newStatus = targetColumn.status.toUpperCase() as TaskStatus;
+      await api.tasks.updateTask({
         projectRef,
         taskRef: taskIdentifier as string,
-        updateTaskRequest: { status: v2Status },
+        updateTaskRequest: { status: newStatus },
       });
     } catch (err) {
       console.error("Failed to update task status:", err);

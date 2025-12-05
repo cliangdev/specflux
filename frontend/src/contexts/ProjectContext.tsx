@@ -7,8 +7,7 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import { v2Api } from "../api/v2/client";
-import type { Project } from "../api/v2/generated";
+import { api, type Project } from "../api";
 import { useAuth } from "./AuthContext";
 
 interface ProjectContextValue {
@@ -45,7 +44,7 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
       setError(null);
 
       console.log("[ProjectContext] Fetching projects from v2 API");
-      const response = await v2Api.projects.listProjects({});
+      const response = await api.projects.listProjects({});
       const projectList = response.data ?? [];
 
       setProjects(projectList);

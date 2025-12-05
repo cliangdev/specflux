@@ -1,9 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useProject } from "../contexts";
-import { type Epic, type Release } from "../api";
-import { v2Api } from "../api/v2/client";
-import { EpicStatus as V2EpicStatus } from "../api/v2/generated";
+import { api, type Epic, type Release, EpicStatus } from "../api";
 import { EpicCard, EpicCreateModal } from "../components/epics";
 import { EpicGraph } from "../components/roadmap";
 
@@ -41,9 +39,9 @@ function saveFilters(filters: EpicsFilters): void {
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
-  { value: V2EpicStatus.Planning, label: "Planning" },
-  { value: V2EpicStatus.InProgress, label: "In Progress" },
-  { value: V2EpicStatus.Completed, label: "Completed" },
+  { value: EpicStatus.Planning, label: "Planning" },
+  { value: EpicStatus.InProgress, label: "In Progress" },
+  { value: EpicStatus.Completed, label: "Completed" },
 ];
 
 export default function EpicsPage() {
@@ -108,7 +106,7 @@ export default function EpicsPage() {
     if (!projectRef) return;
 
     try {
-      const response = await v2Api.releases.listReleases({ projectRef });
+      const response = await api.releases.listReleases({ projectRef });
       // Convert v2 releases to v1 format
       const v2Releases = response.data ?? [];
       const convertedReleases: Release[] = v2Releases.map((r) => ({
@@ -152,11 +150,11 @@ export default function EpicsPage() {
       setLoading(true);
       setError(null);
 
-      // Status filter is already in UPPER_CASE format from V2EpicStatus enum
-      const v2Status = statusFilter as V2EpicStatus | undefined;
-      const response = await v2Api.epics.listEpics({
+      // Status filter is already in UPPER_CASE format from EpicStatus enum
+      const epicStatus = statusFilter as EpicStatus | undefined;
+      const response = await api.epics.listEpics({
         projectRef,
-        status: v2Status,
+        status: epicStatus,
         limit: 100,
       });
       // Convert v2 epics to v1 format

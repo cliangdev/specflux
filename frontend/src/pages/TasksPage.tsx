@@ -1,15 +1,23 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProject } from "../contexts";
-import { v2Api } from "../api/v2/client";
 import {
+  api,
+  type Task,
+  type Epic,
   ListTasksSortEnum,
   ListTasksOrderEnum,
   TaskStatus,
-} from "../api/v2/generated";
+} from "../api";
 import { TaskCreateModal, Pagination } from "../components/ui";
-import { type TaskDisplay, tasksToDisplay } from "../api/adapters/taskAdapter";
-import { type EpicDisplay, epicsToDisplay } from "../api/adapters/epicAdapter";
+
+// Simple type aliases for display (can be enhanced later)
+type TaskDisplay = Task;
+type EpicDisplay = Epic;
+
+// Pass-through functions (v2 types are used directly now)
+const tasksToDisplay = (tasks: Task[]): TaskDisplay[] => tasks;
+const epicsToDisplay = (epics: Epic[]): EpicDisplay[] => epics;
 
 const FILTERS_STORAGE_KEY = "specflux-tasks-filters";
 
@@ -295,7 +303,7 @@ export default function TasksPage() {
         const projectRef = getProjectRef();
         if (!projectRef) return;
         console.log("[TasksPage] Fetching epics from v2 API");
-        const response = await v2Api.epics.listEpics({ projectRef });
+        const response = await api.epics.listEpics({ projectRef });
         setEpics(epicsToDisplay(response.data ?? []));
       } catch (err) {
         console.error("Failed to fetch epics:", err);
@@ -342,7 +350,7 @@ export default function TasksPage() {
           | TaskStatus
           | undefined;
 
-        const response = await v2Api.tasks.listTasks({
+        const response = await api.tasks.listTasks({
           projectRef,
           status: statusEnum,
           epicRef: epicFilter,

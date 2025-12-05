@@ -1,13 +1,12 @@
 import { useState, type FormEvent } from "react";
-import { v2Api } from "../../api/v2/client";
-import type { CreateProjectRequest } from "../../api/v2/generated";
+import { api, type CreateProjectRequest } from "../../api";
 
 interface ProjectCreateModalProps {
   onClose: () => void;
   onCreated: () => void;
 }
 
-type PrdOption = "workshop" | "import" | "skip";
+type PrdOption = "workshop" | "skip";
 
 const PRD_OPTIONS = [
   {
@@ -17,15 +16,9 @@ const PRD_OPTIONS = [
     recommended: true,
   },
   {
-    value: "import" as PrdOption,
-    label: "Import Existing PRD",
-    description: "Upload or paste an existing product spec.",
-    recommended: false,
-  },
-  {
     value: "skip" as PrdOption,
     label: "Skip for now",
-    description: "I'll create PRDs later from the PRDs page.",
+    description: "I'll add PRDs later from the PRDs page.",
     recommended: false,
   },
 ];
@@ -72,27 +65,14 @@ export default function ProjectCreateModal({
         description: description.trim() || undefined,
       };
 
-      await v2Api.projects.createProject({
+      await api.projects.createProject({
         createProjectRequest: request,
       });
 
       // Handle post-creation flow based on PRD option
-      // Phase 1B will implement actual PRD workshop and import flows
-      // For now, just show appropriate feedback
-      switch (prdOption) {
-        case "workshop":
-          // TODO (Phase 1B): Navigate to PRD workshop or open terminal with /prd
-          console.log(
-            "PRD Workshop selected - will be implemented in Phase 1B",
-          );
-          break;
-        case "import":
-          // TODO (Phase 1B): Open import dialog
-          console.log("Import PRD selected - will be implemented in Phase 1B");
-          break;
-        case "skip":
-          // Just close
-          break;
+      if (prdOption === "workshop") {
+        // TODO (Phase 1C): Navigate to PRD workshop or open terminal with /prd
+        console.log("PRD Workshop selected - will be implemented in Phase 1C");
       }
 
       onCreated();

@@ -17,8 +17,7 @@ import {
   waitForAuthState,
   type User,
 } from "../lib/firebase";
-import { v2Api } from "../api/v2/client";
-import { isV2Enabled } from "../api";
+import { api } from "../api";
 
 interface AuthContextValue {
   /** Current Firebase user, null if not signed in */
@@ -106,7 +105,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         await signInWithTestAccount(email, password);
         // Sync user to v2 backend (creates user if not exists)
         try {
-          await v2Api.users.getCurrentUser();
+          await api.users.getCurrentUser();
           console.log("User synced to v2 backend");
         } catch (syncErr) {
           console.warn("Failed to sync user to v2 backend:", syncErr);
@@ -129,7 +128,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await firebaseSignInWithGitHub();
       // Sync user to v2 backend (creates user if not exists)
       try {
-        await v2Api.users.getCurrentUser();
+        await api.users.getCurrentUser();
         console.log("User synced to v2 backend");
       } catch (syncErr) {
         console.warn("Failed to sync user to v2 backend:", syncErr);

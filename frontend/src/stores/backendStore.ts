@@ -20,8 +20,8 @@ export interface BackendSettings {
 
 const defaultSettings: BackendSettings = {
   v2Enabled: false,
-  v2BaseUrl:
-    import.meta.env.VITE_V2_API_BASE_URL || "http://localhost:8090/api",
+  // Note: Don't include /api - the generated client paths already include it
+  v2BaseUrl: import.meta.env.VITE_V2_API_BASE_URL || "http://localhost:8090",
   migrationComplete: false,
   migrationCompletedAt: null,
 };

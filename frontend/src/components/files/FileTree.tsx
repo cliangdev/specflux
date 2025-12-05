@@ -1,20 +1,29 @@
-import type { ListFiles200ResponseDataInner } from "../../api/generated/models/ListFiles200ResponseDataInner";
+/**
+ * File entry in the tree. This type is local since the v2 API
+ * doesn't yet have file listing endpoints.
+ */
+export interface FileEntry {
+  path: string;
+  name: string;
+  type: "file" | "directory";
+  size?: number;
+}
 
 interface FileTreeProps {
-  files: ListFiles200ResponseDataInner[];
+  files: FileEntry[];
   selectedPath: string | null;
   onFileSelect: (path: string) => void;
   expandedDirs: Set<string>;
-  dirContents: Map<string, ListFiles200ResponseDataInner[]>;
+  dirContents: Map<string, FileEntry[]>;
   onDirectoryToggle: (path: string) => void;
 }
 
 interface FileTreeItemProps {
-  file: ListFiles200ResponseDataInner;
+  file: FileEntry;
   selectedPath: string | null;
   onFileSelect: (path: string) => void;
   expandedDirs: Set<string>;
-  dirContents: Map<string, ListFiles200ResponseDataInner[]>;
+  dirContents: Map<string, FileEntry[]>;
   onDirectoryToggle: (path: string) => void;
 }
 

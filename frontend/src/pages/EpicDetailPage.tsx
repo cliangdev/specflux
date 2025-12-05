@@ -6,11 +6,10 @@ import {
   type Epic,
   type Task,
   type Release,
+  type AcceptanceCriteria as AcceptanceCriterion,
+  EpicStatus,
 } from "../api";
-import { v2Api } from "../api/v2/client";
-import { EpicStatus as V2EpicStatus } from "../api/v2/generated";
 import { useProject } from "../contexts";
-import type { AcceptanceCriterion } from "../api/generated";
 import { ProgressBar, TaskCreateModal } from "../components/ui";
 import { EpicDetailHeader } from "../components/epics";
 import { AcceptanceCriteriaList } from "../components/ui/AcceptanceCriteriaList";
@@ -145,7 +144,7 @@ export default function EpicDetailPage() {
       setError(null);
 
       // Fetch epic from v2 API
-      const epicResponse = await v2Api.epics.getEpic({
+      const epicResponse = await api.epics.getEpic({
         projectRef,
         epicRef: id,
       });
@@ -182,7 +181,7 @@ export default function EpicDetailPage() {
 
       // Fetch tasks from v2 API
       try {
-        const tasksResponse = await v2Api.epics.listEpicTasks({
+        const tasksResponse = await api.epics.listEpicTasks({
           projectRef,
           epicRef: id,
           limit: 100, // Fetch up to 100 tasks
@@ -218,7 +217,7 @@ export default function EpicDetailPage() {
       }
 
       // Fetch all epics for dependencies
-      const allEpicsResponse = await v2Api.epics.listEpics({ projectRef });
+      const allEpicsResponse = await api.epics.listEpics({ projectRef });
       const v2Epics = allEpicsResponse.data ?? [];
       const convertedEpics: EpicWithV2Fields[] = v2Epics.map((e) => ({
         id: 0,
@@ -238,7 +237,7 @@ export default function EpicDetailPage() {
       setAllEpics(convertedEpics);
 
       // Fetch releases from v2 API
-      const releasesResponse = await v2Api.releases.listReleases({
+      const releasesResponse = await api.releases.listReleases({
         projectRef,
       });
       const v2Releases = releasesResponse.data ?? [];
@@ -279,7 +278,7 @@ export default function EpicDetailPage() {
         setCriteriaLoading(false);
         return;
       }
-      const response = await v2Api.epics.listEpicAcceptanceCriteria({
+      const response = await api.epics.listEpicAcceptanceCriteria({
         projectRef,
         epicRef: id,
       });
@@ -346,16 +345,16 @@ export default function EpicDetailPage() {
   }, [epic, allEpics]);
 
   // Map status to v2 status enum
-  const mapStatusToV2 = (status: string): V2EpicStatus => {
+  const mapStatusToV2 = (status: string): EpicStatus => {
     switch (status) {
       case "PLANNING":
-        return V2EpicStatus.Planning;
+        return EpicStatus.Planning;
       case "IN_PROGRESS":
-        return V2EpicStatus.InProgress;
+        return EpicStatus.InProgress;
       case "COMPLETED":
-        return V2EpicStatus.Completed;
+        return EpicStatus.Completed;
       default:
-        return V2EpicStatus.Planning;
+        return EpicStatus.Planning;
     }
   };
 
@@ -366,7 +365,7 @@ export default function EpicDetailPage() {
     try {
       const projectRef = getProjectRef();
       if (!projectRef || !epic.v2Id) return;
-      await v2Api.epics.updateEpic({
+      await api.epics.updateEpic({
         projectRef,
         epicRef: epic.v2Id,
         updateEpicRequest: {
@@ -389,7 +388,7 @@ export default function EpicDetailPage() {
     try {
       const projectRef = getProjectRef();
       if (!projectRef || !epic.v2Id) return;
-      await v2Api.epics.updateEpic({
+      await api.epics.updateEpic({
         projectRef,
         epicRef: epic.v2Id,
         updateEpicRequest: { title: newTitle },
@@ -420,7 +419,7 @@ export default function EpicDetailPage() {
       try {
         const projectRef = getProjectRef();
         if (!projectRef || !epic.v2Id) return;
-        await v2Api.epics.updateEpic({
+        await api.epics.updateEpic({
           projectRef,
           epicRef: epic.v2Id,
           updateEpicRequest: { description: trimmed || undefined },
@@ -470,7 +469,7 @@ export default function EpicDetailPage() {
       setDeleting(true);
       const projectRef = getProjectRef();
       if (!projectRef || !epic.v2Id) return;
-      await v2Api.epics.deleteEpic({
+      await api.epics.deleteEpic({
         projectRef,
         epicRef: epic.v2Id,
       });

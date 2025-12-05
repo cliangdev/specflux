@@ -3,8 +3,7 @@
  *
  * Manages cloud backend configuration:
  * - Firebase authentication status
- * - v2 backend toggle
- * - Data migration trigger
+ * - Cloud sync settings
  */
 
 import { useState, useEffect } from "react";
@@ -13,15 +12,8 @@ import {
   getBackendSettings,
   updateBackendSettings,
   subscribeToBackendSettings,
-  resetMigration,
   type BackendSettings as BackendSettingsType,
-} from "../../api";
-import {
-  migrateToV2,
-  getMigrationPreview,
-  type MigrationProgress,
-  type MigrationResult,
-} from "../../services/migrationService";
+} from "../../stores/backendStore";
 import { isUsingEmulator, signInWithTestAccount } from "../../lib/firebase";
 
 export function BackendSettings() {
@@ -38,17 +30,6 @@ export function BackendSettings() {
   const [signingIn, setSigningIn] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [migrating, setMigrating] = useState(false);
-  const [migrationProgress, setMigrationProgress] =
-    useState<MigrationProgress | null>(null);
-  const [migrationResult, setMigrationResult] =
-    useState<MigrationResult | null>(null);
-  const [preview, setPreview] = useState<{
-    projects: number;
-    epics: number;
-    tasks: number;
-    releases: number;
-  } | null>(null);
 
   // Dev sign-in form state
   const [devEmail, setDevEmail] = useState("");
@@ -62,15 +43,6 @@ export function BackendSettings() {
     });
     return () => unsubscribe();
   }, []);
-
-  // Load migration preview when v2 is enabled
-  useEffect(() => {
-    if (isSignedIn && settings.v2Enabled && !settings.migrationComplete) {
-      getMigrationPreview()
-        .then(setPreview)
-        .catch(() => setPreview(null));
-    }
-  }, [isSignedIn, settings.v2Enabled, settings.migrationComplete]);
 
   const handleSignIn = async () => {
     setSigningIn(true);
@@ -135,37 +107,10 @@ export function BackendSettings() {
     setError(null);
     try {
       await signOut();
-      // Disable v2 when signing out
-      updateBackendSettings({ v2Enabled: false });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign out failed");
     } finally {
       setSigningOut(false);
-    }
-  };
-
-  const handleToggleV2 = () => {
-    updateBackendSettings({ v2Enabled: !settings.v2Enabled });
-  };
-
-  const handleMigrate = async () => {
-    setMigrating(true);
-    setError(null);
-    setMigrationProgress(null);
-    setMigrationResult(null);
-
-    try {
-      const result = await migrateToV2((progress) => {
-        setMigrationProgress(progress);
-      });
-      setMigrationResult(result);
-      if (!result.success) {
-        setError(result.error || "Migration failed");
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Migration failed");
-    } finally {
-      setMigrating(false);
     }
   };
 
@@ -341,35 +286,30 @@ export function BackendSettings() {
           Cloud Backend
         </h2>
         <div className="bg-gray-50 dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-lg p-4 space-y-4">
-          {/* v2 Toggle */}
+          {/* Connection Status */}
           <div className="flex items-center justify-between">
             <div>
               <div className="font-medium text-gray-900 dark:text-white">
-                Enable Cloud Sync
+                Cloud Sync Status
               </div>
               <div className="text-sm text-gray-500 dark:text-gray-400">
-                Sync projects, epics, tasks, and releases to the cloud backend.
+                {isSignedIn
+                  ? "Connected to Spring Boot backend"
+                  : "Sign in to enable cloud features"}
               </div>
             </div>
-            <button
-              onClick={handleToggleV2}
-              disabled={!isSignedIn}
-              className={`relative w-12 h-6 rounded-full transition-colors ${
-                settings.v2Enabled
-                  ? "bg-brand-600"
-                  : "bg-gray-300 dark:bg-slate-600"
-              } ${!isSignedIn ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-              title={!isSignedIn ? "Sign in to enable cloud sync" : undefined}
+            <div
+              className={`px-2 py-1 rounded text-xs font-medium ${
+                isSignedIn
+                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                  : "bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-400"
+              }`}
             >
-              <span
-                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transform transition-transform ${
-                  settings.v2Enabled ? "translate-x-6" : "translate-x-0"
-                }`}
-              />
-            </button>
+              {isSignedIn ? "Connected" : "Disconnected"}
+            </div>
           </div>
 
-          {/* v2 Base URL */}
+          {/* API Base URL */}
           <div>
             <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
               API Base URL
@@ -382,7 +322,7 @@ export function BackendSettings() {
               }
               disabled={!isSignedIn}
               className="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-              placeholder="http://localhost:8090/api"
+              placeholder="http://localhost:8090"
             />
           </div>
 
@@ -407,210 +347,6 @@ export function BackendSettings() {
         </div>
       </section>
 
-      {/* Section: Data Migration */}
-      {isSignedIn && settings.v2Enabled && (
-        <section>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Data Migration
-          </h2>
-          <div className="bg-gray-50 dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-lg p-4 space-y-4">
-            {settings.migrationComplete ? (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-                    <svg
-                      className="w-5 h-5 text-emerald-600 dark:text-emerald-400"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="font-medium text-gray-900 dark:text-white">
-                      Migration Complete
-                    </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      Completed on{" "}
-                      {settings.migrationCompletedAt
-                        ? new Date(
-                            settings.migrationCompletedAt,
-                          ).toLocaleString()
-                        : "N/A"}
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    resetMigration();
-                    setMigrationResult(null);
-                  }}
-                  className="px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-slate-700 rounded hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
-                >
-                  Reset
-                </button>
-              </div>
-            ) : migrating ? (
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <svg
-                    className="animate-spin h-5 w-5 text-brand-600"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="none"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
-                  <div className="font-medium text-gray-900 dark:text-white">
-                    Migrating {migrationProgress?.phase}...
-                  </div>
-                </div>
-                {migrationProgress && (
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                      <span>
-                        {migrationProgress.currentItem ||
-                          migrationProgress.phase}
-                      </span>
-                      <span>
-                        {migrationProgress.current} / {migrationProgress.total}
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
-                      <div
-                        className="bg-brand-600 h-2 rounded-full transition-all"
-                        style={{
-                          width: `${migrationProgress.total > 0 ? (migrationProgress.current / migrationProgress.total) * 100 : 0}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : migrationResult ? (
-              <div className="space-y-3">
-                <div
-                  className={`flex items-center gap-3 ${migrationResult.success ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}
-                >
-                  {migrationResult.success ? (
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  ) : (
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
-                  )}
-                  <span className="font-medium">
-                    {migrationResult.success
-                      ? "Migration Complete"
-                      : "Migration Failed"}
-                  </span>
-                </div>
-                <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                  <div>
-                    Projects: {migrationResult.stats.projects.migrated}{" "}
-                    migrated, {migrationResult.stats.projects.failed} failed
-                  </div>
-                  <div>
-                    Epics: {migrationResult.stats.epics.migrated} migrated,{" "}
-                    {migrationResult.stats.epics.failed} failed
-                  </div>
-                  <div>
-                    Tasks: {migrationResult.stats.tasks.migrated} migrated,{" "}
-                    {migrationResult.stats.tasks.failed} failed
-                  </div>
-                  <div>
-                    Releases: {migrationResult.stats.releases.migrated}{" "}
-                    migrated, {migrationResult.stats.releases.failed} failed
-                  </div>
-                </div>
-                {migrationResult.errors.length > 0 && (
-                  <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 rounded text-sm text-red-700 dark:text-red-300 max-h-32 overflow-auto">
-                    {migrationResult.errors.slice(0, 5).map((err, i) => (
-                      <div key={i}>{err}</div>
-                    ))}
-                    {migrationResult.errors.length > 5 && (
-                      <div className="text-gray-500">
-                        ...and {migrationResult.errors.length - 5} more errors
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-medium text-gray-900 dark:text-white">
-                      Migrate Local Data
-                    </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      Copy your local data to the cloud backend. This is a
-                      one-time operation.
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleMigrate}
-                    className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded font-medium text-sm shadow-sm transition-colors"
-                  >
-                    Start Migration
-                  </button>
-                </div>
-                {preview &&
-                  (preview.projects > 0 ||
-                    preview.epics > 0 ||
-                    preview.tasks > 0 ||
-                    preview.releases > 0) && (
-                    <div className="text-sm text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-slate-800 rounded p-2">
-                      <span className="font-medium">Items to migrate: </span>
-                      {preview.projects} projects, {preview.epics} epics,{" "}
-                      {preview.tasks} tasks, {preview.releases} releases
-                    </div>
-                  )}
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
       {/* Error Display */}
       {(error || authError) && (
         <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-sm text-red-800 dark:text-red-200">
@@ -625,16 +361,15 @@ export function BackendSettings() {
         </h3>
         <ul className="list-disc list-inside space-y-1">
           <li>Projects, epics, tasks, and releases</li>
+          <li>Repositories, skills, agents, and MCP servers</li>
           <li>User profile and preferences</li>
         </ul>
         <h3 className="font-medium text-gray-700 dark:text-gray-300 mt-4 mb-2">
           What stays local?
         </h3>
         <ul className="list-disc list-inside space-y-1">
-          <li>Agent configurations and skills</li>
-          <li>MCP server settings</li>
-          <li>Local file operations and notifications</li>
           <li>Terminal sessions and worktrees</li>
+          <li>Local file operations</li>
         </ul>
       </section>
     </div>

@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { open } from "@tauri-apps/plugin-shell";
-import { v2Api } from "../api/v2/client";
-import type {
-  Task as V2Task,
-  TaskStatus,
-  TaskDependency,
-} from "../api/v2/generated";
+import {
+  api,
+  type Task as V2Task,
+  type TaskStatus,
+  type TaskDependency,
+} from "../api";
 import { useProject } from "../contexts";
 import { TaskOverviewTab, TaskContextTab } from "../components/tasks";
 import TaskDetailHeader from "../components/tasks/TaskDetailHeader";
@@ -95,7 +95,7 @@ export default function TaskDetailPage() {
         return;
       }
 
-      const v2Task = await v2Api.tasks.getTask({
+      const v2Task = await api.tasks.getTask({
         projectRef,
         taskRef: taskId,
       });
@@ -118,7 +118,7 @@ export default function TaskDetailPage() {
     if (!projectRef) return;
 
     try {
-      const response = await v2Api.tasks.listTaskDependencies({
+      const response = await api.tasks.listTaskDependencies({
         projectRef,
         taskRef: taskId,
       });
@@ -140,7 +140,7 @@ export default function TaskDetailPage() {
     }
 
     try {
-      await v2Api.tasks.updateTask({
+      await api.tasks.updateTask({
         projectRef,
         taskRef: task.id,
         updateTaskRequest: {
@@ -167,7 +167,7 @@ export default function TaskDetailPage() {
     }
 
     try {
-      await v2Api.tasks.updateTask({
+      await api.tasks.updateTask({
         projectRef,
         taskRef: task.id,
         updateTaskRequest: {
@@ -194,7 +194,7 @@ export default function TaskDetailPage() {
     }
 
     try {
-      await v2Api.tasks.updateTask({
+      await api.tasks.updateTask({
         projectRef,
         taskRef: task.id,
         updateTaskRequest: { title: newTitle },
@@ -222,7 +222,7 @@ export default function TaskDetailPage() {
     if (!projectRef) return;
 
     try {
-      await v2Api.tasks.removeTaskDependency({
+      await api.tasks.removeTaskDependency({
         projectRef,
         taskRef: taskId,
         dependsOnTaskRef,
@@ -249,7 +249,7 @@ export default function TaskDetailPage() {
 
     try {
       setDeleting(true);
-      await v2Api.tasks.deleteTask({
+      await api.tasks.deleteTask({
         projectRef,
         taskRef: task.id,
       });

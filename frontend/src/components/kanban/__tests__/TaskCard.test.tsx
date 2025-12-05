@@ -1,11 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { TaskCard } from "../TaskCard";
-import {
-  Task,
-  TaskStatusEnum,
-  TaskAgentStatusEnum,
-} from "../../../api/generated/models/Task";
+import { Task, TaskStatus, TaskPriority } from "../../../api";
 
 // Mock dnd-kit
 vi.mock("@dnd-kit/sortable", () => ({
@@ -28,15 +24,15 @@ vi.mock("@dnd-kit/utilities", () => ({
 }));
 
 const mockTask: Task = {
-  id: 1,
+  id: "task_123",
+  displayKey: "PROJ-1",
   title: "Test Task",
   description: "Test description",
-  status: TaskStatusEnum.InProgress,
-  projectId: 1,
+  status: TaskStatus.InProgress,
+  priority: TaskPriority.Medium,
+  projectId: "proj_abc",
   requiresApproval: false,
-  agentStatus: TaskAgentStatusEnum.Idle,
-  progressPercentage: 0,
-  createdByUserId: 1,
+  createdById: "user_1",
   createdAt: new Date("2024-01-01T00:00:00Z"),
   updatedAt: new Date("2024-01-01T00:00:00Z"),
 };
@@ -49,46 +45,12 @@ describe("TaskCard", () => {
 
   it("renders task ID", () => {
     render(<TaskCard task={mockTask} />);
-    expect(screen.getByText("#1")).toBeInTheDocument();
+    expect(screen.getByText("#task_123")).toBeInTheDocument();
   });
 
   it("renders task description", () => {
     render(<TaskCard task={mockTask} />);
     expect(screen.getByText("Test description")).toBeInTheDocument();
-  });
-
-  it("shows running indicator when agent is running", () => {
-    const runningTask: Task = {
-      ...mockTask,
-      agentStatus: TaskAgentStatusEnum.Running,
-    };
-    render(<TaskCard task={runningTask} />);
-    expect(screen.getByText("Running")).toBeInTheDocument();
-  });
-
-  it("does not show running indicator when agent is idle", () => {
-    render(<TaskCard task={mockTask} />);
-    expect(screen.queryByText("Running")).not.toBeInTheDocument();
-  });
-
-  it("shows progress bar when there is progress", () => {
-    const taskWithProgress: Task = {
-      ...mockTask,
-      progressPercentage: 50,
-    };
-    render(<TaskCard task={taskWithProgress} />);
-    // Progress bar should be rendered with width style
-    const progressBar = document.querySelector('[style*="width: 50%"]');
-    expect(progressBar).toBeInTheDocument();
-  });
-
-  it("shows repo name when present", () => {
-    const taskWithRepo: Task = {
-      ...mockTask,
-      repoName: "backend",
-    };
-    render(<TaskCard task={taskWithRepo} />);
-    expect(screen.getByText("backend")).toBeInTheDocument();
   });
 
   it("calls onClick when clicked", () => {
@@ -99,53 +61,51 @@ describe("TaskCard", () => {
     expect(handleClick).toHaveBeenCalledWith(mockTask);
   });
 
-  it("shows blocked indicator when task has blockedByCount > 0", () => {
-    const blockedTask: Task = {
+  it("renders without description when not provided", () => {
+    const taskWithoutDescription: Task = {
       ...mockTask,
-      blockedByCount: 2,
+      description: undefined,
     };
-    render(<TaskCard task={blockedTask} />);
-    // Should show the count
-    expect(screen.getByText("2")).toBeInTheDocument();
-    // Should have tooltip with blocking info
-    expect(
-      screen.getByTitle("Blocked by 2 incomplete tasks"),
-    ).toBeInTheDocument();
+    render(<TaskCard task={taskWithoutDescription} />);
+    expect(screen.getByText("Test Task")).toBeInTheDocument();
+    expect(screen.queryByText("Test description")).not.toBeInTheDocument();
   });
 
-  it("does not show blocked indicator when task is not blocked", () => {
-    const unblockedTask: Task = {
+  it("shows avatar placeholder when task is assigned", () => {
+    const assignedTask: Task = {
       ...mockTask,
-      blockedByCount: 0,
+      assignedToId: "user_2",
     };
-    render(<TaskCard task={unblockedTask} />);
-    expect(screen.queryByTitle(/Blocked by/)).not.toBeInTheDocument();
+    const { container } = render(<TaskCard task={assignedTask} />);
+    // Check for avatar element (gradient div)
+    const avatar = container.querySelector(".bg-gradient-to-tr");
+    expect(avatar).toBeInTheDocument();
   });
 
-  it("shows correct agent status for paused task", () => {
-    const pausedTask: Task = {
+  it("does not show avatar when task is unassigned", () => {
+    const unassignedTask: Task = {
       ...mockTask,
-      agentStatus: TaskAgentStatusEnum.Paused,
+      assignedToId: undefined,
     };
-    render(<TaskCard task={pausedTask} />);
-    expect(screen.getByTitle("Paused")).toBeInTheDocument();
+    const { container } = render(<TaskCard task={unassignedTask} />);
+    const avatar = container.querySelector(".bg-gradient-to-tr");
+    expect(avatar).not.toBeInTheDocument();
   });
 
-  it("shows correct agent status for failed task", () => {
-    const failedTask: Task = {
-      ...mockTask,
-      agentStatus: TaskAgentStatusEnum.Failed,
-    };
-    render(<TaskCard task={failedTask} />);
-    expect(screen.getByTitle("Failed")).toBeInTheDocument();
-  });
+  it("triggers context menu on right click", () => {
+    const handleContextMenu = vi.fn();
+    const { container } = render(
+      <TaskCard task={mockTask} onContextMenu={handleContextMenu} />,
+    );
 
-  it("shows correct agent status for completed task", () => {
-    const completedTask: Task = {
-      ...mockTask,
-      agentStatus: TaskAgentStatusEnum.Completed,
-    };
-    render(<TaskCard task={completedTask} />);
-    expect(screen.getByTitle("Completed")).toBeInTheDocument();
+    // Find the outermost clickable div (the card container)
+    const card = container.querySelector("div");
+    expect(card).not.toBeNull();
+    fireEvent.contextMenu(card!);
+    expect(handleContextMenu).toHaveBeenCalledWith(
+      mockTask,
+      expect.any(Number),
+      expect.any(Number),
+    );
   });
 });

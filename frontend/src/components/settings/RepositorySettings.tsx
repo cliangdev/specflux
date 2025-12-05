@@ -45,21 +45,17 @@ export function RepositorySettings() {
   }, [currentProject]);
 
   const loadRepositories = async () => {
-    if (!currentProject) return;
+    if (!currentProject?.publicId) return;
 
     setLoading(true);
     setError(null);
 
     try {
       const response = await api.repositories.listRepositories({
-        id: currentProject.id,
+        projectRef: currentProject.publicId,
       });
 
-      if (response.success && response.data) {
-        setRepositories(response.data);
-      } else {
-        setError("Failed to load repositories");
-      }
+      setRepositories(response.data ?? []);
     } catch (err) {
       setError("Failed to load repositories");
       console.error(err);
@@ -105,45 +101,36 @@ export function RepositorySettings() {
   };
 
   const handleSave = async () => {
-    if (!currentProject) return;
+    if (!currentProject?.publicId) return;
 
     setSaving(true);
     setError(null);
 
     try {
       if (modalMode === "add") {
-        const response = await api.repositories.addRepository({
-          id: currentProject.id,
+        await api.repositories.createRepository({
+          projectRef: currentProject.publicId,
           createRepositoryRequest: {
             name: formData.name,
             path: formData.path,
-            gitUrl: formData.gitUrl || null,
-            defaultAgent: formData.defaultAgent || null,
+            gitUrl: formData.gitUrl || undefined,
           },
         });
 
-        if (response.success) {
-          await loadRepositories();
-          handleModalClose();
-        } else {
-          setError("Failed to add repository");
-        }
+        await loadRepositories();
+        handleModalClose();
       } else if (modalMode === "edit" && editingRepo) {
-        const response = await api.repositories.updateRepository({
-          id: editingRepo.id,
+        await api.repositories.updateRepository({
+          projectRef: currentProject.publicId,
+          repositoryRef: editingRepo.publicId,
           updateRepositoryRequest: {
             name: formData.name,
-            gitUrl: formData.gitUrl || null,
-            defaultAgent: formData.defaultAgent || null,
+            gitUrl: formData.gitUrl || undefined,
           },
         });
 
-        if (response.success) {
-          await loadRepositories();
-          handleModalClose();
-        } else {
-          setError("Failed to update repository");
-        }
+        await loadRepositories();
+        handleModalClose();
       }
     } catch (err) {
       setError(
@@ -162,12 +149,15 @@ export function RepositorySettings() {
   };
 
   const handleDeleteConfirm = async () => {
-    if (!deletingRepo) return;
+    if (!deletingRepo || !currentProject?.publicId) return;
 
     setError(null);
 
     try {
-      await api.repositories.removeRepository({ id: deletingRepo.id });
+      await api.repositories.deleteRepository({
+        projectRef: currentProject.publicId,
+        repositoryRef: deletingRepo.publicId,
+      });
       await loadRepositories();
       setDeletingRepo(null);
     } catch (err) {
@@ -195,35 +185,22 @@ export function RepositorySettings() {
       if (selected && typeof selected === "string") {
         console.log("Setting path to:", selected);
 
-        // Call backend API to validate the repository
-        try {
-          const response = await api.repositories.validateRepository({
-            validateRepositoryRequest: { path: selected },
-          });
+        // Extract directory name as default repo name
+        const pathParts = selected.split("/");
+        const dirName = pathParts[pathParts.length - 1] || "";
 
-          if (response.success && response.data) {
-            const validationResult = response.data;
+        setFormData({
+          ...formData,
+          path: selected,
+          name: dirName,
+          gitUrl: "",
+        });
 
-            setFormData({
-              ...formData,
-              path: selected,
-              name: validationResult.repoName || "",
-              gitUrl: validationResult.gitUrl || "",
-            });
-
-            setValidation({
-              isGitRepo: validationResult.isGitRepo,
-              message:
-                validationResult.error ||
-                (validationResult.isGitRepo
-                  ? undefined
-                  : "This directory is not a git repository. Please initialize git or select a different directory."),
-            });
-          }
-        } catch (validationErr) {
-          console.error("Failed to validate repository:", validationErr);
-          setError("Failed to validate repository: " + String(validationErr));
-        }
+        // Assume it's a valid git repo for now
+        // TODO: Add validation when backend API supports it
+        setValidation({
+          isGitRepo: true,
+        });
       }
     } catch (err) {
       console.error("Failed to open directory picker:", err);
