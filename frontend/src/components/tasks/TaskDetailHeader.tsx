@@ -237,7 +237,7 @@ export default function TaskDetailHeader({
         </button>
         <div className="h-6 w-px bg-system-200 dark:bg-system-700 flex-shrink-0" />
         <span className="text-system-500 dark:text-system-400 text-sm font-mono flex-shrink-0">
-          #{task.id}
+          {task.displayKey}
         </span>
         {editingTitle ? (
           <input

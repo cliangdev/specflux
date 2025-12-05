@@ -1,46 +1,40 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
-import { FileTree } from "../FileTree";
-import type { ListFiles200ResponseDataInner } from "../../../api/generated/models/ListFiles200ResponseDataInner";
+import { FileTree, type FileEntry } from "../FileTree";
 
-const mockFiles: ListFiles200ResponseDataInner[] = [
+const mockFiles: FileEntry[] = [
   {
     name: "README.md",
     path: "README.md",
     type: "file",
     size: 1024,
-    modifiedAt: new Date("2024-01-15"),
   },
   {
     name: "src",
     path: "src",
     type: "directory",
     size: 0,
-    modifiedAt: new Date("2024-01-15"),
   },
   {
     name: "config.json",
     path: "config.json",
     type: "file",
     size: 256,
-    modifiedAt: new Date("2024-01-15"),
   },
 ];
 
-const mockNestedFiles: ListFiles200ResponseDataInner[] = [
+const mockNestedFiles: FileEntry[] = [
   {
     name: "index.ts",
     path: "src/index.ts",
     type: "file",
     size: 512,
-    modifiedAt: new Date("2024-01-15"),
   },
   {
     name: "components",
     path: "src/components",
     type: "directory",
     size: 0,
-    modifiedAt: new Date("2024-01-15"),
   },
 ];
 
@@ -50,7 +44,7 @@ describe("FileTree", () => {
     selectedPath: null,
     onFileSelect: vi.fn(),
     expandedDirs: new Set<string>(),
-    dirContents: new Map<string, ListFiles200ResponseDataInner[]>(),
+    dirContents: new Map<string, FileEntry[]>(),
     onDirectoryToggle: vi.fn(),
   };
 
@@ -146,13 +140,12 @@ describe("FileTree", () => {
   });
 
   it("handles deeply nested directories", () => {
-    const deepNestedFiles: ListFiles200ResponseDataInner[] = [
+    const deepNestedFiles: FileEntry[] = [
       {
         name: "Button.tsx",
         path: "src/components/Button.tsx",
         type: "file",
         size: 2048,
-        modifiedAt: new Date("2024-01-15"),
       },
     ];
 

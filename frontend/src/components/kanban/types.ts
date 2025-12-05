@@ -1,4 +1,4 @@
-import { TaskStatusEnum } from "../../api/generated/models/Task";
+import { TaskStatus } from "../../api";
 
 /**
  * Workflow templates available in SpecFlux
@@ -15,7 +15,7 @@ export type WorkflowTemplate =
 export interface KanbanColumn {
   id: string;
   title: string;
-  status: TaskStatusEnum; // Maps to task status for filtering
+  status: TaskStatus; // Maps to task status for filtering
   color: string; // TailwindCSS color class
 }
 
@@ -28,31 +28,31 @@ export const WORKFLOW_COLUMNS: Record<WorkflowTemplate, KanbanColumn[]> = {
     {
       id: "backlog",
       title: "Backlog",
-      status: TaskStatusEnum.Backlog,
+      status: TaskStatus.Backlog,
       color: "slate",
     },
     {
       id: "ready",
       title: "Ready",
-      status: TaskStatusEnum.Ready,
+      status: TaskStatus.Ready,
       color: "blue",
     },
     {
       id: "in-progress",
       title: "In Progress",
-      status: TaskStatusEnum.InProgress,
+      status: TaskStatus.InProgress,
       color: "yellow",
     },
     {
       id: "review",
-      title: "Review",
-      status: TaskStatusEnum.PendingReview,
+      title: "In Review",
+      status: TaskStatus.InReview,
       color: "purple",
     },
     {
       id: "done",
       title: "Done",
-      status: TaskStatusEnum.Done,
+      status: TaskStatus.Completed,
       color: "emerald",
     },
   ],
@@ -60,37 +60,37 @@ export const WORKFLOW_COLUMNS: Record<WorkflowTemplate, KanbanColumn[]> = {
     {
       id: "backlog",
       title: "Backlog",
-      status: TaskStatusEnum.Backlog,
+      status: TaskStatus.Backlog,
       color: "slate",
     },
     {
       id: "ready",
       title: "Ready",
-      status: TaskStatusEnum.Ready,
+      status: TaskStatus.Ready,
       color: "blue",
     },
     {
       id: "in-progress",
       title: "In Progress",
-      status: TaskStatusEnum.InProgress,
+      status: TaskStatus.InProgress,
       color: "yellow",
     },
     {
       id: "review",
-      title: "Review",
-      status: TaskStatusEnum.PendingReview,
+      title: "In Review",
+      status: TaskStatus.InReview,
       color: "purple",
     },
     {
-      id: "approved",
-      title: "Approved",
-      status: TaskStatusEnum.Approved,
-      color: "cyan",
+      id: "blocked",
+      title: "Blocked",
+      status: TaskStatus.Blocked,
+      color: "rose",
     },
     {
       id: "done",
       title: "Done",
-      status: TaskStatusEnum.Done,
+      status: TaskStatus.Completed,
       color: "emerald",
     },
   ],
@@ -98,37 +98,37 @@ export const WORKFLOW_COLUMNS: Record<WorkflowTemplate, KanbanColumn[]> = {
     {
       id: "backlog",
       title: "Backlog",
-      status: TaskStatusEnum.Backlog,
+      status: TaskStatus.Backlog,
       color: "slate",
     },
     {
       id: "ready",
       title: "Ready",
-      status: TaskStatusEnum.Ready,
+      status: TaskStatus.Ready,
       color: "blue",
     },
     {
       id: "in-progress",
       title: "In Progress",
-      status: TaskStatusEnum.InProgress,
+      status: TaskStatus.InProgress,
       color: "yellow",
     },
     {
       id: "review",
-      title: "Pending Review",
-      status: TaskStatusEnum.PendingReview,
+      title: "In Review",
+      status: TaskStatus.InReview,
       color: "purple",
     },
     {
-      id: "approved",
-      title: "Approved",
-      status: TaskStatusEnum.Approved,
-      color: "cyan",
+      id: "blocked",
+      title: "Blocked",
+      status: TaskStatus.Blocked,
+      color: "rose",
     },
     {
       id: "done",
       title: "Done",
-      status: TaskStatusEnum.Done,
+      status: TaskStatus.Completed,
       color: "emerald",
     },
   ],
@@ -282,6 +282,12 @@ export function getColumnColorClasses(color: string): {
       border: "border-emerald-500/30",
       badge:
         "bg-emerald-100 dark:bg-emerald-900 text-emerald-600 dark:text-emerald-400",
+    },
+    rose: {
+      bg: "bg-rose-500/10 dark:bg-rose-500/20",
+      text: "text-rose-700 dark:text-rose-300",
+      border: "border-rose-500/30",
+      badge: "bg-rose-100 dark:bg-rose-900 text-rose-600 dark:text-rose-400",
     },
   };
   return colors[color] ?? colors.slate;

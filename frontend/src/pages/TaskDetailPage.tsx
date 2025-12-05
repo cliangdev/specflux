@@ -1,107 +1,17 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-shell";
 import {
   api,
-  getApiErrorMessage,
-  type Task,
-  type Epic,
-  type AgentStatus,
-  type TaskDiff,
-  type ApproveAndPRResult,
+  type Task as V2Task,
+  type TaskStatus,
   type TaskDependency,
-  type User,
-  type Agent,
-  ControlTaskAgentRequestActionEnum,
-  AgentStatusStatusEnum,
 } from "../api";
-import { v2Api } from "../api/v2/client";
-import type { Task as V2Task } from "../api/v2/generated";
 import { useProject } from "../contexts";
-import FileChanges from "../components/FileChanges";
-import {
-  AddDependencyModal,
-  TaskOverviewTab,
-  TaskContextTab,
-} from "../components/tasks";
+import { TaskOverviewTab, TaskContextTab } from "../components/tasks";
 import TaskDetailHeader from "../components/tasks/TaskDetailHeader";
 import { TabNavigation } from "../components/ui";
-import { useTerminal, type AgentInfo } from "../contexts/TerminalContext";
-import { isV2TaskId } from "../utils/idUtils";
-
-// Extended type to support v2 fields (for easy cleanup when removing v1)
-type TaskWithV2Fields = Omit<Task, "epicId"> & {
-  v2Id?: string; // v2 public ID (e.g., task_xxx)
-  displayKey?: string;
-  epicId?: number | string | null;
-  epicDisplayKey?: string;
-  priority?: string;
-};
-
-// Helper to open external URLs using Tauri command
-const openExternal = async (url: string) => {
-  try {
-    await invoke("open_url", { url });
-  } catch {
-    // Fallback for non-Tauri environments or errors
-    window.open(url, "_blank");
-  }
-};
-
-// Agent status badge configuration
-// "running" means the process is alive - could be working or waiting for input
-const AGENT_STATUS_CONFIG: Record<
-  string,
-  { label: string; classes: string; dot?: boolean }
-> = {
-  idle: {
-    label: "Idle",
-    classes:
-      "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700",
-  },
-  running: {
-    label: "Active", // More accurate than "Running" - agent is alive, may be working or waiting
-    classes:
-      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
-    dot: true,
-  },
-  paused: {
-    label: "Paused",
-    classes:
-      "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800",
-  },
-  stopped: {
-    label: "Stopped",
-    classes:
-      "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800",
-  },
-  completed: {
-    label: "Completed",
-    classes:
-      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
-  },
-  failed: {
-    label: "Failed",
-    classes:
-      "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800",
-  },
-};
-
-function AgentStatusBadge({ status }: { status: string }) {
-  const config = AGENT_STATUS_CONFIG[status] || AGENT_STATUS_CONFIG.idle;
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${config.classes}`}
-    >
-      {config.dot && (
-        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-      )}
-      {config.label}
-    </span>
-  );
-}
+import { useTerminal } from "../contexts/TerminalContext";
 
 // Tab definitions
 const TABS = [
@@ -162,36 +72,14 @@ export default function TaskDetailPage() {
     setSearchParams({ tab }, { replace: true });
   };
 
-  const [task, setTask] = useState<TaskWithV2Fields | null>(null);
-  const [agentStatus, setAgentStatus] = useState<AgentStatus | null>(null);
-  const [taskDiff, setTaskDiff] = useState<TaskDiff | null>(null);
+  const [task, setTask] = useState<V2Task | null>(null);
   const [loading, setLoading] = useState(true);
-  const [agentLoading, setAgentLoading] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [diffLoading, setDiffLoading] = useState(false);
-  const [createPRLoading, setCreatePRLoading] = useState(false);
-  const [approveLoading, setApproveLoading] = useState(false);
-  const [prResult, setPRResult] = useState<ApproveAndPRResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [hasFileChanges, setHasFileChanges] = useState(false);
-  const [epics, setEpics] = useState<Epic[]>([]);
-  const [epicLoading, setEpicLoading] = useState(false);
   const [dependencies, setDependencies] = useState<TaskDependency[]>([]);
-  const [showAddDependencyModal, setShowAddDependencyModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [ownerUser, setOwnerUser] = useState<User | null>(null);
-  const [assignedAgent, setAssignedAgent] = useState<Agent | null>(null);
 
   // Check if terminal is showing this task
-  // For v2, taskId is a publicId string; for v1, it's a numeric ID
-  const isTerminalShowingThisTask =
-    activeTask?.id === taskId || activeTask?.id === Number(taskId);
-
-  // Get current epic from the epics list
-  const currentEpic = useMemo(() => {
-    if (!task?.epicId) return null;
-    return epics.find((e) => e.id === task.epicId) ?? null;
-  }, [task?.epicId, epics]);
+  const isTerminalShowingThisTask = activeTask?.id === taskId;
 
   const fetchTask = useCallback(async () => {
     if (!taskId) return;
@@ -207,36 +95,11 @@ export default function TaskDetailPage() {
         return;
       }
 
-      const v2Task = await v2Api.tasks.getTask({
+      const v2Task = await api.tasks.getTask({
         projectRef,
         taskRef: taskId,
       });
-
-      // Convert v2 task to internal format
-      // Keep UPPER_CASE status from v2 API
-      const taskData: TaskWithV2Fields = {
-        id: 0, // v2 uses v2Id
-        v2Id: v2Task.id,
-        displayKey: v2Task.displayKey,
-        projectId: 0, // v2 uses projectRef
-        epicId: v2Task.epicId ?? null, // v2 uses epicId as string publicId
-        epicDisplayKey: v2Task.epicDisplayKey,
-        title: v2Task.title,
-        description: v2Task.description ?? null,
-        status: v2Task.status as Task["status"], // Keep UPPER_CASE status
-        priority: v2Task.priority,
-        requiresApproval: v2Task.requiresApproval,
-        progressPercentage: 0, // v2 doesn't track this yet
-        estimatedDuration: v2Task.estimatedDuration ?? null,
-        actualDuration: v2Task.actualDuration ?? null,
-        githubPrUrl: v2Task.githubPrUrl ?? null,
-        assignedAgentId: null, // v2 uses assignedToId (string)
-        createdByUserId: 0, // v2 uses createdById (string)
-        executorType: "agent",
-        createdAt: new Date(v2Task.createdAt),
-        updatedAt: new Date(v2Task.updatedAt),
-      };
-      setTask(taskData);
+      setTask(v2Task);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to load task";
@@ -247,42 +110,41 @@ export default function TaskDetailPage() {
     }
   }, [taskId, getProjectRef]);
 
-  // Fetch epics for the project when task is loaded
-  // Note: v1 API for local features - will only work when local backend is running
-  const fetchEpics = useCallback(async (projectId: number) => {
-    try {
-      const response = await api.epics.listEpics({ id: projectId });
-      setEpics(response.data ?? []);
-    } catch (err) {
-      console.error("Failed to fetch epics:", err);
-      setEpics([]);
-    }
-  }, []);
-
-  // Fetch task dependencies (v1 API for local features - only works with v1 numeric IDs)
+  // Fetch task dependencies
   const fetchDependencies = useCallback(async () => {
-    if (!taskId || isV2TaskId(taskId)) return;
+    if (!taskId) return;
+
+    const projectRef = getProjectRef();
+    if (!projectRef) return;
+
     try {
       const response = await api.tasks.listTaskDependencies({
-        id: Number(taskId),
+        projectRef,
+        taskRef: taskId,
       });
       setDependencies(response.data ?? []);
     } catch (err) {
       console.error("Failed to fetch dependencies:", err);
       setDependencies([]);
     }
-  }, [taskId]);
+  }, [taskId, getProjectRef]);
 
-  // Update task's epic assignment (v1 API for local features)
-  const handleEpicChange = async (newEpicId: number | string | null) => {
+  // Update task's epic assignment
+  const handleEpicChange = async (newEpicRef: number | string | null) => {
     if (!task) return;
 
+    const projectRef = getProjectRef();
+    if (!projectRef) {
+      setError("No project selected");
+      return;
+    }
+
     try {
-      setEpicLoading(true);
       await api.tasks.updateTask({
-        id: task.id,
+        projectRef,
+        taskRef: task.id,
         updateTaskRequest: {
-          epicId: typeof newEpicId === "number" ? newEpicId : null,
+          epicRef: typeof newEpicRef === "string" ? newEpicRef : undefined,
         },
       });
       fetchTask();
@@ -291,26 +153,25 @@ export default function TaskDetailPage() {
         err instanceof Error ? err.message : "Failed to update epic";
       setError(message);
       console.error("Failed to update epic:", err);
-    } finally {
-      setEpicLoading(false);
     }
   };
 
-  // Update task status (v1 API for local features)
+  // Update task status
   const handleStatusChange = async (newStatus: string) => {
     if (!task) return;
 
+    const projectRef = getProjectRef();
+    if (!projectRef) {
+      setError("No project selected");
+      return;
+    }
+
     try {
       await api.tasks.updateTask({
-        id: task.id,
+        projectRef,
+        taskRef: task.id,
         updateTaskRequest: {
-          status: newStatus as
-            | "backlog"
-            | "ready"
-            | "in_progress"
-            | "pending_review"
-            | "approved"
-            | "done",
+          status: newStatus as TaskStatus,
         },
       });
       fetchTask();
@@ -322,13 +183,20 @@ export default function TaskDetailPage() {
     }
   };
 
-  // Update task title inline (v1 API for local features)
+  // Update task title inline
   const handleTitleChange = async (newTitle: string) => {
     if (!task) return;
 
+    const projectRef = getProjectRef();
+    if (!projectRef) {
+      setError("No project selected");
+      return;
+    }
+
     try {
       await api.tasks.updateTask({
-        id: task.id,
+        projectRef,
+        taskRef: task.id,
         updateTaskRequest: { title: newTitle },
       });
       fetchTask();
@@ -340,35 +208,24 @@ export default function TaskDetailPage() {
     }
   };
 
-  // Update task's assigned agent (v1 API for local features)
+  // Update task's assigned user
   const handleAgentChange = async (agentId: number | null) => {
-    if (!task) return;
-
-    try {
-      await api.tasks.updateTask({
-        id: task.id,
-        updateTaskRequest: {
-          assignedAgentId: agentId,
-          executorType: agentId ? "agent" : undefined,
-        },
-      });
-      fetchTask();
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to update agent";
-      setError(message);
-      console.error("Failed to update agent:", err);
-    }
+    // Agent assignment not yet implemented in v2
+    console.log("Agent assignment not yet implemented in v2", agentId);
   };
 
-  // Remove dependency (v1 API for local features - only works with v1 numeric IDs)
-  const handleRemoveDependency = async (dependencyId: number) => {
-    if (!taskId || isV2TaskId(taskId)) return;
+  // Remove dependency
+  const handleRemoveDependency = async (dependsOnTaskRef: string) => {
+    if (!taskId) return;
+
+    const projectRef = getProjectRef();
+    if (!projectRef) return;
 
     try {
       await api.tasks.removeTaskDependency({
-        id: Number(taskId),
-        depId: dependencyId,
+        projectRef,
+        taskRef: taskId,
+        dependsOnTaskRef,
       });
       fetchDependencies();
       fetchTask();
@@ -380,246 +237,47 @@ export default function TaskDetailPage() {
     }
   };
 
-  // Handle dependency added from modal (v1 API for local features)
-  const handleDependencyAdded = () => {
-    fetchDependencies();
-    fetchTask();
-  };
-
-  // Handle task deletion (v1 API for local features)
+  // Handle task deletion
   const handleDelete = async () => {
     if (!task) return;
 
+    const projectRef = getProjectRef();
+    if (!projectRef) {
+      setError("No project selected");
+      return;
+    }
+
     try {
       setDeleting(true);
-      await api.tasks.deleteTask({ id: task.id });
+      await api.tasks.deleteTask({
+        projectRef,
+        taskRef: task.id,
+      });
       navigate("/tasks");
     } catch (err) {
-      const message = await getApiErrorMessage(err, "Failed to delete task");
+      const message =
+        err instanceof Error ? err.message : "Failed to delete task";
       setError(message);
       console.error("Failed to delete task:", err);
       setDeleting(false);
     }
   };
 
-  // Fetch agent status (v1 API for local features - only works with v1 numeric IDs)
-  const fetchAgentStatus = useCallback(async () => {
-    if (!taskId || isV2TaskId(taskId)) return;
-
-    try {
-      setAgentLoading(true);
-      const response = await api.tasks.getTaskAgentStatus({
-        id: Number(taskId),
-      });
-      setAgentStatus(response.data ?? null);
-    } catch (err) {
-      console.error("Failed to fetch agent status:", err);
-      setAgentStatus(null);
-    } finally {
-      setAgentLoading(false);
-    }
-  }, [taskId]);
-
-  // Fetch diff (v1 API for local features - only works with v1 numeric IDs)
-  const fetchDiff = useCallback(async () => {
-    if (!taskId || isV2TaskId(taskId)) return;
-
-    try {
-      setDiffLoading(true);
-      const response = await api.tasks.getTaskDiff({ id: Number(taskId) });
-      setTaskDiff(response.data ?? null);
-    } catch (err) {
-      console.error("Failed to fetch diff:", err);
-      setTaskDiff(null);
-    } finally {
-      setDiffLoading(false);
-    }
-  }, [taskId]);
-
-  useEffect(() => {
-    fetchTask();
-    fetchAgentStatus();
-    fetchDependencies();
-  }, [fetchTask, fetchAgentStatus, fetchDependencies]);
-
-  // Fetch diff when task is IN_REVIEW
-  useEffect(() => {
-    if ((task?.status as string) === "IN_REVIEW") {
-      fetchDiff();
-    }
-  }, [task?.status, fetchDiff]);
-
-  // Fetch epics when task is loaded
-  useEffect(() => {
-    if (task?.projectId) {
-      fetchEpics(task.projectId);
-    }
-  }, [task?.projectId, fetchEpics]);
-
-  // Fetch assigned agent when task has one (v1 API for local features)
-  useEffect(() => {
-    const fetchAssignedAgent = async () => {
-      if (!task?.assignedAgentId) {
-        setAssignedAgent(null);
-        return;
-      }
-      try {
-        const response = await api.agents.agentsIdGet({
-          id: task.assignedAgentId,
-        });
-        setAssignedAgent(response.data ?? null);
-      } catch (err) {
-        console.error("Failed to fetch assigned agent:", err);
-        setAssignedAgent(null);
-      }
-    };
-    fetchAssignedAgent();
-  }, [task?.assignedAgentId]);
-
-  // Create PR (v1 API for local features - only works with v1 numeric IDs)
-  const handleCreatePR = async () => {
-    if (!taskId || isV2TaskId(taskId)) {
-      if (isV2TaskId(taskId)) {
-        setError("PR creation not available for v2 tasks yet");
-      }
-      return;
-    }
-
-    // Check if the API method exists
-    if (typeof api.tasks.createTaskPR !== "function") {
-      setError(
-        "API client not properly initialized. Please restart the application.",
-      );
-      console.error(
-        "api.tasks.createTaskPR is not a function - API client may need to be regenerated",
-      );
-      return;
-    }
-
-    try {
-      setCreatePRLoading(true);
-      setError(null);
-      const response = await api.tasks.createTaskPR({
-        id: Number(taskId),
-      });
-      setPRResult(response.data ?? null);
-      // Refresh task to persist PR URL from database
-      fetchTask();
-    } catch (err) {
-      const message = await getApiErrorMessage(err, "Failed to create PR");
-      setError(message);
-      console.error("Failed to create PR:", err);
-    } finally {
-      setCreatePRLoading(false);
-    }
-  };
-
-  // Approve task (v1 API for local features - only works with v1 numeric IDs)
-  const handleApprove = async () => {
-    if (!taskId || isV2TaskId(taskId)) {
-      if (isV2TaskId(taskId)) {
-        setError("Task approval not available for v2 tasks yet");
-      }
-      return;
-    }
-
-    try {
-      setApproveLoading(true);
-      setError(null);
-      await api.tasks.approveTask({
-        id: Number(taskId),
-      });
-      fetchTask(); // Refresh task to get updated status (should be 'done')
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to approve task";
-      setError(message);
-      console.error("Failed to approve:", err);
-    } finally {
-      setApproveLoading(false);
-    }
-  };
-
-  // Build agent info for terminal context
-  const getAgentInfoForTerminal = (): AgentInfo | undefined => {
-    if (!assignedAgent) return undefined;
-    return {
-      id: assignedAgent.id,
-      name: assignedAgent.name,
-      emoji: assignedAgent.emoji,
-    };
-  };
-
-  // Control agent (v1 API for local features - only works with v1 numeric IDs)
-  const handleAgentAction = async (
-    action: ControlTaskAgentRequestActionEnum,
-  ) => {
-    if (!taskId || !task || isV2TaskId(taskId)) {
-      if (isV2TaskId(taskId)) {
-        setError("Agent control not available for v2 tasks yet");
-      }
-      return;
-    }
-
-    try {
-      setActionLoading(true);
-      setError(null);
-
-      // When starting, also open terminal for this task
-      if (action === ControlTaskAgentRequestActionEnum.Start) {
-        openTerminalForContext({
-          type: "task",
-          id: task.id,
-          title: task.title,
-          agent: getAgentInfoForTerminal(),
-        });
-      }
-
-      const response = await api.tasks.controlTaskAgent({
-        id: Number(taskId),
-        controlTaskAgentRequest: { action },
-      });
-      setAgentStatus(response.data ?? null);
-      // Only refresh task when stopping agent (status might change)
-      if (action === ControlTaskAgentRequestActionEnum.Stop) {
-        fetchTask();
-      }
-    } catch (err) {
-      const message = await getApiErrorMessage(
-        err,
-        `Failed to ${action} agent`,
-      );
-      setError(message);
-      console.error(`Failed to ${action} agent:`, err);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
   // Handle opening terminal for this task
   const handleOpenInTerminal = () => {
     if (task) {
-      // Use v2Id if available, otherwise fall back to id
-      const taskRef = task.v2Id || task.id;
       openTerminalForContext({
         type: "task",
-        id: taskRef,
+        id: task.id,
         title: task.title,
-        agent: getAgentInfoForTerminal(),
       });
     }
   };
 
-  const isAgentRunning =
-    agentStatus?.status === AgentStatusStatusEnum.Running ||
-    (isTerminalShowingThisTask && terminalIsRunning);
-  const isAgentPaused = agentStatus?.status === AgentStatusStatusEnum.Paused;
-  const isAgentIdle =
-    !agentStatus ||
-    agentStatus.status === AgentStatusStatusEnum.Idle ||
-    agentStatus.status === AgentStatusStatusEnum.Stopped ||
-    agentStatus.status === AgentStatusStatusEnum.Completed ||
-    agentStatus.status === AgentStatusStatusEnum.Failed;
+  useEffect(() => {
+    fetchTask();
+    fetchDependencies();
+  }, [fetchTask, fetchDependencies]);
 
   if (loading) {
     return (
@@ -674,11 +332,36 @@ export default function TaskDetailPage() {
     );
   }
 
+  // Convert v2 task to format expected by components
+  // Note: Components still use hybrid type that extends v1 Task, so we cast status
+  const taskForComponents = {
+    id: 0, // Not used in v2
+    v2Id: task.id,
+    displayKey: task.displayKey,
+    projectId: 0, // Not used in v2
+    epicId: task.epicId ?? null,
+    epicDisplayKey: task.epicDisplayKey,
+    title: task.title,
+    description: task.description ?? null,
+    status: task.status as string, // Cast to string for component compatibility
+    priority: task.priority,
+    requiresApproval: task.requiresApproval,
+    progressPercentage: 0,
+    estimatedDuration: task.estimatedDuration ?? null,
+    actualDuration: task.actualDuration ?? null,
+    githubPrUrl: task.githubPrUrl ?? null,
+    assignedAgentId: null,
+    createdByUserId: 0,
+    executorType: "agent" as const,
+    createdAt: new Date(task.createdAt),
+    updatedAt: new Date(task.updatedAt),
+  } as any; // TODO: Update child components to use v2 types directly
+
   return (
     <div className="flex flex-col h-full">
       {/* Header with Status, Epic, Owner/Executor */}
       <TaskDetailHeader
-        task={task}
+        task={taskForComponents}
         projectRef={getProjectRef() ?? undefined}
         onStatusChange={handleStatusChange}
         onEpicChange={handleEpicChange}
@@ -693,33 +376,6 @@ export default function TaskDetailPage() {
       {error && (
         <div className="px-4 py-3 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-lg text-red-600 dark:text-red-300 text-sm mb-4 flex-shrink-0">
           {error}
-        </div>
-      )}
-
-      {/* Blocked warning banner */}
-      {(task.blockedByCount ?? 0) > 0 && (
-        <div className="px-4 py-3 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg text-amber-700 dark:text-amber-300 text-sm mb-4 flex-shrink-0 flex items-center gap-2">
-          <svg
-            className="w-5 h-5 flex-shrink-0"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-            />
-          </svg>
-          <span>
-            This task is blocked by{" "}
-            <strong>
-              {task.blockedByCount} incomplete{" "}
-              {task.blockedByCount === 1 ? "dependency" : "dependencies"}
-            </strong>
-            . Complete the blocking tasks below before starting.
-          </span>
         </div>
       )}
 
@@ -738,7 +394,7 @@ export default function TaskDetailPage() {
           <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
             {activeTab === "overview" && (
               <TaskOverviewTab
-                task={task}
+                task={taskForComponents}
                 projectRef={getProjectRef() ?? undefined}
                 onTaskUpdate={fetchTask}
               />
@@ -746,11 +402,28 @@ export default function TaskDetailPage() {
 
             {activeTab === "context" && (
               <TaskContextTab
-                task={task}
-                dependencies={dependencies}
-                epic={currentEpic}
-                onAddDependency={() => setShowAddDependencyModal(true)}
-                onRemoveDependency={handleRemoveDependency}
+                task={taskForComponents}
+                dependencies={dependencies.map((d) => ({
+                  id: 0,
+                  taskId: 0,
+                  dependsOnTaskId: 0,
+                  dependsOnTaskRef: d.dependsOnTaskId,
+                  dependsOnDisplayKey: d.dependsOnDisplayKey,
+                }))}
+                epic={null}
+                onAddDependency={() => {
+                  // TODO: Implement add dependency modal for v2
+                  console.log("Add dependency not yet implemented");
+                }}
+                onRemoveDependency={(depId) => {
+                  // Find the dependency by id to get the ref
+                  const dep = dependencies.find(
+                    (_, idx) => idx === depId || depId === 0,
+                  );
+                  if (dep) {
+                    handleRemoveDependency(dep.dependsOnTaskId);
+                  }
+                }}
               />
             )}
           </div>
@@ -759,231 +432,132 @@ export default function TaskDetailPage() {
         {/* Right Sidebar */}
         <div className="w-72 flex-shrink-0 border-l border-system-200 dark:border-system-700 bg-system-50 dark:bg-system-800/50 flex flex-col overflow-y-auto">
           <div className="p-4 space-y-6">
-            {/* Agent Section */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-semibold text-system-500 dark:text-system-400 uppercase">
-                  Agent
-                </h3>
-                {agentLoading ? (
-                  <span className="text-system-500 text-xs">Loading...</span>
-                ) : (
-                  <AgentStatusBadge status={agentStatus?.status ?? "idle"} />
-                )}
-              </div>
-
-              {/* Agent Controls */}
-              <div className="flex gap-2">
-                {isAgentIdle && (
-                  <button
-                    onClick={() =>
-                      handleAgentAction(ControlTaskAgentRequestActionEnum.Start)
-                    }
-                    disabled={
-                      actionLoading ||
-                      task.status === "done" ||
-                      task.status === "approved"
-                    }
-                    className="btn btn-primary flex-1 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {actionLoading ? (
-                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                          fill="none"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                        />
-                      </svg>
-                    ) : (
-                      <svg
-                        className="w-4 h-4"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                      </svg>
-                    )}
-                    Start Agent
-                  </button>
-                )}
-                {isAgentRunning && (
-                  <>
-                    <button
-                      onClick={() =>
-                        handleAgentAction(
-                          ControlTaskAgentRequestActionEnum.Pause,
-                        )
-                      }
-                      disabled={actionLoading}
-                      className="btn btn-secondary flex-1 text-sm disabled:opacity-50"
-                    >
-                      Pause
-                    </button>
-                    <button
-                      onClick={() =>
-                        handleAgentAction(
-                          ControlTaskAgentRequestActionEnum.Stop,
-                        )
-                      }
-                      disabled={actionLoading}
-                      className="btn btn-danger text-sm disabled:opacity-50"
-                    >
-                      Stop
-                    </button>
-                  </>
-                )}
-                {isAgentPaused && (
-                  <>
-                    <button
-                      onClick={() =>
-                        handleAgentAction(
-                          ControlTaskAgentRequestActionEnum.Resume,
-                        )
-                      }
-                      disabled={actionLoading}
-                      className="btn btn-secondary flex-1 text-sm disabled:opacity-50"
-                    >
-                      Resume
-                    </button>
-                    <button
-                      onClick={() =>
-                        handleAgentAction(
-                          ControlTaskAgentRequestActionEnum.Stop,
-                        )
-                      }
-                      disabled={actionLoading}
-                      className="btn btn-danger text-sm disabled:opacity-50"
-                    >
-                      Stop
-                    </button>
-                  </>
-                )}
-              </div>
-
-              {/* Open in Terminal link */}
-              {isAgentIdle && (
-                <button
-                  onClick={handleOpenInTerminal}
-                  className="mt-2 text-xs text-brand-500 dark:text-brand-400 hover:underline"
-                >
-                  Open in Terminal (⌘T)
-                </button>
-              )}
-            </div>
-
-            {/* File Changes */}
+            {/* Terminal Section */}
             <div>
               <h3 className="text-xs font-semibold text-system-500 dark:text-system-400 uppercase mb-3">
-                File Changes
+                Terminal
               </h3>
-              <FileChanges
-                taskId={task.id}
-                isAgentRunning={isAgentRunning}
-                onHasChanges={(has) => setHasFileChanges(has)}
-              />
+              <button
+                onClick={handleOpenInTerminal}
+                className="btn btn-secondary w-full text-sm"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                Open in Terminal
+              </button>
+              {isTerminalShowingThisTask && terminalIsRunning && (
+                <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400">
+                  Terminal is active for this task
+                </p>
+              )}
             </div>
 
             {/* PR Section */}
+            {task.githubPrUrl && (
+              <div>
+                <h3 className="text-xs font-semibold text-system-500 dark:text-system-400 uppercase mb-3">
+                  Pull Request
+                </h3>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => {
+                      if (task.githubPrUrl) open(task.githubPrUrl);
+                    }}
+                    className="flex items-center gap-2 text-sm text-brand-500 dark:text-brand-400 hover:underline"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    View Pull Request
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (task.githubPrUrl)
+                        navigator.clipboard.writeText(task.githubPrUrl);
+                    }}
+                    className="flex items-center gap-2 text-xs text-system-500 hover:text-system-700 dark:hover:text-system-300"
+                  >
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                      />
+                    </svg>
+                    Copy URL
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Task Info */}
             <div>
               <h3 className="text-xs font-semibold text-system-500 dark:text-system-400 uppercase mb-3">
-                Pull Request
+                Details
               </h3>
-
-              {/* Create PR button - show when no PR exists and task isn't done */}
-              {!prResult?.prUrl &&
-                !task.githubPrUrl &&
-                task.status !== "done" && (
-                  <button
-                    onClick={handleCreatePR}
-                    disabled={createPRLoading}
-                    className="btn btn-primary w-full text-sm disabled:opacity-50"
-                  >
-                    {createPRLoading ? "Creating PR..." : "Create PR"}
-                  </button>
-                )}
-
-              {/* PR Link & Approve */}
-              {(prResult?.prUrl || task.githubPrUrl) && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        const url = prResult?.prUrl || task.githubPrUrl;
-                        if (url) open(url);
-                      }}
-                      className="flex items-center gap-2 text-sm text-brand-500 dark:text-brand-400 hover:underline"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                      PR #{prResult?.prNumber || task.githubPrNumber}
-                    </button>
-                    <button
-                      onClick={() => {
-                        const url = prResult?.prUrl || task.githubPrUrl;
-                        if (url) navigator.clipboard.writeText(url);
-                      }}
-                      className="p-1 text-system-400 hover:text-system-600 dark:hover:text-system-300"
-                      title="Copy PR URL"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                  {task.status !== "done" && (
-                    <button
-                      onClick={handleApprove}
-                      disabled={approveLoading}
-                      className="btn btn-success w-full text-sm disabled:opacity-50"
-                    >
-                      {approveLoading ? "Approving..." : "Approve & Complete"}
-                    </button>
-                  )}
+              <dl className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <dt className="text-system-500 dark:text-system-400">ID</dt>
+                  <dd className="font-mono text-system-700 dark:text-system-300">
+                    {task.displayKey}
+                  </dd>
                 </div>
-              )}
+                <div className="flex justify-between">
+                  <dt className="text-system-500 dark:text-system-400">
+                    Priority
+                  </dt>
+                  <dd className="text-system-700 dark:text-system-300">
+                    {task.priority}
+                  </dd>
+                </div>
+                {task.estimatedDuration && (
+                  <div className="flex justify-between">
+                    <dt className="text-system-500 dark:text-system-400">
+                      Estimate
+                    </dt>
+                    <dd className="text-system-700 dark:text-system-300">
+                      {task.estimatedDuration}h
+                    </dd>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <dt className="text-system-500 dark:text-system-400">
+                    Created
+                  </dt>
+                  <dd className="text-system-700 dark:text-system-300">
+                    {new Date(task.createdAt).toLocaleDateString()}
+                  </dd>
+                </div>
+              </dl>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Add Dependency Modal */}
-      {showAddDependencyModal && (
-        <AddDependencyModal
-          taskId={task.id}
-          projectId={task.projectId}
-          existingDependencyIds={dependencies.map((d) => d.dependsOnTaskId)}
-          onClose={() => setShowAddDependencyModal(false)}
-          onAdded={handleDependencyAdded}
-        />
-      )}
     </div>
   );
 }

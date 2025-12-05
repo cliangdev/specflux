@@ -2,11 +2,11 @@ import { render, screen, waitFor, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { ProjectProvider, useProject } from "./ProjectContext";
-import type { Project } from "../api/v2/generated";
+import type { Project } from "../api";
 
-// Mock v2 API
-vi.mock("../api/v2/client", () => ({
-  v2Api: {
+// Mock API
+vi.mock("../api", () => ({
+  api: {
     projects: {
       listProjects: vi.fn(),
     },
@@ -20,7 +20,7 @@ vi.mock("./AuthContext", () => ({
   }),
 }));
 
-import { v2Api } from "../api/v2/client";
+import { api } from "../api";
 
 const mockProjects: Project[] = [
   {
@@ -62,7 +62,7 @@ describe("ProjectContext", () => {
 
   describe("ProjectProvider", () => {
     it("shows loading state initially", () => {
-      vi.mocked(v2Api.projects.listProjects).mockImplementation(
+      vi.mocked(api.projects.listProjects).mockImplementation(
         () => new Promise(() => {}),
       );
 
@@ -76,7 +76,7 @@ describe("ProjectContext", () => {
     });
 
     it("loads projects and auto-selects first one", async () => {
-      vi.mocked(v2Api.projects.listProjects).mockResolvedValue({
+      vi.mocked(api.projects.listProjects).mockResolvedValue({
         data: mockProjects,
       });
 
@@ -97,7 +97,7 @@ describe("ProjectContext", () => {
     });
 
     it("handles API errors", async () => {
-      vi.mocked(v2Api.projects.listProjects).mockRejectedValue(
+      vi.mocked(api.projects.listProjects).mockRejectedValue(
         new Error("Network error"),
       );
 
@@ -115,7 +115,7 @@ describe("ProjectContext", () => {
     });
 
     it("handles empty project list", async () => {
-      vi.mocked(v2Api.projects.listProjects).mockResolvedValue({
+      vi.mocked(api.projects.listProjects).mockResolvedValue({
         data: [],
       });
 
@@ -148,7 +148,7 @@ describe("ProjectContext", () => {
     });
 
     it("provides selectProject function", async () => {
-      vi.mocked(v2Api.projects.listProjects).mockResolvedValue({
+      vi.mocked(api.projects.listProjects).mockResolvedValue({
         data: mockProjects,
       });
 
@@ -172,7 +172,7 @@ describe("ProjectContext", () => {
     });
 
     it("provides refreshProjects function", async () => {
-      vi.mocked(v2Api.projects.listProjects).mockResolvedValue({
+      vi.mocked(api.projects.listProjects).mockResolvedValue({
         data: mockProjects,
       });
 
@@ -186,16 +186,14 @@ describe("ProjectContext", () => {
         expect(result.current.loading).toBe(false);
       });
 
-      const callsBefore = vi.mocked(v2Api.projects.listProjects).mock.calls
+      const callsBefore = vi.mocked(api.projects.listProjects).mock.calls
         .length;
 
       await act(async () => {
         await result.current.refreshProjects();
       });
 
-      expect(v2Api.projects.listProjects).toHaveBeenCalledTimes(
-        callsBefore + 1,
-      );
+      expect(api.projects.listProjects).toHaveBeenCalledTimes(callsBefore + 1);
     });
   });
 });

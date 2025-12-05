@@ -10,29 +10,20 @@ export function McpServerSettings() {
   const [error, setError] = useState<string | null>(null);
   const [deletingServer, setDeletingServer] = useState<McpServer | null>(null);
 
-  // Auto-sync and load MCP servers on mount
-  const syncAndLoadServers = useCallback(async () => {
-    if (!currentProject) return;
+  // Load MCP servers on mount
+  const loadServers = useCallback(async () => {
+    if (!currentProject?.publicId) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      // First sync from filesystem
-      await api.mcpServers.projectsIdMcpServersSyncPost({
-        id: currentProject.id,
+      // Load servers from v2 API
+      const response = await api.mcpServers.listMcpServers({
+        projectRef: currentProject.publicId,
       });
 
-      // Then load servers
-      const response = await api.mcpServers.projectsIdMcpServersGet({
-        id: currentProject.id,
-      });
-
-      if (response.success && response.data) {
-        setServers(response.data);
-      } else {
-        setError("Failed to load MCP servers");
-      }
+      setServers(response.data ?? []);
     } catch (err) {
       setError("Failed to load MCP servers");
       console.error(err);
@@ -42,13 +33,20 @@ export function McpServerSettings() {
   }, [currentProject]);
 
   useEffect(() => {
-    syncAndLoadServers();
-  }, [syncAndLoadServers]);
+    loadServers();
+  }, [loadServers]);
 
   const handleToggle = async (server: McpServer) => {
+    if (!currentProject?.publicId) return;
     try {
-      await api.mcpServers.mcpServersIdTogglePost({ id: server.id });
-      await syncAndLoadServers();
+      await api.mcpServers.updateMcpServer({
+        projectRef: currentProject.publicId,
+        mcpServerRef: server.publicId,
+        updateMcpServerRequest: {
+          isActive: !server.isActive,
+        },
+      });
+      await loadServers();
     } catch (err) {
       setError("Failed to toggle MCP server");
       console.error(err);
@@ -60,13 +58,16 @@ export function McpServerSettings() {
   };
 
   const handleDeleteConfirm = async () => {
-    if (!deletingServer) return;
+    if (!deletingServer || !currentProject?.publicId) return;
 
     setError(null);
 
     try {
-      await api.mcpServers.mcpServersIdDelete({ id: deletingServer.id });
-      await syncAndLoadServers();
+      await api.mcpServers.deleteMcpServer({
+        projectRef: currentProject.publicId,
+        mcpServerRef: deletingServer.publicId,
+      });
+      await loadServers();
       setDeletingServer(null);
     } catch (err) {
       setError("Failed to delete MCP server");

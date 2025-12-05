@@ -12,29 +12,20 @@ export function AgentSettings() {
   const [error, setError] = useState<string | null>(null);
   const [deletingAgent, setDeletingAgent] = useState<Agent | null>(null);
 
-  // Auto-sync and load agents on mount
-  const syncAndLoadAgents = useCallback(async () => {
-    if (!currentProject) return;
+  // Load agents on mount
+  const loadAgents = useCallback(async () => {
+    if (!currentProject?.publicId) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      // First sync from filesystem
-      await api.agents.projectsIdAgentsSyncPost({
-        id: currentProject.id,
+      // Load agents from v2 API
+      const response = await api.agents.listAgents({
+        projectRef: currentProject.publicId,
       });
 
-      // Then load agents
-      const response = await api.agents.projectsIdAgentsGet({
-        id: currentProject.id,
-      });
-
-      if (response.success && response.data) {
-        setAgents(response.data);
-      } else {
-        setError("Failed to load agents");
-      }
+      setAgents(response.data ?? []);
     } catch (err) {
       setError("Failed to load agents");
       console.error(err);
@@ -44,21 +35,24 @@ export function AgentSettings() {
   }, [currentProject]);
 
   useEffect(() => {
-    syncAndLoadAgents();
-  }, [syncAndLoadAgents]);
+    loadAgents();
+  }, [loadAgents]);
 
   const handleDeleteClick = (agent: Agent) => {
     setDeletingAgent(agent);
   };
 
   const handleDeleteConfirm = async () => {
-    if (!deletingAgent) return;
+    if (!deletingAgent || !currentProject?.publicId) return;
 
     setError(null);
 
     try {
-      await api.agents.agentsIdDelete({ id: deletingAgent.id });
-      await syncAndLoadAgents();
+      await api.agents.deleteAgent({
+        projectRef: currentProject.publicId,
+        agentRef: deletingAgent.publicId,
+      });
+      await loadAgents();
       setDeletingAgent(null);
     } catch (err) {
       setError("Failed to delete agent");

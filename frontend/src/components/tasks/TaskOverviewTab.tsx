@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { Task, AcceptanceCriterion } from "../../api/generated";
-import { api } from "../../api";
-import { v2Api } from "../../api/v2/client";
+import {
+  api,
+  type Task,
+  type AcceptanceCriteria as AcceptanceCriterion,
+} from "../../api";
 import { AcceptanceCriteriaList } from "../ui/AcceptanceCriteriaList";
 
 // Extended task type for v2 support
@@ -38,7 +40,7 @@ export default function TaskOverviewTab({
       setCriteriaLoading(true);
       if (projectRef && task.v2Id) {
         // Use v2 API
-        const response = await v2Api.tasks.listTaskAcceptanceCriteria({
+        const response = await api.tasks.listTaskAcceptanceCriteria({
           projectRef,
           taskRef: task.v2Id,
         });
@@ -107,7 +109,7 @@ export default function TaskOverviewTab({
 
       try {
         if (projectRef && task.v2Id) {
-          await v2Api.tasks.updateTask({
+          await api.tasks.updateTask({
             projectRef,
             taskRef: task.v2Id,
             updateTaskRequest: { description: trimmed || undefined },

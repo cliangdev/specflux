@@ -9,29 +9,20 @@ export function SkillSettings() {
   const [skills, setSkills] = useState<Skill[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  // Auto-sync and load skills on mount
-  const syncAndLoadSkills = useCallback(async () => {
-    if (!currentProject) return;
+  // Load skills on mount
+  const loadSkills = useCallback(async () => {
+    if (!currentProject?.publicId) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      // First sync from filesystem
-      await api.skills.projectsIdSkillsSyncPost({
-        id: currentProject.id,
+      // Load skills from v2 API
+      const response = await api.skills.listSkills({
+        projectRef: currentProject.publicId,
       });
 
-      // Then load skills
-      const response = await api.skills.projectsIdSkillsGet({
-        id: currentProject.id,
-      });
-
-      if (response.success && response.data) {
-        setSkills(response.data);
-      } else {
-        setError("Failed to load skills");
-      }
+      setSkills(response.data ?? []);
     } catch (err) {
       setError("Failed to load skills");
       console.error(err);
@@ -41,15 +32,19 @@ export function SkillSettings() {
   }, [currentProject]);
 
   useEffect(() => {
-    syncAndLoadSkills();
-  }, [syncAndLoadSkills]);
+    loadSkills();
+  }, [loadSkills]);
 
   const handleDelete = async (skill: Skill) => {
+    if (!currentProject?.publicId) return;
     setError(null);
 
     try {
-      await api.skills.skillsIdDelete({ id: skill.id });
-      await syncAndLoadSkills();
+      await api.skills.deleteSkill({
+        projectRef: currentProject.publicId,
+        skillRef: skill.publicId,
+      });
+      await loadSkills();
     } catch (err) {
       setError("Failed to delete skill");
       console.error(err);

@@ -2,8 +2,6 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useProject } from "../contexts";
 import { useSearchParams } from "react-router-dom";
 import { api, type Release, type ReleaseWithEpics, type Epic } from "../api";
-import { v2Api } from "../api/v2/client";
-import { UpdateReleaseRequestStatusEnum } from "../api/generated";
 import { PhaseSection } from "../components/roadmap";
 import { EpicEditModal, EpicCreateModal } from "../components/epics";
 import { ReleaseCreateModal } from "../components/releases";
@@ -588,7 +586,7 @@ export default function RoadmapPage() {
         return;
       }
       console.log("[RoadmapPage] Fetching releases from v2 API");
-      const response = await v2Api.releases.listReleases({ projectRef });
+      const response = await api.releases.listReleases({ projectRef });
       // Convert v2 releases to display format
       const v2Releases = response.data ?? [];
       const releaseList = v2Releases.map(

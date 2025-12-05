@@ -12,3 +12,4 @@ export { default as ProjectSelector } from "./ProjectSelector";
 export { default as TabNavigation } from "./TabNavigation";
 export { default as TaskCreateModal } from "./TaskCreateModal";
 export { default as TaskEditModal } from "./TaskEditModal";
+export { default as PrdImportModal } from "./PrdImportModal";

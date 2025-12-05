@@ -1,6 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import type { Epic, Release } from "../../api/generated";
 
+// Extended epic type for v2 support
+type EpicWithV2Fields = Epic & {
+  displayKey?: string;
+};
+
 // Status configuration
 const STATUS_CONFIG: Record<
   string,
@@ -75,7 +80,7 @@ const STATUS_CONFIG: Record<
 const STATUSES = ["PLANNING", "IN_PROGRESS", "COMPLETED"] as const;
 
 interface EpicDetailHeaderProps {
-  epic: Epic;
+  epic: EpicWithV2Fields;
   releases: Release[];
   phase: number;
   onStatusChange: (status: string) => void;
@@ -187,7 +192,7 @@ export default function EpicDetailHeader({
         </button>
         <div className="h-6 w-px bg-system-200 dark:bg-system-700 flex-shrink-0" />
         <span className="text-system-500 dark:text-system-400 text-sm font-mono flex-shrink-0">
-          #{epic.id}
+          {epic.displayKey}
         </span>
         {editingTitle ? (
           <input

@@ -1,6 +1,6 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Task, TaskAgentStatusEnum } from "../../api/generated/models/Task";
+import { Task } from "../../api";
 import { getRepoColorClasses } from "./types";
 
 interface TaskCardProps {
@@ -114,13 +114,14 @@ export function TaskCard({ task, onClick, onContextMenu }: TaskCardProps) {
     transition,
   };
 
-  const isRunning = task.agentStatus === TaskAgentStatusEnum.Running;
-  const hasProgress = (task.progressPercentage ?? 0) > 0;
-  const isBlocked = (task.blockedByCount ?? 0) > 0;
-  const agentStatus = task.agentStatus ?? "idle";
-  const statusConfig =
-    AGENT_STATUS_CONFIG[agentStatus] ?? AGENT_STATUS_CONFIG.idle;
-  const repoColors = getRepoColorClasses(task.repoName);
+  // Agent status features are not yet implemented in v2 API
+  // These will be re-enabled when backend adds support
+  const isRunning = false;
+  const hasProgress = false;
+  const isBlocked = false;
+  const statusConfig = AGENT_STATUS_CONFIG.idle;
+  // v2 API uses repositoryId instead of repoName - stub for now
+  const repoColors = getRepoColorClasses(null);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -150,12 +151,12 @@ export function TaskCard({ task, onClick, onContextMenu }: TaskCardProps) {
         }
       `}
     >
-      {/* Progress bar at bottom */}
+      {/* Progress bar at bottom - will be enabled when v2 API supports agent progress */}
       {hasProgress && (
         <div className="absolute bottom-0 left-0 h-1 bg-gray-200 dark:bg-slate-700 w-full">
           <div
             className="h-full bg-brand-500 transition-all duration-300"
-            style={{ width: `${task.progressPercentage}%` }}
+            style={{ width: "0%" }}
           />
         </div>
       )}
@@ -166,11 +167,11 @@ export function TaskCard({ task, onClick, onContextMenu }: TaskCardProps) {
           <span className="text-xs font-mono text-gray-500 dark:text-gray-400">
             #{task.id}
           </span>
-          {/* Blocked indicator with count */}
+          {/* Blocked indicator - will be enabled when v2 API supports dependency counts */}
           {isBlocked && (
             <span
               className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-[10px] font-medium"
-              title={`Blocked by ${task.blockedByCount} incomplete task${task.blockedByCount === 1 ? "" : "s"}`}
+              title="Blocked by incomplete tasks"
             >
               <svg
                 className="w-2.5 h-2.5"
@@ -179,7 +180,6 @@ export function TaskCard({ task, onClick, onContextMenu }: TaskCardProps) {
               >
                 <path d="M12 2C9.243 2 7 4.243 7 7v3H6a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2v-8a2 2 0 00-2-2h-1V7c0-2.757-2.243-5-5-5zm-3 5c0-1.654 1.346-3 3-3s3 1.346 3 3v3H9V7zm4 10a1 1 0 11-2 0v-3a1 1 0 112 0v3z" />
               </svg>
-              {task.blockedByCount}
             </span>
           )}
         </div>
@@ -215,18 +215,11 @@ export function TaskCard({ task, onClick, onContextMenu }: TaskCardProps) {
 
       {/* Footer: Repo tag and avatar */}
       <div className="flex justify-between items-center">
-        {task.repoName ? (
-          <span
-            className={`px-1.5 py-0.5 rounded text-[10px] border border-current/20 ${repoColors.bg} ${repoColors.text}`}
-          >
-            {task.repoName}
-          </span>
-        ) : (
-          <span />
-        )}
+        {/* Repository tag - v2 API uses repositoryId, can look up name later */}
+        <span />
 
-        {/* Avatar placeholder - can be enhanced with assignee info */}
-        {task.assignedToUserId && (
+        {/* Avatar placeholder - shows when task is assigned */}
+        {task.assignedToId && (
           <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-brand-500 to-cyan-500" />
         )}
       </div>

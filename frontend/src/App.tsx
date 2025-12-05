@@ -13,6 +13,8 @@ import {
   FilesPage,
   SettingsPage,
   AgentDetailPage,
+  PRDsPage,
+  PRDDetailPage,
 } from "./pages";
 import LoginPage from "./pages/LoginPage";
 
@@ -55,6 +57,8 @@ function AppRoutes() {
               <Routes>
                 <Route path="/" element={<MainLayout />}>
                   <Route index element={<Navigate to="/board" replace />} />
+                  <Route path="prds" element={<PRDsPage />} />
+                  <Route path="prds/:prdName" element={<PRDDetailPage />} />
                   <Route path="board" element={<BoardPage />} />
                   <Route path="tasks" element={<TasksPage />} />
                   <Route path="tasks/:taskId" element={<TaskDetailPage />} />
