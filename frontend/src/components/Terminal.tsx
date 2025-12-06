@@ -5,6 +5,15 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { SearchAddon } from "@xterm/addon-search";
 import "@xterm/xterm/css/xterm.css";
+import {
+  spawnTerminal,
+  writeToTerminal,
+  resizeTerminal as resizeTerminalIpc,
+  closeTerminal,
+  onTerminalOutput,
+  onTerminalExit,
+  hasTerminalSession,
+} from "../services/tauriTerminal";
 
 interface FileChangeEvent {
   action: "created" | "modified" | "deleted";
@@ -16,13 +25,13 @@ interface TerminalDimensions {
   rows: number;
 }
 
-type ContextType = "task" | "epic" | "project";
+type ContextType = "task" | "epic" | "project" | "prd-workshop";
 
 interface TerminalProps {
   contextType?: ContextType;
   contextId?: number | string; // v1 uses number, v2 uses publicId string
   taskId?: number | string; // Deprecated: use contextType + contextId instead
-  wsUrl?: string;
+  workingDirectory?: string; // Working directory for the terminal
   onStatusChange?: (running: boolean) => void;
   onConnectionChange?: (connected: boolean) => void;
   onExit?: (exitCode: number) => void;
@@ -32,40 +41,20 @@ interface TerminalProps {
   onDimensionsReady?: (dimensions: TerminalDimensions) => void;
 }
 
-interface TerminalMessage {
-  type:
-    | "status"
-    | "output"
-    | "exit"
-    | "file-change"
-    | "progress"
-    | "test-result";
-  data?: string;
-  running?: boolean;
-  exitCode?: number;
-  taskId?: number;
-  action?: "created" | "modified" | "deleted";
-  filePath?: string;
-  progress?: number;
-  passed?: number;
-  failed?: number;
-  total?: number;
-}
-
 /**
  * Terminal - Optimized terminal component with WebGL rendering
  *
  * Features:
+ * - Native PTY via Tauri IPC (no WebSocket required)
  * - WebGL renderer for 3-5x better performance (with canvas fallback)
  * - Scrollback buffer (10,000 lines) for session recovery
- * - Flow control support for large outputs
  * - Simplified mouse handling via xterm options
  */
 export function Terminal({
   contextType = "task",
   contextId,
   taskId, // Deprecated
-  wsUrl,
+  workingDirectory,
   onStatusChange,
   onConnectionChange,
   onExit,
@@ -82,7 +71,6 @@ export function Terminal({
   const fitAddonRef = useRef<FitAddon | null>(null);
   const webglAddonRef = useRef<WebglAddon | null>(null);
   const searchAddonRef = useRef<SearchAddon | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [connected, setConnected] = useState(false);
   const [running, setRunning] = useState(false);
@@ -90,6 +78,9 @@ export function Terminal({
   const [searchQuery, setSearchQuery] = useState("");
   // Track if user has scrolled away from the bottom (to disable auto-scroll)
   const userScrolledRef = useRef(false);
+
+  // Session ID for Tauri IPC
+  const sessionId = `${effectiveContextType}-${effectiveContextId}`;
 
   // Use refs for callbacks to avoid reconnection loops
   const runningRef = useRef(running);
@@ -122,15 +113,6 @@ export function Terminal({
   useEffect(() => {
     onDimensionsReadyRef.current = onDimensionsReady;
   }, [onDimensionsReady]);
-
-  // Determine WebSocket URL
-  const getWsUrl = useCallback(() => {
-    if (wsUrl) return wsUrl;
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const host = window.location.hostname;
-    const port = import.meta.env.VITE_API_PORT ?? "3000";
-    return `${protocol}//${host}:${port}/ws/terminal/${effectiveContextType}/${effectiveContextId}`;
-  }, [effectiveContextType, effectiveContextId, wsUrl]);
 
   // Initialize terminal with WebGL
   useEffect(() => {
@@ -251,15 +233,10 @@ export function Terminal({
           // If user was at bottom, let xterm.js handle it naturally
 
           onDimensionsReadyRef.current?.({ cols: term.cols, rows: term.rows });
-          if (wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send(
-              JSON.stringify({
-                type: "resize",
-                cols: term.cols,
-                rows: term.rows,
-              }),
-            );
-          }
+          // Send resize to Tauri backend
+          resizeTerminalIpc(sessionId, term.cols, term.rows).catch((e) =>
+            console.error("Failed to resize terminal:", e),
+          );
         } catch (e) {
           // Ignore resize errors during component unmount
         }
@@ -285,135 +262,106 @@ export function Terminal({
     };
   }, [effectiveContextType, effectiveContextId]);
 
-  // Connect WebSocket
+  // Connect via Tauri IPC
   useEffect(() => {
     const term = xtermRef.current;
-    if (!term) return;
+    if (!term || !effectiveContextId) return;
 
-    const url = getWsUrl();
-    const ws = new WebSocket(url);
-    wsRef.current = ws;
+    let outputUnlisten: (() => void) | undefined;
+    let exitUnlisten: (() => void) | undefined;
+    let inputDisposer: { dispose: () => void } | undefined;
 
-    ws.onopen = () => {
-      setConnected(true);
-      onConnectionChangeRef.current?.(true);
-      ws.send(
-        JSON.stringify({
-          type: "resize",
-          cols: term.cols,
-          rows: term.rows,
-        }),
-      );
-    };
-
-    ws.onmessage = (event) => {
+    const connect = async () => {
       try {
-        const msg: TerminalMessage = JSON.parse(event.data);
+        // Check if session already exists (reconnecting)
+        const exists = await hasTerminalSession(sessionId);
 
-        switch (msg.type) {
-          case "status":
-            if (msg.running !== runningRef.current) {
-              setRunning(msg.running ?? false);
-              onStatusChangeRef.current?.(msg.running ?? false);
-              if (!msg.running) {
-                term.writeln(
-                  "\x1b[90mAgent is not running. Start the agent to see output.\x1b[0m",
-                );
-              }
+        if (!exists) {
+          // Spawn new terminal session
+          await spawnTerminal(sessionId, workingDirectory);
+        }
+
+        setConnected(true);
+        setRunning(true);
+        onConnectionChangeRef.current?.(true);
+        onStatusChangeRef.current?.(true);
+
+        // Send initial resize
+        await resizeTerminalIpc(sessionId, term.cols, term.rows);
+
+        // Listen for terminal output
+        outputUnlisten = await onTerminalOutput((event) => {
+          if (event.sessionId === sessionId) {
+            // Preserve scroll position if user has scrolled away from bottom
+            const buffer = term.buffer.active;
+            const wasScrolledUp = userScrolledRef.current;
+            const viewportY = buffer.viewportY;
+
+            // Write data - convert number array to Uint8Array
+            const data = new Uint8Array(event.data);
+            term.write(data);
+
+            // If user had scrolled up, restore their position
+            if (wasScrolledUp) {
+              term.scrollToLine(viewportY);
             }
-            break;
+          }
+        });
 
-          case "output":
-            if (msg.data) {
-              // Preserve scroll position if user has scrolled away from bottom
-              const buffer = term.buffer.active;
-              const wasScrolledUp = userScrolledRef.current;
-              const viewportY = buffer.viewportY;
-
-              // Write data - xterm.js will auto-scroll to bottom by default
-              term.write(msg.data);
-
-              // If user had scrolled up, restore their position
-              if (wasScrolledUp) {
-                term.scrollToLine(viewportY);
-              }
-            }
-            break;
-
-          case "exit":
+        // Listen for terminal exit
+        exitUnlisten = await onTerminalExit((event) => {
+          if (event.sessionId === sessionId) {
             setRunning(false);
             onStatusChangeRef.current?.(false);
             term.writeln("");
-            if (msg.exitCode === 0) {
-              term.writeln("\x1b[32mAgent completed successfully.\x1b[0m");
+            if (event.exitCode === 0) {
+              term.writeln("\x1b[32mTerminal session ended.\x1b[0m");
             } else {
               term.writeln(
-                `\x1b[31mAgent exited with code ${msg.exitCode}\x1b[0m`,
+                `\x1b[31mTerminal exited with code ${event.exitCode}\x1b[0m`,
               );
             }
-            onExitRef.current?.(msg.exitCode ?? 1);
-            break;
+            onExitRef.current?.(event.exitCode ?? 1);
+          }
+        });
 
-          case "file-change":
-            if (msg.action && msg.filePath) {
-              onFileChangeRef.current?.({
-                action: msg.action,
-                filePath: msg.filePath,
-              });
+        // Handle terminal input
+        inputDisposer = term.onData((data) => {
+          if (runningRef.current) {
+            // Filter mouse sequences (SGR, X10, focus events)
+            const filtered = data
+              .replace(/\x1b\[<\d+;\d+;\d+[Mm]/g, "")
+              .replace(/\x1b\[M[\x00-\xff]{3}/g, "")
+              .replace(/\x1b\[[IO]/g, "");
+
+            if (filtered) {
+              writeToTerminal(sessionId, filtered).catch((e) =>
+                console.error("Failed to write to terminal:", e),
+              );
             }
-            break;
-
-          case "progress":
-            if (msg.progress !== undefined) {
-              onProgressRef.current?.(msg.progress);
-            }
-            break;
-
-          case "test-result":
-            break;
-        }
-      } catch {
-        term.write(event.data);
+          }
+        });
+      } catch (error) {
+        console.error("Failed to connect terminal:", error);
+        setConnected(false);
+        setRunning(false);
+        onConnectionChangeRef.current?.(false);
+        term.writeln(`\x1b[31mFailed to start terminal: ${error}\x1b[0m`);
       }
     };
 
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-      term.writeln("\x1b[31mConnection error\x1b[0m");
-    };
-
-    ws.onclose = () => {
-      setConnected(false);
-      setRunning(false);
-      onConnectionChangeRef.current?.(false);
-      term.writeln("\x1b[90mDisconnected\x1b[0m");
-    };
-
-    // Handle terminal input - simplified filtering
-    const inputHandler = term.onData((data) => {
-      if (ws.readyState === WebSocket.OPEN && runningRef.current) {
-        // Filter mouse sequences (SGR, X10, focus events)
-        const filtered = data
-          .replace(/\x1b\[<\d+;\d+;\d+[Mm]/g, "")
-          .replace(/\x1b\[M[\x00-\xff]{3}/g, "")
-          .replace(/\x1b\[[IO]/g, "");
-
-        if (filtered) {
-          ws.send(
-            JSON.stringify({
-              type: "input",
-              data: filtered,
-            }),
-          );
-        }
-      }
-    });
+    connect();
 
     return () => {
-      inputHandler.dispose();
-      ws.close();
+      inputDisposer?.dispose();
+      outputUnlisten?.();
+      exitUnlisten?.();
+      // Close terminal session on unmount
+      closeTerminal(sessionId).catch((e) =>
+        console.error("Failed to close terminal:", e),
+      );
     };
-  }, [getWsUrl]);
+  }, [sessionId, effectiveContextId, workingDirectory]);
 
   // Clear scrollback buffer (useful for long sessions)
   const clearBuffer = useCallback(() => {

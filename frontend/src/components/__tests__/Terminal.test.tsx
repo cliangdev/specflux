@@ -13,6 +13,7 @@ vi.mock("@xterm/xterm", () => ({
     onScroll: vi.fn(() => ({ dispose: vi.fn() })),
     scrollToLine: vi.fn(),
     dispose: vi.fn(),
+    focus: vi.fn(),
     cols: 80,
     rows: 24,
     buffer: {
@@ -41,83 +42,94 @@ vi.mock("@xterm/addon-webgl", () => ({
   })),
 }));
 
-// Track WebSocket instances and timeouts
-const wsInstances: MockWebSocket[] = [];
-const pendingTimeouts: ReturnType<typeof setTimeout>[] = [];
+vi.mock("@xterm/addon-search", () => ({
+  SearchAddon: vi.fn().mockImplementation(() => ({
+    findNext: vi.fn(),
+    findPrevious: vi.fn(),
+  })),
+}));
 
-// Mock WebSocket
-class MockWebSocket {
-  static OPEN = 1;
-  static CLOSED = 3;
-
-  readyState = MockWebSocket.OPEN;
-  onopen: (() => void) | null = null;
-  onmessage: ((event: { data: string }) => void) | null = null;
-  onerror: ((error: unknown) => void) | null = null;
-  onclose: (() => void) | null = null;
-
-  constructor(public url: string) {
-    wsInstances.push(this);
-    // Simulate connection - track timeout for cleanup
-    const timeout = setTimeout(() => {
-      this.onopen?.();
-    }, 10);
-    pendingTimeouts.push(timeout);
-  }
-
-  send = vi.fn();
-  close = vi.fn();
-}
-
-global.WebSocket = MockWebSocket as unknown as typeof WebSocket;
+// Mock Tauri terminal service
+vi.mock("../../services/tauriTerminal", () => ({
+  spawnTerminal: vi.fn().mockResolvedValue(undefined),
+  writeToTerminal: vi.fn().mockResolvedValue(undefined),
+  resizeTerminal: vi.fn().mockResolvedValue(undefined),
+  closeTerminal: vi.fn().mockResolvedValue(undefined),
+  hasTerminalSession: vi.fn().mockResolvedValue(false),
+  onTerminalOutput: vi.fn().mockResolvedValue(() => {}),
+  onTerminalExit: vi.fn().mockResolvedValue(() => {}),
+}));
 
 import Terminal from "../Terminal";
+import {
+  spawnTerminal,
+  hasTerminalSession,
+} from "../../services/tauriTerminal";
 
 describe("Terminal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    wsInstances.length = 0;
-    pendingTimeouts.length = 0;
+    vi.mocked(hasTerminalSession).mockResolvedValue(false);
   });
 
   afterEach(() => {
-    // Clear all pending timeouts to prevent cleanup errors
-    pendingTimeouts.forEach((t) => clearTimeout(t));
-    pendingTimeouts.length = 0;
-    wsInstances.length = 0;
     vi.clearAllMocks();
   });
 
   it("renders terminal container", () => {
     render(<Terminal taskId={1} />);
-
     expect(screen.getByTestId("terminal")).toBeInTheDocument();
   });
 
   it("displays terminal header with title", () => {
     render(<Terminal taskId={1} />);
-
     expect(screen.getByText("Agent Terminal")).toBeInTheDocument();
   });
 
-  it("shows disconnected status initially", () => {
-    render(<Terminal taskId={1} />);
+  it("spawns terminal session with context ID", async () => {
+    render(<Terminal contextType="task" contextId={42} />);
 
-    // Status should show disconnected initially (before WebSocket connects)
-    expect(screen.getByText(/Disconnected/)).toBeInTheDocument();
+    // Wait for async spawn
+    await vi.waitFor(() => {
+      expect(spawnTerminal).toHaveBeenCalledWith("task-42", undefined);
+    });
   });
 
-  it("creates WebSocket with task ID in URL", () => {
-    render(<Terminal taskId={42} />);
+  it("spawns terminal session with working directory", async () => {
+    render(
+      <Terminal
+        contextType="project"
+        contextId="abc123"
+        workingDirectory="/home/user/project"
+      />,
+    );
 
-    expect(wsInstances.length).toBeGreaterThan(0);
-    expect(wsInstances[0]?.url).toContain("/ws/terminal/task/42");
+    await vi.waitFor(() => {
+      expect(spawnTerminal).toHaveBeenCalledWith(
+        "project-abc123",
+        "/home/user/project",
+      );
+    });
   });
 
-  it("uses custom WebSocket URL when provided", () => {
-    const wsUrl = "ws://test.local:3000/ws/terminal/123";
-    render(<Terminal taskId={123} wsUrl={wsUrl} />);
+  it("checks for existing session before spawning", async () => {
+    vi.mocked(hasTerminalSession).mockResolvedValue(true);
 
-    expect(wsInstances[0]?.url).toBe(wsUrl);
+    render(<Terminal contextType="epic" contextId={5} />);
+
+    await vi.waitFor(() => {
+      expect(hasTerminalSession).toHaveBeenCalledWith("epic-5");
+    });
+
+    // Should not spawn if session already exists
+    expect(spawnTerminal).not.toHaveBeenCalled();
+  });
+
+  it("supports prd-workshop context type", async () => {
+    render(<Terminal contextType="prd-workshop" contextId={1} />);
+
+    await vi.waitFor(() => {
+      expect(spawnTerminal).toHaveBeenCalledWith("prd-workshop-1", undefined);
+    });
   });
 });

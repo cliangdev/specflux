@@ -300,6 +300,7 @@ export default function TerminalPanel() {
                 <Terminal
                   contextType={session.contextType}
                   contextId={session.contextId}
+                  workingDirectory={session.workingDirectory}
                   onStatusChange={createStatusChangeHandler(session.id)}
                   onConnectionChange={createConnectionChangeHandler(session.id)}
                 />

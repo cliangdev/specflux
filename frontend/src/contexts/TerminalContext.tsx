@@ -12,7 +12,7 @@ export interface TaskInfo {
   title: string;
 }
 
-export type ContextType = "task" | "epic" | "project";
+export type ContextType = "task" | "epic" | "project" | "prd-workshop";
 
 export interface AgentInfo {
   id: number | string; // v1 uses number, v2 uses publicId string
@@ -25,6 +25,7 @@ export interface ContextInfo {
   id: number | string; // v1 uses number, v2 uses publicId string
   title: string;
   agent?: AgentInfo;
+  workingDirectory?: string; // Working directory for the terminal
 }
 
 export interface TerminalSession {
@@ -34,6 +35,8 @@ export interface TerminalSession {
   contextTitle: string;
   // Agent assigned to this session (for task contexts)
   agent?: AgentInfo;
+  // Working directory for the terminal
+  workingDirectory?: string;
   // Backwards compatibility aliases
   taskId: number | string; // v1 uses number, v2 uses publicId string
   taskTitle: string;
@@ -87,6 +90,7 @@ interface StoredSession {
   contextId: number | string; // v1 uses number, v2 uses publicId string
   contextTitle: string;
   agent?: AgentInfo;
+  workingDirectory?: string;
 }
 
 interface StoredState {
@@ -143,6 +147,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
         contextId: s.contextId,
         contextTitle: s.contextTitle,
         agent: s.agent,
+        workingDirectory: s.workingDirectory,
         taskId: s.contextId,
         taskTitle: s.contextTitle,
         isRunning: false,
@@ -164,6 +169,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
       contextId: s.contextId,
       contextTitle: s.contextTitle,
       agent: s.agent,
+      workingDirectory: s.workingDirectory,
     }));
 
     const state: StoredState = {
@@ -260,6 +266,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
           contextId: context.id,
           contextTitle: context.title,
           agent: context.agent,
+          workingDirectory: context.workingDirectory,
           // Backwards compat aliases
           taskId: context.id,
           taskTitle: context.title,

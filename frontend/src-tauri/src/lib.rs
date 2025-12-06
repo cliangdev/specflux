@@ -1,3 +1,8 @@
+mod commands;
+mod pty;
+
+use commands::terminal::*;
+use pty::PtyState;
 use tauri_plugin_opener::OpenerExt;
 
 #[tauri::command]
@@ -14,7 +19,16 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
-        .invoke_handler(tauri::generate_handler![open_url])
+        .manage(PtyState::new())
+        .invoke_handler(tauri::generate_handler![
+            open_url,
+            spawn_terminal,
+            terminal_write,
+            terminal_resize,
+            terminal_close,
+            list_terminal_sessions,
+            has_terminal_session,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
