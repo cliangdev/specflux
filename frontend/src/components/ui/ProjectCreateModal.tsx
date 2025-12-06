@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { api, type CreateProjectRequest } from "../../api";
+import { open } from "@tauri-apps/plugin-dialog";
+import { initProjectStructure } from "../../templates";
 
 interface ProjectCreateModalProps {
   onClose: () => void;
@@ -42,9 +44,27 @@ export default function ProjectCreateModal({
 }: ProjectCreateModalProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [localPath, setLocalPath] = useState("");
   const [prdOption, setPrdOption] = useState<PrdOption>("workshop");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleBrowse = async () => {
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        title: "Select Project Directory",
+      });
+
+      if (selected && typeof selected === "string") {
+        setLocalPath(selected);
+      }
+    } catch (err) {
+      console.error("Failed to open directory picker:", err);
+      setError("Failed to open directory picker: " + String(err));
+    }
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -63,11 +83,17 @@ export default function ProjectCreateModal({
         projectKey,
         name: name.trim(),
         description: description.trim() || undefined,
+        localPath: localPath.trim() || undefined,
       };
 
       await api.projects.createProject({
         createProjectRequest: request,
       });
+
+      // Initialize project structure if localPath is set
+      if (localPath.trim()) {
+        await initProjectStructure(localPath.trim());
+      }
 
       // Handle post-creation flow based on PRD option
       if (prdOption === "workshop") {
@@ -171,6 +197,37 @@ export default function ProjectCreateModal({
                 className="input resize-none"
                 rows={2}
               />
+            </div>
+
+            {/* Local Path */}
+            <div>
+              <label
+                htmlFor="localPath"
+                className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
+              >
+                Project Directory{" "}
+                <span className="text-system-400">(optional)</span>
+              </label>
+              <div className="flex gap-2">
+                <input
+                  id="localPath"
+                  type="text"
+                  value={localPath}
+                  onChange={(e) => setLocalPath(e.target.value)}
+                  placeholder="/path/to/your/project"
+                  className="input flex-1"
+                />
+                <button
+                  type="button"
+                  onClick={handleBrowse}
+                  className="px-4 py-2 bg-white dark:bg-system-700 border border-system-200 dark:border-system-600 text-system-700 dark:text-system-300 rounded-lg text-sm font-medium hover:bg-system-50 dark:hover:bg-system-600 transition-colors"
+                >
+                  Browse
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-system-500">
+                Sets up .specflux/ and .claude/ directories with templates
+              </p>
             </div>
 
             {/* PRD Options */}

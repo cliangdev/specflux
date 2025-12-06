@@ -58,17 +58,23 @@ export default function PrdImportModal({
       // Read the source file
       const content = await readTextFile(selectedFile);
 
-      // Ensure .specflux/prds directory exists
-      const prdsDir = await join(projectPath, ".specflux", "prds");
-      const prdsDirExists = await exists(prdsDir);
+      // Get the filename and create a folder name from it
+      const filename = selectedFile.split("/").pop() || "imported-prd.md";
+      const folderName = filename
+        .replace(/\.md$/i, "")
+        .replace(/\s+/g, "-")
+        .toLowerCase();
 
-      if (!prdsDirExists) {
-        await mkdir(prdsDir, { recursive: true });
+      // Create .specflux/prds/{folder-name}/ directory
+      const prdDir = await join(projectPath, ".specflux", "prds", folderName);
+      const prdDirExists = await exists(prdDir);
+
+      if (!prdDirExists) {
+        await mkdir(prdDir, { recursive: true });
       }
 
-      // Get the filename from the path
-      const filename = selectedFile.split("/").pop() || "imported-prd.md";
-      const destPath = await join(prdsDir, filename);
+      // Write the file as prd.md inside the folder
+      const destPath = await join(prdDir, "prd.md");
 
       // Write the file to destination
       await writeTextFile(destPath, content);
@@ -90,10 +96,13 @@ export default function PrdImportModal({
 
   // Get just the filename for display
   const displayFilename = selectedFile?.split("/").pop();
+  // Get the folder name (without .md extension, lowercase, dashes for spaces)
+  const folderName = displayFilename
+    ?.replace(/\.md$/i, "")
+    .replace(/\s+/g, "-")
+    .toLowerCase();
   // Get the destination path preview
-  const destPreview = displayFilename
-    ? `.specflux/prds/${displayFilename}`
-    : null;
+  const destPreview = folderName ? `.specflux/prds/${folderName}/prd.md` : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">

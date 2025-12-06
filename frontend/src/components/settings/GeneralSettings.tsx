@@ -3,6 +3,7 @@ import { useProject } from "../../contexts/ProjectContext";
 import { api } from "../../api";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
+import { initProjectStructure, isProjectInitialized } from "../../templates";
 
 export function GeneralSettings() {
   const { currentProject, refreshProjects, getProjectRef } = useProject();
@@ -119,6 +120,12 @@ export function GeneralSettings() {
           ...formData,
           gitRemote: detectedGitRemote,
         });
+
+        // Initialize project structure if not already done
+        const initialized = await isProjectInitialized(formData.localPath);
+        if (!initialized) {
+          await initProjectStructure(formData.localPath);
+        }
       }
 
       setSuccess(true);
