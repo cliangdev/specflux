@@ -39,10 +39,7 @@ async function getAuthToken(): Promise<string> {
 function createConfiguration(): Configuration {
   // Note: The generated API paths include /api prefix (e.g., /api/projects)
   // so the basePath should NOT include /api
-  const basePath =
-    import.meta.env.VITE_API_BASE_URL ||
-    import.meta.env.VITE_V2_API_BASE_URL ||
-    "http://localhost:8090";
+  const basePath = import.meta.env.VITE_API_BASE_URL || "http://localhost:8090";
   console.log("[API] Using base path:", basePath);
   return new Configuration({
     basePath,

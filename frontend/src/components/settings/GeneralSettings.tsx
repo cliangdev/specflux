@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { useProject } from "../../contexts/ProjectContext";
 import { api } from "../../api";
+import { open } from "@tauri-apps/plugin-dialog";
+import { readTextFile } from "@tauri-apps/plugin-fs";
 
 export function GeneralSettings() {
-  const { currentProject, refreshProjects } = useProject();
+  const { currentProject, refreshProjects, getProjectRef } = useProject();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -15,38 +17,46 @@ export function GeneralSettings() {
     gitRemote: "",
   });
 
+  // Helper function to detect git remote URL by reading .git/config directly
+  // No git CLI required - just file system access
+  const detectGitRemote = async (path: string): Promise<string> => {
+    try {
+      const configPath = `${path}/.git/config`;
+      const content = await readTextFile(configPath);
+      // Parse [remote "origin"] section and extract url
+      const match = content.match(/\[remote "origin"\][^\[]*url\s*=\s*(.+)/);
+      return match?.[1]?.trim() || "";
+    } catch (err) {
+      // .git/config doesn't exist or not readable - not a git repo
+      console.debug("No git remote found:", err);
+    }
+    return "";
+  };
+
   // Load project data
   useEffect(() => {
     if (currentProject) {
       setLoading(true);
+      const projectRef = getProjectRef();
+      if (!projectRef) {
+        setError("Project reference not available");
+        setLoading(false);
+        return;
+      }
       api.projects
-        .getProject({ id: currentProject.id })
-        .then(async (response) => {
-          if (response.success && response.data) {
-            const projectData = response.data;
-
-            // Auto-detect git remote from localPath
-            let detectedGitRemote = "";
-            if (projectData.localPath) {
-              try {
-                const validationResponse =
-                  await api.repositories.validateRepository({
-                    validateRepositoryRequest: { path: projectData.localPath },
-                  });
-                if (validationResponse.success && validationResponse.data) {
-                  detectedGitRemote = validationResponse.data.gitUrl || "";
-                }
-              } catch (err) {
-                console.error("Failed to detect git remote:", err);
-              }
-            }
-
-            setFormData({
-              name: projectData.name || "",
-              localPath: projectData.localPath || "",
-              gitRemote: detectedGitRemote,
-            });
+        .getProject({ ref: projectRef })
+        .then(async (projectData) => {
+          // Auto-detect git remote from localPath
+          let detectedGitRemote = "";
+          if (projectData.localPath) {
+            detectedGitRemote = await detectGitRemote(projectData.localPath);
           }
+
+          setFormData({
+            name: projectData.name || "",
+            localPath: projectData.localPath || "",
+            gitRemote: detectedGitRemote,
+          });
         })
         .catch((err) => {
           setError("Failed to load project settings");
@@ -54,7 +64,31 @@ export function GeneralSettings() {
         })
         .finally(() => setLoading(false));
     }
-  }, [currentProject]);
+  }, [currentProject, getProjectRef]);
+
+  const handleBrowse = async () => {
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        title: "Select Project Directory",
+      });
+
+      if (selected && typeof selected === "string") {
+        // Auto-detect git remote from selected path
+        const detectedGitRemote = await detectGitRemote(selected);
+
+        setFormData({
+          ...formData,
+          localPath: selected,
+          gitRemote: detectedGitRemote,
+        });
+      }
+    } catch (err) {
+      console.error("Failed to open directory picker:", err);
+      setError("Failed to open directory picker: " + String(err));
+    }
+  };
 
   const handleSave = async () => {
     if (!currentProject) return;
@@ -64,20 +98,32 @@ export function GeneralSettings() {
     setSuccess(false);
 
     try {
-      const response = await api.projects.updateProject({
-        id: currentProject.id,
+      const projectRef = getProjectRef();
+      if (!projectRef) {
+        setError("Project reference not available");
+        return;
+      }
+      const oldLocalPath = currentProject.localPath;
+      await api.projects.updateProject({
+        ref: projectRef,
         updateProjectRequest: {
           name: formData.name,
+          localPath: formData.localPath || undefined,
         },
       });
 
-      if (response.success) {
-        setSuccess(true);
-        await refreshProjects();
-        setTimeout(() => setSuccess(false), 3000);
-      } else {
-        setError("Failed to save settings");
+      // Re-detect git remote if localPath changed
+      if (formData.localPath && formData.localPath !== oldLocalPath) {
+        const detectedGitRemote = await detectGitRemote(formData.localPath);
+        setFormData({
+          ...formData,
+          gitRemote: detectedGitRemote,
+        });
       }
+
+      setSuccess(true);
+      await refreshProjects();
+      setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       setError("Failed to save settings");
       console.error(err);
@@ -114,7 +160,7 @@ export function GeneralSettings() {
         />
       </div>
 
-      {/* Local Path (read-only with tooltip) */}
+      {/* Local Path (editable with browse button) */}
       <div>
         <label className="flex items-center gap-2 text-sm font-medium mb-2 text-gray-900 dark:text-white">
           Local Path
@@ -138,13 +184,24 @@ export function GeneralSettings() {
             </span>
           </span>
         </label>
-        <input
-          type="text"
-          value={formData.localPath}
-          disabled
-          readOnly
-          className="w-full bg-gray-100 dark:bg-slate-700 border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm text-gray-500 cursor-not-allowed"
-        />
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={formData.localPath}
+            onChange={(e) =>
+              setFormData({ ...formData, localPath: e.target.value })
+            }
+            className="flex-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
+            placeholder="/Users/you/projects/my-project"
+          />
+          <button
+            type="button"
+            onClick={handleBrowse}
+            className="px-4 py-2 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-600"
+          >
+            Browse
+          </button>
+        </div>
       </div>
 
       {/* Git URL (read-only, auto-detected) */}
