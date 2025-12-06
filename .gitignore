@@ -11,11 +11,8 @@ build/
 frontend/src-tauri/target/
 frontend/src-tauri/Cargo.lock
 
-# Generated files
-orchestrator/generated-client/
-orchestrator/src/types/generated/
-orchestrator/openapi/bundled.yaml
-frontend/src/api/generated/
+# Generated files (orchestrator removed)
+# Note: frontend/src/api/generated/ is now tracked for CI builds
 
 # Database
 *.db
@@ -45,7 +42,6 @@ coverage/
 
 # Local settings (keep settings.json, ignore local overrides)
 .claude/settings.local.json
-orchestrator/data/*.db-*
 
 # SpecFlux runtime artifacts
 # Track directory structure but ignore ephemeral files
