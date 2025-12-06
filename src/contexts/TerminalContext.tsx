@@ -26,6 +26,7 @@ export interface ContextInfo {
   title: string;
   agent?: AgentInfo;
   workingDirectory?: string; // Working directory for the terminal
+  initialCommand?: string; // Command to run after terminal starts (e.g., "claude" for PRD workshop)
 }
 
 export interface TerminalSession {
@@ -37,6 +38,8 @@ export interface TerminalSession {
   agent?: AgentInfo;
   // Working directory for the terminal
   workingDirectory?: string;
+  // Command to run after terminal starts
+  initialCommand?: string;
   // Backwards compatibility aliases
   taskId: number | string; // v1 uses number, v2 uses publicId string
   taskTitle: string;
@@ -91,6 +94,7 @@ interface StoredSession {
   contextTitle: string;
   agent?: AgentInfo;
   workingDirectory?: string;
+  initialCommand?: string;
 }
 
 interface StoredState {
@@ -148,6 +152,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
         contextTitle: s.contextTitle,
         agent: s.agent,
         workingDirectory: s.workingDirectory,
+        initialCommand: s.initialCommand,
         taskId: s.contextId,
         taskTitle: s.contextTitle,
         isRunning: false,
@@ -170,6 +175,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
       contextTitle: s.contextTitle,
       agent: s.agent,
       workingDirectory: s.workingDirectory,
+      initialCommand: s.initialCommand,
     }));
 
     const state: StoredState = {
@@ -267,6 +273,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
           contextTitle: context.title,
           agent: context.agent,
           workingDirectory: context.workingDirectory,
+          initialCommand: context.initialCommand,
           // Backwards compat aliases
           taskId: context.id,
           taskTitle: context.title,

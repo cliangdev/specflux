@@ -32,6 +32,7 @@ interface TerminalProps {
   contextId?: number | string; // v1 uses number, v2 uses publicId string
   taskId?: number | string; // Deprecated: use contextType + contextId instead
   workingDirectory?: string; // Working directory for the terminal
+  initialCommand?: string; // Command to run after terminal starts (e.g., "claude" then "/prd")
   onStatusChange?: (running: boolean) => void;
   onConnectionChange?: (connected: boolean) => void;
   onExit?: (exitCode: number) => void;
@@ -55,6 +56,7 @@ export function Terminal({
   contextId,
   taskId, // Deprecated
   workingDirectory,
+  initialCommand,
   onStatusChange,
   onConnectionChange,
   onExit,
@@ -81,6 +83,9 @@ export function Terminal({
 
   // Session ID for Tauri IPC
   const sessionId = `${effectiveContextType}-${effectiveContextId}`;
+
+  // Track if initial command has been sent (only send once per session)
+  const initialCommandSentRef = useRef(false);
 
   // Use refs for callbacks to avoid reconnection loops
   const runningRef = useRef(running);
@@ -267,6 +272,7 @@ export function Terminal({
     const term = xtermRef.current;
     if (!term || !effectiveContextId) return;
 
+    let cancelled = false;
     let outputUnlisten: (() => void) | undefined;
     let exitUnlisten: (() => void) | undefined;
     let inputDisposer: { dispose: () => void } | undefined;
@@ -276,10 +282,16 @@ export function Terminal({
         // Check if session already exists (reconnecting)
         const exists = await hasTerminalSession(sessionId);
 
+        // Check if effect was cancelled during async operation (React Strict Mode)
+        if (cancelled) return;
+
         if (!exists) {
           // Spawn new terminal session
           await spawnTerminal(sessionId, workingDirectory);
         }
+
+        // Check again after spawn
+        if (cancelled) return;
 
         setConnected(true);
         setRunning(true);
@@ -288,6 +300,17 @@ export function Terminal({
 
         // Send initial resize
         await resizeTerminalIpc(sessionId, term.cols, term.rows);
+
+        // Send initial command if provided and not already sent
+        if (initialCommand && !initialCommandSentRef.current) {
+          initialCommandSentRef.current = true;
+          // Small delay to let the shell initialize before sending command
+          setTimeout(async () => {
+            if (!cancelled) {
+              await writeToTerminal(sessionId, initialCommand + "\n");
+            }
+          }, 500);
+        }
 
         // Listen for terminal output
         outputUnlisten = await onTerminalOutput((event) => {
@@ -353,6 +376,7 @@ export function Terminal({
     connect();
 
     return () => {
+      cancelled = true;
       inputDisposer?.dispose();
       outputUnlisten?.();
       exitUnlisten?.();

@@ -122,9 +122,6 @@ describe("TaskEditModal", () => {
       expect(api.epics.listEpics).toHaveBeenCalledWith({
         projectRef: projectId,
       });
-      expect(api.repositories.listRepositories).toHaveBeenCalledWith({
-        projectRef: projectId,
-      });
     });
   });
 
@@ -137,17 +134,6 @@ describe("TaskEditModal", () => {
     });
 
     expect(screen.getByText("No Epic")).toBeInTheDocument();
-  });
-
-  it("loads and displays repositories in dropdown", async () => {
-    renderModal();
-
-    await waitFor(() => {
-      expect(screen.getByText("test-repo")).toBeInTheDocument();
-      expect(screen.getByText("other-repo")).toBeInTheDocument();
-    });
-
-    expect(screen.getByText("No Repository")).toBeInTheDocument();
   });
 
   it("pre-selects epic from task data", async () => {

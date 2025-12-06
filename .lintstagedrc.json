@@ -1,9 +1,5 @@
 {
-  "orchestrator/src/**/*.ts": [
-    "prettier --write",
-    "npm run lint:fix --workspace=orchestrator --"
-  ],
-  "frontend/src/**/*.{ts,tsx}": [
-    "prettier --write"
+  "src/**/*.{ts,tsx}": [
+    "eslint --fix"
   ]
 }

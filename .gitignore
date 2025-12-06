@@ -8,11 +8,10 @@ build/
 *.tsbuildinfo
 
 # Tauri
-frontend/src-tauri/target/
-frontend/src-tauri/Cargo.lock
+src-tauri/target/
 
 # Generated API client (regenerated in CI)
-frontend/src/api/generated/
+src/api/generated/
 
 # Database
 *.db

@@ -5,20 +5,44 @@ import TasksPage from "./TasksPage";
 import { ProjectProvider } from "../contexts";
 import type { Task, Project } from "../api";
 
-vi.mock("../api", () => ({
-  api: {
-    projects: {
-      listProjects: vi.fn(),
-    },
-    tasks: {
-      listTasks: vi.fn(),
-      createTask: vi.fn(),
-    },
-    epics: {
-      listEpics: vi.fn(),
-    },
-  },
+// Mock AuthContext to simulate signed-in user
+vi.mock("../contexts/AuthContext", () => ({
+  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+  useAuth: () => ({
+    user: { uid: "user_123", email: "test@example.com" },
+    loading: false,
+    isSignedIn: true,
+    signInWithEmail: vi.fn(),
+    signInWithGitHub: vi.fn(),
+    signOut: vi.fn(),
+    getIdToken: vi.fn().mockResolvedValue("mock-token"),
+    error: null,
+  }),
 }));
+
+vi.mock("../api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api")>();
+  return {
+    ...actual,
+    api: {
+      projects: {
+        listProjects: vi.fn(),
+      },
+      tasks: {
+        listTasks: vi.fn(),
+        createTask: vi.fn(),
+      },
+      epics: {
+        listEpics: vi.fn(),
+      },
+      agents: {
+        listAgents: vi
+          .fn()
+          .mockResolvedValue({ data: [], pagination: { hasMore: false } }),
+      },
+    },
+  };
+});
 
 // Default pagination response
 const mockPagination: {

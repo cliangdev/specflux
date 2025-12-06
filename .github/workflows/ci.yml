@@ -21,8 +21,6 @@ jobs:
   lint:
     name: Lint & Format
     runs-on: ubuntu-latest
-    # TODO: Enable once eslint.config.js is added to frontend
-    if: false
     steps:
       - uses: actions/checkout@v4
 
@@ -34,7 +32,7 @@ jobs:
       - run: npm ci
 
       - name: ESLint
-        run: npm run lint --workspace=frontend
+        run: npm run lint
 
   typecheck:
     name: Type Check
@@ -50,15 +48,14 @@ jobs:
       - run: npm ci
 
       - name: Generate API Client
-        run: npm run generate:client --workspace=frontend
+        run: npm run generate:client
 
       - name: TypeScript
-        run: npm run typecheck --workspace=frontend
+        run: npm run typecheck
 
   test:
     name: Tests
     runs-on: ubuntu-latest
-    continue-on-error: true  # Pre-existing test failures
     steps:
       - uses: actions/checkout@v4
 
@@ -70,10 +67,10 @@ jobs:
       - run: npm ci
 
       - name: Generate API Client
-        run: npm run generate:client --workspace=frontend
+        run: npm run generate:client
 
       - name: Run tests
-        run: npm run test:coverage --workspace=frontend -- --run --reporter=default --reporter=junit --outputFile=junit.xml
+        run: npm run test:coverage -- --run --reporter=default --reporter=junit --outputFile=junit.xml
         env:
           JEST_JUNIT_OUTPUT_DIR: ${{ github.workspace }}
 
@@ -82,7 +79,7 @@ jobs:
         if: success() || failure()
         with:
           name: Test Results
-          path: frontend/junit.xml
+          path: junit.xml
           reporter: jest-junit
           fail-on-error: false
 
@@ -90,7 +87,7 @@ jobs:
         uses: codecov/codecov-action@v4
         if: github.ref == 'refs/heads/main'
         with:
-          directory: frontend/coverage
+          directory: coverage
           fail_ci_if_error: false
 
   build:
@@ -107,7 +104,7 @@ jobs:
       - run: npm ci
 
       - name: Generate API Client
-        run: npm run generate:client --workspace=frontend
+        run: npm run generate:client
 
       - name: Build
-        run: npm run build --workspace=frontend
+        run: npm run build

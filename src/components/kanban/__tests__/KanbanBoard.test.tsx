@@ -1,7 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { KanbanBoard } from "../KanbanBoard";
-import { TaskStatus, TaskPriority } from "../../../api";
 
 // Mock dnd-kit
 vi.mock("@dnd-kit/core", () => ({
@@ -50,8 +49,8 @@ const mockTasks = [
     id: "task_1",
     displayKey: "PROJ-1",
     title: "Task in Backlog",
-    status: TaskStatus.Backlog,
-    priority: TaskPriority.Medium,
+    status: "BACKLOG",
+    priority: "MEDIUM",
     projectId: "proj_abc",
     requiresApproval: false,
     createdById: "user_1",
@@ -62,8 +61,8 @@ const mockTasks = [
     id: "task_2",
     displayKey: "PROJ-2",
     title: "Task in Progress",
-    status: TaskStatus.InProgress,
-    priority: TaskPriority.High,
+    status: "IN_PROGRESS",
+    priority: "HIGH",
     projectId: "proj_abc",
     requiresApproval: false,
     createdById: "user_1",
@@ -74,8 +73,8 @@ const mockTasks = [
     id: "task_3",
     displayKey: "PROJ-3",
     title: "Task Completed",
-    status: TaskStatus.Completed,
-    priority: TaskPriority.Low,
+    status: "COMPLETED",
+    priority: "LOW",
     projectId: "proj_abc",
     requiresApproval: false,
     createdById: "user_1",
@@ -138,7 +137,7 @@ describe("KanbanBoard", () => {
       expect(screen.getByText("Backlog")).toBeInTheDocument();
       expect(screen.getByText("Ready")).toBeInTheDocument();
       expect(screen.getByText("In Progress")).toBeInTheDocument();
-      expect(screen.getByText("Review")).toBeInTheDocument();
+      expect(screen.getByText("In Review")).toBeInTheDocument();
       expect(screen.getByText("Done")).toBeInTheDocument();
     });
   });

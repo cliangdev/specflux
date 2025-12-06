@@ -10,6 +10,21 @@ vi.mock("../../api", () => ({
   },
 }));
 
+// Mock Tauri dialog plugin
+vi.mock("@tauri-apps/plugin-dialog", () => ({
+  open: vi.fn(),
+}));
+
+// Mock Tauri path API
+vi.mock("@tauri-apps/api/path", () => ({
+  join: vi.fn((...args: string[]) => Promise.resolve(args.join("/"))),
+}));
+
+// Mock templates
+vi.mock("../../templates", () => ({
+  initProjectStructure: vi.fn(() => Promise.resolve()),
+}));
+
 import { api } from "../../api";
 
 describe("ProjectCreateModal", () => {
@@ -31,8 +46,8 @@ describe("ProjectCreateModal", () => {
 
     expect(screen.getByText("Create New Project")).toBeInTheDocument();
     expect(screen.getByLabelText(/Project Name/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Local Path/)).toBeInTheDocument();
-    expect(screen.getByText("Startup Fast")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Project Directory/)).toBeInTheDocument();
+    expect(screen.getByText("Start PRD Workshop")).toBeInTheDocument();
   });
 
   it("calls onClose when clicking backdrop", () => {
@@ -55,7 +70,7 @@ describe("ProjectCreateModal", () => {
   it("disables submit button when name is empty", () => {
     renderModal();
 
-    fireEvent.change(screen.getByLabelText(/Local Path/), {
+    fireEvent.change(screen.getByLabelText(/Project Directory/), {
       target: { value: "/some/path" },
     });
 
@@ -63,7 +78,7 @@ describe("ProjectCreateModal", () => {
     expect(submitButton).toBeDisabled();
   });
 
-  it("disables submit button when local path is empty", () => {
+  it("enables submit button when name is filled (local path is optional)", () => {
     renderModal();
 
     fireEvent.change(screen.getByLabelText(/Project Name/), {
@@ -71,7 +86,7 @@ describe("ProjectCreateModal", () => {
     });
 
     const submitButton = screen.getByText("Create Project").closest("button");
-    expect(submitButton).toBeDisabled();
+    expect(submitButton).not.toBeDisabled();
   });
 
   it("submits form and calls callbacks on success", async () => {
@@ -90,7 +105,7 @@ describe("ProjectCreateModal", () => {
     fireEvent.change(screen.getByLabelText(/Project Name/), {
       target: { value: "Test Project" },
     });
-    fireEvent.change(screen.getByLabelText(/Local Path/), {
+    fireEvent.change(screen.getByLabelText(/Project Directory/), {
       target: { value: "/test/path" },
     });
     fireEvent.click(screen.getByText("Create Project"));
@@ -113,7 +128,7 @@ describe("ProjectCreateModal", () => {
     fireEvent.change(screen.getByLabelText(/Project Name/), {
       target: { value: "Test Project" },
     });
-    fireEvent.change(screen.getByLabelText(/Local Path/), {
+    fireEvent.change(screen.getByLabelText(/Project Directory/), {
       target: { value: "/test/path" },
     });
     fireEvent.click(screen.getByText("Create Project"));
@@ -126,13 +141,13 @@ describe("ProjectCreateModal", () => {
     expect(mockOnClose).not.toHaveBeenCalled();
   });
 
-  it("allows selecting different workflow templates", () => {
+  it("allows selecting different PRD options", () => {
     renderModal();
 
-    const designFirst = screen.getByLabelText(/Design First/);
-    fireEvent.click(designFirst);
+    const skipOption = screen.getByLabelText(/Skip for now/);
+    fireEvent.click(skipOption);
 
-    expect(designFirst).toBeChecked();
+    expect(skipOption).toBeChecked();
   });
 
   it("disables submit button while submitting", async () => {
@@ -145,7 +160,7 @@ describe("ProjectCreateModal", () => {
     fireEvent.change(screen.getByLabelText(/Project Name/), {
       target: { value: "Test" },
     });
-    fireEvent.change(screen.getByLabelText(/Local Path/), {
+    fireEvent.change(screen.getByLabelText(/Project Directory/), {
       target: { value: "/path" },
     });
     fireEvent.click(screen.getByText("Create Project"));

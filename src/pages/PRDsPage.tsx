@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { readDir, stat } from "@tauri-apps/plugin-fs";
 import { join } from "@tauri-apps/api/path";
 import { useProject } from "../contexts/ProjectContext";
+import { useTerminal } from "../contexts/TerminalContext";
 import PrdImportModal from "../components/ui/PrdImportModal";
 
 interface PrdFolder {
@@ -15,6 +16,7 @@ interface PrdFolder {
 export default function PRDsPage() {
   const navigate = useNavigate();
   const { currentProject } = useProject();
+  const { openTerminalForContext } = useTerminal();
   const [prdFolders, setPrdFolders] = useState<PrdFolder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -225,8 +227,13 @@ export default function PRDsPage() {
           <button
             className="btn btn-primary"
             onClick={() => {
-              // TODO: Phase 2B - Open PRD workshop
-              console.log("New PRD - will be implemented in Phase 2B");
+              openTerminalForContext({
+                type: "prd-workshop",
+                id: `new-${Date.now()}`,
+                title: "PRD Workshop",
+                workingDirectory: currentProject?.localPath,
+                initialCommand: "claude",
+              });
             }}
           >
             <svg

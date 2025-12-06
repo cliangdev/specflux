@@ -4,6 +4,21 @@ import ProjectSelector from "./ProjectSelector";
 import { ProjectProvider } from "../../contexts";
 import type { Project } from "../../api";
 
+// Mock AuthContext to simulate signed-in user
+vi.mock("../../contexts/AuthContext", () => ({
+  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+  useAuth: () => ({
+    user: { uid: "user_123", email: "test@example.com" },
+    loading: false,
+    isSignedIn: true,
+    signInWithEmail: vi.fn(),
+    signInWithGitHub: vi.fn(),
+    signOut: vi.fn(),
+    getIdToken: vi.fn().mockResolvedValue("mock-token"),
+    error: null,
+  }),
+}));
+
 // Mock the api module
 vi.mock("../../api", () => ({
   api: {

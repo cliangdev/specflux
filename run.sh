@@ -144,10 +144,10 @@ run_app() {
     echo "Starting SpecFlux desktop app..."
     echo ""
 
-    install_deps "frontend"
+    install_deps "."
     kill_port 5173
     kill_port 1420
-    (cd frontend && npm run tauri:dev) &
+    npm run tauri:dev &
     FRONTEND_PID=$!
 
     echo ""
@@ -165,9 +165,9 @@ run_web() {
     echo "Starting SpecFlux web development server..."
     echo ""
 
-    install_deps "frontend"
+    install_deps "."
     kill_port 5173
-    (cd frontend && npm run dev) &
+    npm run dev &
     FRONTEND_PID=$!
 
     echo ""

@@ -1721,9 +1721,9 @@ Implementation is organized into small, testable increments. Each phase has a cl
 **Goal:** Terminal helps create PRDs
 
 **Build:**
-- [ ] "Start PRD Workshop" opens terminal with `/prd` pre-typed
-- [ ] Terminal context header shows "Context: PRD Workshop"
-- [ ] Refine `/prd` slash command template based on testing
+- [x] "Start PRD Workshop" opens terminal with `/prd` pre-typed
+- [x] Terminal context header shows "Context: PRD Workshop"
+- [x] Refine `/prd` slash command template based on testing
 
 **Test It:** Create project with "Start PRD Workshop" → terminal opens → walk through PRD interview → PRD saved → appears in PRDs page
 

@@ -22,6 +22,9 @@ import { getIdToken } from "../lib/firebase";
 /**
  * Get current Firebase ID token for Authorization header.
  * Returns empty string if not authenticated (will result in 401).
+ *
+ * Note: This function is called per-request by the generated OpenAPI client,
+ * so we don't need to create new API instances for each call.
  */
 async function getAuthToken(): Promise<string> {
   const token = await getIdToken();
@@ -33,23 +36,18 @@ async function getAuthToken(): Promise<string> {
 }
 
 /**
- * Create API configuration with Firebase authentication.
- * Uses accessToken function for lazy token retrieval.
+ * Shared configuration for all API clients.
+ * The accessToken callback is invoked per-request, ensuring fresh tokens.
  */
-function createConfiguration(): Configuration {
-  // Note: The generated API paths include /api prefix (e.g., /api/projects)
-  // so the basePath should NOT include /api
-  const basePath = import.meta.env.VITE_API_BASE_URL || "http://localhost:8090";
-  console.log("[API] Using base path:", basePath);
-  return new Configuration({
-    basePath,
-    accessToken: getAuthToken,
-  });
-}
+const config = new Configuration({
+  basePath: import.meta.env.VITE_API_BASE_URL || "http://localhost:8090",
+  accessToken: getAuthToken,
+});
 
 /**
  * API client instances for Spring Boot backend.
- * Each instance is created fresh to ensure current auth token is used.
+ * Singleton instances that share the same configuration.
+ * Auth tokens are refreshed per-request via the accessToken callback.
  *
  * Available APIs:
  * - agents: Agent management (nested under projects)
@@ -63,33 +61,15 @@ function createConfiguration(): Configuration {
  * - users: User profile management
  */
 export const api = {
-  get agents() {
-    return new AgentsApi(createConfiguration());
-  },
-  get epics() {
-    return new EpicsApi(createConfiguration());
-  },
-  get mcpServers() {
-    return new McpServersApi(createConfiguration());
-  },
-  get projects() {
-    return new ProjectsApi(createConfiguration());
-  },
-  get releases() {
-    return new ReleasesApi(createConfiguration());
-  },
-  get repositories() {
-    return new RepositoriesApi(createConfiguration());
-  },
-  get skills() {
-    return new SkillsApi(createConfiguration());
-  },
-  get tasks() {
-    return new TasksApi(createConfiguration());
-  },
-  get users() {
-    return new UsersApi(createConfiguration());
-  },
+  agents: new AgentsApi(config),
+  epics: new EpicsApi(config),
+  mcpServers: new McpServersApi(config),
+  projects: new ProjectsApi(config),
+  releases: new ReleasesApi(config),
+  repositories: new RepositoriesApi(config),
+  skills: new SkillsApi(config),
+  tasks: new TasksApi(config),
+  users: new UsersApi(config),
 };
 
 // Re-export types and APIs for direct usage if needed
