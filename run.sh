@@ -9,20 +9,20 @@ show_help() {
     echo "Usage: ./run.sh [option]"
     echo ""
     echo "Options:"
-    echo "  app       Run desktop app + backend (default)"
-    echo "  web       Run web dev server + backend"
-    echo "  backend   Run backend only"
+    echo "  app       Run desktop app (default)"
+    echo "  web       Run web dev server only"
     echo "  --help    Show this help message"
     echo ""
     echo "Examples:"
-    echo "  ./run.sh          # Runs desktop app with backend"
-    echo "  ./run.sh app      # Runs desktop app with backend"
-    echo "  ./run.sh web      # Runs web server with backend"
-    echo "  ./run.sh backend  # Runs backend only"
+    echo "  ./run.sh          # Runs desktop app"
+    echo "  ./run.sh app      # Runs desktop app"
+    echo "  ./run.sh web      # Runs web dev server"
     echo ""
     echo "URLs:"
-    echo "  Backend:  http://localhost:3000"
+    echo "  Backend (Spring Boot): http://localhost:8090 (start separately)"
     echo "  Frontend: http://localhost:5173 (web mode)"
+    echo ""
+    echo "Note: Spring Boot backend should be started separately if needed."
 }
 
 check_node() {
@@ -124,30 +124,18 @@ kill_port() {
     fi
 }
 
-BACKEND_PID=""
 FRONTEND_PID=""
 
 cleanup() {
     echo ""
     echo "Shutting down..."
-    [ -n "$BACKEND_PID" ] && kill $BACKEND_PID 2>/dev/null
     [ -n "$FRONTEND_PID" ] && kill $FRONTEND_PID 2>/dev/null
     # Kill any remaining processes on our ports
-    kill_port 3000
     kill_port 5173
     exit 0
 }
 
 trap cleanup SIGINT SIGTERM
-
-start_backend() {
-    echo "Starting backend on http://localhost:3000..."
-    install_deps "orchestrator"
-    kill_port 3000
-    (cd orchestrator && npm run dev) &
-    BACKEND_PID=$!
-    sleep 3
-}
 
 run_app() {
     check_node
@@ -156,20 +144,17 @@ run_app() {
     echo "Starting SpecFlux desktop app..."
     echo ""
 
-    start_backend
-
-    echo "Starting desktop app..."
-    install_deps "frontend"
+    install_deps "."
     kill_port 5173
     kill_port 1420
-    (cd frontend && npm run tauri:dev) &
+    npm run tauri:dev &
     FRONTEND_PID=$!
 
     echo ""
-    echo "Backend running at http://localhost:3000"
     echo "Desktop app starting..."
+    echo "Note: Start Spring Boot backend separately on port 8090 if needed."
     echo ""
-    echo "Press Ctrl+C to stop all servers"
+    echo "Press Ctrl+C to stop"
 
     wait
 }
@@ -177,36 +162,17 @@ run_app() {
 run_web() {
     check_node
 
-    echo "Starting SpecFlux web development servers..."
+    echo "Starting SpecFlux web development server..."
     echo ""
 
-    start_backend
-
-    echo "Starting frontend on http://localhost:5173..."
-    install_deps "frontend"
+    install_deps "."
     kill_port 5173
-    (cd frontend && npm run dev) &
+    npm run dev &
     FRONTEND_PID=$!
 
     echo ""
-    echo "Backend running at http://localhost:3000"
     echo "Frontend running at http://localhost:5173"
-    echo ""
-    echo "Press Ctrl+C to stop both servers"
-
-    wait
-}
-
-run_backend_only() {
-    check_node
-
-    echo "Starting SpecFlux backend only..."
-    echo ""
-
-    start_backend
-
-    echo ""
-    echo "Backend running at http://localhost:3000"
+    echo "Note: Start Spring Boot backend separately on port 8090 if needed."
     echo ""
     echo "Press Ctrl+C to stop"
 
@@ -219,9 +185,6 @@ case "${1:-app}" in
         ;;
     web)
         run_web
-        ;;
-    backend)
-        run_backend_only
         ;;
     --help|-h)
         show_help

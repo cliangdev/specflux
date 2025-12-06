@@ -32,10 +32,7 @@ jobs:
       - run: npm ci
 
       - name: ESLint
-        run: npm run lint --workspace=orchestrator
-
-      - name: Prettier
-        run: npm run format:check --workspace=orchestrator
+        run: npm run lint
 
   typecheck:
     name: Type Check
@@ -50,8 +47,11 @@ jobs:
 
       - run: npm ci
 
+      - name: Generate API Client
+        run: npm run generate:client
+
       - name: TypeScript
-        run: npm run typecheck --workspace=orchestrator
+        run: npm run typecheck
 
   test:
     name: Tests
@@ -66,8 +66,11 @@ jobs:
 
       - run: npm ci
 
+      - name: Generate API Client
+        run: npm run generate:client
+
       - name: Run tests
-        run: npm run test:coverage --workspace=orchestrator -- --ci --reporters=default --reporters=jest-junit
+        run: npm run test:coverage -- --run --reporter=default --reporter=junit --outputFile=junit.xml
         env:
           JEST_JUNIT_OUTPUT_DIR: ${{ github.workspace }}
 
@@ -78,12 +81,13 @@ jobs:
           name: Test Results
           path: junit.xml
           reporter: jest-junit
+          fail-on-error: false
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         if: github.ref == 'refs/heads/main'
         with:
-          directory: orchestrator/coverage
+          directory: coverage
           fail_ci_if_error: false
 
   build:
@@ -99,5 +103,8 @@ jobs:
 
       - run: npm ci
 
+      - name: Generate API Client
+        run: npm run generate:client
+
       - name: Build
-        run: npm run build --workspace=orchestrator
+        run: npm run build

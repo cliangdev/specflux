@@ -8,14 +8,10 @@ build/
 *.tsbuildinfo
 
 # Tauri
-frontend/src-tauri/target/
-frontend/src-tauri/Cargo.lock
+src-tauri/target/
 
-# Generated files
-orchestrator/generated-client/
-orchestrator/src/types/generated/
-orchestrator/openapi/bundled.yaml
-frontend/src/api/generated/
+# Generated API client (regenerated in CI)
+src/api/generated/
 
 # Database
 *.db
@@ -45,7 +41,6 @@ coverage/
 
 # Local settings (keep settings.json, ignore local overrides)
 .claude/settings.local.json
-orchestrator/data/*.db-*
 
 # SpecFlux runtime artifacts
 # Track directory structure but ignore ephemeral files
