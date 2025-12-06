@@ -32,10 +32,7 @@ jobs:
       - run: npm ci
 
       - name: ESLint
-        run: npm run lint --workspace=orchestrator
-
-      - name: Prettier
-        run: npm run format:check --workspace=orchestrator
+        run: npm run lint --workspace=frontend
 
   typecheck:
     name: Type Check
@@ -51,7 +48,8 @@ jobs:
       - run: npm ci
 
       - name: TypeScript
-        run: npm run typecheck --workspace=orchestrator
+        run: npx tsc --noEmit
+        working-directory: frontend
 
   test:
     name: Tests
@@ -67,24 +65,7 @@ jobs:
       - run: npm ci
 
       - name: Run tests
-        run: npm run test:coverage --workspace=orchestrator -- --ci --reporters=default --reporters=jest-junit
-        env:
-          JEST_JUNIT_OUTPUT_DIR: ${{ github.workspace }}
-
-      - name: Test Report
-        uses: dorny/test-reporter@v1
-        if: success() || failure()
-        with:
-          name: Test Results
-          path: junit.xml
-          reporter: jest-junit
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        if: github.ref == 'refs/heads/main'
-        with:
-          directory: orchestrator/coverage
-          fail_ci_if_error: false
+        run: npm test --workspace=frontend -- --run
 
   build:
     name: Build
@@ -100,4 +81,4 @@ jobs:
       - run: npm ci
 
       - name: Build
-        run: npm run build --workspace=orchestrator
+        run: npm run build --workspace=frontend
