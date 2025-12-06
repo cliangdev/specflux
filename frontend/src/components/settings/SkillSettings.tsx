@@ -1,31 +1,53 @@
 import { useState, useEffect, useCallback } from "react";
 import { useProject } from "../../contexts/ProjectContext";
-import { api } from "../../api";
-import type { Skill } from "../../api/generated/models/Skill";
+import { readDir, readTextFile } from "@tauri-apps/plugin-fs";
+import { extractDescription } from "./AgentSettings";
+
+// Local skill type for filesystem-based skills
+export interface LocalSkill {
+  id: string;
+  name: string;
+  description?: string;
+  folderPath: string;
+}
 
 export function SkillSettings() {
   const { currentProject } = useProject();
   const [loading, setLoading] = useState(false);
-  const [skills, setSkills] = useState<Skill[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [skills, setSkills] = useState<LocalSkill[]>([]);
 
-  // Load skills on mount
+  // Load skills from filesystem (.claude/skills/*/SKILL.md)
   const loadSkills = useCallback(async () => {
-    if (!currentProject?.publicId) return;
+    if (!currentProject?.localPath) return;
 
     setLoading(true);
-    setError(null);
 
     try {
-      // Load skills from v2 API
-      const response = await api.skills.listSkills({
-        projectRef: currentProject.publicId,
-      });
+      const skillsDir = `${currentProject.localPath}/.claude/skills`;
+      const entries = await readDir(skillsDir);
+      const loadedSkills: LocalSkill[] = [];
 
-      setSkills(response.data ?? []);
-    } catch (err) {
-      setError("Failed to load skills");
-      console.error(err);
+      for (const entry of entries) {
+        if (entry.isDirectory && entry.name) {
+          try {
+            const skillPath = `${skillsDir}/${entry.name}/SKILL.md`;
+            const content = await readTextFile(skillPath);
+            loadedSkills.push({
+              id: entry.name,
+              name: entry.name,
+              description: extractDescription(content),
+              folderPath: `.claude/skills/${entry.name}`,
+            });
+          } catch {
+            // No SKILL.md in this directory, skip
+          }
+        }
+      }
+
+      setSkills(loadedSkills);
+    } catch {
+      // Directory doesn't exist - show empty state
+      setSkills([]);
     } finally {
       setLoading(false);
     }
@@ -34,22 +56,6 @@ export function SkillSettings() {
   useEffect(() => {
     loadSkills();
   }, [loadSkills]);
-
-  const handleDelete = async (skill: Skill) => {
-    if (!currentProject?.publicId) return;
-    setError(null);
-
-    try {
-      await api.skills.deleteSkill({
-        projectRef: currentProject.publicId,
-        skillRef: skill.publicId,
-      });
-      await loadSkills();
-    } catch (err) {
-      setError("Failed to delete skill");
-      console.error(err);
-    }
-  };
 
   if (!currentProject) {
     return (
@@ -74,13 +80,6 @@ export function SkillSettings() {
           Skills auto-invoke based on file patterns when working in Claude Code
         </p>
       </div>
-
-      {/* Error message */}
-      {error && (
-        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-sm text-red-800 dark:text-red-200">
-          {error}
-        </div>
-      )}
 
       {/* Info */}
       <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
@@ -132,45 +131,7 @@ export function SkillSettings() {
                   <div className="text-xs text-gray-500 dark:text-gray-400 font-mono mt-2">
                     {skill.folderPath}
                   </div>
-                  {skill.filePatterns && skill.filePatterns.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {skill.filePatterns.slice(0, 3).map((pattern, idx) => (
-                        <span
-                          key={idx}
-                          className="text-xs bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 px-2 py-0.5 rounded font-mono"
-                        >
-                          {pattern}
-                        </span>
-                      ))}
-                      {skill.filePatterns.length > 3 && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          +{skill.filePatterns.length - 3} more
-                        </span>
-                      )}
-                    </div>
-                  )}
                 </div>
-
-                {/* Delete button */}
-                <button
-                  onClick={() => handleDelete(skill)}
-                  className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded hover:bg-gray-100 dark:hover:bg-slate-700"
-                  title="Delete"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                </button>
               </div>
             </div>
           ))}
