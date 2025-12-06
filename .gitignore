@@ -11,8 +11,8 @@ build/
 frontend/src-tauri/target/
 frontend/src-tauri/Cargo.lock
 
-# Generated files (orchestrator removed)
-# Note: frontend/src/api/generated/ is now tracked for CI builds
+# Generated API client (regenerated in CI)
+frontend/src/api/generated/
 
 # Database
 *.db

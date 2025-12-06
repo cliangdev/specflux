@@ -16,8 +16,7 @@
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "typecheck": "tsc --noEmit",
-    "generate:api": "cd ../orchestrator && npm run generate:client",
-    "generate:api:v2": "openapi-generator-cli generate -i ../../specflux-backend/src/main/resources/openapi/api.yaml -g typescript-fetch -o src/api/v2/generated --additional-properties=supportsES6=true,typescriptThreePlus=true,withInterfaces=true"
+    "generate:client": "openapi-generator-cli generate -i openapi/api.yaml -g typescript-fetch -o src/api/generated --additional-properties=supportsES6=true,typescriptThreePlus=true,withInterfaces=true"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

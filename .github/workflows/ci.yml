@@ -39,7 +39,6 @@ jobs:
   typecheck:
     name: Type Check
     runs-on: ubuntu-latest
-    continue-on-error: true  # Pre-existing v2 API migration issues
     steps:
       - uses: actions/checkout@v4
 
@@ -49,6 +48,9 @@ jobs:
           cache: 'npm'
 
       - run: npm ci
+
+      - name: Generate API Client
+        run: npm run generate:client --workspace=frontend
 
       - name: TypeScript
         run: npm run typecheck --workspace=frontend
@@ -56,7 +58,7 @@ jobs:
   test:
     name: Tests
     runs-on: ubuntu-latest
-    continue-on-error: true  # Pre-existing v2 API migration issues
+    continue-on-error: true  # Pre-existing test failures
     steps:
       - uses: actions/checkout@v4
 
@@ -66,6 +68,9 @@ jobs:
           cache: 'npm'
 
       - run: npm ci
+
+      - name: Generate API Client
+        run: npm run generate:client --workspace=frontend
 
       - name: Run tests
         run: npm run test:coverage --workspace=frontend -- --run --reporter=default --reporter=junit --outputFile=junit.xml
@@ -91,7 +96,6 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    continue-on-error: true  # Pre-existing v2 API migration issues
     steps:
       - uses: actions/checkout@v4
 
@@ -101,6 +105,9 @@ jobs:
           cache: 'npm'
 
       - run: npm ci
+
+      - name: Generate API Client
+        run: npm run generate:client --workspace=frontend
 
       - name: Build
         run: npm run build --workspace=frontend
