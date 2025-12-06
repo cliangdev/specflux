@@ -139,7 +139,7 @@ interface TaskDetailHeaderProps {
   projectRef?: string;
   onStatusChange: (status: string) => void;
   onEpicChange: (epicId: number | string | null) => void;
-  onAgentChange: (agentId: number | null, agent: Agent | null) => void;
+  onAgentChange: (agentId: string | null, agent: Agent | null) => void;
   onTitleChange: (title: string) => void;
   onDelete: () => void;
   onBack: () => void;
@@ -365,7 +365,7 @@ export default function TaskDetailHeader({
             Epic:
           </span>
           <EpicSelector
-            projectId={task.projectId}
+            projectId={Number(task.projectId)}
             projectRef={projectRef}
             selectedEpicId={task.epicId}
             onChange={onEpicChange}
@@ -383,7 +383,7 @@ export default function TaskDetailHeader({
             </span>
             <AgentSelector
               projectId={task.projectId}
-              selectedAgentId={task.assignedAgentId}
+              selectedAgentId={task.assignedToId}
               onChange={onAgentChange}
               variant="inline"
             />

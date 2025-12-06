@@ -20,10 +20,18 @@ type EpicWithV2Fields = Omit<Epic, "dependsOn" | "taskStats" | "status"> & {
   v2Id?: string;
   displayKey?: string;
   status: string; // Allow UPPER_CASE status from v2 API
-  taskStats?: { total?: number; done?: number; inProgress?: number };
+  taskStats?: {
+    total?: number;
+    done?: number;
+    inProgress?: number;
+    backlog?: number;
+  };
   progressPercentage?: number;
   phase?: number;
   dependsOn?: (number | string)[];
+  createdById?: string;
+  prdFilePath?: string;
+  epicFilePath?: string;
 };
 
 // Task status badge configuration (v2 UPPER_CASE status values)
@@ -158,22 +166,27 @@ export default function EpicDetailPage() {
         COMPLETED: "completed",
       };
       const epicData: EpicWithV2Fields = {
-        id: 0, // v2 uses id as string
+        id: v2Epic.id,
         v2Id: v2Epic.id,
         displayKey: v2Epic.displayKey,
-        projectId: 0, // v2 uses projectRef
+        projectId: v2Epic.projectId,
         title: v2Epic.title,
-        description: v2Epic.description ?? null,
+        description: v2Epic.description,
         status: statusMap[v2Epic.status] || "planning",
-        targetDate: v2Epic.targetDate ? new Date(v2Epic.targetDate) : null,
-        createdByUserId: 0,
+        targetDate: v2Epic.targetDate,
+        createdById: v2Epic.createdById,
         createdAt: new Date(v2Epic.createdAt),
         updatedAt: new Date(v2Epic.updatedAt),
-        releaseId: null, // v2 uses releaseId as string
-        prdFilePath: v2Epic.prdFilePath ?? null,
-        epicFilePath: v2Epic.epicFilePath ?? null,
+        releaseId: v2Epic.releaseId,
+        prdFilePath: v2Epic.prdFilePath,
+        epicFilePath: v2Epic.epicFilePath,
         dependsOn: v2Epic.dependsOn ?? [],
-        taskStats: v2Epic.taskStats ?? { total: 0, done: 0, inProgress: 0 },
+        taskStats: v2Epic.taskStats ?? {
+          total: 0,
+          done: 0,
+          inProgress: 0,
+          backlog: 0,
+        },
         progressPercentage: v2Epic.progressPercentage ?? 0,
         phase: v2Epic.phase ?? 1,
       };
@@ -220,18 +233,18 @@ export default function EpicDetailPage() {
       const allEpicsResponse = await api.epics.listEpics({ projectRef });
       const v2Epics = allEpicsResponse.data ?? [];
       const convertedEpics: EpicWithV2Fields[] = v2Epics.map((e) => ({
-        id: 0,
+        id: e.id,
         v2Id: e.id,
         displayKey: e.displayKey,
-        projectId: 0,
+        projectId: e.projectId,
         title: e.title,
-        description: e.description ?? null,
+        description: e.description,
         status: e.status, // Keep UPPER_CASE status from v2 API
-        targetDate: e.targetDate ? new Date(e.targetDate) : null,
-        createdByUserId: 0,
+        targetDate: e.targetDate,
+        createdById: e.createdById,
         createdAt: new Date(e.createdAt),
         updatedAt: new Date(e.updatedAt),
-        releaseId: null,
+        releaseId: e.releaseId,
         phase: e.phase,
       }));
       setAllEpics(convertedEpics);
@@ -285,14 +298,11 @@ export default function EpicDetailPage() {
       const v2Criteria = response.data ?? [];
       const convertedCriteria: AcceptanceCriterion[] = v2Criteria.map((c) => ({
         id: c.id,
-        entityType: "epic" as const,
-        entityId: 0,
-        text: c.criteria,
-        checked: c.isMet ?? false,
-        position: c.orderIndex ?? 0,
+        criteria: c.criteria,
+        isMet: c.isMet,
+        orderIndex: c.orderIndex,
         createdAt: new Date(c.createdAt),
-        updatedAt: new Date(c.createdAt), // v2 doesn't have updatedAt
-      }));
+      })) as unknown as AcceptanceCriterion[];
       setCriteria(convertedCriteria);
     } catch (err) {
       console.error("Failed to fetch criteria:", err);
@@ -403,7 +413,7 @@ export default function EpicDetailPage() {
   };
 
   // Handle release change
-  const handleReleaseChange = async (releaseId: number | null) => {
+  const handleReleaseChange = async (releaseId: string | null) => {
     if (!epic) return;
 
     // Release assignment not yet implemented for v2

@@ -1,15 +1,9 @@
 import { useState, useEffect, type FormEvent } from "react";
-import {
-  api,
-  type Task,
-  type Epic,
-  type Repository,
-  type UpdateTaskRequest,
-} from "../../api";
+import { api, type Task, type Epic, type UpdateTaskRequest } from "../../api";
 
 interface TaskEditModalProps {
   task: Task;
-  projectId: number;
+  projectId: string;
   onClose: () => void;
   onUpdated: () => void;
 }
@@ -30,29 +24,25 @@ export default function TaskEditModal({
 }: TaskEditModalProps) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
-  const [epicId, setEpicId] = useState<number | undefined>(
+  const [epicId, setEpicId] = useState<string | undefined>(
     task.epicId ?? undefined,
   );
   const [status, setStatus] = useState(task.status);
-  const [repoName, setRepoName] = useState(task.repoName ?? "");
 
   const [epics, setEpics] = useState<Epic[]>([]);
-  const [repositories, setRepositories] = useState<Repository[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch epics and repositories for dropdowns
+  // Fetch epics for dropdown
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoadingData(true);
-        const [epicsResponse, reposResponse] = await Promise.all([
-          api.epics.listEpics({ id: projectId }),
-          api.repositories.listRepositories({ id: projectId }),
-        ]);
+        const epicsResponse = await api.epics.listEpics({
+          projectRef: projectId,
+        });
         setEpics(epicsResponse.data ?? []);
-        setRepositories(reposResponse.data ?? []);
       } catch (err) {
         console.error("Failed to fetch data:", err);
       } finally {
@@ -77,13 +67,13 @@ export default function TaskEditModal({
       const request: UpdateTaskRequest = {
         title: title.trim(),
         description: description.trim() || undefined,
-        epicId: epicId,
+        epicRef: epicId,
         status: status as UpdateTaskRequest["status"],
-        repoName: repoName || undefined,
       };
 
       await api.tasks.updateTask({
-        id: task.id,
+        projectRef: projectId,
+        taskRef: task.id,
         updateTaskRequest: request,
       });
 
@@ -212,9 +202,7 @@ export default function TaskEditModal({
               <select
                 id="epic"
                 value={epicId ?? ""}
-                onChange={(e) =>
-                  setEpicId(e.target.value ? Number(e.target.value) : undefined)
-                }
+                onChange={(e) => setEpicId(e.target.value || undefined)}
                 className="select"
                 disabled={loadingData}
               >
@@ -222,30 +210,6 @@ export default function TaskEditModal({
                 {epics.map((epic) => (
                   <option key={epic.id} value={epic.id}>
                     {epic.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Repository */}
-            <div>
-              <label
-                htmlFor="repo"
-                className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
-              >
-                Repository
-              </label>
-              <select
-                id="repo"
-                value={repoName}
-                onChange={(e) => setRepoName(e.target.value)}
-                className="select"
-                disabled={loadingData}
-              >
-                <option value="">No Repository</option>
-                {repositories.map((repo) => (
-                  <option key={repo.id} value={repo.name}>
-                    {repo.name}
                   </option>
                 ))}
               </select>

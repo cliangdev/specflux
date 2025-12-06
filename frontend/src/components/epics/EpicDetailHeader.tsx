@@ -85,7 +85,7 @@ interface EpicDetailHeaderProps {
   phase: number;
   onStatusChange: (status: string) => void;
   onTitleChange: (title: string) => void;
-  onReleaseChange: (releaseId: number | null) => void;
+  onReleaseChange: (releaseId: string | null) => void;
   onDelete: () => void;
   onBack: () => void;
   deleting?: boolean;

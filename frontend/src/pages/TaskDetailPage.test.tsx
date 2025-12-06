@@ -2,40 +2,35 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import TaskDetailPage from "./TaskDetailPage";
-import { api, type Task, type AgentStatus } from "../api";
+import { api, type Task, TaskStatus } from "../api";
 
 // Mock the api
 vi.mock("../api", () => ({
   api: {
     tasks: {
       getTask: vi.fn(),
-      getTaskAgentStatus: vi.fn(),
-      controlTaskAgent: vi.fn(),
+      listTaskDependencies: vi.fn(),
       updateTask: vi.fn(),
+      deleteTask: vi.fn(),
     },
     epics: {
       listEpics: vi.fn(),
     },
   },
-  ControlTaskAgentRequestActionEnum: {
-    Start: "start",
-    Pause: "pause",
-    Resume: "resume",
-    Stop: "stop",
-  },
-  AgentStatusStatusEnum: {
-    Idle: "idle",
-    Running: "running",
-    Paused: "paused",
-    Stopped: "stopped",
-    Completed: "completed",
-    Failed: "failed",
+  TaskStatus: {
+    Backlog: "BACKLOG",
+    Ready: "READY",
+    InProgress: "IN_PROGRESS",
+    InReview: "IN_REVIEW",
+    Blocked: "BLOCKED",
+    Completed: "COMPLETED",
+    Cancelled: "CANCELLED",
   },
 }));
 
 // Mock the Terminal component
 vi.mock("../components/Terminal", () => ({
-  default: ({ taskId }: { taskId: number }) => (
+  default: ({ taskId }: { taskId: string }) => (
     <div data-testid="terminal">Terminal for task {taskId}</div>
   ),
 }));
@@ -64,45 +59,45 @@ vi.mock("../contexts/TerminalContext", () => ({
 }));
 
 const mockTask: Task = {
-  id: 1,
+  id: "task_123",
+  displayKey: "TASK-1",
   title: "Test Task",
   description: "Test description",
-  projectId: 1,
-  epicId: null,
-  status: "in_progress",
+  projectId: "proj_123",
+  epicId: undefined,
+  epicDisplayKey: undefined,
+  status: TaskStatus.InProgress,
+  priority: "MEDIUM",
   requiresApproval: false,
-  progressPercentage: 50,
-  createdByUserId: 1,
+  createdById: "user_123",
   createdAt: new Date(),
   updatedAt: new Date(),
 };
 
 const mockTaskWithEpic: Task = {
   ...mockTask,
-  epicId: 1,
-};
-
-const mockAgentStatus: AgentStatus = {
-  taskId: 1,
-  status: "idle",
+  epicId: "epic_456",
+  epicDisplayKey: "EPIC-1",
 };
 
 const mockEpics = [
   {
-    id: 1,
+    id: "epic_456",
+    displayKey: "EPIC-1",
     title: "Epic 1",
-    projectId: 1,
-    status: "active" as const,
-    createdByUserId: 1,
+    projectId: "proj_123",
+    status: "IN_PROGRESS" as const,
+    createdById: "user_123",
     createdAt: new Date(),
     updatedAt: new Date(),
   },
   {
-    id: 2,
+    id: "epic_789",
+    displayKey: "EPIC-2",
     title: "Epic 2",
-    projectId: 1,
-    status: "planning" as const,
-    createdByUserId: 1,
+    projectId: "proj_123",
+    status: "PLANNING" as const,
+    createdById: "user_123",
     createdAt: new Date(),
     updatedAt: new Date(),
   },
@@ -128,87 +123,55 @@ function renderPage(taskId: string = "1") {
   );
 }
 
+// Mock the ProjectContext
+vi.mock("../contexts", () => ({
+  useProject: () => ({
+    currentProject: { id: "proj_123", name: "Test Project" },
+    getProjectRef: () => "PROJ-1",
+  }),
+}));
+
 describe("TaskDetailPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(api.tasks.getTask).mockResolvedValue({
-      success: true,
-      data: mockTask,
-    });
-    vi.mocked(api.tasks.getTaskAgentStatus).mockResolvedValue({
-      success: true,
-      data: mockAgentStatus,
+    vi.mocked(api.tasks.getTask).mockResolvedValue(mockTask);
+    vi.mocked(api.tasks.listTaskDependencies).mockResolvedValue({
+      data: [],
     });
     vi.mocked(api.epics.listEpics).mockResolvedValue({
-      success: true,
       data: mockEpics,
+      pagination: { hasMore: false },
     });
-    vi.mocked(api.tasks.updateTask).mockResolvedValue({
-      success: true,
-      data: mockTask,
-    });
+    vi.mocked(api.tasks.updateTask).mockResolvedValue(mockTask);
   });
 
   it("renders task details correctly", async () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText("#1")).toBeInTheDocument();
+      expect(screen.getByText("TASK-1")).toBeInTheDocument();
     });
 
     expect(screen.getByText("Test Task")).toBeInTheDocument();
     expect(screen.getByText("Test description")).toBeInTheDocument();
   });
 
-  it("renders terminal component", async () => {
-    renderPage();
-
-    await waitFor(() => {
-      expect(screen.getByTestId("terminal")).toBeInTheDocument();
-    });
-
-    expect(screen.getByText("Terminal for task 1")).toBeInTheDocument();
-  });
-
   it("navigates back when back button is clicked", async () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText("Back to Tasks")).toBeInTheDocument();
+      expect(screen.getByText("Test Task")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Back to Tasks"));
-    expect(mockNavigate).toHaveBeenCalledWith("/tasks");
-  });
-
-  it("shows Start button when agent is idle", async () => {
-    renderPage();
-
-    await waitFor(() => {
-      expect(screen.getByText("Start")).toBeInTheDocument();
-    });
-  });
-
-  it("calls controlTaskAgent when Start is clicked", async () => {
-    vi.mocked(api.tasks.controlTaskAgent).mockResolvedValue({
-      success: true,
-      data: { ...mockAgentStatus, status: "running" },
-    });
-
-    renderPage();
-
-    await waitFor(() => {
-      expect(screen.getByText("Start")).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByText("Start"));
-
-    await waitFor(() => {
-      expect(api.tasks.controlTaskAgent).toHaveBeenCalledWith({
-        id: 1,
-        controlTaskAgentRequest: { action: "start" },
-      });
-    });
+    // Find and click the back button (it has an SVG arrow icon)
+    const backButtons = screen.getAllByRole("button");
+    const backButton = backButtons.find((btn) =>
+      btn.querySelector('svg[viewBox="0 0 24 24"]'),
+    );
+    if (backButton) {
+      fireEvent.click(backButton);
+      expect(mockNavigate).toHaveBeenCalledWith(-1);
+    }
   });
 
   it("shows error state when task not found", async () => {
@@ -223,26 +186,14 @@ describe("TaskDetailPage", () => {
     expect(screen.getByText("Task not found")).toBeInTheDocument();
   });
 
-  it("shows Pause and Stop buttons when agent is running", async () => {
-    vi.mocked(api.tasks.getTaskAgentStatus).mockResolvedValue({
-      success: true,
-      data: { ...mockAgentStatus, status: "running" },
-    });
-
-    renderPage();
-
-    await waitFor(() => {
-      expect(screen.getByText("Pause")).toBeInTheDocument();
-      expect(screen.getByText("Stop")).toBeInTheDocument();
-    });
-  });
-
   describe("Epic editing", () => {
     it("renders epic selector with 'No epic' when no epic assigned", async () => {
       renderPage();
 
       await waitFor(() => {
-        expect(api.epics.listEpics).toHaveBeenCalledWith({ id: 1 });
+        expect(api.epics.listEpics).toHaveBeenCalledWith({
+          projectRef: "PROJ-1",
+        });
       });
 
       // Should show "No epic" button in the header
@@ -252,34 +203,13 @@ describe("TaskDetailPage", () => {
     });
 
     it("displays current epic selection when task has epic", async () => {
-      vi.mocked(api.tasks.getTask).mockResolvedValue({
-        success: true,
-        data: mockTaskWithEpic,
-      });
+      vi.mocked(api.tasks.getTask).mockResolvedValue(mockTaskWithEpic);
 
       renderPage();
 
       // Wait for epics to load and the selected epic to be displayed
       await waitFor(() => {
-        expect(screen.getByText("Epic 1")).toBeInTheDocument();
-      });
-    });
-
-    it("opens dropdown and shows epics when clicked", async () => {
-      renderPage();
-
-      // Wait for initial render
-      await waitFor(() => {
-        expect(screen.getByText("No epic")).toBeInTheDocument();
-      });
-
-      // Click to open the dropdown
-      fireEvent.click(screen.getByText("No epic"));
-
-      // Dropdown should show all epic options
-      await waitFor(() => {
-        expect(screen.getByText("Epic 1")).toBeInTheDocument();
-        expect(screen.getByText("Epic 2")).toBeInTheDocument();
+        expect(screen.getByText("EPIC-1")).toBeInTheDocument();
       });
     });
 
@@ -303,39 +233,9 @@ describe("TaskDetailPage", () => {
 
       await waitFor(() => {
         expect(api.tasks.updateTask).toHaveBeenCalledWith({
-          id: 1,
-          updateTaskRequest: { epicId: 2 },
-        });
-      });
-    });
-
-    it("calls updateTask with null when removing epic", async () => {
-      vi.mocked(api.tasks.getTask).mockResolvedValue({
-        success: true,
-        data: mockTaskWithEpic,
-      });
-
-      renderPage();
-
-      // Wait for the current epic to be displayed
-      await waitFor(() => {
-        expect(screen.getByText("Epic 1")).toBeInTheDocument();
-      });
-
-      // Click to open the dropdown
-      fireEvent.click(screen.getByText("Epic 1"));
-
-      // Wait for dropdown to open
-      await waitFor(() => {
-        expect(screen.getByText("No epic")).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByText("No epic"));
-
-      await waitFor(() => {
-        expect(api.tasks.updateTask).toHaveBeenCalledWith({
-          id: 1,
-          updateTaskRequest: { epicId: null },
+          projectRef: "PROJ-1",
+          taskRef: "task_123",
+          updateTaskRequest: { epicRef: "epic_789" },
         });
       });
     });

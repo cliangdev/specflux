@@ -13,8 +13,8 @@ interface CriterionInput {
 }
 
 interface TaskCreateModalProps {
-  projectId: number;
-  defaultEpicId?: number;
+  projectId: string;
+  defaultEpicId?: string;
   onClose: () => void;
   onCreated: () => void;
 }
@@ -27,8 +27,8 @@ export default function TaskCreateModal({
 }: TaskCreateModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [epicId, setEpicId] = useState<number | undefined>(defaultEpicId);
-  const [assignedAgentId, setAssignedAgentId] = useState<number | null>(null);
+  const [epicId, setEpicId] = useState<string | undefined>(defaultEpicId);
+  const [assignedAgentId, setAssignedAgentId] = useState<string | null>(null);
   const [criteria, setCriteria] = useState<CriterionInput[]>([
     { id: crypto.randomUUID(), text: "" },
   ]);
@@ -42,7 +42,7 @@ export default function TaskCreateModal({
     const fetchEpics = async () => {
       try {
         setLoadingEpics(true);
-        const response = await api.epics.listEpics({ id: projectId });
+        const response = await api.epics.listEpics({ projectRef: projectId });
         setEpics(response.data ?? []);
       } catch (err) {
         console.error("Failed to fetch epics:", err);
@@ -74,14 +74,12 @@ export default function TaskCreateModal({
       const request: CreateTaskRequest = {
         title: title.trim(),
         description: description.trim() || undefined,
-        acceptanceCriteria: validCriteria.map((c) => c.text.trim()),
-        epicId: epicId,
-        assignedAgentId: assignedAgentId ?? undefined,
-        executorType: assignedAgentId ? "agent" : undefined,
+        epicRef: epicId,
+        assignedToRef: assignedAgentId ?? undefined,
       };
 
       await api.tasks.createTask({
-        id: projectId,
+        projectRef: projectId,
         createTaskRequest: request,
       });
 
@@ -248,9 +246,7 @@ export default function TaskCreateModal({
               <select
                 id="epic"
                 value={epicId ?? ""}
-                onChange={(e) =>
-                  setEpicId(e.target.value ? Number(e.target.value) : undefined)
-                }
+                onChange={(e) => setEpicId(e.target.value || undefined)}
                 className="select"
                 disabled={loadingEpics}
               >

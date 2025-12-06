@@ -1,9 +1,9 @@
 import { useState, useEffect, type FormEvent } from "react";
-import { api, type Task, type Epic } from "../../api";
+import { api, type Task, type Epic, TaskStatus } from "../../api";
 import type { ContextType, ContextInfo } from "../../contexts/TerminalContext";
 
 interface NewSessionDialogProps {
-  projectId: number;
+  projectId: string;
   onClose: () => void;
   onCreated: (context: ContextInfo) => void;
 }
@@ -40,8 +40,8 @@ export default function NewSessionDialog({
   onCreated,
 }: NewSessionDialogProps) {
   const [contextMode, setContextMode] = useState<ContextType>("task");
-  const [selectedTaskId, setSelectedTaskId] = useState<number | undefined>();
-  const [selectedEpicId, setSelectedEpicId] = useState<number | undefined>();
+  const [selectedTaskId, setSelectedTaskId] = useState<string | undefined>();
+  const [selectedEpicId, setSelectedEpicId] = useState<string | undefined>();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [epics, setEpics] = useState<Epic[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(true);
@@ -53,10 +53,10 @@ export default function NewSessionDialog({
     const fetchTasks = async () => {
       try {
         setLoadingTasks(true);
-        const response = await api.tasks.listTasks({ id: projectId });
-        // Filter to tasks that aren't done
+        const response = await api.tasks.listTasks({ projectRef: projectId });
+        // Filter to tasks that aren't completed
         const activeTasks = (response.data ?? []).filter(
-          (t) => t.status !== "done",
+          (t) => t.status !== TaskStatus.Completed,
         );
         setTasks(activeTasks);
       } catch (err) {
@@ -74,7 +74,7 @@ export default function NewSessionDialog({
     const fetchEpics = async () => {
       try {
         setLoadingEpics(true);
-        const response = await api.epics.listEpics({ id: projectId });
+        const response = await api.epics.listEpics({ projectRef: projectId });
         setEpics(response.data ?? []);
       } catch (err) {
         console.error("Failed to fetch epics:", err);
@@ -241,7 +241,7 @@ export default function NewSessionDialog({
                   value={selectedTaskId ?? ""}
                   onChange={(e) =>
                     setSelectedTaskId(
-                      e.target.value ? Number(e.target.value) : undefined,
+                      e.target.value ? e.target.value : undefined,
                     )
                   }
                   className="select"
@@ -252,7 +252,7 @@ export default function NewSessionDialog({
                   </option>
                   {tasks.map((task) => (
                     <option key={task.id} value={task.id}>
-                      #{task.id}: {task.title}
+                      {task.displayKey}: {task.title}
                     </option>
                   ))}
                 </select>
@@ -278,7 +278,7 @@ export default function NewSessionDialog({
                   value={selectedEpicId ?? ""}
                   onChange={(e) =>
                     setSelectedEpicId(
-                      e.target.value ? Number(e.target.value) : undefined,
+                      e.target.value ? e.target.value : undefined,
                     )
                   }
                   className="select"
@@ -289,7 +289,7 @@ export default function NewSessionDialog({
                   </option>
                   {epics.map((epic) => (
                     <option key={epic.id} value={epic.id}>
-                      #{epic.id}: {epic.title}
+                      {epic.displayKey}: {epic.title}
                     </option>
                   ))}
                 </select>

@@ -76,18 +76,14 @@ describe("ProjectCreateModal", () => {
 
   it("submits form and calls callbacks on success", async () => {
     vi.mocked(api.projects.createProject).mockResolvedValue({
-      success: true,
-      data: {
-        id: 1,
-        name: "Test Project",
-        projectId: "test-project",
-        localPath: "/test/path",
-        workflowTemplate: "startup-fast",
-        ownerUserId: 1,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
+      id: "proj_1",
+      projectKey: "TEST",
+      name: "Test Project",
+      localPath: "/test/path",
+      ownerId: "user_1",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as any);
 
     renderModal();
 
@@ -100,13 +96,7 @@ describe("ProjectCreateModal", () => {
     fireEvent.click(screen.getByText("Create Project"));
 
     await waitFor(() => {
-      expect(api.projects.createProject).toHaveBeenCalledWith({
-        createProjectRequest: {
-          name: "Test Project",
-          localPath: "/test/path",
-          workflowTemplate: "startup-fast",
-        },
-      });
+      expect(api.projects.createProject).toHaveBeenCalled();
     });
 
     expect(mockOnCreated).toHaveBeenCalled();

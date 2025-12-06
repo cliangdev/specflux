@@ -35,23 +35,16 @@ export interface ReadinessResult {
  * - Executor assigned (human or agent)
  */
 export function calculateReadiness(task: Task): ReadinessResult {
-  // Handle both old string format and new array format for acceptanceCriteria
-  // The API now returns acceptance_criteria as an array of AcceptanceCriterion objects
-  const acceptanceCriteria = task.acceptanceCriteria;
-  let hasAcceptanceCriteria = false;
-  if (Array.isArray(acceptanceCriteria)) {
-    hasAcceptanceCriteria = acceptanceCriteria.length > 0;
-  } else if (typeof acceptanceCriteria === "string") {
-    hasAcceptanceCriteria = !!acceptanceCriteria.trim();
-  }
+  // Note: v2 API doesn't have acceptanceCriteria field yet
+  const hasAcceptanceCriteria = false;
 
   const criteria: ReadinessCriteria = {
     hasTitle: !!task.title?.trim(),
     hasDescription: !!task.description?.trim(),
     hasAcceptanceCriteria,
-    dependenciesResolved: (task.blockedByCount ?? 0) === 0,
-    hasRepo: !!task.repoName,
-    hasExecutor: !!task.assignedToUserId || task.executorType === "agent",
+    dependenciesResolved: true, // blockedByCount not available in v2 API yet
+    hasRepo: false, // repoName not available in v2 API yet
+    hasExecutor: !!task.assignedToId, // executorType not available in v2 API yet
   };
 
   const criteriaLabels: ReadinessResult["criteriaLabels"] = [

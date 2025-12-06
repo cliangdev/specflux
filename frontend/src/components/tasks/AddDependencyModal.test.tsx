@@ -14,17 +14,22 @@ vi.mock("../../api", () => ({
 }));
 
 const mockTasks = [
-  { id: 1, title: "Task 1", status: "backlog" },
-  { id: 2, title: "Task 2", status: "in_progress" },
-  { id: 3, title: "Task 3", status: "done" },
-  { id: 4, title: "Task 4", status: "ready" },
+  { id: "task_1", displayKey: "PROJ-1", title: "Task 1", status: "BACKLOG" },
+  {
+    id: "task_2",
+    displayKey: "PROJ-2",
+    title: "Task 2",
+    status: "IN_PROGRESS",
+  },
+  { id: "task_3", displayKey: "PROJ-3", title: "Task 3", status: "COMPLETED" },
+  { id: "task_4", displayKey: "PROJ-4", title: "Task 4", status: "READY" },
 ];
 
 describe("AddDependencyModal", () => {
   const defaultProps = {
-    taskId: 10,
-    projectId: 1,
-    existingDependencyIds: [3], // Task 3 is already a dependency
+    taskId: "task_10",
+    projectId: "proj_abc123",
+    existingDependencyIds: ["task_3"], // Task 3 is already a dependency
     onClose: vi.fn(),
     onAdded: vi.fn(),
   };
@@ -45,7 +50,9 @@ describe("AddDependencyModal", () => {
     expect(screen.getByPlaceholderText("Search tasks...")).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(api.tasks.listTasks).toHaveBeenCalledWith({ id: 1 });
+      expect(api.tasks.listTasks).toHaveBeenCalledWith({
+        projectRef: "proj_abc123",
+      });
     });
   });
 
@@ -91,7 +98,9 @@ describe("AddDependencyModal", () => {
 
     // Find the radio input for Task 1
     const radioInputs = screen.getAllByRole("radio");
-    const task1Radio = radioInputs.find((r) => r.getAttribute("value") === "1");
+    const task1Radio = radioInputs.find(
+      (r) => r.getAttribute("value") === "task_1",
+    );
     expect(task1Radio).toBeChecked();
   });
 
@@ -141,8 +150,9 @@ describe("AddDependencyModal", () => {
 
     await waitFor(() => {
       expect(api.tasks.addTaskDependency).toHaveBeenCalledWith({
-        id: 10,
-        addTaskDependencyRequest: { dependsOnTaskId: 1 },
+        projectRef: "proj_abc123",
+        taskRef: "task_10",
+        addTaskDependencyRequest: { dependsOnTaskRef: "task_1" },
       });
     });
 
@@ -190,13 +200,20 @@ describe("AddDependencyModal", () => {
   it("shows empty state when no tasks available", async () => {
     // Set up existing dependencies to exclude all tasks
     (api.tasks.listTasks as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: [{ id: 10, title: "Current Task", status: "backlog" }],
+      data: [
+        {
+          id: "task_10",
+          displayKey: "PROJ-10",
+          title: "Current Task",
+          status: "BACKLOG",
+        },
+      ],
     });
 
     render(
       <AddDependencyModal
         {...defaultProps}
-        taskId={10}
+        taskId="task_10"
         existingDependencyIds={[]}
       />,
     );

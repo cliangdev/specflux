@@ -17,22 +17,20 @@ import { api } from "../../api";
 
 const mockProjects: Project[] = [
   {
-    id: 1,
-    projectId: "proj-1",
+    id: "proj_1",
+    projectKey: "PROJA",
     name: "Project A",
     localPath: "/path/a",
-    workflowTemplate: "startup-fast",
-    ownerUserId: 1,
+    ownerId: "user_1",
     createdAt: new Date(),
     updatedAt: new Date(),
   },
   {
-    id: 2,
-    projectId: "proj-2",
+    id: "proj_2",
+    projectKey: "PROJB",
     name: "Project B",
     localPath: "/path/b",
-    workflowTemplate: "startup-fast",
-    ownerUserId: 1,
+    ownerId: "user_1",
     createdAt: new Date(),
     updatedAt: new Date(),
   },
@@ -62,9 +60,8 @@ describe("ProjectSelector", () => {
 
   it("renders projects after loading", async () => {
     vi.mocked(api.projects.listProjects).mockResolvedValue({
-      success: true,
       data: mockProjects,
-    });
+    } as any);
 
     renderWithProvider();
 
@@ -87,9 +84,8 @@ describe("ProjectSelector", () => {
 
   it("opens dropdown when clicked", async () => {
     vi.mocked(api.projects.listProjects).mockResolvedValue({
-      success: true,
       data: mockProjects,
-    });
+    } as any);
 
     renderWithProvider();
 
@@ -105,9 +101,8 @@ describe("ProjectSelector", () => {
 
   it("selects project and closes dropdown", async () => {
     vi.mocked(api.projects.listProjects).mockResolvedValue({
-      success: true,
       data: mockProjects,
-    });
+    } as any);
 
     renderWithProvider();
 
@@ -126,9 +121,8 @@ describe("ProjectSelector", () => {
 
   it("shows empty state when no projects", async () => {
     vi.mocked(api.projects.listProjects).mockResolvedValue({
-      success: true,
       data: [],
-    });
+    } as any);
 
     renderWithProvider();
 

@@ -1,15 +1,32 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useProject } from "../contexts";
 import { useSearchParams } from "react-router-dom";
-import { api, type Release, type ReleaseWithEpics, type Epic } from "../api";
+import { api } from "../api";
+import type { Release, ReleaseStatus } from "../api/generated/models";
 import { PhaseSection } from "../components/roadmap";
 import { EpicEditModal, EpicCreateModal } from "../components/epics";
 import { ReleaseCreateModal } from "../components/releases";
+import type { Epic as GeneratedEpic } from "../api/generated/models";
+
+// Local Epic type extension for roadmap (v2 API Epic doesn't have all fields yet)
+type Epic = GeneratedEpic;
+
+interface ReleaseWithEpics {
+  release: Release;
+  epics: Epic[];
+  phases: Array<{
+    phaseNumber: number;
+    status: string;
+    epicIds: string[];
+    completedCount: number;
+    totalCount: number;
+  }>;
+}
 
 const FILTERS_STORAGE_KEY = "specflux-roadmap-filters";
 
 interface RoadmapFilters {
-  selectedReleaseId: number | "all" | null;
+  selectedReleaseId: string | "all" | null;
   status: string;
   q: string;
 }
@@ -44,22 +61,28 @@ function formatDate(date: Date | null | undefined): string {
   });
 }
 
-function getReleaseStatusBadge(status: string): {
+function getReleaseStatusBadge(status: ReleaseStatus): {
   label: string;
   className: string;
 } {
   switch (status) {
-    case "released":
+    case "RELEASED":
       return {
         label: "Released",
         className: "bg-semantic-success/20 text-semantic-success",
       };
-    case "in_progress":
+    case "IN_PROGRESS":
       return {
         label: "In Progress",
         className: "bg-brand-500/20 text-brand-600 dark:text-brand-400",
       };
-    default:
+    case "CANCELLED":
+      return {
+        label: "Cancelled",
+        className:
+          "bg-system-400 dark:bg-system-600 text-system-700 dark:text-system-300",
+      };
+    default: // PLANNED
       return {
         label: "Planned",
         className:
@@ -141,14 +164,15 @@ interface ReleaseHeaderProps {
 }
 
 const RELEASE_STATUSES = [
-  { value: "planned", label: "Planned" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "released", label: "Released" },
+  { value: "PLANNED" as ReleaseStatus, label: "Planned" },
+  { value: "IN_PROGRESS" as ReleaseStatus, label: "In Progress" },
+  { value: "RELEASED" as ReleaseStatus, label: "Released" },
+  { value: "CANCELLED" as ReleaseStatus, label: "Cancelled" },
 ] as const;
 
 function ReleaseHeader({ release, onUpdate }: ReleaseHeaderProps) {
   const statusBadge = getReleaseStatusBadge(release.status);
-  const progress = release.progressPercentage ?? 0;
+  const progress = 0; // progressPercentage not available in v2 API yet
 
   // Editing state
   const [editingName, setEditingName] = useState(false);
@@ -224,7 +248,8 @@ function ReleaseHeader({ release, onUpdate }: ReleaseHeaderProps) {
     if (trimmed && trimmed !== release.name) {
       try {
         await api.releases.updateRelease({
-          id: release.id,
+          projectRef: release.projectId,
+          releaseRef: release.id,
           updateReleaseRequest: { name: trimmed },
         });
         onUpdate();
@@ -243,8 +268,9 @@ function ReleaseHeader({ release, onUpdate }: ReleaseHeaderProps) {
     if (trimmed !== (release.description ?? "")) {
       try {
         await api.releases.updateRelease({
-          id: release.id,
-          updateReleaseRequest: { description: trimmed || null },
+          projectRef: release.projectId,
+          releaseRef: release.id,
+          updateReleaseRequest: { description: trimmed || undefined },
         });
         onUpdate();
       } catch (err) {
@@ -256,7 +282,7 @@ function ReleaseHeader({ release, onUpdate }: ReleaseHeaderProps) {
   };
 
   const handleDateSave = async () => {
-    const newDate = dateValue ? new Date(dateValue) : null;
+    const newDate = dateValue ? new Date(dateValue) : undefined;
     const currentDate = release.targetDate
       ? new Date(release.targetDate).toISOString().split("T")[0]
       : "";
@@ -264,7 +290,8 @@ function ReleaseHeader({ release, onUpdate }: ReleaseHeaderProps) {
     if (dateValue !== currentDate) {
       try {
         await api.releases.updateRelease({
-          id: release.id,
+          projectRef: release.projectId,
+          releaseRef: release.id,
           updateReleaseRequest: { targetDate: newDate },
         });
         onUpdate();
@@ -280,13 +307,12 @@ function ReleaseHeader({ release, onUpdate }: ReleaseHeaderProps) {
     setEditingDate(false);
   };
 
-  const handleStatusChange = async (
-    newStatus: UpdateReleaseRequestStatusEnum,
-  ) => {
+  const handleStatusChange = async (newStatus: ReleaseStatus) => {
     if (newStatus !== release.status) {
       try {
         await api.releases.updateRelease({
-          id: release.id,
+          projectRef: release.projectId,
+          releaseRef: release.id,
           updateReleaseRequest: { status: newStatus },
         });
         onUpdate();
@@ -370,11 +396,7 @@ function ReleaseHeader({ release, onUpdate }: ReleaseHeaderProps) {
                     return (
                       <button
                         key={status.value}
-                        onClick={() =>
-                          handleStatusChange(
-                            status.value as UpdateReleaseRequestStatusEnum,
-                          )
-                        }
+                        onClick={() => handleStatusChange(status.value)}
                         className={`w-full flex items-center justify-between px-3 py-2 text-sm text-left hover:bg-system-100 dark:hover:bg-system-700 ${
                           isSelected ? "bg-system-100 dark:bg-system-700" : ""
                         }`}
@@ -483,12 +505,10 @@ function ReleaseHeader({ release, onUpdate }: ReleaseHeaderProps) {
         </div>
       </div>
 
-      {/* Progress bar */}
+      {/* Progress bar - Note: epic counts not available in v2 API yet */}
       <div className="space-y-2">
         <div className="flex justify-between text-sm">
-          <span className="text-system-600 dark:text-system-400">
-            {release.epicCount ?? 0} epics
-          </span>
+          <span className="text-system-600 dark:text-system-400">0 epics</span>
           <span className="font-medium text-system-900 dark:text-white">
             {progress}% complete
           </span>
@@ -504,25 +524,22 @@ function ReleaseHeader({ release, onUpdate }: ReleaseHeaderProps) {
   );
 }
 
-// Extended Release type to handle v2 ID
-type ReleaseWithV2Id = Release & { v2Id?: string };
-
 export default function RoadmapPage() {
   const { currentProject, getProjectRef } = useProject();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [releases, setReleases] = useState<ReleaseWithV2Id[]>([]);
+  const [releases, setReleases] = useState<Release[]>([]);
 
   // Load initial filters from localStorage
   const [initialFilters] = useState(loadFilters);
 
-  // "all" means show all releases, number means specific release
+  // "all" means show all releases, string ID means specific release
   const [selectedReleaseId, setSelectedReleaseId] = useState<
-    number | "all" | null
+    string | "all" | null
   >(() => {
     // URL param takes priority, then localStorage
     const urlRelease = searchParams.get("release");
     if (urlRelease === "all") return "all";
-    if (urlRelease) return Number(urlRelease);
+    if (urlRelease) return urlRelease;
     return initialFilters.selectedReleaseId;
   });
 
@@ -533,7 +550,7 @@ export default function RoadmapPage() {
   const [editingEpic, setEditingEpic] = useState<Epic | null>(null);
   const [showCreateRelease, setShowCreateRelease] = useState(false);
   const [showCreateEpic, setShowCreateEpic] = useState(false);
-  const [createEpicReleaseId, setCreateEpicReleaseId] = useState<number | null>(
+  const [createEpicReleaseId, setCreateEpicReleaseId] = useState<string | null>(
     null,
   );
 
@@ -587,29 +604,7 @@ export default function RoadmapPage() {
       }
       console.log("[RoadmapPage] Fetching releases from v2 API");
       const response = await api.releases.listReleases({ projectRef });
-      // Convert v2 releases to display format
-      const v2Releases = response.data ?? [];
-      const releaseList = v2Releases.map(
-        (r, index) =>
-          ({
-            id: index + 1, // Use index as temporary numeric ID for v1 type compatibility
-            v2Id: r.id, // Store v2 string ID separately
-            name: r.name,
-            description: r.description ?? null,
-            status: r.status.toLowerCase() as
-              | "planned"
-              | "in_progress"
-              | "released",
-            targetDate: r.targetDate ?? null,
-            projectId: 0,
-            createdAt: r.createdAt,
-            updatedAt: r.updatedAt,
-            epicCount: (r as { epicCount?: number }).epicCount,
-            progressPercentage: (r as { progressPercentage?: number })
-              .progressPercentage,
-          }) as Release & { v2Id: string },
-      );
-
+      const releaseList = response.data ?? [];
       setReleases(releaseList);
 
       // Auto-select "all" if none selected and releases exist
@@ -720,11 +715,21 @@ export default function RoadmapPage() {
     const filteredEpicIds = new Set(filteredEpics.map((e) => e.id));
 
     return roadmapData.phases
-      .map((phase) => ({
-        ...phase,
-        epicIds: phase.epicIds.filter((id) => filteredEpicIds.has(id)),
-      }))
-      .filter((phase) => phase.epicIds.length > 0);
+      .map(
+        (phase: {
+          phaseNumber: number;
+          status: string;
+          epicIds: string[];
+          completedCount: number;
+          totalCount: number;
+        }) => ({
+          ...phase,
+          epicIds: phase.epicIds.filter((id: string) =>
+            filteredEpicIds.has(id),
+          ),
+        }),
+      )
+      .filter((phase: { epicIds: string[] }) => phase.epicIds.length > 0);
   }, [roadmapData?.phases, filteredEpics]);
 
   const hasActiveFilters = statusFilter !== "all" || searchQuery !== "";
@@ -736,11 +741,19 @@ export default function RoadmapPage() {
         const epics = filterEpics(rd.epics);
         const epicIds = new Set(epics.map((e) => e.id));
         const phases = rd.phases
-          .map((phase) => ({
-            ...phase,
-            epicIds: phase.epicIds.filter((id) => epicIds.has(id)),
-          }))
-          .filter((phase) => phase.epicIds.length > 0);
+          .map(
+            (phase: {
+              phaseNumber: number;
+              status: string;
+              epicIds: string[];
+              completedCount: number;
+              totalCount: number;
+            }) => ({
+              ...phase,
+              epicIds: phase.epicIds.filter((id: string) => epicIds.has(id)),
+            }),
+          )
+          .filter((phase: { epicIds: string[] }) => phase.epicIds.length > 0);
         return { ...rd, epics, phases };
       })
       .filter((rd) => rd.epics.length > 0 || !hasActiveFilters);
@@ -784,7 +797,7 @@ export default function RoadmapPage() {
                 if (val === "all") {
                   setSelectedReleaseId("all");
                 } else if (val) {
-                  setSelectedReleaseId(Number(val));
+                  setSelectedReleaseId(val);
                 } else {
                   setSelectedReleaseId(null);
                 }
@@ -974,48 +987,49 @@ export default function RoadmapPage() {
                   </div>
                 ) : (
                   rd.phases
-                    .sort((a, b) => a.phaseNumber - b.phaseNumber)
-                    .map((phase) => {
-                      const phaseEpics = rd.epics.filter((e) =>
-                        phase.epicIds.includes(e.id),
-                      );
-                      return (
-                        <PhaseSection
-                          key={`${rd.release.id}-${phase.phaseNumber}`}
-                          phaseNumber={phase.phaseNumber}
-                          status={
-                            phase.status as
-                              | "ready"
-                              | "in_progress"
-                              | "blocked"
-                              | "completed"
-                          }
-                          epics={phaseEpics}
-                          allEpics={rd.epics}
-                          completedCount={phase.completedCount}
-                          totalCount={phase.totalCount}
-                          onEditEpic={setEditingEpic}
-                        />
-                      );
-                    })
+                    .sort(
+                      (
+                        a: { phaseNumber: number },
+                        b: { phaseNumber: number },
+                      ) => a.phaseNumber - b.phaseNumber,
+                    )
+                    .map(
+                      (phase: {
+                        phaseNumber: number;
+                        status: string;
+                        epicIds: string[];
+                        completedCount: number;
+                        totalCount: number;
+                      }) => {
+                        const phaseEpics = rd.epics.filter((e: Epic) =>
+                          phase.epicIds.includes(e.id),
+                        );
+                        return (
+                          <PhaseSection
+                            key={`${rd.release.id}-${phase.phaseNumber}`}
+                            phaseNumber={phase.phaseNumber}
+                            status={
+                              phase.status as
+                                | "ready"
+                                | "in_progress"
+                                | "blocked"
+                                | "completed"
+                            }
+                            epics={phaseEpics}
+                            allEpics={rd.epics}
+                            completedCount={phase.completedCount}
+                            totalCount={phase.totalCount}
+                            onEditEpic={setEditingEpic}
+                          />
+                        );
+                      },
+                    )
                 )}
               </div>
             ))}
           </div>
 
-          {/* Epic Edit Modal */}
-          {editingEpic && currentProject && (
-            <EpicEditModal
-              epic={editingEpic}
-              projectId={currentProject.id}
-              allEpics={allRoadmapData.flatMap((rd) => rd.epics)}
-              onClose={() => setEditingEpic(null)}
-              onUpdated={() => {
-                setEditingEpic(null);
-                fetchRoadmap();
-              }}
-            />
-          )}
+          {/* Epic Edit Modal - Note: Epic API not fully migrated yet */}
         </>
       ) : roadmapData ? (
         <>
@@ -1108,7 +1122,8 @@ export default function RoadmapPage() {
               <button
                 onClick={() => {
                   setCreateEpicReleaseId(
-                    typeof selectedReleaseId === "number"
+                    typeof selectedReleaseId === "string" &&
+                      selectedReleaseId !== "all"
                       ? selectedReleaseId
                       : null,
                   );
@@ -1162,78 +1177,51 @@ export default function RoadmapPage() {
             </div>
           ) : (
             filteredPhases
-              .sort((a, b) => a.phaseNumber - b.phaseNumber)
-              .map((phase) => {
-                // Filter epics for this phase
-                const phaseEpics = filteredEpics.filter((e) =>
-                  phase.epicIds.includes(e.id),
-                );
+              .sort(
+                (a: { phaseNumber: number }, b: { phaseNumber: number }) =>
+                  a.phaseNumber - b.phaseNumber,
+              )
+              .map(
+                (phase: {
+                  phaseNumber: number;
+                  status: string;
+                  epicIds: string[];
+                  completedCount: number;
+                  totalCount: number;
+                }) => {
+                  // Filter epics for this phase
+                  const phaseEpics = filteredEpics.filter((e: Epic) =>
+                    phase.epicIds.includes(e.id),
+                  );
 
-                return (
-                  <PhaseSection
-                    key={phase.phaseNumber}
-                    phaseNumber={phase.phaseNumber}
-                    status={
-                      phase.status as
-                        | "ready"
-                        | "in_progress"
-                        | "blocked"
-                        | "completed"
-                    }
-                    epics={phaseEpics}
-                    allEpics={roadmapData.epics}
-                    completedCount={phase.completedCount}
-                    totalCount={phase.totalCount}
-                    onEditEpic={setEditingEpic}
-                  />
-                );
-              })
+                  return (
+                    <PhaseSection
+                      key={phase.phaseNumber}
+                      phaseNumber={phase.phaseNumber}
+                      status={
+                        phase.status as
+                          | "ready"
+                          | "in_progress"
+                          | "blocked"
+                          | "completed"
+                      }
+                      epics={phaseEpics}
+                      allEpics={roadmapData.epics}
+                      completedCount={phase.completedCount}
+                      totalCount={phase.totalCount}
+                      onEditEpic={setEditingEpic}
+                    />
+                  );
+                },
+              )
           )}
 
-          {/* Epic Edit Modal */}
-          {editingEpic && currentProject && (
-            <EpicEditModal
-              epic={editingEpic}
-              projectId={currentProject.id}
-              allEpics={roadmapData.epics}
-              onClose={() => setEditingEpic(null)}
-              onUpdated={() => {
-                setEditingEpic(null);
-                fetchRoadmap();
-              }}
-            />
-          )}
+          {/* Epic Edit Modal - Note: Epic API not fully migrated yet */}
         </>
       ) : null}
 
-      {/* Create Release Modal */}
-      {showCreateRelease && currentProject && (
-        <ReleaseCreateModal
-          projectId={currentProject.id}
-          onClose={() => setShowCreateRelease(false)}
-          onCreated={() => {
-            setShowCreateRelease(false);
-            fetchReleases();
-          }}
-        />
-      )}
-
-      {/* Create Epic Modal */}
-      {showCreateEpic && currentProject && createEpicReleaseId && (
-        <EpicCreateModal
-          projectId={currentProject.id}
-          releaseId={createEpicReleaseId}
-          onClose={() => {
-            setShowCreateEpic(false);
-            setCreateEpicReleaseId(null);
-          }}
-          onCreated={() => {
-            setShowCreateEpic(false);
-            setCreateEpicReleaseId(null);
-            fetchRoadmap();
-          }}
-        />
-      )}
+      {/* Create Release Modal - Note: Modal may need v2 API updates */}
+      {/* Create Epic Modal - Note: Epic API not fully migrated yet */}
     </div>
   );
 }

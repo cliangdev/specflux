@@ -45,24 +45,17 @@ export default function TaskOverviewTab({
           taskRef: task.v2Id,
         });
         const v2Criteria = response.data ?? [];
-        // Convert v2 criteria to v1 format
-        const convertedCriteria: AcceptanceCriterion[] = v2Criteria.map(
-          (c) => ({
-            id: c.id,
-            entityType: "task" as const,
-            entityId: 0,
-            text: c.criteria,
-            checked: c.isMet ?? false,
-            position: c.orderIndex ?? 0,
-            createdAt: new Date(c.createdAt),
-            updatedAt: new Date(c.createdAt),
-          }),
-        );
-        setCriteria(convertedCriteria);
+        // Use v2 criteria directly
+        setCriteria(v2Criteria as unknown as AcceptanceCriterion[]);
       } else {
-        // Fallback to v1 API for local-only tasks
-        const response = await api.tasks.listTaskCriteria({ id: task.id });
-        setCriteria(response.data ?? []);
+        // Fallback to v2 API with string projectId
+        const response = await api.tasks.listTaskAcceptanceCriteria({
+          projectRef: String(task.projectId),
+          taskRef: task.id,
+        });
+        const v2Criteria = response.data ?? [];
+        // Use v2 criteria directly
+        setCriteria(v2Criteria as unknown as AcceptanceCriterion[]);
       }
     } catch (err) {
       console.error("Failed to fetch criteria:", err);
@@ -115,10 +108,11 @@ export default function TaskOverviewTab({
             updateTaskRequest: { description: trimmed || undefined },
           });
         } else {
-          // Fallback to v1 API for local-only tasks
+          // Fallback: Use projectId as projectRef string
           await api.tasks.updateTask({
-            id: task.id,
-            updateTaskRequest: { description: trimmed || null },
+            projectRef: String(task.projectId),
+            taskRef: task.id,
+            updateTaskRequest: { description: trimmed || undefined },
           });
         }
         onTaskUpdate?.();

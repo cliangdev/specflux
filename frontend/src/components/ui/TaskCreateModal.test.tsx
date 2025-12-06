@@ -26,20 +26,22 @@ import { api } from "../../api";
 
 const mockEpics = [
   {
-    id: 1,
+    id: "epic_1",
+    displayKey: "EP-1",
     title: "Epic 1",
-    projectId: 1,
-    status: "active" as const,
-    createdByUserId: 1,
+    projectId: "proj_1",
+    status: "IN_PROGRESS" as const,
+    createdById: "user_1",
     createdAt: new Date(),
     updatedAt: new Date(),
   },
   {
-    id: 2,
+    id: "epic_2",
+    displayKey: "EP-2",
     title: "Epic 2",
-    projectId: 1,
-    status: "planning" as const,
-    createdByUserId: 1,
+    projectId: "proj_1",
+    status: "PLANNING" as const,
+    createdById: "user_1",
     createdAt: new Date(),
     updatedAt: new Date(),
   },
@@ -48,20 +50,14 @@ const mockEpics = [
 describe("TaskCreateModal", () => {
   const mockOnClose = vi.fn();
   const mockOnCreated = vi.fn();
-  const projectId = 1;
+  const projectId = "proj_1";
 
   beforeEach(() => {
     vi.clearAllMocks();
     // Default mock for listEpics
     vi.mocked(api.epics.listEpics).mockResolvedValue({
-      success: true,
       data: mockEpics,
-    });
-    // Default mock for agents
-    vi.mocked(api.agents.projectsIdAgentsGet).mockResolvedValue({
-      success: true,
-      data: [],
-    });
+    } as any);
   });
 
   // Helper to fill in required fields
@@ -74,7 +70,7 @@ describe("TaskCreateModal", () => {
     });
   }
 
-  function renderModal(defaultEpicId?: number) {
+  function renderModal(defaultEpicId?: string) {
     return render(
       <TaskCreateModal
         projectId={projectId}
@@ -100,7 +96,9 @@ describe("TaskCreateModal", () => {
 
     // Wait for epics to load
     await waitFor(() => {
-      expect(api.epics.listEpics).toHaveBeenCalledWith({ id: projectId });
+      expect(api.epics.listEpics).toHaveBeenCalledWith({
+        projectRef: projectId,
+      });
     });
   });
 
@@ -117,11 +115,11 @@ describe("TaskCreateModal", () => {
   });
 
   it("pre-selects epic when defaultEpicId is provided", async () => {
-    renderModal(1);
+    renderModal("epic_1");
 
     await waitFor(() => {
       const epicSelect = screen.getByLabelText(/Epic/) as HTMLSelectElement;
-      expect(epicSelect.value).toBe("1");
+      expect(epicSelect.value).toBe("epic_1");
     });
   });
 
@@ -162,19 +160,17 @@ describe("TaskCreateModal", () => {
 
   it("submits form without epic and calls callbacks on success", async () => {
     vi.mocked(api.tasks.createTask).mockResolvedValue({
-      success: true,
-      data: {
-        id: 1,
-        title: "Test Task",
-        projectId: 1,
-        status: "backlog",
-        requiresApproval: false,
-        progressPercentage: 0,
-        createdByUserId: 1,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
+      id: "task_1",
+      displayKey: "T-1",
+      title: "Test Task",
+      projectId: "proj_1",
+      status: "BACKLOG",
+      priority: "MEDIUM",
+      requiresApproval: false,
+      createdById: "user_1",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as any);
 
     renderModal();
 
@@ -191,14 +187,12 @@ describe("TaskCreateModal", () => {
 
     await waitFor(() => {
       expect(api.tasks.createTask).toHaveBeenCalledWith({
-        id: projectId,
+        projectRef: projectId,
         createTaskRequest: {
           title: "Test Task",
           description: "Test description",
-          acceptanceCriteria: ["Test criterion"],
-          epicId: undefined,
-          assignedAgentId: undefined,
-          executorType: undefined,
+          epicRef: undefined,
+          assignedToRef: undefined,
         },
       });
     });
@@ -209,20 +203,19 @@ describe("TaskCreateModal", () => {
 
   it("submits form with epic selected", async () => {
     vi.mocked(api.tasks.createTask).mockResolvedValue({
-      success: true,
-      data: {
-        id: 1,
-        title: "Test Task",
-        projectId: 1,
-        epicId: 2,
-        status: "backlog",
-        requiresApproval: false,
-        progressPercentage: 0,
-        createdByUserId: 1,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
+      id: "task_1",
+      displayKey: "T-1",
+      title: "Test Task",
+      projectId: "proj_1",
+      epicId: "epic_2",
+      epicDisplayKey: "EP-2",
+      status: "BACKLOG",
+      priority: "MEDIUM",
+      requiresApproval: false,
+      createdById: "user_1",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as any);
 
     renderModal();
 
@@ -238,20 +231,18 @@ describe("TaskCreateModal", () => {
       target: { value: "Test criterion" },
     });
     fireEvent.change(screen.getByLabelText(/Epic/), {
-      target: { value: "2" },
+      target: { value: "epic_2" },
     });
     fireEvent.click(screen.getByRole("button", { name: /Create Task/i }));
 
     await waitFor(() => {
       expect(api.tasks.createTask).toHaveBeenCalledWith({
-        id: projectId,
+        projectRef: projectId,
         createTaskRequest: {
           title: "Test Task",
           description: undefined,
-          acceptanceCriteria: ["Test criterion"],
-          epicId: 2,
-          assignedAgentId: undefined,
-          executorType: undefined,
+          epicRef: "epic_2",
+          assignedToRef: undefined,
         },
       });
     });

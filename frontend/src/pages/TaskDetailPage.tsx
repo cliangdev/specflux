@@ -209,9 +209,12 @@ export default function TaskDetailPage() {
   };
 
   // Update task's assigned user
-  const handleAgentChange = async (agentId: number | null) => {
+  const handleAgentChange = async (
+    agentId: string | null,
+    agent: { id: string; name: string } | null,
+  ) => {
     // Agent assignment not yet implemented in v2
-    console.log("Agent assignment not yet implemented in v2", agentId);
+    console.log("Agent assignment not yet implemented in v2", agentId, agent);
   };
 
   // Remove dependency
@@ -403,27 +406,13 @@ export default function TaskDetailPage() {
             {activeTab === "context" && (
               <TaskContextTab
                 task={taskForComponents}
-                dependencies={dependencies.map((d) => ({
-                  id: 0,
-                  taskId: 0,
-                  dependsOnTaskId: 0,
-                  dependsOnTaskRef: d.dependsOnTaskId,
-                  dependsOnDisplayKey: d.dependsOnDisplayKey,
-                }))}
+                dependencies={dependencies}
                 epic={null}
                 onAddDependency={() => {
                   // TODO: Implement add dependency modal for v2
                   console.log("Add dependency not yet implemented");
                 }}
-                onRemoveDependency={(depId) => {
-                  // Find the dependency by id to get the ref
-                  const dep = dependencies.find(
-                    (_, idx) => idx === depId || depId === 0,
-                  );
-                  if (dep) {
-                    handleRemoveDependency(dep.dependsOnTaskId);
-                  }
-                }}
+                onRemoveDependency={handleRemoveDependency}
               />
             )}
           </div>

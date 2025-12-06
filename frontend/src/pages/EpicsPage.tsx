@@ -110,22 +110,16 @@ export default function EpicsPage() {
       // Convert v2 releases to v1 format
       const v2Releases = response.data ?? [];
       const convertedReleases: Release[] = v2Releases.map((r) => ({
-        id: 0, // v2 uses id as string
-        publicId: r.id,
+        id: r.id,
+        displayKey: r.displayKey,
         name: r.name,
-        description: r.description ?? null,
-        status: r.status.toLowerCase() as
-          | "planned"
-          | "in_progress"
-          | "released",
-        targetDate: r.targetDate ?? null,
-        projectId: 0,
-        createdAt: r.createdAt,
-        updatedAt: r.updatedAt,
-        epicCount: (r as { epicCount?: number }).epicCount,
-        progressPercentage: (r as { progressPercentage?: number })
-          .progressPercentage,
-      }));
+        description: r.description,
+        status: r.status,
+        targetDate: r.targetDate,
+        projectId: r.projectId,
+        createdAt: new Date(r.createdAt),
+        updatedAt: new Date(r.updatedAt),
+      })) as unknown as Release[];
       setReleases(convertedReleases);
     } catch (err) {
       console.error("Failed to fetch releases:", err);
@@ -206,9 +200,9 @@ export default function EpicsPage() {
         // For unassigned filter, check both releaseId and releasePublicId
         if (epic.releaseId || epicWithPublicId.releasePublicId) return false;
       } else {
-        // For v2, compare releasePublicId; for v1, compare numeric releaseId
+        // For v2, compare releasePublicId or releaseId (both strings)
         const matchesV2 = epicWithPublicId.releasePublicId === releaseFilter;
-        const matchesV1 = epic.releaseId === Number(releaseFilter);
+        const matchesV1 = epic.releaseId === releaseFilter;
         if (!matchesV2 && !matchesV1) return false;
       }
     }

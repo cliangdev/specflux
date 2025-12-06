@@ -21,9 +21,14 @@ vi.mock("../api", () => ({
 }));
 
 // Default pagination response
-const mockPagination = {
-  nextCursor: null,
-  prevCursor: null,
+const mockPagination: {
+  nextCursor?: string;
+  prevCursor?: string;
+  hasMore?: boolean;
+  total?: number;
+} = {
+  nextCursor: undefined,
+  prevCursor: undefined,
   hasMore: false,
   total: 0,
 };
@@ -31,36 +36,36 @@ const mockPagination = {
 import { api } from "../api";
 
 const mockProject: Project = {
-  id: 1,
-  projectId: "proj-1",
+  id: "proj_123",
+  projectKey: "PROJ-1",
   name: "Test Project",
-  localPath: "/test/path",
-  workflowTemplate: "startup-fast",
-  ownerUserId: 1,
+  ownerId: "user_123",
   createdAt: new Date(),
   updatedAt: new Date(),
 };
 
 const mockTasks: Task[] = [
   {
-    id: 1,
-    projectId: 1,
+    id: "task_123",
+    displayKey: "TASK-1",
+    projectId: "proj_123",
     title: "Task One",
-    status: "backlog",
+    status: "BACKLOG",
+    priority: "MEDIUM",
     requiresApproval: false,
-    progressPercentage: 0,
-    createdByUserId: 1,
+    createdById: "user_123",
     createdAt: new Date(),
     updatedAt: new Date(),
   },
   {
-    id: 2,
-    projectId: 1,
+    id: "task_456",
+    displayKey: "TASK-2",
+    projectId: "proj_123",
     title: "Task Two",
-    status: "in_progress",
+    status: "IN_PROGRESS",
+    priority: "HIGH",
     requiresApproval: true,
-    progressPercentage: 50,
-    createdByUserId: 1,
+    createdById: "user_123",
     createdAt: new Date(),
     updatedAt: new Date(),
   },
@@ -81,15 +86,15 @@ describe("TasksPage", () => {
     vi.clearAllMocks();
     // Default mock for epics (empty list)
     vi.mocked(api.epics.listEpics).mockResolvedValue({
-      success: true,
       data: [],
+      pagination: { hasMore: false },
     });
   });
 
   it("shows message when no project is selected", async () => {
     vi.mocked(api.projects.listProjects).mockResolvedValue({
-      success: true,
       data: [],
+      pagination: { hasMore: false },
     });
 
     renderWithProvider();
@@ -101,8 +106,8 @@ describe("TasksPage", () => {
 
   it("shows loading state while fetching tasks", async () => {
     vi.mocked(api.projects.listProjects).mockResolvedValue({
-      success: true,
       data: [mockProject],
+      pagination: { hasMore: false },
     });
     vi.mocked(api.tasks.listTasks).mockImplementation(
       () => new Promise(() => {}), // Never resolves
@@ -119,11 +124,10 @@ describe("TasksPage", () => {
 
   it("shows empty state when no tasks exist", async () => {
     vi.mocked(api.projects.listProjects).mockResolvedValue({
-      success: true,
       data: [mockProject],
+      pagination: { hasMore: false },
     });
     vi.mocked(api.tasks.listTasks).mockResolvedValue({
-      success: true,
       data: [],
       pagination: mockPagination,
     });
@@ -137,11 +141,10 @@ describe("TasksPage", () => {
 
   it("renders tasks in a table", async () => {
     vi.mocked(api.projects.listProjects).mockResolvedValue({
-      success: true,
       data: [mockProject],
+      pagination: { hasMore: false },
     });
     vi.mocked(api.tasks.listTasks).mockResolvedValue({
-      success: true,
       data: mockTasks,
       pagination: { ...mockPagination, total: 2 },
     });
@@ -156,11 +159,10 @@ describe("TasksPage", () => {
 
   it("shows status badges for tasks", async () => {
     vi.mocked(api.projects.listProjects).mockResolvedValue({
-      success: true,
       data: [mockProject],
+      pagination: { hasMore: false },
     });
     vi.mocked(api.tasks.listTasks).mockResolvedValue({
-      success: true,
       data: mockTasks,
       pagination: { ...mockPagination, total: 2 },
     });
@@ -175,8 +177,8 @@ describe("TasksPage", () => {
 
   it("shows error state on API failure", async () => {
     vi.mocked(api.projects.listProjects).mockResolvedValue({
-      success: true,
       data: [mockProject],
+      pagination: { hasMore: false },
     });
     vi.mocked(api.tasks.listTasks).mockRejectedValue(
       new Error("Failed to fetch"),
@@ -191,11 +193,10 @@ describe("TasksPage", () => {
 
   it("has a create task button", async () => {
     vi.mocked(api.projects.listProjects).mockResolvedValue({
-      success: true,
       data: [mockProject],
+      pagination: { hasMore: false },
     });
     vi.mocked(api.tasks.listTasks).mockResolvedValue({
-      success: true,
       data: [],
       pagination: mockPagination,
     });
@@ -209,11 +210,10 @@ describe("TasksPage", () => {
 
   it("opens create task modal when clicking create button", async () => {
     vi.mocked(api.projects.listProjects).mockResolvedValue({
-      success: true,
       data: [mockProject],
+      pagination: { hasMore: false },
     });
     vi.mocked(api.tasks.listTasks).mockResolvedValue({
-      success: true,
       data: [],
       pagination: mockPagination,
     });
@@ -237,11 +237,10 @@ describe("TasksPage", () => {
 
   it("has status filter dropdown", async () => {
     vi.mocked(api.projects.listProjects).mockResolvedValue({
-      success: true,
       data: [mockProject],
+      pagination: { hasMore: false },
     });
     vi.mocked(api.tasks.listTasks).mockResolvedValue({
-      success: true,
       data: mockTasks,
       pagination: { ...mockPagination, total: 2 },
     });

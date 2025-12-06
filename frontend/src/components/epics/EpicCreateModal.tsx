@@ -7,8 +7,8 @@ interface CriterionInput {
 }
 
 interface EpicCreateModalProps {
-  projectId: number;
-  releaseId?: number;
+  projectId: string;
+  releaseId?: string;
   onClose: () => void;
   onCreated: () => void;
 }
@@ -51,14 +51,26 @@ export default function EpicCreateModal({
         title: title.trim(),
         description: description.trim() || undefined,
         prdFilePath: prdFilePath.trim() || undefined,
-        releaseId: releaseId ?? undefined,
-        acceptanceCriteria: validCriteria.map((c) => c.text.trim()),
+        releaseRef: releaseId ?? undefined,
       };
 
-      await api.epics.createEpic({
-        id: projectId,
+      // Create the epic first
+      const epic = await api.epics.createEpic({
+        projectRef: projectId,
         createEpicRequest: request,
       });
+
+      // Then add acceptance criteria
+      for (let i = 0; i < validCriteria.length; i++) {
+        await api.epics.createEpicAcceptanceCriteria({
+          projectRef: projectId,
+          epicRef: epic.id,
+          createAcceptanceCriteriaRequest: {
+            criteria: validCriteria[i].text.trim(),
+            orderIndex: i,
+          },
+        });
+      }
 
       onCreated();
       onClose();

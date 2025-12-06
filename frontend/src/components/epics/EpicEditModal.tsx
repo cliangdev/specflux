@@ -9,7 +9,7 @@ import { calculatePhase } from "../../utils/phaseCalculation";
 
 interface EpicEditModalProps {
   epic: Epic;
-  projectId: number;
+  projectId: string;
   allEpics: Epic[]; // All epics in the same release for dependency selection
   onClose: () => void;
   onUpdated: () => void;
@@ -26,10 +26,10 @@ export default function EpicEditModal({
   const [description, setDescription] = useState(epic.description ?? "");
   const [prdFilePath, setPrdFilePath] = useState(epic.prdFilePath ?? "");
   const [status, setStatus] = useState(epic.status);
-  const [releaseId, setReleaseId] = useState<number | null>(
+  const [releaseId, setReleaseId] = useState<string | null>(
     epic.releaseId ?? null,
   );
-  const [dependsOn, setDependsOn] = useState<number[]>(epic.dependsOn ?? []);
+  const [dependsOn, setDependsOn] = useState<string[]>(epic.dependsOn ?? []);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [releases, setReleases] = useState<Release[]>([]);
@@ -37,7 +37,7 @@ export default function EpicEditModal({
   // Fetch releases for the project
   useEffect(() => {
     api.releases
-      .listReleases({ id: projectId })
+      .listReleases({ projectRef: projectId })
       .then((response) => {
         setReleases(response.data ?? []);
       })
@@ -56,7 +56,7 @@ export default function EpicEditModal({
     if (dependsOn.length === 0) return 1;
 
     // Build a map for phase calculation
-    const epicsMap = new Map<number, { dependsOn: number[] }>();
+    const epicsMap = new Map<string, { dependsOn: string[] }>();
     for (const e of allEpics) {
       if (e.id === epic.id) {
         // Use the currently selected dependencies for this epic
@@ -74,7 +74,7 @@ export default function EpicEditModal({
     if (dependsOn.length === 0) return null;
 
     // Check if any selected dependency depends on this epic (directly or transitively)
-    const visited = new Set<number>();
+    const visited = new Set<string>();
     const stack = [...dependsOn];
 
     while (stack.length > 0) {
@@ -94,7 +94,7 @@ export default function EpicEditModal({
     return null;
   }, [dependsOn, allEpics, epic.id]);
 
-  const handleDependencyToggle = (epicId: number) => {
+  const handleDependencyToggle = (epicId: string) => {
     setDependsOn((prev) =>
       prev.includes(epicId)
         ? prev.filter((id) => id !== epicId)
@@ -121,15 +121,15 @@ export default function EpicEditModal({
 
       const request: UpdateEpicRequest = {
         title: title.trim(),
-        description: description.trim() || null,
-        prdFilePath: prdFilePath.trim() || null,
+        description: description.trim() || undefined,
+        prdFilePath: prdFilePath.trim() || undefined,
         status: status as UpdateEpicRequest["status"],
-        releaseId: releaseId,
-        dependsOn: dependsOn.length > 0 ? dependsOn : [],
+        releaseRef: releaseId || undefined,
       };
 
       await api.epics.updateEpic({
-        id: epic.id,
+        projectRef: projectId,
+        epicRef: epic.id,
         updateEpicRequest: request,
       });
 
@@ -255,9 +255,7 @@ export default function EpicEditModal({
               <select
                 id="release"
                 value={releaseId ?? ""}
-                onChange={(e) =>
-                  setReleaseId(e.target.value ? Number(e.target.value) : null)
-                }
+                onChange={(e) => setReleaseId(e.target.value || null)}
                 className="select w-full"
               >
                 <option value="">No Release (Unscheduled)</option>

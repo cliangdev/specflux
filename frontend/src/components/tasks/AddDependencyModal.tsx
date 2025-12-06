@@ -2,9 +2,9 @@ import { useState, useEffect, type FormEvent } from "react";
 import { api, type Task, type TaskDependency } from "../../api";
 
 interface AddDependencyModalProps {
-  taskId: number;
-  projectId: number;
-  existingDependencyIds: number[]; // IDs of tasks already in dependencies
+  taskId: string;
+  projectId: string;
+  existingDependencyIds: string[]; // IDs of tasks already in dependencies
   onClose: () => void;
   onAdded: () => void;
 }
@@ -17,7 +17,7 @@ export default function AddDependencyModal({
   onAdded,
 }: AddDependencyModalProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +28,7 @@ export default function AddDependencyModal({
     const fetchTasks = async () => {
       try {
         setLoading(true);
-        const response = await api.tasks.listTasks({ id: projectId });
+        const response = await api.tasks.listTasks({ projectRef: projectId });
         // Filter out:
         // 1. Current task (can't depend on itself)
         // 2. Tasks already in dependencies
@@ -52,7 +52,7 @@ export default function AddDependencyModal({
     ? tasks.filter(
         (t) =>
           t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          t.id.toString().includes(searchQuery),
+          t.displayKey.toLowerCase().includes(searchQuery.toLowerCase()),
       )
     : tasks;
 
@@ -69,8 +69,9 @@ export default function AddDependencyModal({
       setError(null);
 
       await api.tasks.addTaskDependency({
-        id: taskId,
-        addTaskDependencyRequest: { dependsOnTaskId: selectedTaskId },
+        projectRef: projectId,
+        taskRef: taskId,
+        addTaskDependencyRequest: { dependsOnTaskRef: selectedTaskId },
       });
 
       onAdded();
@@ -195,21 +196,22 @@ export default function AddDependencyModal({
                         className="text-brand-500 focus:ring-brand-500"
                       />
                       <span className="text-xs font-mono text-system-500 dark:text-system-400">
-                        #{t.id}
+                        {t.displayKey}
                       </span>
                       <span className="flex-1 text-sm text-system-700 dark:text-system-200 truncate">
                         {t.title}
                       </span>
                       <span
                         className={`shrink-0 px-2 py-0.5 text-xs font-medium rounded ${
-                          t.status === "done" || t.status === "approved"
+                          t.status === "COMPLETED"
                             ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
-                            : t.status === "in_progress"
+                            : t.status === "IN_PROGRESS" ||
+                                t.status === "IN_REVIEW"
                               ? "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300"
                               : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
                         }`}
                       >
-                        {t.status.replace("_", " ")}
+                        {t.status.replace(/_/g, " ")}
                       </span>
                     </label>
                   ))}

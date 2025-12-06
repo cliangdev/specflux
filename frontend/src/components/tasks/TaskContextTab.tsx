@@ -4,12 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { open } from "@tauri-apps/plugin-shell";
-import type {
-  Task,
-  Epic,
-  TaskDependency,
-  GetTaskState200ResponseData,
-} from "../../api/generated";
+import type { Task, Epic, TaskDependency } from "../../api/generated";
 import { api } from "../../api";
 
 // Extended task type for v2 support
@@ -26,7 +21,7 @@ interface TaskContextTabProps {
   dependencies: TaskDependency[];
   epic?: Epic | null;
   onAddDependency?: () => void;
-  onRemoveDependency?: (id: number) => void;
+  onRemoveDependency?: (dependsOnTaskId: string) => void;
 }
 
 // Status badge for dependency tasks
@@ -82,52 +77,23 @@ export default function TaskContextTab({
   onAddDependency,
   onRemoveDependency,
 }: TaskContextTabProps) {
-  const [stateInfo, setStateInfo] =
-    useState<GetTaskState200ResponseData | null>(null);
-  const [stateContent, setStateContent] = useState<string | null>(null);
-  const [stateLoading, setStateLoading] = useState(false);
-  const [stateError, setStateError] = useState<string | null>(null);
+  // Note: Task state API endpoint is not available in v2 API yet
+  // Commenting out for now until the endpoint is added
+  const [stateInfo] = useState<{
+    state?: {
+      hasChainInputs?: boolean;
+      hasChainOutput?: boolean;
+    };
+    filePath?: string | null;
+    _exists?: boolean;
+  } | null>(null);
+  const [stateContent] = useState<string | null>(null);
+  const stateLoading = false;
+  const stateError: string | null = null;
 
-  const completedDeps = dependencies.filter(
-    (d) =>
-      d.dependsOnTask?.status === "done" ||
-      d.dependsOnTask?.status === "approved",
-  );
-  const blockedByCount = dependencies.length - completedDeps.length;
-
-  // Fetch task state info from API
-  const fetchStateInfo = useCallback(async () => {
-    try {
-      setStateLoading(true);
-      setStateError(null);
-      const response = await api.tasks.getTaskState({ id: task.id });
-      const data = response.data;
-      setStateInfo(data);
-
-      // If file exists, read its content
-      if (data?._exists && data?.filePath) {
-        try {
-          const content = await readTextFile(data.filePath);
-          setStateContent(content);
-        } catch (err) {
-          console.error("Failed to read state file:", err);
-          setStateContent(null);
-          setStateError("Failed to read state file from disk");
-        }
-      } else {
-        setStateContent(null);
-      }
-    } catch (err) {
-      console.error("Failed to fetch task state:", err);
-      setStateError("Failed to fetch task state info");
-    } finally {
-      setStateLoading(false);
-    }
-  }, [task.id]);
-
-  useEffect(() => {
-    fetchStateInfo();
-  }, [fetchStateInfo]);
+  // Note: TaskDependency in v2 API only contains IDs, not full task objects
+  // Cannot determine completion status without fetching individual tasks
+  const blockedByCount = dependencies.length;
 
   // Open file in default editor
   const handleOpenInEditor = async () => {
@@ -189,65 +155,39 @@ export default function TaskContextTab({
         {dependencies.length > 0 ? (
           <div className="space-y-2">
             {dependencies.map((dep) => {
-              const depTask = dep.dependsOnTask;
-              const isCompleted =
-                depTask?.status === "done" || depTask?.status === "approved";
+              // Note: In v2 API, TaskDependency only contains IDs, not full task objects
               return (
                 <div
-                  key={dep.id}
-                  className={`flex items-center justify-between p-3 rounded-lg border ${
-                    isCompleted
-                      ? "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800"
-                      : "bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800"
-                  }`}
+                  key={`${dep.taskId}-${dep.dependsOnTaskId}`}
+                  className="flex items-center justify-between p-3 rounded-lg border bg-system-50 dark:bg-system-800/50 border-system-200 dark:border-system-700"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    {isCompleted ? (
-                      <svg
-                        className="w-5 h-5 text-emerald-500 flex-shrink-0"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                    ) : (
-                      <svg
-                        className="w-5 h-5 text-amber-500 flex-shrink-0"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                    )}
+                    <svg
+                      className="w-5 h-5 text-amber-500 flex-shrink-0"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
                     <div className="min-w-0">
                       <Link
                         to={`/tasks/${dep.dependsOnTaskId}`}
                         className="text-sm font-medium text-system-900 dark:text-white hover:text-brand-600 dark:hover:text-brand-400 truncate block"
                       >
-                        #{dep.dependsOnTaskId}:{" "}
-                        {depTask?.title || "Unknown Task"}
+                        {dep.dependsOnDisplayKey}
                       </Link>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <DependencyStatusBadge
-                      status={depTask?.status || "backlog"}
-                    />
                     {onRemoveDependency && (
                       <button
-                        onClick={() => onRemoveDependency(dep.id)}
+                        onClick={() => onRemoveDependency(dep.dependsOnTaskId)}
                         className="p-1 text-system-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
                         title="Remove dependency"
                       >

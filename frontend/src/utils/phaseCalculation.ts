@@ -6,9 +6,9 @@ import type { Epic } from "../api";
  * Phase N = max(dependency phases) + 1
  */
 export function calculatePhase(
-  epicId: number,
-  epicsMap: Map<number, { dependsOn: number[] }>,
-  cache: Map<number, number> = new Map(),
+  epicId: string,
+  epicsMap: Map<string, { dependsOn: string[] }>,
+  cache: Map<string, number> = new Map(),
 ): number {
   // Return cached result if available
   if (cache.has(epicId)) {
@@ -37,7 +37,7 @@ export function calculatePhase(
 /**
  * Parse depends_on field from Epic (could be JSON string or already parsed)
  */
-export function parseDependsOn(dependsOn: unknown): number[] {
+export function parseDependsOn(dependsOn: unknown): string[] {
   if (!dependsOn) return [];
   if (Array.isArray(dependsOn)) return dependsOn;
   if (typeof dependsOn === "string") {
@@ -56,7 +56,7 @@ export function parseDependsOn(dependsOn: unknown): number[] {
  */
 export function groupEpicsByPhase(epics: Epic[]): Map<number, Epic[]> {
   // Build a map for quick lookup
-  const epicsMap = new Map<number, { dependsOn: number[] }>();
+  const epicsMap = new Map<string, { dependsOn: string[] }>();
   for (const epic of epics) {
     epicsMap.set(epic.id, {
       dependsOn: epic.dependsOn ?? [],
@@ -64,7 +64,7 @@ export function groupEpicsByPhase(epics: Epic[]): Map<number, Epic[]> {
   }
 
   // Calculate phases and group
-  const cache = new Map<number, number>();
+  const cache = new Map<string, number>();
   const groups = new Map<number, Epic[]>();
 
   for (const epic of epics) {

@@ -45,14 +45,14 @@ export function RepositorySettings() {
   }, [currentProject]);
 
   const loadRepositories = async () => {
-    if (!currentProject?.publicId) return;
+    if (!currentProject?.id) return;
 
     setLoading(true);
     setError(null);
 
     try {
       const response = await api.repositories.listRepositories({
-        projectRef: currentProject.publicId,
+        projectRef: currentProject.id,
       });
 
       setRepositories(response.data ?? []);
@@ -80,7 +80,7 @@ export function RepositorySettings() {
       name: repo.name,
       path: repo.path,
       gitUrl: repo.gitUrl || "",
-      defaultAgent: repo.defaultAgent || "",
+      defaultAgent: "",
     });
     setEditingRepo(repo);
     setModalMode("edit");
@@ -101,7 +101,7 @@ export function RepositorySettings() {
   };
 
   const handleSave = async () => {
-    if (!currentProject?.publicId) return;
+    if (!currentProject?.id) return;
 
     setSaving(true);
     setError(null);
@@ -109,7 +109,7 @@ export function RepositorySettings() {
     try {
       if (modalMode === "add") {
         await api.repositories.createRepository({
-          projectRef: currentProject.publicId,
+          projectRef: currentProject.id,
           createRepositoryRequest: {
             name: formData.name,
             path: formData.path,
@@ -121,8 +121,8 @@ export function RepositorySettings() {
         handleModalClose();
       } else if (modalMode === "edit" && editingRepo) {
         await api.repositories.updateRepository({
-          projectRef: currentProject.publicId,
-          repositoryRef: editingRepo.publicId,
+          projectRef: currentProject.id,
+          repoRef: editingRepo.id,
           updateRepositoryRequest: {
             name: formData.name,
             gitUrl: formData.gitUrl || undefined,
@@ -149,14 +149,14 @@ export function RepositorySettings() {
   };
 
   const handleDeleteConfirm = async () => {
-    if (!deletingRepo || !currentProject?.publicId) return;
+    if (!deletingRepo || !currentProject?.id) return;
 
     setError(null);
 
     try {
       await api.repositories.deleteRepository({
-        projectRef: currentProject.publicId,
-        repositoryRef: deletingRepo.publicId,
+        projectRef: currentProject.id,
+        repoRef: deletingRepo.id,
       });
       await loadRepositories();
       setDeletingRepo(null);

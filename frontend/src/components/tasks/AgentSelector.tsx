@@ -4,9 +4,9 @@ import { api } from "../../api";
 import { isV2Id } from "../../utils/idUtils";
 
 interface AgentSelectorProps {
-  projectId: number | string;
-  selectedAgentId?: number | null;
-  onChange: (agentId: number | null, agent: Agent | null) => void;
+  projectId: string;
+  selectedAgentId?: string | null;
+  onChange: (agentId: string | null, agent: Agent | null) => void;
   disabled?: boolean;
   /** Show inline (compact) or full dropdown */
   variant?: "inline" | "dropdown";
@@ -41,18 +41,13 @@ export default function AgentSelector({
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Fetch agents for the project (v1 API - skip for v2 project IDs)
+  // Fetch agents for the project
   useEffect(() => {
     const fetchAgents = async () => {
-      // Skip v1 API call for v2 project IDs
-      if (isV2Id(projectId)) {
-        setLoading(false);
-        return;
-      }
       try {
         setLoading(true);
-        const response = await api.agents.projectsIdAgentsGet({
-          id: Number(projectId),
+        const response = await api.agents.listAgents({
+          projectRef: projectId,
         });
         setAgents(response.data ?? []);
       } catch (err) {
@@ -100,7 +95,6 @@ export default function AgentSelector({
         >
           {selectedAgent ? (
             <>
-              <span>{selectedAgent.emoji}</span>
               <span className="font-medium">{selectedAgent.name}</span>
             </>
           ) : (
@@ -175,7 +169,6 @@ export default function AgentSelector({
                           isSelected ? "bg-system-100 dark:bg-system-700" : ""
                         }`}
                       >
-                        <span className="text-lg">{agent.emoji}</span>
                         <div className="flex-1 min-w-0">
                           <div
                             className={`font-medium truncate ${
@@ -225,7 +218,7 @@ export default function AgentSelector({
       <select
         value={selectedAgentId ?? ""}
         onChange={(e) => {
-          const agentId = e.target.value ? Number(e.target.value) : null;
+          const agentId = e.target.value || null;
           const agent = agents.find((a) => a.id === agentId) ?? null;
           onChange(agentId, agent);
         }}
@@ -235,7 +228,7 @@ export default function AgentSelector({
         <option value="">No agent assigned</option>
         {agents.map((agent) => (
           <option key={agent.id} value={agent.id}>
-            {agent.emoji} {agent.name}
+            {agent.name}
           </option>
         ))}
       </select>

@@ -153,7 +153,7 @@ const STATUS_BADGE_CONFIG: Record<string, { label: string; classes: string }> =
 
 interface DependencyListProps {
   dependencies: TaskDependency[];
-  onRemove?: (dependencyId: number) => void;
+  onRemove?: (dependsOnTaskId: string) => void;
   showRemoveButton?: boolean;
   emptyMessage?: string;
 }
@@ -177,64 +177,36 @@ export default function DependencyList({
   return (
     <div className="space-y-2">
       {dependencies.map((dep) => {
-        const task = dep.dependsOnTask;
-        if (!task) return null;
+        const displayId = dep.dependsOnDisplayKey;
+        const taskId = dep.dependsOnTaskId;
 
-        const statusConfig =
-          DEPENDENCY_STATUS_CONFIG[task.status] ||
-          DEPENDENCY_STATUS_CONFIG.backlog;
-        const badgeConfig =
-          STATUS_BADGE_CONFIG[task.status] || STATUS_BADGE_CONFIG.backlog;
-        const isComplete = task.status === "approved" || task.status === "done";
-
-        // Use publicId for v2 tasks, id for v1
-        const taskWithV2 = task as typeof task & {
-          publicId?: string;
-          displayKey?: string;
-        };
-        const taskRef = taskWithV2.publicId || task.id;
-        const displayId = taskWithV2.displayKey || `#${task.id}`;
+        // Note: In v2 API, TaskDependency only contains IDs and display keys, not full task objects
+        // Status information would need to be fetched separately if needed
 
         return (
           <div
-            key={dep.id}
+            key={`${dep.taskId}-${dep.dependsOnTaskId}`}
             className="flex items-center gap-2 p-2 rounded-lg bg-system-50 dark:bg-system-800/50 hover:bg-system-100 dark:hover:bg-system-800 transition-colors group"
           >
-            {/* Status Icon */}
-            <span className={statusConfig.classes}>{statusConfig.icon}</span>
-
-            {/* Task ID and Title - Clickable */}
+            {/* Task ID - Clickable */}
             <button
-              onClick={() => navigate(`/tasks/${taskRef}`)}
+              onClick={() => navigate(`/tasks/${taskId}`)}
               className="flex-1 flex items-center gap-2 text-left min-w-0"
             >
               <span className="text-xs font-mono text-system-500 dark:text-system-400">
                 {displayId}
               </span>
-              <span
-                className={`text-sm truncate ${
-                  isComplete
-                    ? "text-system-500 dark:text-system-400 line-through"
-                    : "text-system-700 dark:text-system-200"
-                }`}
-              >
-                {task.title}
+              <span className="text-sm truncate text-system-700 dark:text-system-200">
+                Depends on {displayId}
               </span>
             </button>
-
-            {/* Status Badge */}
-            <span
-              className={`shrink-0 px-2 py-0.5 text-xs font-medium rounded ${badgeConfig.classes}`}
-            >
-              {badgeConfig.label}
-            </span>
 
             {/* Remove Button */}
             {showRemoveButton && onRemove && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  onRemove(dep.id);
+                  onRemove(dep.dependsOnTaskId);
                 }}
                 className="opacity-0 group-hover:opacity-100 p-1 text-system-400 hover:text-red-500 dark:hover:text-red-400 transition-all"
                 title="Remove dependency"

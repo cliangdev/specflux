@@ -64,7 +64,7 @@ export default function BoardPage() {
     <div className="h-full flex flex-col">
       <KanbanBoard
         key={refreshKey}
-        projectId={currentProject.id}
+        projectId={0}
         projectRef={getProjectRef() ?? undefined}
         workflowTemplate={workflowTemplate}
         onTaskClick={handleTaskClick}
@@ -74,7 +74,7 @@ export default function BoardPage() {
 
       {showCreateModal && (
         <TaskCreateModal
-          projectId={currentProject.id}
+          projectId={getProjectRef() ?? currentProject.id}
           onClose={() => setShowCreateModal(false)}
           onCreated={handleTaskCreated}
         />

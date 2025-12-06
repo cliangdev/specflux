@@ -1,13 +1,12 @@
 import type { User } from "../../api/generated";
-import type { TaskExecutorTypeEnum } from "../../api/generated/models/Task";
 
 interface OwnerExecutorBadgeProps {
   /** Owner user object (for avatar/name display) */
   owner?: User | null;
   /** Owner user ID (fallback if user object not available) */
-  ownerUserId?: number | null;
+  ownerUserId?: string | null;
   /** Executor type: 'human' or 'agent' */
-  executorType?: TaskExecutorTypeEnum;
+  executorType?: "human" | "agent";
   /** Agent name for display when executor is agent */
   agentName?: string | null;
   /** Assigned user for human executor */
@@ -82,7 +81,7 @@ export default function OwnerExecutorBadge({
   const ownerName =
     owner?.displayName ||
     owner?.email ||
-    (ownerUserId ? `User #${ownerUserId}` : null);
+    (ownerUserId ? `User ${ownerUserId}` : null);
 
   const isAgentExecutor = executorType === "agent";
   const executorName = isAgentExecutor

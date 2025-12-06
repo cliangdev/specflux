@@ -5,15 +5,17 @@ import {
   getLeafEpics,
 } from "../transformEpicsToGraph";
 import type { Epic } from "../../../api/generated";
+import { EpicStatus } from "../../../api/generated";
 
 // Helper to create mock epics
 function createMockEpic(overrides: Partial<Epic> = {}): Epic {
   return {
-    id: 1,
-    projectId: 1,
+    id: "epic_1",
+    displayKey: "EPIC-1",
+    projectId: "proj_1",
     title: "Test Epic",
-    status: "active",
-    createdByUserId: 1,
+    status: EpicStatus.Planning,
+    createdById: "user_1",
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -30,62 +32,70 @@ describe("transformEpicsToGraph", () => {
 
   it("creates nodes for each epic", () => {
     const epics: Epic[] = [
-      createMockEpic({ id: 1, title: "Epic 1" }),
-      createMockEpic({ id: 2, title: "Epic 2" }),
-      createMockEpic({ id: 3, title: "Epic 3" }),
+      createMockEpic({ id: "epic_1", title: "Epic 1" }),
+      createMockEpic({ id: "epic_2", title: "Epic 2" }),
+      createMockEpic({ id: "epic_3", title: "Epic 3" }),
     ];
 
     const result = transformEpicsToGraph(epics);
 
     expect(result.nodes).toHaveLength(3);
-    expect(result.nodes[0].id).toBe("1");
+    expect(result.nodes[0].id).toBe("epic_1");
     expect(result.nodes[0].data.label).toBe("Epic 1");
-    expect(result.nodes[1].id).toBe("2");
-    expect(result.nodes[2].id).toBe("3");
+    expect(result.nodes[1].id).toBe("epic_2");
+    expect(result.nodes[2].id).toBe("epic_3");
   });
 
   it("creates edges from dependencies", () => {
     const epics: Epic[] = [
-      createMockEpic({ id: 1, title: "Epic 1" }),
-      createMockEpic({ id: 2, title: "Epic 2", dependsOn: [1] }),
-      createMockEpic({ id: 3, title: "Epic 3", dependsOn: [1, 2] }),
+      createMockEpic({ id: "epic_1", title: "Epic 1" }),
+      createMockEpic({ id: "epic_2", title: "Epic 2", dependsOn: ["epic_1"] }),
+      createMockEpic({
+        id: "epic_3",
+        title: "Epic 3",
+        dependsOn: ["epic_1", "epic_2"],
+      }),
     ];
 
     const result = transformEpicsToGraph(epics);
 
     expect(result.edges).toHaveLength(3);
-    // Edge from 1 to 2
+    // Edge from epic_1 to epic_2
     expect(
-      result.edges.find((e) => e.source === "1" && e.target === "2"),
+      result.edges.find((e) => e.source === "epic_1" && e.target === "epic_2"),
     ).toBeTruthy();
-    // Edge from 1 to 3
+    // Edge from epic_1 to epic_3
     expect(
-      result.edges.find((e) => e.source === "1" && e.target === "3"),
+      result.edges.find((e) => e.source === "epic_1" && e.target === "epic_3"),
     ).toBeTruthy();
-    // Edge from 2 to 3
+    // Edge from epic_2 to epic_3
     expect(
-      result.edges.find((e) => e.source === "2" && e.target === "3"),
+      result.edges.find((e) => e.source === "epic_2" && e.target === "epic_3"),
     ).toBeTruthy();
   });
 
   it("warns about missing dependencies", () => {
     const epics: Epic[] = [
-      createMockEpic({ id: 2, title: "Epic 2", dependsOn: [999] }),
+      createMockEpic({
+        id: "epic_2",
+        title: "Epic 2",
+        dependsOn: ["epic_999"],
+      }),
     ];
 
     const result = transformEpicsToGraph(epics);
 
     expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0]).toContain("Epic #2");
-    expect(result.warnings[0]).toContain("Epic #999");
+    expect(result.warnings[0]).toContain("epic_2");
+    expect(result.warnings[0]).toContain("epic_999");
     expect(result.warnings[0]).toContain("not in the current view");
   });
 
   it("detects circular dependencies", () => {
     const epics: Epic[] = [
-      createMockEpic({ id: 1, title: "Epic 1", dependsOn: [3] }),
-      createMockEpic({ id: 2, title: "Epic 2", dependsOn: [1] }),
-      createMockEpic({ id: 3, title: "Epic 3", dependsOn: [2] }),
+      createMockEpic({ id: "epic_1", title: "Epic 1", dependsOn: ["epic_3"] }),
+      createMockEpic({ id: "epic_2", title: "Epic 2", dependsOn: ["epic_1"] }),
+      createMockEpic({ id: "epic_3", title: "Epic 3", dependsOn: ["epic_2"] }),
     ];
 
     const result = transformEpicsToGraph(epics);
@@ -98,10 +108,10 @@ describe("transformEpicsToGraph", () => {
   it("includes progress data in node data", () => {
     const epics: Epic[] = [
       createMockEpic({
-        id: 1,
+        id: "epic_1",
         title: "Epic 1",
         progressPercentage: 75,
-        taskStats: { total: 4, done: 3, inProgress: 1 },
+        taskStats: { total: 4, done: 3, inProgress: 1, backlog: 0 },
       }),
     ];
 
@@ -114,8 +124,8 @@ describe("transformEpicsToGraph", () => {
 
   it("sets epicNode type for all nodes", () => {
     const epics: Epic[] = [
-      createMockEpic({ id: 1 }),
-      createMockEpic({ id: 2 }),
+      createMockEpic({ id: "epic_1" }),
+      createMockEpic({ id: "epic_2" }),
     ];
 
     const result = transformEpicsToGraph(epics);
@@ -129,32 +139,36 @@ describe("transformEpicsToGraph", () => {
 describe("getRootEpics", () => {
   it("returns epics with no dependencies", () => {
     const epics: Epic[] = [
-      createMockEpic({ id: 1, title: "Root 1" }),
-      createMockEpic({ id: 2, title: "Dependent", dependsOn: [1] }),
-      createMockEpic({ id: 3, title: "Root 2", dependsOn: [] }),
+      createMockEpic({ id: "epic_1", title: "Root 1" }),
+      createMockEpic({
+        id: "epic_2",
+        title: "Dependent",
+        dependsOn: ["epic_1"],
+      }),
+      createMockEpic({ id: "epic_3", title: "Root 2", dependsOn: [] }),
     ];
 
     const roots = getRootEpics(epics);
 
     expect(roots).toHaveLength(2);
-    expect(roots.map((e) => e.id)).toContain(1);
-    expect(roots.map((e) => e.id)).toContain(3);
+    expect(roots.map((e) => e.id)).toContain("epic_1");
+    expect(roots.map((e) => e.id)).toContain("epic_3");
   });
 });
 
 describe("getLeafEpics", () => {
   it("returns epics that nothing depends on", () => {
     const epics: Epic[] = [
-      createMockEpic({ id: 1, title: "Dependency" }),
-      createMockEpic({ id: 2, title: "Leaf 1", dependsOn: [1] }),
-      createMockEpic({ id: 3, title: "Leaf 2", dependsOn: [1] }),
+      createMockEpic({ id: "epic_1", title: "Dependency" }),
+      createMockEpic({ id: "epic_2", title: "Leaf 1", dependsOn: ["epic_1"] }),
+      createMockEpic({ id: "epic_3", title: "Leaf 2", dependsOn: ["epic_1"] }),
     ];
 
     const leaves = getLeafEpics(epics);
 
     expect(leaves).toHaveLength(2);
-    expect(leaves.map((e) => e.id)).toContain(2);
-    expect(leaves.map((e) => e.id)).toContain(3);
-    expect(leaves.map((e) => e.id)).not.toContain(1);
+    expect(leaves.map((e) => e.id)).toContain("epic_2");
+    expect(leaves.map((e) => e.id)).toContain("epic_3");
+    expect(leaves.map((e) => e.id)).not.toContain("epic_1");
   });
 });

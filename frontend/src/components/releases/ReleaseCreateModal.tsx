@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { api, type CreateReleaseRequest } from "../../api";
 
 interface ReleaseCreateModalProps {
-  projectId: number;
+  projectId: string;
   onClose: () => void;
   onCreated: () => void;
 }
@@ -37,12 +37,12 @@ export default function ReleaseCreateModal({
 
       const request: CreateReleaseRequest = {
         name: name.trim(),
-        targetDate: targetDate ? new Date(targetDate) : null,
-        description: description.trim() || null,
+        targetDate: targetDate ? new Date(targetDate) : undefined,
+        description: description.trim() || undefined,
       };
 
       await api.releases.createRelease({
-        id: projectId,
+        projectRef: projectId,
         createReleaseRequest: request,
       });
 

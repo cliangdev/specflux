@@ -1,11 +1,11 @@
 import { useState, useCallback } from "react";
-import type { AcceptanceCriterion } from "../../api/generated";
+import type { AcceptanceCriteria } from "../../api/generated";
 import { api } from "../../api";
 
 interface AcceptanceCriteriaListProps {
   entityType: "task" | "epic";
-  entityId: number;
-  criteria: AcceptanceCriterion[];
+  entityId: string;
+  criteria: AcceptanceCriteria[];
   onUpdate?: () => void;
   readonly?: boolean;
 }
@@ -23,21 +23,23 @@ export function AcceptanceCriteriaList({
   const [deleting, setDeleting] = useState<number | null>(null);
 
   const handleToggle = useCallback(
-    async (criterion: AcceptanceCriterion) => {
+    async (criterion: AcceptanceCriteria) => {
       if (readonly) return;
       setUpdating(criterion.id);
       try {
         if (entityType === "task") {
-          await api.tasks.updateTaskCriterion({
-            id: entityId,
-            criterionId: criterion.id,
-            updateCriterionRequest: { checked: !criterion.checked },
+          await api.tasks.updateTaskAcceptanceCriteria({
+            projectRef: entityId, // TODO: Need to pass projectRef and taskRef separately
+            taskRef: entityId,
+            criteriaId: criterion.id,
+            updateAcceptanceCriteriaRequest: { isMet: !criterion.isMet },
           });
         } else {
-          await api.epics.updateEpicCriterion({
-            id: entityId,
-            criterionId: criterion.id,
-            updateCriterionRequest: { checked: !criterion.checked },
+          await api.epics.updateEpicAcceptanceCriteria({
+            projectRef: entityId, // TODO: Need to pass projectRef and epicRef separately
+            epicRef: entityId,
+            criteriaId: criterion.id,
+            updateAcceptanceCriteriaRequest: { isMet: !criterion.isMet },
           });
         }
         onUpdate?.();
@@ -55,14 +57,20 @@ export function AcceptanceCriteriaList({
     setIsAdding(true);
     try {
       if (entityType === "task") {
-        await api.tasks.createTaskCriterion({
-          id: entityId,
-          createCriterionRequest: { text: newCriterionText.trim() },
+        await api.tasks.createTaskAcceptanceCriteria({
+          projectRef: entityId, // TODO: Need to pass projectRef and taskRef separately
+          taskRef: entityId,
+          createAcceptanceCriteriaRequest: {
+            criteria: newCriterionText.trim(),
+          },
         });
       } else {
-        await api.epics.createEpicCriterion({
-          id: entityId,
-          createCriterionRequest: { text: newCriterionText.trim() },
+        await api.epics.createEpicAcceptanceCriteria({
+          projectRef: entityId, // TODO: Need to pass projectRef and epicRef separately
+          epicRef: entityId,
+          createAcceptanceCriteriaRequest: {
+            criteria: newCriterionText.trim(),
+          },
         });
       }
       setNewCriterionText("");
@@ -80,14 +88,16 @@ export function AcceptanceCriteriaList({
       setDeleting(criterionId);
       try {
         if (entityType === "task") {
-          await api.tasks.deleteTaskCriterion({
-            id: entityId,
-            criterionId,
+          await api.tasks.deleteTaskAcceptanceCriteria({
+            projectRef: entityId, // TODO: Need to pass projectRef and taskRef separately
+            taskRef: entityId,
+            criteriaId: criterionId,
           });
         } else {
-          await api.epics.deleteEpicCriterion({
-            id: entityId,
-            criterionId,
+          await api.epics.deleteEpicAcceptanceCriteria({
+            projectRef: entityId, // TODO: Need to pass projectRef and epicRef separately
+            epicRef: entityId,
+            criteriaId: criterionId,
           });
         }
         onUpdate?.();
@@ -107,7 +117,7 @@ export function AcceptanceCriteriaList({
     }
   };
 
-  const completedCount = criteria.filter((c) => c.checked).length;
+  const completedCount = criteria.filter((c) => c.isMet).length;
   const totalCount = criteria.length;
   const progressPercent =
     totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
@@ -143,14 +153,14 @@ export function AcceptanceCriteriaList({
                 onClick={() => handleToggle(criterion)}
                 disabled={readonly || updating === criterion.id}
                 className={`flex-shrink-0 w-5 h-5 rounded border flex items-center justify-center mt-0.5 transition-colors ${
-                  criterion.checked
+                  criterion.isMet
                     ? "bg-emerald-100 border-emerald-300 dark:bg-emerald-900/30 dark:border-emerald-700"
                     : "border-system-300 dark:border-system-600 hover:border-brand-400 dark:hover:border-brand-500"
                 } ${readonly ? "cursor-default" : "cursor-pointer"} ${
                   updating === criterion.id ? "opacity-50" : ""
                 }`}
               >
-                {criterion.checked && (
+                {criterion.isMet && (
                   <svg
                     className="w-3 h-3 text-emerald-600 dark:text-emerald-400"
                     fill="none"
@@ -168,12 +178,12 @@ export function AcceptanceCriteriaList({
               </button>
               <span
                 className={`flex-1 text-sm ${
-                  criterion.checked
+                  criterion.isMet
                     ? "text-system-500 dark:text-system-400 line-through"
                     : "text-system-700 dark:text-system-300"
                 }`}
               >
-                {criterion.text}
+                {criterion.criteria}
               </span>
               {!readonly && (
                 <button

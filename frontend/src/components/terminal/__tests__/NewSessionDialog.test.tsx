@@ -11,41 +11,53 @@ vi.mock("../../../api", () => ({
       listEpics: vi.fn(),
     },
   },
+  TaskStatus: {
+    Backlog: "BACKLOG",
+    Ready: "READY",
+    InProgress: "IN_PROGRESS",
+    InReview: "IN_REVIEW",
+    Blocked: "BLOCKED",
+    Completed: "COMPLETED",
+    Cancelled: "CANCELLED",
+  },
 }));
 
 import { api } from "../../../api";
 
 const mockTasks = [
   {
-    id: 1,
+    id: "task_1",
+    displayKey: "TSK-1",
     title: "Task 1",
-    projectId: 1,
-    status: "backlog" as const,
+    projectId: "proj_1",
+    status: "BACKLOG" as const,
+    priority: "MEDIUM" as const,
     requiresApproval: false,
-    progressPercentage: 0,
-    createdByUserId: 1,
+    createdById: "user_1",
     createdAt: new Date(),
     updatedAt: new Date(),
   },
   {
-    id: 2,
+    id: "task_2",
+    displayKey: "TSK-2",
     title: "Task 2",
-    projectId: 1,
-    status: "in_progress" as const,
+    projectId: "proj_1",
+    status: "IN_PROGRESS" as const,
+    priority: "HIGH" as const,
     requiresApproval: false,
-    progressPercentage: 50,
-    createdByUserId: 1,
+    createdById: "user_1",
     createdAt: new Date(),
     updatedAt: new Date(),
   },
   {
-    id: 3,
+    id: "task_3",
+    displayKey: "TSK-3",
     title: "Done Task",
-    projectId: 1,
-    status: "done" as const,
+    projectId: "proj_1",
+    status: "COMPLETED" as const,
+    priority: "LOW" as const,
     requiresApproval: false,
-    progressPercentage: 100,
-    createdByUserId: 1,
+    createdById: "user_1",
     createdAt: new Date(),
     updatedAt: new Date(),
   },
@@ -53,20 +65,22 @@ const mockTasks = [
 
 const mockEpics = [
   {
-    id: 1,
+    id: "epic_1",
+    displayKey: "EPIC-1",
     title: "Epic 1",
-    projectId: 1,
-    status: "planning" as const,
-    createdByUserId: 1,
+    projectId: "proj_1",
+    status: "PLANNING" as const,
+    createdById: "user_1",
     createdAt: new Date(),
     updatedAt: new Date(),
   },
   {
-    id: 2,
+    id: "epic_2",
+    displayKey: "EPIC-2",
     title: "Epic 2",
-    projectId: 1,
-    status: "active" as const,
-    createdByUserId: 1,
+    projectId: "proj_1",
+    status: "IN_PROGRESS" as const,
+    createdById: "user_1",
     createdAt: new Date(),
     updatedAt: new Date(),
   },
@@ -75,18 +89,17 @@ const mockEpics = [
 describe("NewSessionDialog", () => {
   const mockOnClose = vi.fn();
   const mockOnCreated = vi.fn();
-  const projectId = 1;
+  const projectId = "proj_1";
 
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.tasks.listTasks).mockResolvedValue({
-      success: true,
       data: mockTasks,
-      pagination: { hasMore: false, total: 3 },
+      pagination: { hasMore: false },
     });
     vi.mocked(api.epics.listEpics).mockResolvedValue({
-      success: true,
       data: mockEpics,
+      pagination: { hasMore: false },
     });
   });
 
@@ -163,16 +176,18 @@ describe("NewSessionDialog", () => {
     renderDialog();
 
     await waitFor(() => {
-      expect(api.tasks.listTasks).toHaveBeenCalledWith({ id: projectId });
+      expect(api.tasks.listTasks).toHaveBeenCalledWith({
+        projectRef: projectId,
+      });
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/#1: Task 1/)).toBeInTheDocument();
-      expect(screen.getByText(/#2: Task 2/)).toBeInTheDocument();
+      expect(screen.getByText(/TSK-1: Task 1/)).toBeInTheDocument();
+      expect(screen.getByText(/TSK-2: Task 2/)).toBeInTheDocument();
     });
 
     // Done task should not appear
-    expect(screen.queryByText(/#3: Done Task/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/TSK-3: Done Task/)).not.toBeInTheDocument();
   });
 
   it("calls onClose when clicking backdrop", () => {
@@ -216,11 +231,11 @@ describe("NewSessionDialog", () => {
     renderDialog();
 
     await waitFor(() => {
-      expect(screen.getByText(/#1: Task 1/)).toBeInTheDocument();
+      expect(screen.getByText(/TSK-1: Task 1/)).toBeInTheDocument();
     });
 
     fireEvent.change(screen.getByLabelText(/Select Task/), {
-      target: { value: "1" },
+      target: { value: "task_1" },
     });
 
     const submitButton = screen.getByRole("button", { name: /Open Terminal/i });
@@ -231,18 +246,18 @@ describe("NewSessionDialog", () => {
     renderDialog();
 
     await waitFor(() => {
-      expect(screen.getByText(/#1: Task 1/)).toBeInTheDocument();
+      expect(screen.getByText(/TSK-1: Task 1/)).toBeInTheDocument();
     });
 
     fireEvent.change(screen.getByLabelText(/Select Task/), {
-      target: { value: "1" },
+      target: { value: "task_1" },
     });
 
     fireEvent.click(screen.getByRole("button", { name: /Open Terminal/i }));
 
     expect(mockOnCreated).toHaveBeenCalledWith({
       type: "task",
-      id: 1,
+      id: "task_1",
       title: "Task 1",
     });
   });
@@ -284,9 +299,8 @@ describe("NewSessionDialog", () => {
           setTimeout(
             () =>
               resolve({
-                success: true,
                 data: mockTasks,
-                pagination: { hasMore: false, total: 3 },
+                pagination: { hasMore: false },
               }),
             100,
           ),
@@ -300,9 +314,8 @@ describe("NewSessionDialog", () => {
 
   it("shows message when no active tasks are available", async () => {
     vi.mocked(api.tasks.listTasks).mockResolvedValue({
-      success: true,
-      data: [mockTasks[2]], // Only the "done" task
-      pagination: { hasMore: false, total: 1 },
+      data: [mockTasks[2]], // Only the "completed" task
+      pagination: { hasMore: false },
     });
 
     renderDialog();
@@ -337,12 +350,14 @@ describe("NewSessionDialog", () => {
       fireEvent.click(epicRadio);
 
       await waitFor(() => {
-        expect(api.epics.listEpics).toHaveBeenCalledWith({ id: projectId });
+        expect(api.epics.listEpics).toHaveBeenCalledWith({
+          projectRef: projectId,
+        });
       });
 
       await waitFor(() => {
-        expect(screen.getByText(/#1: Epic 1/)).toBeInTheDocument();
-        expect(screen.getByText(/#2: Epic 2/)).toBeInTheDocument();
+        expect(screen.getByText(/EPIC-1: Epic 1/)).toBeInTheDocument();
+        expect(screen.getByText(/EPIC-2: Epic 2/)).toBeInTheDocument();
       });
     });
 
@@ -355,18 +370,18 @@ describe("NewSessionDialog", () => {
       fireEvent.click(epicRadio);
 
       await waitFor(() => {
-        expect(screen.getByText(/#1: Epic 1/)).toBeInTheDocument();
+        expect(screen.getByText(/EPIC-1: Epic 1/)).toBeInTheDocument();
       });
 
       fireEvent.change(screen.getByLabelText(/Select Epic/), {
-        target: { value: "1" },
+        target: { value: "epic_1" },
       });
 
       fireEvent.click(screen.getByRole("button", { name: /Open Terminal/i }));
 
       expect(mockOnCreated).toHaveBeenCalledWith({
         type: "epic",
-        id: 1,
+        id: "epic_1",
         title: "Epic 1",
       });
     });
@@ -396,8 +411,8 @@ describe("NewSessionDialog", () => {
 
     it("shows message when no epics are available", async () => {
       vi.mocked(api.epics.listEpics).mockResolvedValue({
-        success: true,
         data: [],
+        pagination: { hasMore: false },
       });
 
       renderDialog();

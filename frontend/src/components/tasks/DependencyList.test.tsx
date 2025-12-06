@@ -19,52 +19,22 @@ const renderWithRouter = (ui: React.ReactElement) => {
 
 const mockDependencies: TaskDependency[] = [
   {
-    id: 1,
-    taskId: 10,
-    dependsOnTaskId: 5,
-    dependsOnTask: {
-      id: 5,
-      title: "Setup Database",
-      status: "done" as const,
-      projectId: 1,
-      requiresApproval: false,
-      progressPercentage: 100,
-      createdByUserId: 1,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
+    taskId: "task_abc123",
+    dependsOnTaskId: "task_xyz456",
+    dependsOnDisplayKey: "PROJ-5",
+    createdAt: new Date(),
   },
   {
-    id: 2,
-    taskId: 10,
-    dependsOnTaskId: 6,
-    dependsOnTask: {
-      id: 6,
-      title: "Configure Auth",
-      status: "in_progress" as const,
-      projectId: 1,
-      requiresApproval: false,
-      progressPercentage: 50,
-      createdByUserId: 1,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
+    taskId: "task_abc123",
+    dependsOnTaskId: "task_xyz789",
+    dependsOnDisplayKey: "PROJ-6",
+    createdAt: new Date(),
   },
   {
-    id: 3,
-    taskId: 10,
-    dependsOnTaskId: 7,
-    dependsOnTask: {
-      id: 7,
-      title: "Design API",
-      status: "backlog" as const,
-      projectId: 1,
-      requiresApproval: false,
-      progressPercentage: 0,
-      createdByUserId: 1,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
+    taskId: "task_abc123",
+    dependsOnTaskId: "task_xyz012",
+    dependsOnDisplayKey: "PROJ-7",
+    createdAt: new Date(),
   },
 ];
 
@@ -90,32 +60,20 @@ describe("DependencyList", () => {
   it("renders dependency list with task info", () => {
     renderWithRouter(<DependencyList dependencies={mockDependencies} />);
 
-    expect(screen.getByText("Setup Database")).toBeInTheDocument();
-    expect(screen.getByText("Configure Auth")).toBeInTheDocument();
-    expect(screen.getByText("Design API")).toBeInTheDocument();
-
-    expect(screen.getByText("#5")).toBeInTheDocument();
-    expect(screen.getByText("#6")).toBeInTheDocument();
-    expect(screen.getByText("#7")).toBeInTheDocument();
-  });
-
-  it("renders status badges for each dependency", () => {
-    renderWithRouter(<DependencyList dependencies={mockDependencies} />);
-
-    expect(screen.getByText("Done")).toBeInTheDocument();
-    expect(screen.getByText("In Progress")).toBeInTheDocument();
-    expect(screen.getByText("Backlog")).toBeInTheDocument();
+    expect(screen.getByText("PROJ-5")).toBeInTheDocument();
+    expect(screen.getByText("PROJ-6")).toBeInTheDocument();
+    expect(screen.getByText("PROJ-7")).toBeInTheDocument();
   });
 
   it("navigates to task when clicking dependency", () => {
     renderWithRouter(<DependencyList dependencies={mockDependencies} />);
 
-    // Click on the task title/id button
-    const taskButton = screen.getByText("Setup Database").closest("button");
+    // Click on the task display key button
+    const taskButton = screen.getByText("PROJ-5").closest("button");
     expect(taskButton).toBeInTheDocument();
     fireEvent.click(taskButton!);
 
-    expect(mockNavigate).toHaveBeenCalledWith("/tasks/5");
+    expect(mockNavigate).toHaveBeenCalledWith("/tasks/task_xyz456");
   });
 
   it("calls onRemove when clicking remove button", () => {
@@ -133,7 +91,7 @@ describe("DependencyList", () => {
 
     fireEvent.click(removeButtons[0]);
 
-    expect(mockOnRemove).toHaveBeenCalledWith(1); // First dependency ID
+    expect(mockOnRemove).toHaveBeenCalledWith("task_xyz456"); // First dependency task ID
   });
 
   it("hides remove buttons when showRemoveButton is false", () => {
@@ -145,12 +103,5 @@ describe("DependencyList", () => {
     );
 
     expect(screen.queryAllByTitle("Remove dependency")).toHaveLength(0);
-  });
-
-  it("shows completed tasks with strikethrough", () => {
-    renderWithRouter(<DependencyList dependencies={mockDependencies} />);
-
-    const completedTask = screen.getByText("Setup Database");
-    expect(completedTask).toHaveClass("line-through");
   });
 });

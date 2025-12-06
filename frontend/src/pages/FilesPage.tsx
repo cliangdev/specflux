@@ -1,20 +1,28 @@
 import { useState, useEffect } from "react";
 import { useProject } from "../contexts/ProjectContext";
 import { readDir, stat } from "@tauri-apps/plugin-fs";
-import type { ListFiles200ResponseDataInner } from "../api/generated/models/ListFiles200ResponseDataInner";
 import { FileTree } from "../components/files/FileTree";
 import { FilePreview } from "../components/files/FilePreview";
+
+// Local type for file entries (v2 API doesn't have file listing yet)
+interface FileEntry {
+  name: string;
+  path: string;
+  type: "file" | "directory";
+  size: number;
+  modifiedAt: Date;
+}
 
 export default function FilesPage() {
   const { currentProject } = useProject();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [files, setFiles] = useState<ListFiles200ResponseDataInner[]>([]);
+  const [files, setFiles] = useState<FileEntry[]>([]);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
-  const [dirContents, setDirContents] = useState<
-    Map<string, ListFiles200ResponseDataInner[]>
-  >(new Map());
+  const [dirContents, setDirContents] = useState<Map<string, FileEntry[]>>(
+    new Map(),
+  );
 
   useEffect(() => {
     if (currentProject) {
@@ -50,9 +58,9 @@ export default function FilesPage() {
   const loadDirectory = async (
     fullPath: string,
     relativePath: string,
-  ): Promise<ListFiles200ResponseDataInner[]> => {
+  ): Promise<FileEntry[]> => {
     const entries = await readDir(fullPath);
-    const fileList: ListFiles200ResponseDataInner[] = [];
+    const fileList: FileEntry[] = [];
 
     for (const entry of entries) {
       const entryFullPath = `${fullPath}/${entry.name}`;

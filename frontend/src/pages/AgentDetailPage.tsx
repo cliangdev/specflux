@@ -69,8 +69,10 @@ export default function AgentDetailPage() {
     try {
       setLoading(true);
       setError(null);
-      const response = await api.agents.agentsIdGet({ id: parseInt(id, 10) });
-      const agentData = response.data ?? null;
+      const agentData = await api.agents.getAgent({
+        projectRef: currentProject?.id || "",
+        agentRef: id,
+      });
       setAgent(agentData);
 
       // Initialize edit form with current values
@@ -78,9 +80,9 @@ export default function AgentDetailPage() {
         setEditForm({
           name: agentData.name,
           description: agentData.description || "",
-          emoji: agentData.emoji || "🤖",
-          systemPrompt: agentData.systemPrompt || "",
-          tools: agentData.tools || [],
+          emoji: "",
+          systemPrompt: "",
+          tools: [],
         });
       }
     } catch (err) {
@@ -90,7 +92,7 @@ export default function AgentDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, currentProject]);
 
   useEffect(() => {
     fetchAgent();
@@ -101,9 +103,9 @@ export default function AgentDetailPage() {
       setEditForm({
         name: agent.name,
         description: agent.description || "",
-        emoji: agent.emoji || "🤖",
-        systemPrompt: agent.systemPrompt || "",
-        tools: agent.tools || [],
+        emoji: "",
+        systemPrompt: "",
+        tools: [],
       });
     }
     setSaveError(null);
@@ -117,29 +119,23 @@ export default function AgentDetailPage() {
   };
 
   const handleSave = async () => {
-    if (!agent || !id) return;
+    if (!agent || !id || !currentProject) return;
 
     setSaving(true);
     setSaveError(null);
 
     try {
-      const response = await api.agents.agentsIdPut({
-        id: parseInt(id, 10),
+      await api.agents.updateAgent({
+        projectRef: currentProject.id,
+        agentRef: id,
         updateAgentRequest: {
           name: editForm.name,
-          description: editForm.description || null,
-          emoji: editForm.emoji || undefined,
-          systemPrompt: editForm.systemPrompt || null,
-          tools: editForm.tools.length > 0 ? editForm.tools : null,
+          description: editForm.description || undefined,
         },
       });
 
-      if (response.success) {
-        await fetchAgent();
-        setIsEditing(false);
-      } else {
-        setSaveError("Failed to save agent");
-      }
+      await fetchAgent();
+      setIsEditing(false);
     } catch (err) {
       const message = await getApiErrorMessage(err, "Failed to save agent");
       setSaveError(message);
@@ -150,12 +146,15 @@ export default function AgentDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!id) return;
+    if (!id || !currentProject) return;
 
     setDeleting(true);
 
     try {
-      await api.agents.agentsIdDelete({ id: parseInt(id, 10) });
+      await api.agents.deleteAgent({
+        projectRef: currentProject.id,
+        agentRef: id,
+      });
       navigate(-1);
     } catch (err) {
       const message = await getApiErrorMessage(err, "Failed to delete agent");
@@ -314,7 +313,7 @@ export default function AgentDetailPage() {
             </>
           ) : (
             <>
-              <span className="text-5xl">{agent.emoji || "🤖"}</span>
+              <span className="text-5xl">🤖</span>
               <h1 className="text-2xl font-semibold text-system-900 dark:text-white">
                 {agent.name}
               </h1>
@@ -421,18 +420,18 @@ export default function AgentDetailPage() {
           </div>
 
           {/* Source File */}
-          {agent.configFilePath && (
+          {agent.filePath && (
             <div className="card p-5">
               <h3 className="text-sm font-medium text-system-500 dark:text-system-400 mb-2">
                 Source File
               </h3>
               <div className="flex items-center gap-2">
                 <code className="text-sm bg-system-100 dark:bg-system-800 px-2 py-1 rounded font-mono text-system-700 dark:text-system-300">
-                  {agent.configFilePath}
+                  {agent.filePath}
                 </code>
                 <button
                   onClick={() =>
-                    navigator.clipboard.writeText(agent.configFilePath || "")
+                    navigator.clipboard.writeText(agent.filePath || "")
                   }
                   className="p-1 text-system-400 hover:text-system-600 dark:hover:text-system-300"
                   title="Copy path"
@@ -455,49 +454,7 @@ export default function AgentDetailPage() {
             </div>
           )}
 
-          {/* Tools */}
-          <div className="card p-5">
-            <h3 className="text-sm font-medium text-system-500 dark:text-system-400 mb-2">
-              Allowed Tools
-            </h3>
-            {isEditing ? (
-              <div>
-                <input
-                  type="text"
-                  value={editForm.tools.join(", ")}
-                  onChange={(e) =>
-                    setEditForm({
-                      ...editForm,
-                      tools: e.target.value
-                        .split(",")
-                        .map((t) => t.trim())
-                        .filter(Boolean),
-                    })
-                  }
-                  className="w-full input"
-                  placeholder="Read, Edit, Bash, Glob, Grep (comma-separated)"
-                />
-                <p className="text-xs text-system-500 dark:text-system-400 mt-1">
-                  Leave empty to allow all tools
-                </p>
-              </div>
-            ) : agent.tools && agent.tools.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {agent.tools.map((tool, idx) => (
-                  <span
-                    key={idx}
-                    className="px-2 py-1 text-sm bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 rounded"
-                  >
-                    {tool}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="text-system-500 dark:text-system-400">
-                All tools allowed
-              </p>
-            )}
-          </div>
+          {/* Tools - Note: Not available in v2 API yet */}
 
           {/* Timestamps */}
           <div className="card p-5">
@@ -525,7 +482,7 @@ export default function AgentDetailPage() {
 
       {activeTab === "definition" && (
         <AgentDefinitionTab
-          configFilePath={agent.configFilePath}
+          configFilePath={agent.filePath}
           projectPath={currentProject?.localPath}
         />
       )}
@@ -544,12 +501,6 @@ export default function AgentDetailPage() {
                 Are you sure you want to delete{" "}
                 <span className="font-semibold">"{agent.name}"</span>?
               </p>
-              {agent.taskCount !== undefined && agent.taskCount > 0 && (
-                <p className="text-sm text-amber-600 dark:text-amber-400 mt-2">
-                  This agent is assigned to {agent.taskCount} task(s). They will
-                  be unassigned.
-                </p>
-              )}
             </div>
             <div className="px-6 py-4 border-t border-system-200 dark:border-system-700 flex gap-3 justify-end">
               <button

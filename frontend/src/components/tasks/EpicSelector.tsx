@@ -63,8 +63,10 @@ export default function EpicSelector({
             })),
           );
         } else {
-          // Fallback to v1 API for local-only mode
-          const response = await api.epics.listEpics({ id: projectId });
+          // Fallback: Use projectId as projectRef string
+          const response = await api.epics.listEpics({
+            projectRef: String(projectId),
+          });
           setEpics(
             (response.data ?? []).map((e) => ({
               id: e.id,

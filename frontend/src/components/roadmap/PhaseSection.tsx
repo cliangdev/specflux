@@ -347,7 +347,7 @@ export function PhaseSection({
   onEditEpic,
 }: PhaseSectionProps) {
   const navigate = useNavigate();
-  const [expandedEpicId, setExpandedEpicId] = useState<number | null>(null);
+  const [expandedEpicId, setExpandedEpicId] = useState<string | null>(null);
 
   // Determine initial expanded state:
   // - Phases 1 and 2 expanded by default
@@ -368,11 +368,11 @@ export function PhaseSection({
     }
   }, [status, defaultExpanded]);
 
-  const handleEpicToggle = (epicId: number) => {
+  const handleEpicToggle = (epicId: string) => {
     setExpandedEpicId((prev) => (prev === epicId ? null : epicId));
   };
 
-  const handleViewTasks = (epicId: number) => {
+  const handleViewTasks = (epicId: string) => {
     navigate(`/epics/${epicId}`);
   };
 
