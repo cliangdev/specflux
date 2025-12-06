@@ -28,8 +28,9 @@ pub struct TerminalExitPayload {
 }
 
 /// A single PTY session
+#[allow(dead_code)]
 pub struct PtySession {
-    session_id: String,
+    session_id: String, // Kept for potential debugging use
     writer: Arc<Mutex<Box<dyn Write + Send>>>,
     master: Arc<Mutex<Box<dyn MasterPty + Send>>>,
     _reader_handle: thread::JoinHandle<()>,
@@ -196,7 +197,8 @@ impl PtySession {
         Ok(())
     }
 
-    /// Get the session ID
+    /// Get the session ID (kept for potential debugging use)
+    #[allow(dead_code)]
     pub fn id(&self) -> &str {
         &self.session_id
     }
