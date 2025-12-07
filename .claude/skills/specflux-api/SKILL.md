@@ -1,6 +1,6 @@
 ---
 name: specflux-api
-description: SpecFlux REST API for creating and managing projects, epics, tasks, and acceptance criteria. Use when running /epic, /task, or /implement commands to create or update entities in SpecFlux via HTTP API. Use when creating epics with tasks, adding acceptance criteria, updating task status, or marking criteria as complete.
+description: SpecFlux REST API for creating and managing projects, PRDs, epics, tasks, and acceptance criteria. Use when running /prd, /epic, /task, or /implement commands to create or update entities in SpecFlux via HTTP API. Use when creating PRDs, epics with tasks, adding acceptance criteria, updating task status, or marking criteria as complete.
 ---
 
 # SpecFlux API
@@ -16,13 +16,34 @@ Authorization: Bearer <firebase-id-token>
 
 ## Core Workflows
 
+### Create PRD with Documents
+
+```bash
+# 1. Create PRD
+POST /api/projects/{projectRef}/prds
+{"title": "Authentication System", "description": "User auth with OAuth"}
+# Returns: {"id": "prd_xxx", "displayKey": "PROJ-P1", "folderPath": ".specflux/prds/authentication-system", ...}
+
+# 2. Add document to PRD
+POST /api/projects/{projectRef}/prds/{prdRef}/documents
+{"fileName": "prd.md", "filePath": ".specflux/prds/authentication-system/prd.md", "documentType": "PRD", "isPrimary": true}
+
+# 3. Add supporting documents
+POST /api/projects/{projectRef}/prds/{prdRef}/documents
+{"fileName": "wireframe.png", "filePath": ".specflux/prds/authentication-system/wireframe.png", "documentType": "WIREFRAME"}
+
+# 4. Update PRD status
+PUT /api/projects/{projectRef}/prds/{prdRef}
+{"status": "APPROVED"}
+```
+
 ### Create Epic with Tasks
 
 ```bash
-# 1. Create epic
+# 1. Create epic (linked to PRD)
 POST /api/projects/{projectRef}/epics
-{"title": "User Authentication", "description": "...", "prdFilePath": ".specflux/prds/vision/prd.md"}
-# Returns: {"id": "epic_xxx", "displayKey": "PROJ-E1", ...}
+{"title": "User Authentication", "description": "...", "prdRef": "PROJ-P1"}
+# Returns: {"id": "epic_xxx", "displayKey": "PROJ-E1", "prdId": "prd_xxx", ...}
 
 # 2. Add acceptance criteria
 POST /api/projects/{projectRef}/epics/{epicRef}/acceptance-criteria
@@ -73,16 +94,21 @@ GET /api/projects/{projectRef}/tasks?epicRef={epicRef}
 ## Reference IDs
 
 - **projectRef**: `proj_xxx` or project key like `SPEC`
+- **prdRef**: `prd_xxx` or display key like `SPEC-P1`
 - **epicRef**: `epic_xxx` or display key like `SPEC-E1`
 - **taskRef**: `task_xxx` or display key like `SPEC-42`
 
 ## Enums
 
+**PrdStatus**: `DRAFT`, `IN_REVIEW`, `APPROVED`, `ARCHIVED`
+
+**PrdDocumentType**: `PRD`, `WIREFRAME`, `MOCKUP`, `DESIGN`, `OTHER`
+
+**EpicStatus**: `PLANNING`, `IN_PROGRESS`, `BLOCKED`, `COMPLETED`, `CANCELLED`
+
 **TaskStatus**: `BACKLOG`, `READY`, `IN_PROGRESS`, `IN_REVIEW`, `BLOCKED`, `COMPLETED`, `CANCELLED`
 
 **TaskPriority**: `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`
-
-**EpicStatus**: `PLANNING`, `IN_PROGRESS`, `BLOCKED`, `COMPLETED`, `CANCELLED`
 
 ## Detailed Reference
 

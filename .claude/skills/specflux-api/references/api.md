@@ -5,6 +5,7 @@ Complete endpoint documentation for the SpecFlux REST API.
 ## Table of Contents
 
 - [Projects](#projects)
+- [PRDs](#prds)
 - [Epics](#epics)
 - [Tasks](#tasks)
 - [Acceptance Criteria](#acceptance-criteria)
@@ -59,6 +60,101 @@ DELETE /api/projects/{ref}
 
 ---
 
+## PRDs
+
+### List PRDs
+```
+GET /api/projects/{projectRef}/prds
+```
+
+Query params: `cursor`, `limit`, `sort`, `order`, `status`
+
+### Create PRD
+```
+POST /api/projects/{projectRef}/prds
+```
+```json
+{
+  "title": "Authentication System",   // required
+  "description": "User auth with OAuth",
+  "folderPath": ".specflux/prds/auth"  // optional, auto-generated from title
+}
+```
+
+Response:
+```json
+{
+  "id": "prd_xyz789",
+  "displayKey": "SPEC-P1",
+  "projectId": "proj_abc",
+  "title": "Authentication System",
+  "folderPath": ".specflux/prds/authentication-system",
+  "status": "DRAFT",
+  "documents": [],
+  "documentCount": 0,
+  "createdById": "user_xxx",
+  "createdAt": "2024-01-15T10:00:00Z",
+  "updatedAt": "2024-01-15T10:00:00Z"
+}
+```
+
+### Get PRD
+```
+GET /api/projects/{projectRef}/prds/{prdRef}
+```
+
+Returns PRD with embedded documents array.
+
+### Update PRD
+```
+PUT /api/projects/{projectRef}/prds/{prdRef}
+```
+```json
+{
+  "title": "Updated Title",
+  "description": "...",
+  "status": "APPROVED"
+}
+```
+
+### Delete PRD
+```
+DELETE /api/projects/{projectRef}/prds/{prdRef}
+```
+
+### Add Document to PRD
+```
+POST /api/projects/{projectRef}/prds/{prdRef}/documents
+```
+```json
+{
+  "fileName": "prd.md",           // required
+  "filePath": ".specflux/prds/auth/prd.md",  // required
+  "documentType": "PRD",          // PRD, WIREFRAME, MOCKUP, DESIGN, OTHER
+  "isPrimary": true,              // optional, defaults to false
+  "orderIndex": 0                 // optional, auto-incremented
+}
+```
+
+### Update Document
+```
+PUT /api/projects/{projectRef}/prds/{prdRef}/documents/{docId}
+```
+```json
+{
+  "documentType": "WIREFRAME",
+  "isPrimary": false,
+  "orderIndex": 1
+}
+```
+
+### Delete Document
+```
+DELETE /api/projects/{projectRef}/prds/{prdRef}/documents/{docId}
+```
+
+---
+
 ## Epics
 
 ### List Epics
@@ -78,7 +174,7 @@ POST /api/projects/{projectRef}/epics
   "description": "Implement login and registration",
   "targetDate": "2024-03-01",
   "releaseRef": "rel_xxx",
-  "prdFilePath": ".specflux/prds/vision/prd.md"
+  "prdRef": "SPEC-P1"               // PRD publicId or displayKey
 }
 ```
 
@@ -88,6 +184,7 @@ Response:
   "id": "epic_xyz789",
   "displayKey": "SPEC-E1",
   "projectId": "proj_abc",
+  "prdId": "prd_abc123",
   "title": "User Authentication",
   "status": "PLANNING",
   "phase": 1,
@@ -113,7 +210,7 @@ PUT /api/projects/{projectRef}/epics/{epicRef}
   "description": "...",
   "status": "IN_PROGRESS",
   "targetDate": "2024-03-15",
-  "prdFilePath": ".specflux/prds/auth/prd.md"
+  "prdRef": "SPEC-P1"
 }
 ```
 
@@ -320,6 +417,10 @@ All list endpoints return:
 ```
 
 ### Status Enums
+
+**PrdStatus**: `DRAFT`, `IN_REVIEW`, `APPROVED`, `ARCHIVED`
+
+**PrdDocumentType**: `PRD`, `WIREFRAME`, `MOCKUP`, `DESIGN`, `OTHER`
 
 **EpicStatus**: `PLANNING`, `IN_PROGRESS`, `BLOCKED`, `COMPLETED`, `CANCELLED`
 

@@ -1,34 +1,67 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { readDir, stat } from "@tauri-apps/plugin-fs";
-import { join } from "@tauri-apps/api/path";
 import { useProject } from "../contexts/ProjectContext";
 import { useTerminal } from "../contexts/TerminalContext";
 import { usePageContext } from "../hooks/usePageContext";
+import { api, type Prd, PrdStatus } from "../api";
 import PrdImportModal from "../components/ui/PrdImportModal";
 
-interface PrdFolder {
-  name: string;
-  path: string;
-  fileCount: number;
-  lastModified: Date | null;
+const STATUS_OPTIONS = [
+  { value: "", label: "All Statuses" },
+  { value: PrdStatus.Draft, label: "Draft" },
+  { value: PrdStatus.InReview, label: "In Review" },
+  { value: PrdStatus.Approved, label: "Approved" },
+  { value: PrdStatus.Archived, label: "Archived" },
+];
+
+function getStatusBadgeClasses(status: PrdStatus): string {
+  switch (status) {
+    case PrdStatus.Draft:
+      return "bg-system-100 dark:bg-system-700 text-system-600 dark:text-system-300";
+    case PrdStatus.InReview:
+      return "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400";
+    case PrdStatus.Approved:
+      return "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400";
+    case PrdStatus.Archived:
+      return "bg-system-200 dark:bg-system-600 text-system-500 dark:text-system-400";
+    default:
+      return "bg-system-100 dark:bg-system-700 text-system-600 dark:text-system-300";
+  }
+}
+
+function formatStatusLabel(status: PrdStatus): string {
+  switch (status) {
+    case PrdStatus.Draft:
+      return "Draft";
+    case PrdStatus.InReview:
+      return "In Review";
+    case PrdStatus.Approved:
+      return "Approved";
+    case PrdStatus.Archived:
+      return "Archived";
+    default:
+      return status;
+  }
 }
 
 export default function PRDsPage() {
   const navigate = useNavigate();
-  const { currentProject } = useProject();
+  const { currentProject, getProjectRef } = useProject();
   const { openTerminalForContext } = useTerminal();
-  const [prdFolders, setPrdFolders] = useState<PrdFolder[]>([]);
+  const [prds, setPrds] = useState<Prd[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Set page context for terminal suggested commands
   usePageContext({ type: "prds" });
 
-  const loadPrdFolders = useCallback(async () => {
-    if (!currentProject?.localPath) {
-      setPrdFolders([]);
+  const loadPrds = useCallback(async () => {
+    const projectRef = getProjectRef();
+    if (!projectRef) {
+      setPrds([]);
       setLoading(false);
       return;
     }
@@ -37,99 +70,49 @@ export default function PRDsPage() {
     setError(null);
 
     try {
-      const prdsPath = await join(
-        currentProject.localPath,
-        ".specflux",
-        "prds",
-      );
-
-      let entries;
-      try {
-        entries = await readDir(prdsPath);
-      } catch {
-        // Directory doesn't exist yet - that's fine
-        setPrdFolders([]);
-        setLoading(false);
-        return;
-      }
-
-      // Filter to only directories and get their stats
-      const folders: PrdFolder[] = [];
-      for (const entry of entries) {
-        if (entry.isDirectory && entry.name) {
-          const folderPath = await join(prdsPath, entry.name);
-
-          // Count files in the folder
-          let fileCount = 0;
-          let lastModified: Date | null = null;
-
-          try {
-            const folderEntries = await readDir(folderPath);
-            fileCount = folderEntries.filter((e) => e.isFile).length;
-
-            // Get the most recent modification time
-            for (const fileEntry of folderEntries) {
-              if (fileEntry.isFile && fileEntry.name) {
-                try {
-                  const filePath = await join(folderPath, fileEntry.name);
-                  const fileStat = await stat(filePath);
-                  if (fileStat.mtime) {
-                    const mtime = new Date(fileStat.mtime);
-                    if (!lastModified || mtime > lastModified) {
-                      lastModified = mtime;
-                    }
-                  }
-                } catch {
-                  // Skip files we can't stat
-                }
-              }
-            }
-          } catch {
-            // Can't read folder contents
-          }
-
-          folders.push({
-            name: entry.name,
-            path: folderPath,
-            fileCount,
-            lastModified,
-          });
-        }
-      }
-
-      // Sort by last modified (newest first)
-      folders.sort((a, b) => {
-        if (!a.lastModified && !b.lastModified) return 0;
-        if (!a.lastModified) return 1;
-        if (!b.lastModified) return -1;
-        return b.lastModified.getTime() - a.lastModified.getTime();
+      const response = await api.prds.listPrds({
+        projectRef,
+        status: statusFilter ? (statusFilter as PrdStatus) : undefined,
+        limit: 100,
       });
-
-      setPrdFolders(folders);
+      setPrds(response.data ?? []);
     } catch (err) {
-      console.error("Failed to load PRD folders:", err);
+      console.error("Failed to load PRDs:", err);
       setError(err instanceof Error ? err.message : "Failed to load PRDs");
     } finally {
       setLoading(false);
     }
-  }, [currentProject?.localPath]);
+  }, [getProjectRef, statusFilter]);
 
   useEffect(() => {
-    loadPrdFolders();
-  }, [loadPrdFolders]);
+    loadPrds();
+  }, [loadPrds]);
 
-  const handlePrdClick = (prdName: string) => {
-    navigate(`/prds/${encodeURIComponent(prdName)}`);
+  const handlePrdClick = (prd: Prd) => {
+    // Navigate using the PRD's publicId or displayKey
+    navigate(`/prds/${encodeURIComponent(prd.id)}`);
   };
 
-  const formatDate = (date: Date | null): string => {
-    if (!date) return "Unknown";
+  const formatDate = (date: Date): string => {
     return date.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
     });
   };
+
+  // Filter PRDs by search query (client-side)
+  const filteredPrds = prds.filter((prd) => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      prd.title.toLowerCase().includes(query) ||
+      prd.description?.toLowerCase().includes(query) ||
+      prd.displayKey.toLowerCase().includes(query)
+    );
+  });
+
+  const hasActiveFilters = statusFilter !== "" || searchQuery !== "";
 
   // No project selected
   if (!currentProject) {
@@ -184,7 +167,44 @@ export default function PRDsPage() {
         <h1 className="text-2xl font-semibold text-system-900 dark:text-white">
           PRDs
         </h1>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Status filter */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="select w-[140px]"
+          >
+            {STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Search input */}
+          <div className="relative">
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-system-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search PRDs..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="input pl-10 w-[200px]"
+            />
+          </div>
+
           {/* Import button */}
           <button
             className="btn btn-ghost"
@@ -207,11 +227,7 @@ export default function PRDsPage() {
           </button>
 
           {/* Refresh button */}
-          <button
-            onClick={loadPrdFolders}
-            className="btn btn-ghost"
-            title="Refresh"
-          >
+          <button onClick={loadPrds} className="btn btn-ghost" title="Refresh">
             <svg
               className="w-5 h-5"
               fill="none"
@@ -258,6 +274,24 @@ export default function PRDsPage() {
         </div>
       </div>
 
+      {/* Filter summary */}
+      {hasActiveFilters && (
+        <div className="flex items-center gap-2 mb-4 text-sm text-system-500 dark:text-system-400">
+          <span>
+            Showing {filteredPrds.length} of {prds.length} PRDs
+          </span>
+          <button
+            onClick={() => {
+              setStatusFilter("");
+              setSearchQuery("");
+            }}
+            className="text-brand-600 dark:text-brand-400 hover:underline"
+          >
+            Clear filters
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <svg
@@ -286,11 +320,11 @@ export default function PRDsPage() {
             Error loading PRDs
           </div>
           <p className="text-system-500 mt-2">{error}</p>
-          <button onClick={loadPrdFolders} className="mt-4 btn btn-primary">
+          <button onClick={loadPrds} className="mt-4 btn btn-primary">
             Try Again
           </button>
         </div>
-      ) : prdFolders.length === 0 ? (
+      ) : filteredPrds.length === 0 ? (
         <div className="text-center py-12 card">
           <svg
             className="mx-auto h-12 w-12 text-system-400 dark:text-system-500"
@@ -309,15 +343,17 @@ export default function PRDsPage() {
             No PRDs
           </h3>
           <p className="mt-2 text-system-500">
-            Get started by creating your first PRD.
+            {hasActiveFilters
+              ? "No PRDs match the selected filters."
+              : "Get started by creating your first PRD."}
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {prdFolders.map((folder) => (
+          {filteredPrds.map((prd) => (
             <button
-              key={folder.name}
-              onClick={() => handlePrdClick(folder.name)}
+              key={prd.id}
+              onClick={() => handlePrdClick(prd)}
               className="card text-left p-4 hover:border-brand-500 dark:hover:border-brand-500 hover:shadow-md transition-all group"
             >
               <div className="flex items-start gap-3">
@@ -337,13 +373,28 @@ export default function PRDsPage() {
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs text-system-400 dark:text-system-500 font-mono">
+                      {prd.displayKey}
+                    </span>
+                    <span
+                      className={`px-1.5 py-0.5 text-xs font-medium rounded ${getStatusBadgeClasses(prd.status)}`}
+                    >
+                      {formatStatusLabel(prd.status)}
+                    </span>
+                  </div>
                   <h3 className="font-medium text-system-900 dark:text-white truncate group-hover:text-brand-600 dark:group-hover:text-brand-400">
-                    {folder.name}
+                    {prd.title}
                   </h3>
-                  <p className="text-sm text-system-500 dark:text-system-400 mt-1">
-                    {folder.fileCount}{" "}
-                    {folder.fileCount === 1 ? "file" : "files"} ·{" "}
-                    {formatDate(folder.lastModified)}
+                  {prd.description && (
+                    <p className="text-sm text-system-500 dark:text-system-400 mt-1 line-clamp-2">
+                      {prd.description}
+                    </p>
+                  )}
+                  <p className="text-xs text-system-400 dark:text-system-500 mt-2">
+                    {prd.documentCount ?? 0}{" "}
+                    {(prd.documentCount ?? 0) === 1 ? "document" : "documents"}{" "}
+                    · {formatDate(prd.updatedAt)}
                   </p>
                 </div>
               </div>
@@ -357,7 +408,7 @@ export default function PRDsPage() {
         <PrdImportModal
           projectPath={currentProject.localPath}
           onClose={() => setShowImportModal(false)}
-          onImported={loadPrdFolders}
+          onImported={loadPrds}
         />
       )}
     </div>
