@@ -11,8 +11,9 @@ import { useProject } from "../contexts";
 import { TaskOverviewTab, TaskContextTab } from "../components/tasks";
 import TaskDetailHeader from "../components/tasks/TaskDetailHeader";
 import { TabNavigation } from "../components/ui";
-import { useTerminal } from "../contexts/TerminalContext";
+import { useTerminal, type TerminalSession } from "../contexts/TerminalContext";
 import { usePageContext } from "../hooks/usePageContext";
+import DuplicateSessionDialog from "../components/terminal/DuplicateSessionDialog";
 
 // Tab definitions
 const TABS = [
@@ -63,6 +64,8 @@ export default function TaskDetailPage() {
   const { getProjectRef } = useProject();
   const {
     openTerminalForContext,
+    getExistingSession,
+    switchToSession,
     activeTask,
     isRunning: terminalIsRunning,
   } = useTerminal();
@@ -78,6 +81,7 @@ export default function TaskDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [dependencies, setDependencies] = useState<TaskDependency[]>([]);
   const [deleting, setDeleting] = useState(false);
+  const [duplicateSession, setDuplicateSession] = useState<TerminalSession | null>(null);
 
   // Set page context for terminal suggested commands
   usePageContext(
@@ -275,11 +279,20 @@ export default function TaskDetailPage() {
   // Handle opening terminal for this task
   const handleOpenInTerminal = () => {
     if (task) {
-      openTerminalForContext({
-        type: "task",
+      const context = {
+        type: "task" as const,
         id: task.id,
         title: task.title,
-      });
+        displayKey: task.displayKey,
+      };
+
+      // Check if session already exists
+      const existing = getExistingSession(context);
+      if (existing) {
+        setDuplicateSession(existing);
+      } else {
+        openTerminalForContext(context);
+      }
     }
   };
 
@@ -553,6 +566,18 @@ export default function TaskDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Duplicate Session Warning Dialog */}
+      {duplicateSession && (
+        <DuplicateSessionDialog
+          existingSession={duplicateSession}
+          onOpenExisting={() => {
+            switchToSession(duplicateSession.id);
+            setDuplicateSession(null);
+          }}
+          onCancel={() => setDuplicateSession(null)}
+        />
+      )}
     </div>
   );
 }

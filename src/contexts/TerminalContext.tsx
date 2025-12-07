@@ -94,6 +94,7 @@ interface TerminalContextValue {
   // Multi-tab session state
   sessions: TerminalSession[];
   activeSessionId: string | null;
+  getExistingSession: (context: ContextInfo) => TerminalSession | null;
   openTerminalForContext: (context: ContextInfo) => void;
   openTerminalForTask: (task: TaskInfo) => void; // Backwards compat
   closeSession: (sessionId: string) => void;
@@ -332,6 +333,15 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
     }
   }, [isMaximized, panelHeight, preMaximizeHeight]);
 
+  // Check if a session already exists for the given context
+  const getExistingSession = useCallback(
+    (context: ContextInfo): TerminalSession | null => {
+      const sessionId = `${context.type}-${context.id}`;
+      return sessions.find((s) => s.id === sessionId) || null;
+    },
+    [sessions],
+  );
+
   const openTerminalForContext = useCallback((context: ContextInfo) => {
     const sessionId = `${context.type}-${context.id}`;
 
@@ -462,6 +472,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
     toggleMaximize,
     sessions,
     activeSessionId,
+    getExistingSession,
     openTerminalForContext,
     openTerminalForTask,
     closeSession,
