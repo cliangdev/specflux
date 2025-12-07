@@ -251,6 +251,7 @@ export default function PRDsPage() {
                 type: "prd-workshop",
                 id: `new-${Date.now()}`,
                 title: "PRD Workshop",
+                displayKey: "PRD Workshop",
                 workingDirectory: currentProject?.localPath,
                 initialCommand: "claude",
               });

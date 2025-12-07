@@ -9,7 +9,7 @@ import TaskCreateModal from "../components/ui/TaskCreateModal";
 export default function BoardPage() {
   const { currentProject, getProjectRef } = useProject();
   const navigate = useNavigate();
-  const { openTerminalForTask } = useTerminal();
+  const { openTerminalForContext } = useTerminal();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [workflowTemplate, setWorkflowTemplate] =
     useState<WorkflowTemplate>("startup-fast");
@@ -41,10 +41,12 @@ export default function BoardPage() {
   };
 
   const handleOpenTerminal = (task: Task) => {
-    // Use publicId for v2 tasks, id for v1
-    const taskWithV2 = task as Task & { publicId?: string };
-    const taskRef = taskWithV2.publicId || String(task.id);
-    openTerminalForTask({ id: taskRef, title: task.title });
+    openTerminalForContext({
+      type: "task",
+      id: task.id,
+      title: task.title,
+      displayKey: task.displayKey,
+    });
   };
 
   if (!currentProject) {
