@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { readDir, readTextFile, stat } from "@tauri-apps/plugin-fs";
 import { join } from "@tauri-apps/api/path";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import MarkdownRenderer from "../components/ui/MarkdownRenderer";
 import { useProject } from "../contexts/ProjectContext";
 
 interface PrdFile {
@@ -337,11 +336,7 @@ export default function PRDDetailPage() {
             </div>
           ) : (
             <div className="p-8">
-              <article className="prose dark:prose-invert max-w-none prose-headings:dark:text-[#96d0ff] prose-p:dark:text-[#adbac7] prose-strong:dark:text-[#cdd9e5] prose-code:dark:text-[#a5d6ff] prose-code:dark:bg-[#262c36] prose-a:dark:text-[#539bf5]">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {content}
-                </ReactMarkdown>
-              </article>
+              <MarkdownRenderer source={content} />
             </div>
           )}
         </div>

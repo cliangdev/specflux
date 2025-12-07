@@ -1,11 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { readTextFile } from "@tauri-apps/plugin-fs";
+import MarkdownRenderer from "../ui/MarkdownRenderer";
 import { open } from "@tauri-apps/plugin-shell";
 import type { Task, Epic, TaskDependency } from "../../api/generated";
-import { api } from "../../api";
 
 // Extended task type for v2 support
 type TaskWithV2Fields = Omit<Task, "epicId"> & {
@@ -71,7 +68,7 @@ function DependencyStatusBadge({ status }: { status: string }) {
 }
 
 export default function TaskContextTab({
-  task,
+  task: _task,
   dependencies,
   epic,
   onAddDependency,
@@ -337,10 +334,8 @@ export default function TaskContextTab({
           </div>
         ) : stateContent ? (
           <div className="rounded-lg border border-system-200 dark:border-system-700 bg-system-50 dark:bg-system-800/50 overflow-hidden">
-            <div className="p-4 max-h-[500px] overflow-y-auto prose prose-sm dark:prose-invert prose-headings:text-system-900 dark:prose-headings:text-white prose-p:text-system-700 dark:prose-p:text-system-300 prose-code:text-brand-600 dark:prose-code:text-brand-400 prose-pre:bg-system-100 dark:prose-pre:bg-system-900 prose-blockquote:border-brand-500 max-w-none">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {stateContent}
-              </ReactMarkdown>
+            <div className="p-4 max-h-[500px] overflow-y-auto">
+              <MarkdownRenderer source={stateContent} />
             </div>
             {stateInfo?.filePath && (
               <div className="px-4 py-2 border-t border-system-200 dark:border-system-700 bg-system-100 dark:bg-system-800">

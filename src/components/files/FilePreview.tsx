@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { useState, useEffect, useCallback } from "react";
+import MarkdownRenderer from "../ui/MarkdownRenderer";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { useProject } from "../../contexts/ProjectContext";
 
@@ -14,11 +13,7 @@ export function FilePreview({ filePath }: FilePreviewProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadFileContent();
-  }, [filePath, currentProject]);
-
-  const loadFileContent = async () => {
+  const loadFileContent = useCallback(async () => {
     if (!currentProject) return;
 
     setLoading(true);
@@ -34,7 +29,11 @@ export function FilePreview({ filePath }: FilePreviewProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentProject, filePath]);
+
+  useEffect(() => {
+    loadFileContent();
+  }, [loadFileContent]);
 
   const isMarkdown = filePath.endsWith(".md");
 
@@ -74,8 +73,8 @@ export function FilePreview({ filePath }: FilePreviewProps) {
       {/* Content */}
       <div className="flex-1 overflow-auto">
         {isMarkdown ? (
-          <div className="prose dark:prose-invert max-w-none p-8 prose-headings:dark:text-[#96d0ff] prose-p:dark:text-[#adbac7] prose-strong:dark:text-[#cdd9e5] prose-code:dark:text-[#a5d6ff] prose-code:dark:bg-[#262c36] prose-a:dark:text-[#539bf5]">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+          <div className="p-8">
+            <MarkdownRenderer source={content} />
           </div>
         ) : (
           <pre className="p-8 text-sm font-mono text-gray-800 dark:text-[#adbac7] whitespace-pre-wrap">

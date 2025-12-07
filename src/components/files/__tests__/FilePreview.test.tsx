@@ -12,6 +12,11 @@ vi.mock("../../../contexts/ProjectContext", () => ({
   useProject: vi.fn(),
 }));
 
+// Mock ThemeContext
+vi.mock("../../../contexts", () => ({
+  useTheme: () => ({ theme: "light" }),
+}));
+
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { useProject } from "../../../contexts/ProjectContext";
 

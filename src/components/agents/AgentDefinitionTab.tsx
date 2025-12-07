@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { readTextFile, writeTextFile, stat } from "@tauri-apps/plugin-fs";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import MarkdownRenderer from "../ui/MarkdownRenderer";
 
 interface AgentDefinitionTabProps {
   configFilePath: string | null | undefined;
@@ -318,10 +317,8 @@ export function AgentDefinitionTab({
               spellCheck={false}
             />
           ) : (
-            <div className="prose dark:prose-invert max-w-none p-8 prose-headings:dark:text-[#96d0ff] prose-p:dark:text-[#adbac7] prose-strong:dark:text-[#cdd9e5] prose-code:dark:text-[#a5d6ff] prose-code:dark:bg-[#262c36] prose-a:dark:text-[#539bf5] prose-li:dark:text-[#adbac7]">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {fileContent || ""}
-              </ReactMarkdown>
+            <div className="p-8">
+              <MarkdownRenderer source={fileContent || ""} />
             </div>
           )}
         </div>

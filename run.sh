@@ -114,6 +114,14 @@ install_deps() {
     fi
 }
 
+generate_api_client() {
+    # Only regenerate if generated folder doesn't exist or openapi spec is newer
+    if [ ! -d "src/api/generated" ] || [ "openapi/api.yaml" -nt "src/api/generated/index.ts" ]; then
+        echo "Generating API client..."
+        npm run generate:client
+    fi
+}
+
 kill_port() {
     local port=$1
     local pid=$(lsof -ti:$port 2>/dev/null)
@@ -145,6 +153,7 @@ run_app() {
     echo ""
 
     install_deps "."
+    generate_api_client
     kill_port 5173
     kill_port 1420
     npm run tauri:dev &
@@ -166,6 +175,7 @@ run_web() {
     echo ""
 
     install_deps "."
+    generate_api_client
     kill_port 5173
     npm run dev &
     FRONTEND_PID=$!

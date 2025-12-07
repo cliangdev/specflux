@@ -49,6 +49,7 @@ coverage/
 .specflux/archives/*.md
 !.specflux/task-states/.gitkeep
 !.specflux/archives/.gitkeep
+.specflux/
 
 # Playwright MCP
 .playwright-mcp/
