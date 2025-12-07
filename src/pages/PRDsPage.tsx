@@ -404,9 +404,10 @@ export default function PRDsPage() {
       )}
 
       {/* Import PRD Modal */}
-      {showImportModal && currentProject?.localPath && (
+      {showImportModal && currentProject?.localPath && getProjectRef() && (
         <PrdImportModal
           projectPath={currentProject.localPath}
+          projectRef={getProjectRef()!}
           onClose={() => setShowImportModal(false)}
           onImported={loadPrds}
         />
