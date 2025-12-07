@@ -15,7 +15,12 @@ export default function DuplicateSessionDialog({
   onOpenExisting,
   onCancel,
 }: DuplicateSessionDialogProps) {
-  const displayKey = existingSession.displayKey || `#${existingSession.contextId}`;
+  // Use displayKey if available, otherwise fall back to title (for workshops) or ID
+  const displayKey =
+    existingSession.displayKey ||
+    (existingSession.contextType === "prd-workshop"
+      ? existingSession.contextTitle
+      : `#${existingSession.contextId}`);
   const title = existingSession.contextTitle;
 
   return (

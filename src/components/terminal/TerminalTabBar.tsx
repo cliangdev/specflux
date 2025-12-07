@@ -156,8 +156,10 @@ export default function TerminalTabBar({
         const contextType = session.contextType ?? "task";
         const contextId = session.contextId ?? session.taskId;
         const contextTitle = session.contextTitle ?? session.taskTitle;
-        // Use displayKey if available, otherwise fall back to contextId
-        const displayLabel = session.displayKey || `#${contextId}`;
+        // Use displayKey if available, otherwise fall back to title (for workshops) or ID
+        const displayLabel =
+          session.displayKey ||
+          (contextType === "prd-workshop" ? contextTitle : `#${contextId}`);
         const truncatedTitle =
           contextTitle.length > 15
             ? contextTitle.substring(0, 15) + "..."
