@@ -81,9 +81,7 @@ export default function TaskDetailPage() {
 
   // Set page context for terminal suggested commands
   usePageContext(
-    task
-      ? { type: "task-detail", id: task.publicId || task.id, title: task.title }
-      : null,
+    task ? { type: "task-detail", id: task.id, title: task.title } : null,
   );
 
   // Check if terminal is showing this task
