@@ -14,6 +14,7 @@ import { ProgressBar, TaskCreateModal } from "../components/ui";
 import { EpicDetailHeader } from "../components/epics";
 import { AcceptanceCriteriaList } from "../components/ui/AcceptanceCriteriaList";
 import { calculatePhase } from "../utils/phaseCalculation";
+import { usePageContext } from "../hooks/usePageContext";
 
 // Extended type to support v2 fields
 type EpicWithV2Fields = Omit<Epic, "dependsOn" | "taskStats" | "status"> & {
@@ -86,6 +87,13 @@ export default function EpicDetailPage() {
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
   const [allEpics, setAllEpics] = useState<EpicWithV2Fields[]>([]);
   const [deleting, setDeleting] = useState(false);
+
+  // Set page context for terminal suggested commands
+  usePageContext(
+    epic
+      ? { type: "epic-detail", id: epic.v2Id || epic.id, title: epic.title }
+      : null,
+  );
 
   // Inline editing state
   const [editingDescription, setEditingDescription] = useState(false);

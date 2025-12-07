@@ -63,7 +63,15 @@ vi.mock("./contexts/TerminalContext", () => ({
     openTerminalForTask: vi.fn(),
     closeTerminal: vi.fn(),
     setActiveTerminal: vi.fn(),
+    pageContext: null,
+    setPageContext: vi.fn(),
+    suggestedCommands: [],
   }),
+}));
+
+// Mock usePageContext hook
+vi.mock("./hooks/usePageContext", () => ({
+  usePageContext: vi.fn(),
 }));
 
 // Mock Firebase

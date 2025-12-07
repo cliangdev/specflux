@@ -4,6 +4,7 @@ import { readDir, stat } from "@tauri-apps/plugin-fs";
 import { join } from "@tauri-apps/api/path";
 import { useProject } from "../contexts/ProjectContext";
 import { useTerminal } from "../contexts/TerminalContext";
+import { usePageContext } from "../hooks/usePageContext";
 import PrdImportModal from "../components/ui/PrdImportModal";
 
 interface PrdFolder {
@@ -21,6 +22,9 @@ export default function PRDsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
+
+  // Set page context for terminal suggested commands
+  usePageContext({ type: "prds" });
 
   const loadPrdFolders = useCallback(async () => {
     if (!currentProject?.localPath) {

@@ -30,6 +30,9 @@ function TestConsumer() {
     toggleCollapse,
     openTerminalForTask,
     setIsRunning,
+    pageContext,
+    setPageContext,
+    suggestedCommands,
   } = useTerminal();
 
   return (
@@ -40,6 +43,12 @@ function TestConsumer() {
       </span>
       <span data-testid="active-task">{activeTask?.title || "none"}</span>
       <span data-testid="is-running">{isRunning ? "running" : "idle"}</span>
+      <span data-testid="page-context">
+        {pageContext ? `${pageContext.type}:${pageContext.id || ""}` : "none"}
+      </span>
+      <span data-testid="suggested-commands">
+        {suggestedCommands.length}
+      </span>
       <button data-testid="toggle-panel" onClick={togglePanel}>
         Toggle
       </button>
@@ -60,6 +69,20 @@ function TestConsumer() {
       </button>
       <button data-testid="set-running" onClick={() => setIsRunning(true)}>
         Set Running
+      </button>
+      <button
+        data-testid="set-page-context"
+        onClick={() =>
+          setPageContext({ type: "task-detail", id: 123, title: "Test Task" })
+        }
+      >
+        Set Page Context
+      </button>
+      <button
+        data-testid="clear-page-context"
+        onClick={() => setPageContext(null)}
+      >
+        Clear Page Context
       </button>
     </div>
   );
@@ -232,6 +255,59 @@ describe("TerminalContext", () => {
       expect(screen.getByTestId("is-open")).toHaveTextContent("open");
       expect(screen.getByTestId("is-collapsed")).toHaveTextContent("collapsed");
     });
+
+    it("starts with no page context", () => {
+      render(
+        <TerminalProvider>
+          <TestConsumer />
+        </TerminalProvider>,
+      );
+
+      expect(screen.getByTestId("page-context")).toHaveTextContent("none");
+      expect(screen.getByTestId("suggested-commands")).toHaveTextContent("0");
+    });
+
+    it("sets and clears page context", () => {
+      render(
+        <TerminalProvider>
+          <TestConsumer />
+        </TerminalProvider>,
+      );
+
+      act(() => {
+        screen.getByTestId("set-page-context").click();
+      });
+
+      expect(screen.getByTestId("page-context")).toHaveTextContent(
+        "task-detail:123",
+      );
+
+      act(() => {
+        screen.getByTestId("clear-page-context").click();
+      });
+
+      expect(screen.getByTestId("page-context")).toHaveTextContent("none");
+    });
+
+    it("provides suggested commands based on page context", () => {
+      render(
+        <TerminalProvider>
+          <TestConsumer />
+        </TerminalProvider>,
+      );
+
+      // No commands when no context
+      expect(screen.getByTestId("suggested-commands")).toHaveTextContent("0");
+
+      act(() => {
+        screen.getByTestId("set-page-context").click();
+      });
+
+      // Should have suggested commands for task-detail context
+      expect(
+        parseInt(screen.getByTestId("suggested-commands").textContent || "0"),
+      ).toBeGreaterThan(0);
+    });
   });
 
   describe("useTerminal hook", () => {
@@ -263,6 +339,18 @@ describe("TerminalContext", () => {
       expect(typeof result.current.switchToSession).toBe("function");
       expect(typeof result.current.updateSessionStatus).toBe("function");
       expect(typeof result.current.setIsRunning).toBe("function");
+      expect(typeof result.current.setPageContext).toBe("function");
+    });
+
+    it("provides page context values", () => {
+      const { result } = renderHook(() => useTerminal(), {
+        wrapper: ({ children }) => (
+          <TerminalProvider>{children}</TerminalProvider>
+        ),
+      });
+
+      expect(result.current.pageContext).toBeNull();
+      expect(Array.isArray(result.current.suggestedCommands)).toBe(true);
     });
   });
 });

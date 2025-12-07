@@ -4,6 +4,7 @@ import { useProject } from "../contexts";
 import { api, type Epic, type Release, EpicStatus } from "../api";
 import { EpicCard, EpicCreateModal } from "../components/epics";
 import { EpicGraph } from "../components/roadmap";
+import { usePageContext } from "../hooks/usePageContext";
 
 type ViewMode = "cards" | "graph";
 
@@ -50,6 +51,9 @@ export default function EpicsPage() {
   const [epics, setEpics] = useState<Epic[]>([]);
   const [releases, setReleases] = useState<Release[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Set page context for terminal suggested commands
+  usePageContext({ type: "epics" });
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>(() => {

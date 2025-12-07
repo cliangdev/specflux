@@ -20,6 +20,35 @@ vi.mock("../contexts/AuthContext", () => ({
   }),
 }));
 
+// Mock TerminalContext
+vi.mock("../contexts/TerminalContext", () => ({
+  useTerminal: () => ({
+    sessions: [],
+    activeSessionId: null,
+    showPanel: false,
+    createSession: vi.fn(),
+    closeSession: vi.fn(),
+    setActiveSession: vi.fn(),
+    togglePanel: vi.fn(),
+    openPanel: vi.fn(),
+    closePanel: vi.fn(),
+    resizePanel: vi.fn(),
+    panelSize: 300,
+    openTerminalForContext: vi.fn(),
+    activeTask: null,
+    isRunning: false,
+    pageContext: null,
+    setPageContext: vi.fn(),
+    suggestedCommands: [],
+  }),
+  TerminalProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+// Mock usePageContext hook
+vi.mock("../hooks/usePageContext", () => ({
+  usePageContext: vi.fn(),
+}));
+
 vi.mock("../api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../api")>();
   return {

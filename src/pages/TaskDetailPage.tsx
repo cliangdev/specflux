@@ -12,6 +12,7 @@ import { TaskOverviewTab, TaskContextTab } from "../components/tasks";
 import TaskDetailHeader from "../components/tasks/TaskDetailHeader";
 import { TabNavigation } from "../components/ui";
 import { useTerminal } from "../contexts/TerminalContext";
+import { usePageContext } from "../hooks/usePageContext";
 
 // Tab definitions
 const TABS = [
@@ -77,6 +78,13 @@ export default function TaskDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [dependencies, setDependencies] = useState<TaskDependency[]>([]);
   const [deleting, setDeleting] = useState(false);
+
+  // Set page context for terminal suggested commands
+  usePageContext(
+    task
+      ? { type: "task-detail", id: task.publicId || task.id, title: task.title }
+      : null,
+  );
 
   // Check if terminal is showing this task
   const isTerminalShowingThisTask = activeTask?.id === taskId;
