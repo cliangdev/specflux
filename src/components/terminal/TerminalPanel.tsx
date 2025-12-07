@@ -119,29 +119,31 @@ export default function TerminalPanel() {
   const startYRef = useRef(0);
   const startHeightRef = useRef(0);
 
+  // Map page types to session context types
+  const pageTypeToContextType: Record<string, "task" | "epic" | "prd-workshop"> = {
+    "prd-detail": "prd-workshop",
+    "task-detail": "task",
+    "epic-detail": "epic",
+  };
+
   // Helper to find existing session for current page context
   const findExistingSessionForPageContext = useCallback((): TerminalSession | null => {
     if (!pageContext || !pageContext.id) return null;
 
-    const pageId = String(pageContext.id);
-    // Map page types to session context types
-    const typeMap: Record<string, string> = {
-      "prd-detail": "prd-workshop",
-      "task-detail": "task",
-      "epic-detail": "epic",
-    };
-    const expectedType = typeMap[pageContext.type];
-    if (!expectedType) return null;
+    const contextType = pageTypeToContextType[pageContext.type];
+    if (!contextType) return null;
 
-    return sessions.find((s) => {
-      const sessionId = String(s.contextId);
-      return s.contextType === expectedType && sessionId === pageId;
-    }) || null;
+    // Match the session ID format used in openTerminalForContext
+    const expectedSessionId = `${contextType}-${pageContext.id}`;
+    return sessions.find((s) => s.id === expectedSessionId) || null;
   }, [pageContext, sessions]);
 
   // Handler for starting a new session from current page context
   const handleStartNewSession = useCallback(() => {
     if (!pageContext || !pageContext.id) return;
+
+    const contextType = pageTypeToContextType[pageContext.type];
+    if (!contextType) return;
 
     // Check for existing session
     const existing = findExistingSessionForPageContext();
@@ -149,15 +151,6 @@ export default function TerminalPanel() {
       setDuplicateSession(existing);
       return;
     }
-
-    // Map page types to session context types
-    const typeMap: Record<string, "task" | "epic" | "prd-workshop"> = {
-      "prd-detail": "prd-workshop",
-      "task-detail": "task",
-      "epic-detail": "epic",
-    };
-    const contextType = typeMap[pageContext.type];
-    if (!contextType) return;
 
     // Create session from page context
     openTerminalForContext({
