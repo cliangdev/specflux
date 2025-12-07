@@ -126,9 +126,12 @@ export default function MarkdownRenderer({
           }
         }}
         components={{
-          div: ({ node, ...props }) => {
-            const mermaidId = props["data-mermaid-id"] as string | undefined;
-            const mermaidCode = props["data-mermaid-code"] as string | undefined;
+          div: ({ node: _node, ...props }) => {
+            const restProps = props as Record<string, unknown>;
+            const mermaidId = restProps["data-mermaid-id"] as string | undefined;
+            const mermaidCode = restProps["data-mermaid-code"] as
+              | string
+              | undefined;
 
             if (mermaidId && mermaidCode) {
               return <MermaidDiagram code={mermaidCode} id={mermaidId} />;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import MarkdownRenderer from "../ui/MarkdownRenderer";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { useProject } from "../../contexts/ProjectContext";
@@ -13,11 +13,7 @@ export function FilePreview({ filePath }: FilePreviewProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadFileContent();
-  }, [filePath, currentProject]);
-
-  const loadFileContent = async () => {
+  const loadFileContent = useCallback(async () => {
     if (!currentProject) return;
 
     setLoading(true);
@@ -33,7 +29,11 @@ export function FilePreview({ filePath }: FilePreviewProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentProject, filePath]);
+
+  useEffect(() => {
+    loadFileContent();
+  }, [loadFileContent]);
 
   const isMarkdown = filePath.endsWith(".md");
 

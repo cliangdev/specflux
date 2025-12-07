@@ -17,7 +17,7 @@ vi.mock("mermaid", () => ({
 
 import mermaid from "mermaid";
 
-const mockMermaid = mermaid as {
+const mockMermaid = mermaid as unknown as {
   initialize: ReturnType<typeof vi.fn>;
   render: ReturnType<typeof vi.fn>;
 };
