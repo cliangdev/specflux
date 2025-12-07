@@ -6,101 +6,101 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 SpecFlux is a desktop application (Tauri + React) that orchestrates Claude Code AI agents across multiple software repositories. It transforms "vibe coding" into disciplined, spec-driven engineering by providing a unified Kanban board for multi-repo project management, automatic Claude Code agent launching with context injection, and human-in-the-loop approval workflows.
 
-**Current Status:** ~35-40% of MVP complete. Phase 1-2 foundation done, Phase 3+ remaining.
+## Architecture
 
-### Completed
-- **Backend:** Node.js + Express + SQLite with 13 tables, 44/49 MVP endpoints
-- **Frontend:** React + TailwindCSS + Tauri with layout, navigation, task list, task creation
-- **Claude Code Integration:** Process spawning, worktree management, terminal embedding (xterm.js + WebSocket)
-- **Dev Tools:** Skills, agents, commands, CLAUDE.md files configured
+This is a **monorepo for the frontend/desktop app only**. The backend is a separate repository.
 
-### In Progress
-- Terminal output parsing, file change tracking, worktree lifecycle management
-
-### Remaining
-- Kanban board with drag-drop (Week 5-6)
-- Approval system and dependency visualization (Week 6)
-- Chain output generation and context injection (Week 7-8)
-- Workflow templates and agent management UI (Week 9-10)
-- Git sync, notifications, polish, onboarding (Week 11-12)
-
-**Key Milestone:** Self-hosting target at end of Week 6 (use SpecFlux to build SpecFlux)
+- **This repo (specflux):** Tauri desktop app with React frontend
+- **Backend repo:** `/Users/cliang/workspace/specflux-backend` - Spring Boot 4 + Java 25 + PostgreSQL
 
 ## Tech Stack
 
-- **Backend:** Node.js 20+, TypeScript (strict), Express/Fastify, SQLite (better-sqlite3)
-- **Frontend:** React 18+, TypeScript, TailwindCSS, Tauri (Rust)
-- **Testing:** Jest
-- **API Design:** OpenAPI/Swagger with auto-generated TypeScript client
+### Frontend (this repo)
+- **Desktop:** Tauri 2.x (Rust)
+- **UI:** React 18+, TypeScript (strict), TailwindCSS
+- **Terminal:** xterm.js with WebSocket
+- **Testing:** Vitest + React Testing Library
+- **API Client:** Auto-generated from OpenAPI spec
+
+### Backend (separate repo)
+- **Framework:** Spring Boot 4.0, Java 25
+- **Database:** PostgreSQL (via Testcontainers for tests)
+- **Auth:** Firebase Authentication
+- **API:** RESTful with OpenAPI/Swagger
 
 ## Project Structure
 
 ```
-specflux/                    <- Run Claude Code from here
-├── .claude/                 # Claude Code configuration
-│   ├── .mcp.json            # MCP servers (GitHub, Filesystem)
-│   ├── skills/              # Coding pattern guides
-│   │   ├── typescript-patterns/
-│   │   ├── springboot-patterns/  # Java/Spring Boot best practices
-│   │   ├── tauri-dev/
+specflux/                      <- This repo (frontend/desktop)
+├── .claude/                   # Claude Code configuration
+│   ├── .mcp.json              # MCP servers (GitHub, Playwright)
+│   ├── skills/                # Coding pattern guides
 │   │   ├── api-design/
 │   │   ├── database-migrations/
-│   │   └── ui-patterns/     # UI design patterns (colors, components, dark mode)
-│   ├── agents/              # Specialized agent definitions
+│   │   ├── springboot-patterns/
+│   │   ├── tauri-dev/
+│   │   ├── typescript-patterns/
+│   │   └── ui-patterns/
+│   ├── agents/                # Specialized agent definitions
 │   │   ├── backend-dev.md
 │   │   ├── frontend-dev.md
 │   │   └── fullstack-dev.md
-│   └── commands/            # Custom slash commands
-│       ├── test-all.md
-│       ├── build-prod.md
-│       ├── db-migrate.md
-│       └── api-spec-update.md
-├── orchestrator/            # Backend service
-│   ├── src/
-│   │   ├── routes/          # API endpoints
-│   │   ├── services/        # Business logic
-│   │   ├── db/              # Database layer
-│   │   └── types/           # TypeScript types
-│   ├── tests/
-│   ├── migrations/
-│   └── openapi/             # API specifications (DDD-organized)
-│       ├── index.yaml       # Main entry point, references domain specs
-│       ├── projects.yaml    # Project domain endpoints
-│       ├── epics.yaml       # Epic domain endpoints
-│       ├── tasks.yaml       # Task domain endpoints
-│       ├── repositories.yaml
-│       ├── notifications.yaml
-│       └── components/      # Shared schemas and responses
-├── frontend/                # Tauri desktop app
-│   ├── src/
-│   │   ├── components/
-│   │   ├── api/             # Generated API client
-│   │   └── hooks/
-│   └── src-tauri/           # Rust/Tauri code
-└── docs/research/           # Product specs and roadmap
+│   └── commands/              # Custom slash commands
+├── src/                       # React application
+│   ├── api/                   # Generated API client
+│   ├── components/            # React components
+│   │   ├── kanban/
+│   │   ├── layout/
+│   │   ├── terminal/
+│   │   └── ui/
+│   ├── contexts/              # React contexts
+│   ├── hooks/                 # Custom hooks
+│   ├── pages/                 # Page components
+│   ├── services/              # Service layer
+│   └── utils/                 # Utilities
+├── src-tauri/                 # Tauri/Rust code
+│   ├── src/                   # Rust source
+│   └── tauri.conf.json        # Tauri config
+├── openapi/                   # OpenAPI spec (synced from backend)
+│   └── api.yaml               # Full API specification
+└── docs/research/             # Product specs and roadmap
+
+specflux-backend/              <- Separate repo
+├── src/main/java/com/specflux/
+│   ├── project/               # Project domain
+│   ├── epic/                  # Epic domain
+│   ├── task/                  # Task domain
+│   ├── user/                  # User domain
+│   ├── agent/                 # Agent domain
+│   ├── repository/            # Repository domain
+│   ├── release/               # Release domain
+│   ├── skill/                 # Skill domain
+│   └── shared/                # Shared infrastructure
+└── src/test/java/             # Tests
 ```
 
 ## Build Commands
 
 ```bash
-# Backend
-cd orchestrator
-npm install
-npm run dev          # Start with nodemon
-npm test             # Run Jest tests
-npm run lint         # ESLint
-npm run migrate      # Database migrations
+# Frontend (this repo)
+npm install              # Install dependencies
+npm run dev              # Vite dev server (browser only)
+npm run tauri:dev        # Full Tauri desktop app
+npm run tauri:build      # Production build
+npm test                 # Run Vitest tests
+npm run test:coverage    # Tests with coverage
+npm run lint             # ESLint
+npm run typecheck        # TypeScript check
+npm run generate:client  # Regenerate API client from OpenAPI
 
-# Frontend
-cd frontend
-npm install
-npm run tauri dev    # Full app development
-npm run tauri build  # Production build
+# Quick start (uses run.sh)
+./run.sh                 # Run desktop app
+./run.sh web             # Run web dev server only
 
-# Root level
-npm run test:all     # All tests
-npm run build:all    # Full build
-npm run generate:client  # Regenerate TS client from OpenAPI
+# Backend (separate repo: /Users/cliang/workspace/specflux-backend)
+cd /Users/cliang/workspace/specflux-backend
+./mvnw spring-boot:run   # Start backend (port 8090)
+./mvnw test              # Run tests
 ```
 
 ## Git Workflow
@@ -141,43 +141,28 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`
 ### Pull Request Process
 1. Create feature branch: `git checkout -b feature/your-feature`
 2. Make changes and commit with conventional format
-3. **Update `docs/research/specflux-development-roadmap.md`** - Mark completed items with `[x]` checkboxes
-4. Push branch: `git push -u origin feature/your-feature`
-5. Create PR with `gh pr create`
-6. PR description must include:
+3. Push branch: `git push -u origin feature/your-feature`
+4. Create PR with `gh pr create`
+5. PR description must include:
    - **Summary** section with bullet points
    - **Test Plan** section with checklist
 
-**IMPORTANT:** Before opening any PR, always update the development roadmap (`docs/research/specflux-development-roadmap.md`) to reflect the work completed. This ensures the roadmap stays accurate and helps track overall project progress.
-
-### Example Workflow
-```bash
-git checkout -b feature/add-task-api
-# make changes
-git add .
-git commit -m "feat: add task CRUD endpoints"
-git push -u origin feature/add-task-api
-gh pr create --title "feat: add task CRUD endpoints" --body "..."
-```
-
 ## Development Workflow
 
-### Adding a Feature (API-First)
+### Adding a Frontend Feature
 1. Create feature branch from `main`
-2. Update relevant domain spec in `orchestrator/openapi/` (e.g., `tasks.yaml`)
-3. Run `npm run generate:client` to create TypeScript client
-4. Implement backend handler in `orchestrator/src/routes/`
-5. Write backend tests
-6. Implement frontend UI
-7. Write frontend tests
-8. Create PR for review
+2. If API changes needed, update `openapi/api.yaml`
+3. Run `npm run generate:client` to regenerate TypeScript client
+4. Implement React components/pages
+5. Write tests with Vitest
+6. Create PR for review
 
-### Database Changes
-1. Create feature branch
-2. Create migration file in `migrations/NNN_description.sql` with `-- UP` and `-- DOWN` sections
-3. Run `npm run migrate`
-4. Update TypeScript types
-5. Create PR for review
+### API Client Generation
+The frontend uses an auto-generated TypeScript client from the OpenAPI spec:
+```bash
+npm run generate:client
+```
+This generates code in `src/api/generated/` from `openapi/api.yaml`.
 
 ## Code Patterns
 
@@ -185,15 +170,6 @@ gh pr create --title "feat: add task CRUD endpoints" --body "..."
 - Strict mode, no `any` types
 - Always async/await, never callbacks
 - Typed errors extending `Error` class
-- API responses: `{ success: true, data: T } | { success: false, error: string }`
-
-### API Design (Domain-Driven)
-- OpenAPI specs organized by domain in `openapi/` folder
-- RESTful with plural nouns: `/tasks`, `/epics`, `/projects`
-- Nested resources: `/projects/:id/tasks`
-- Actions as POST: `/tasks/:id/start`
-- Pagination: `?page=1&limit=20`
-- Sort with prefix: `?sort=-created_at` (descending)
 
 ### React/Frontend
 - Functional components only with hooks
@@ -204,18 +180,38 @@ gh pr create --title "feat: add task CRUD endpoints" --body "..."
 - **Component Classes:** Use `.btn`, `.input`, `.select`, `.card` from `src/index.css`
 - **Colors:** Brand (blue) for actions, System (slate) for chrome, Semantic (emerald/amber/red) for status
 
+### API Design (Domain-Driven)
+- RESTful with plural nouns: `/tasks`, `/epics`, `/projects`
+- Nested resources: `/projects/{projectRef}/tasks`
+- Actions as POST: `/tasks/{taskRef}/start`
+- Pagination with cursor-based approach
+- All endpoints require Firebase auth token
+
 ## Key Documentation
 
-- **Product Spec:** `docs/research/specflux-product-spec.md` - Complete vision, architecture, workflows, UI wireframes
-- **Development Roadmap:** `docs/research/specflux-development-roadmap.md` - Week-by-week implementation plan, database schema, API specs
-- **Claude Setup Guide:** `docs/research/claude-developer-setup-guide.md` - MCP servers, skills, agents, commands
+- **Product Spec:** `docs/research/specflux-product-spec.md` - Complete vision, architecture, workflows
+- **Development Roadmap:** `docs/research/specflux-development-roadmap.md` - Implementation plan
 
 ## Core Concepts
 
 - **Projects:** Container for multiple repositories
 - **Epics:** Large features with PRD and multiple tasks
 - **Tasks:** Individual work units executed by Claude Code agents
-- **Workflows:** Templates (Startup Fast, Full Lifecycle) defining required phases
+- **Workflows:** Templates defining required phases
 - **Approval Gates:** Human review points before downstream tasks proceed
-- **Chain Outputs:** Context summaries passed between dependent tasks
 - **Worktrees:** Git worktrees for parallel task execution in same repo
+
+## Running the Full Stack
+
+```bash
+# Terminal 1: Start backend
+cd /Users/cliang/workspace/specflux-backend
+./mvnw spring-boot:run
+
+# Terminal 2: Start frontend
+cd /Users/cliang/workspace/specflux
+./run.sh
+```
+
+Backend runs on http://localhost:8090
+Frontend runs on http://localhost:5173 (web) or as desktop app
