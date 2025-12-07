@@ -10,6 +10,7 @@ import {
   TaskStatus,
 } from "../api";
 import { TaskCreateModal, Pagination } from "../components/ui";
+import { usePageContext } from "../hooks/usePageContext";
 
 // Simple type aliases for display (can be enhanced later)
 type TaskDisplay = Task;
@@ -255,6 +256,9 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Set page context for terminal suggested commands
+  usePageContext({ type: "tasks" });
 
   // Load initial filters from localStorage
   const [initialFilters] = useState(loadFilters);

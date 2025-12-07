@@ -84,6 +84,9 @@ const mockTerminalContext = {
   switchToSession: vi.fn(),
   closeSession: vi.fn(),
   updateSessionStatus: vi.fn(),
+  pageContext: null as { type: string; id?: string | number; title?: string } | null,
+  setPageContext: vi.fn(),
+  suggestedCommands: [] as Array<{ label: string; command: string; description?: string }>,
 };
 
 vi.mock("../../../contexts/TerminalContext", () => ({

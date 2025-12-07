@@ -14,6 +14,34 @@ export interface TaskInfo {
 
 export type ContextType = "task" | "epic" | "project" | "prd-workshop";
 
+// Page context types for suggested commands
+export type PageContextType =
+  | "prds"
+  | "prd-detail"
+  | "epics"
+  | "epic-detail"
+  | "tasks"
+  | "task-detail"
+  | "board"
+  | "files"
+  | "settings"
+  | "agents"
+  | "agent-detail"
+  | "roadmap"
+  | "home";
+
+export interface PageContext {
+  type: PageContextType;
+  id?: string | number; // Optional ID for detail pages
+  title?: string; // Optional title for display
+}
+
+export interface SuggestedCommand {
+  label: string;
+  command: string;
+  description?: string;
+}
+
 export interface AgentInfo {
   id: number | string; // v1 uses number, v2 uses publicId string
   name: string;
@@ -72,6 +100,11 @@ interface TerminalContextValue {
     status: { isRunning?: boolean; isConnected?: boolean },
   ) => void;
 
+  // Page context for suggested commands (does NOT affect active terminal session)
+  pageContext: PageContext | null;
+  setPageContext: (context: PageContext | null) => void;
+  suggestedCommands: SuggestedCommand[];
+
   // Backwards compatibility - returns active session's task info
   activeTask: TaskInfo | null;
   isRunning: boolean;
@@ -81,6 +114,48 @@ interface TerminalContextValue {
 const TerminalContext = createContext<TerminalContextValue | null>(null);
 
 const STORAGE_KEY = "specflux-terminal-panel";
+
+// Get suggested commands based on current page context
+function getSuggestedCommands(pageContext: PageContext | null): SuggestedCommand[] {
+  if (!pageContext) return [];
+
+  switch (pageContext.type) {
+    case "prds":
+      return [
+        { label: "/prd new", command: "/prd", description: "Create a new PRD" },
+      ];
+    case "prd-detail":
+      return [
+        { label: "/prd refine", command: "/prd refine", description: "Refine this PRD" },
+        { label: "/epic", command: "/epic", description: "Create epic from PRD" },
+      ];
+    case "epics":
+      return [
+        { label: "/epic", command: "/epic", description: "Define a new epic" },
+      ];
+    case "epic-detail":
+      return [
+        { label: `/implement`, command: `/implement ${pageContext.title || ""}`.trim(), description: "Implement this epic" },
+        { label: "/design", command: `/design ${pageContext.title || ""}`.trim(), description: "Create design doc" },
+        { label: "/task", command: "/task", description: "Start a task" },
+      ];
+    case "tasks":
+      return [
+        { label: "/task", command: "/task", description: "Work on a task" },
+      ];
+    case "task-detail":
+      return [
+        { label: `/task ${pageContext.id || ""}`, command: `/task ${pageContext.id || ""}`, description: "Start this task" },
+      ];
+    case "agents":
+    case "agent-detail":
+      return [
+        { label: "claude", command: "claude", description: "Start Claude Code" },
+      ];
+    default:
+      return [];
+  }
+}
 
 // Panel height constants
 const DEFAULT_PANEL_HEIGHT = 320;
@@ -140,6 +215,9 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
   // Track pre-maximize height for restore
   const [preMaximizeHeight, setPreMaximizeHeight] =
     useState(DEFAULT_PANEL_HEIGHT);
+
+  // Page context for suggested commands (does NOT affect active terminal session)
+  const [pageContext, setPageContext] = useState<PageContext | null>(null);
 
   // Multi-tab session state - restore from localStorage
   const [sessions, setSessions] = useState<TerminalSession[]>(() => {
@@ -361,6 +439,9 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
     [activeSessionId, updateSessionStatus],
   );
 
+  // Get suggested commands based on current page context
+  const suggestedCommands = getSuggestedCommands(pageContext);
+
   const value: TerminalContextValue = {
     isOpen,
     isCollapsed,
@@ -379,6 +460,9 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
     closeSession,
     switchToSession,
     updateSessionStatus,
+    pageContext,
+    setPageContext,
+    suggestedCommands,
     activeTask,
     isRunning,
     setIsRunning,

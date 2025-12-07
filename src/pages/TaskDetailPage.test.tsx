@@ -70,8 +70,16 @@ vi.mock("../contexts/TerminalContext", () => ({
     openTerminalForContext: vi.fn(),
     activeTask: null,
     isRunning: false,
+    pageContext: null,
+    setPageContext: vi.fn(),
+    suggestedCommands: [],
   }),
   TerminalProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+// Mock usePageContext hook
+vi.mock("../hooks/usePageContext", () => ({
+  usePageContext: vi.fn(),
 }));
 
 // Mock ProjectContext - use stable function reference

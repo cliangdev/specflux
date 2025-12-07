@@ -109,6 +109,8 @@ export default function TerminalPanel() {
     closeSession,
     updateSessionStatus,
     openTerminalForContext,
+    pageContext,
+    suggestedCommands,
   } = useTerminal();
 
   const [showNewSessionDialog, setShowNewSessionDialog] = useState(false);
@@ -226,6 +228,12 @@ export default function TerminalPanel() {
           <span className="text-sm font-medium text-slate-300 flex-shrink-0 pl-2">
             Terminal
           </span>
+          {/* Page Context Indicator */}
+          {pageContext && (
+            <span className="text-xs text-slate-500 flex-shrink-0">
+              | {pageContext.title || pageContext.type}
+            </span>
+          )}
           {/* New Session Button */}
           {currentProject && (
             <button
@@ -246,6 +254,28 @@ export default function TerminalPanel() {
                 onSwitchSession={switchToSession}
                 onCloseSession={closeSession}
               />
+            </>
+          )}
+          {/* Suggested Commands */}
+          {suggestedCommands.length > 0 && (
+            <>
+              <span className="text-slate-600 flex-shrink-0">|</span>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {suggestedCommands.map((cmd) => (
+                  <button
+                    key={cmd.command}
+                    onClick={() => {
+                      // Copy command to clipboard for now
+                      // In future, could inject into active terminal
+                      navigator.clipboard.writeText(cmd.command);
+                    }}
+                    className="px-2 py-0.5 text-xs rounded bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-slate-100 transition-colors"
+                    title={cmd.description || `Copy: ${cmd.command}`}
+                  >
+                    {cmd.label}
+                  </button>
+                ))}
+              </div>
             </>
           )}
         </div>
