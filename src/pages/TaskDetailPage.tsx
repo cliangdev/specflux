@@ -83,9 +83,11 @@ export default function TaskDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [duplicateSession, setDuplicateSession] = useState<TerminalSession | null>(null);
 
-  // Set page context for terminal suggested commands
+  // Set page context for terminal suggested commands - use displayKey for terminal header
   usePageContext(
-    task ? { type: "task-detail", id: task.id, title: task.title } : null,
+    task
+      ? { type: "task-detail", id: task.id, title: task.displayKey || task.title }
+      : null,
   );
 
   // Check if terminal is showing this task
