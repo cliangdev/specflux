@@ -14,20 +14,23 @@ export const PRD_COMMAND_TEMPLATE = `# /prd - Create or Refine Product Specifica
 
 Help the user create or refine a product specification document.
 
+**Skill**: Use \`specflux-api\` skill for API reference.
+
 ## Process
 
-1. Check if \`.specflux/prds/\` has existing PRDs
-   - If yes: List them and ask "Want to refine an existing PRD or create a new one?"
-   - If no: Start fresh with a new PRD
+1. **Check for Existing PRDs**
+   - Fetch via API: GET /api/projects/{projectRef}/prds
+   - If found: List them and ask "Want to refine an existing PRD or create a new one?"
+   - If none: Start fresh with a new PRD
 
-2. Interview (ask one question at a time, conversationally):
+2. **Interview** (ask one question at a time, conversationally):
    - What are you building? (if not already provided)
    - What problem does it solve? Who has this problem?
    - What's the simplest version that would be useful?
    - List 3-5 core features for MVP
    - Any technical constraints or preferences?
 
-3. Generate PRD using this structure:
+3. **Generate PRD** using this structure:
 
 \`\`\`markdown
 # {Project Name}
@@ -54,10 +57,28 @@ Help the user create or refine a product specification document.
 - {How do we know this is working?}
 \`\`\`
 
-4. Save to \`.specflux/prds/{prd-name}/prd.md\`
-   - Create a subdirectory for each PRD to allow related documents
+4. **Create PRD via API**
+   \`\`\`
+   POST /api/projects/{projectRef}/prds
+   {"title": "{prd-name}", "description": "{brief summary}"}
+   \`\`\`
+   This returns the PRD with auto-generated folderPath (e.g., \`.specflux/prds/{slug}\`)
 
-5. After saving, suggest potential epics:
+5. **Save Markdown File** to the returned folderPath:
+   - Save to \`{folderPath}/prd.md\`
+
+6. **Register Document via API**
+   \`\`\`
+   POST /api/projects/{projectRef}/prds/{prdRef}/documents
+   {
+     "fileName": "prd.md",
+     "filePath": "{folderPath}/prd.md",
+     "documentType": "PRD",
+     "isPrimary": true
+   }
+   \`\`\`
+
+7. **Suggest Epics**:
    "I've identified these potential epics from your PRD:
    1. {Epic 1}
    2. {Epic 2}
@@ -70,13 +91,28 @@ Help the user create or refine a product specification document.
 After generating the PRD draft:
 - Ask user to review
 - Options: "approve", "refine <feedback>", "expand <section>", "restart"
-- On approve: Save to \`.specflux/prds/\`
+- On approve: Save file and register via API
+- Update status: PUT /api/projects/{projectRef}/prds/{prdRef} {"status": "APPROVED"}
 - Optionally offer to create GitHub PR for team review
+
+## Adding Supporting Documents
+
+If user provides wireframes, mockups, or other documents:
+1. Save file to \`{folderPath}/{filename}\`
+2. Register via API:
+   \`\`\`
+   POST /api/projects/{projectRef}/prds/{prdRef}/documents
+   {"fileName": "{filename}", "filePath": "{path}", "documentType": "WIREFRAME"}
+   \`\`\`
+
+Document types: PRD, WIREFRAME, MOCKUP, DESIGN, OTHER
 `;
 
 export const EPIC_COMMAND_TEMPLATE = `# /epic - Define or Refine an Epic
 
-Define or refine an epic specification.
+Define an epic and create it in SpecFlux via API.
+
+**Skill**: Use \`specflux-api\` skill for API reference.
 
 ## Usage
 
@@ -86,110 +122,171 @@ Define or refine an epic specification.
 
 ## Process
 
-1. Read PRDs from \`.specflux/prds/\` for context
-2. Search for mentions of \`<epic-name>\` in the PRDs
-3. Check if \`.specflux/epics/<epic-name>/epic.md\` exists
-   - If yes: Read and offer to refine
-   - If no: Start definition
+1. **Gather Context**
+   - Read PRDs from \`.specflux/prds/\` for product context
+   - Search for mentions of \`<epic-name>\` in the PRDs
+   - Check existing epics via GET /api/projects/{projectRef}/epics
 
-4. Interview (ask questions conversationally):
+2. **Interview** (ask questions conversationally):
    - What are the specific user stories for this epic?
-   - Any edge cases or error scenarios to handle?
+   - What are the acceptance criteria?
+   - Any edge cases or error scenarios?
    - Technical approach preferences?
-   - Dependencies on other epics or external systems?
+   - Dependencies on other epics?
 
-5. Generate epic PRD with this structure:
+3. **Create Epic via API**
+   \`\`\`
+   POST /api/projects/{projectRef}/epics
+   {
+     "title": "{Epic Name}",
+     "description": "{Summary paragraph with user stories and technical approach}",
+     "prdFilePath": ".specflux/prds/{prd-name}/prd.md"
+   }
+   \`\`\`
 
-\`\`\`markdown
-# Epic: {Epic Name}
+4. **Add Acceptance Criteria**
+   For each criterion identified:
+   \`\`\`
+   POST /api/projects/{projectRef}/epics/{epicRef}/acceptance-criteria
+   {"criteria": "{criterion text}"}
+   \`\`\`
 
-## Summary
-{One paragraph describing the epic}
+5. **Create Tasks** (after user approval)
+   Ask: "I've identified these tasks. Want me to create them?"
 
-## Parent PRD
-{Reference to the product PRD this epic comes from}
+   For each task:
+   \`\`\`
+   POST /api/projects/{projectRef}/tasks
+   {
+     "epicRef": "{epicRef}",
+     "title": "{Task title}",
+     "description": "{Task description}",
+     "priority": "MEDIUM"
+   }
+   \`\`\`
 
-## User Stories
-- As a {user}, I can {action} so that {benefit}
-- As a {user}, I can {action} so that {benefit}
+6. **Add Task Dependencies**
+   If tasks have dependencies:
+   \`\`\`
+   POST /api/projects/{projectRef}/tasks/{taskRef}/dependencies
+   {"dependsOnTaskRef": "{dependsOnTaskRef}"}
+   \`\`\`
 
-## Acceptance Criteria
-- [ ] {Criterion 1}
-- [ ] {Criterion 2}
-- [ ] {Criterion 3}
-
-## Technical Approach
-{High-level approach, chosen patterns, key decisions}
-
-## Dependencies
-- Depends on: {Epic/Task IDs, external systems}
-- Blocks: {Epic/Task IDs}
-
-## Suggested Tasks
-1. {Task 1} - {brief description}
-2. {Task 2} - {brief description}
-3. {Task 3} - {brief description}
-\`\`\`
-
-6. Save to \`.specflux/epics/<epic-name>/epic.md\`
-
-7. Ask: "Want me to create these tasks in SpecFlux? (yes/no)"
-   - If yes: Call SpecFlux API to create tasks
+7. **Add Task Acceptance Criteria**
+   For each task:
+   \`\`\`
+   POST /api/projects/{projectRef}/tasks/{taskRef}/acceptance-criteria
+   {"criteria": "{criterion text}"}
+   \`\`\`
 
 ## Approval Flow
 
-After generating the epic draft:
-- Ask user to review
-- Options: "approve", "refine <feedback>", "expand <section>"
-- On approve: Save to \`.specflux/epics/\`
-- Suggest next steps: \`/design <epic>\` or \`/implement <epic>\`
+- Show epic summary with acceptance criteria and suggested tasks
+- Options: "approve", "refine <feedback>", "add more criteria"
+- On approve: Create via API as described above
+- Suggest next steps: \`/implement <epic>\` or \`/task <id>\`
+
+## Example Session
+
+\`\`\`
+> /epic authentication
+
+I'll help you define the "Authentication" epic.
+
+From your product PRD, I see this relates to user login and registration.
+
+What user stories should this epic cover?
+
+> Users should be able to sign up, log in, and reset password
+
+Got it. Here's what I'm planning:
+
+**Epic: Authentication**
+User authentication with email/password, including signup, login, and password reset.
+
+**Acceptance Criteria:**
+1. Users can sign up with email/password
+2. Users can log in with credentials
+3. Users can reset password via email
+4. JWT tokens are used for session management
+
+**Suggested Tasks:**
+1. Database schema for users (priority: HIGH)
+2. Signup API endpoint
+3. Login API endpoint
+4. Password reset flow
+5. JWT middleware
+
+Want me to create this epic and tasks in SpecFlux? (yes/no)
+
+> yes
+
+Creating epic via API...
+Epic created: PROJ-E1
+
+Creating tasks...
+- PROJ-42: Database schema for users
+- PROJ-43: Signup API endpoint
+- PROJ-44: Login API endpoint
+- PROJ-45: Password reset flow
+- PROJ-46: JWT middleware
+
+Adding dependencies: PROJ-43, PROJ-44, PROJ-45 depend on PROJ-42
+
+Done! Run \`/implement authentication\` to start implementation.
+\`\`\`
 `;
 
 export const IMPLEMENT_COMMAND_TEMPLATE = `# /implement - Implement an Epic
 
 Implement an epic directly, working through acceptance criteria.
 
+**Skill**: Use \`specflux-api\` skill for API reference.
+
 ## Usage
 
 \`\`\`
-/implement <epic-name>
+/implement <epic-ref>
 \`\`\`
+
+Epic ref can be display key (PROJ-E1), public ID (epic_xxx), or epic title.
 
 ## Process
 
-1. Read epic from \`.specflux/epics/<epic-name>/epic.md\`
-2. Read supporting docs from \`.specflux/epics/<epic-name>/docs/\` (if any)
-3. Review acceptance criteria
+1. **Fetch Epic Context via API**
+   \`\`\`
+   GET /api/projects/{projectRef}/epics/{epicRef}
+   GET /api/projects/{projectRef}/epics/{epicRef}/acceptance-criteria
+   GET /api/projects/{projectRef}/tasks?epicRef={epicRef}
+   \`\`\`
 
-4. For each acceptance criterion:
-   - Plan the implementation approach
-   - Implement the requirement
-   - Write tests to verify
-   - Check off the criterion when done
+2. **Update Epic Status**
+   \`\`\`
+   PUT /api/projects/{projectRef}/epics/{epicRef}
+   {"status": "IN_PROGRESS"}
+   \`\`\`
 
-5. If the epic is complex:
-   - Consider breaking into tasks first
-   - Create tasks via SpecFlux API
-   - Work through tasks one at a time
+3. **If Epic Has Tasks**: Work through tasks in dependency order
+   - Use \`/task <taskRef>\` for each task
+   - Or implement directly and update task status via API
 
-6. When all criteria complete:
-   - Mark epic as done
+4. **If Epic Has No Tasks**: Work through acceptance criteria directly
+   - For each criterion:
+     - Plan the implementation approach
+     - Implement the requirement
+     - Write tests to verify
+     - Mark complete via API:
+       \`\`\`
+       PUT /api/projects/{projectRef}/epics/{epicRef}/acceptance-criteria/{id}
+       {"isMet": true}
+       \`\`\`
+
+5. **On Completion**
+   \`\`\`
+   PUT /api/projects/{projectRef}/epics/{epicRef}
+   {"status": "COMPLETED"}
+   \`\`\`
    - Suggest creating a PR for review
-
-## Context Injection
-
-When implementing, the following context is available:
-- Epic PRD (\`.specflux/epics/<epic-name>/epic.md\`)
-- Supporting documents (API designs, wireframes, etc.)
-- Parent product PRD
-- Relevant skills (based on task type)
-
-## Progress Tracking
-
-Update progress as you work:
-- Check off acceptance criteria as they're completed
-- Write progress notes to epic state file
-- Update SpecFlux via API for visibility in UI
 
 ## Recommended Skills
 
@@ -203,21 +300,34 @@ Depending on the epic type, activate relevant skills:
 \`\`\`
 > /implement authentication
 
-I'll implement the "authentication" epic.
+Fetching epic "Authentication" from API...
 
-Reading epic spec...
-Found 4 acceptance criteria:
+**Epic: Authentication** (PROJ-E1)
+Status: PLANNING
+
+**Acceptance Criteria:**
 - [ ] Users can sign up with email/password
-- [ ] Email verification required
-- [ ] Login returns JWT token
+- [ ] Users can log in with credentials
 - [ ] Password reset via email
+- [ ] JWT tokens for session management
 
-Starting with criterion 1: User signup...
+**Tasks:**
+- PROJ-42: Database schema for users [BACKLOG]
+- PROJ-43: Signup API endpoint [BACKLOG]
+- PROJ-44: Login API endpoint [BACKLOG]
 
-[Implementation proceeds]
+Updating epic status to IN_PROGRESS...
 
-Criterion 1 complete.
-Moving to criterion 2...
+This epic has 3 tasks. I'll work through them in order.
+
+Starting with PROJ-42: Database schema for users...
+
+[Implementation proceeds via /task PROJ-42]
+
+All tasks complete!
+Updating epic status to COMPLETED...
+
+Epic complete! Ready for review.
 \`\`\`
 `;
 
@@ -225,97 +335,103 @@ export const TASK_COMMAND_TEMPLATE = `# /task - Work on a Specific Task
 
 Work on a specific task from SpecFlux.
 
+**Skill**: Use \`specflux-api\` skill for API reference.
+
 ## Usage
 
 \`\`\`
-/task <task-id>
+/task <task-ref>
 \`\`\`
+
+Task ref can be display key (PROJ-42) or public ID (task_xxx).
 
 ## Process
 
-1. Read task context:
-   - Task definition and acceptance criteria
-   - Target repository (if specified)
-   - Chain inputs from completed dependencies
-   - Relevant supporting documents from parent epic
+1. **Fetch Task Context via API**
+   \`\`\`
+   GET /api/projects/{projectRef}/tasks/{taskRef}
+   GET /api/projects/{projectRef}/tasks/{taskRef}/acceptance-criteria
+   GET /api/projects/{projectRef}/tasks/{taskRef}/dependencies
+   \`\`\`
 
-2. Change to target repository directory (if applicable)
+2. **Get Epic Context** (if task belongs to epic)
+   \`\`\`
+   GET /api/projects/{projectRef}/epics/{epicRef}
+   GET /api/projects/{projectRef}/epics/{epicRef}/acceptance-criteria
+   \`\`\`
 
-3. Read any existing state file for progress context
+3. **Update Task Status**
+   \`\`\`
+   PATCH /api/projects/{projectRef}/tasks/{taskRef}
+   {"status": "IN_PROGRESS"}
+   \`\`\`
 
-4. Work through acceptance criteria:
+4. **Work Through Acceptance Criteria**
    - Implement each requirement
    - Write tests as appropriate
-   - Check off criteria as completed
+   - Mark criteria complete via API:
+     \`\`\`
+     PUT /api/projects/{projectRef}/tasks/{taskRef}/acceptance-criteria/{id}
+     {"isMet": true}
+     \`\`\`
 
-5. On completion:
-   - Mark task as done
-   - Write chain output for downstream tasks
+5. **On Completion**
+   - Mark task complete:
+     \`\`\`
+     PATCH /api/projects/{projectRef}/tasks/{taskRef}
+     {"status": "COMPLETED"}
+     \`\`\`
    - Create PR if appropriate
-
-## Context Available
-
-When working on a task, these are injected:
-- **Task spec**: Title, description, acceptance criteria
-- **Epic context**: Parent epic PRD
-- **Chain inputs**: Outputs from dependency tasks
-- **Supporting docs**: Relevant design docs from epic
-
-## Chain Outputs
-
-When completing a task that has dependents:
-
-Write a chain output summarizing:
-- What was implemented
-- Key decisions made
-- API endpoints created (if any)
-- Files modified
-- Any relevant context for downstream tasks
+   - Write chain output for downstream tasks (in state file)
 
 ## State File
 
 Progress is tracked in \`.specflux/task-states/task-{id}-state.md\`:
 
 \`\`\`markdown
-# Task {id} State
+# Task {displayKey} State
 
 ## Progress Log
 - [timestamp] Started working on task
 - [timestamp] Completed criterion 1
 - [timestamp] Completed criterion 2
 
-## Chain Inputs Received
-{Context from dependency tasks}
-
 ## Chain Output
-{Summary for downstream tasks}
+{Summary for downstream tasks - what was implemented, key decisions, files modified}
 \`\`\`
 
 ## Example Session
 
 \`\`\`
-> /task 101
+> /task PROJ-42
 
-Reading task #101: "Database schema for readings"
+Fetching task PROJ-42 from API...
 
-Context:
-- Epic: Quick Reading Log
-- Dependencies: None
-- Acceptance criteria:
-  - [ ] Create readings table
-  - [ ] Add indexes for user queries
-  - [ ] Create migration file
+**Task: Database schema for users**
+Epic: Authentication (PROJ-E1)
+Priority: HIGH
+
+**Acceptance Criteria:**
+- [ ] User table with id, email, password_hash, created_at
+- [ ] Unique constraint on email
+- [ ] Index on email for login lookups
+
+**Dependencies:** None
+
+Updating status to IN_PROGRESS...
 
 Starting implementation...
 
-Creating migration file at migrations/001_readings_table.sql...
+Creating migration file at migrations/001_users_table.sql...
 
 [Implementation proceeds]
 
+Marking criteria as complete via API...
 All criteria complete!
-Writing chain output for dependent tasks...
 
-Task #101 complete. Tasks #102 and #104 are now unblocked.
+Updating status to COMPLETED...
+
+Task PROJ-42 complete. Dependent tasks are now unblocked.
 \`\`\`
 `;
 
@@ -327,39 +443,42 @@ export const CLAUDE_MD_TEMPLATE = `# CLAUDE.md
 
 ## SpecFlux Project
 
-This project is managed by SpecFlux. Specs and state are stored in \`.specflux/\`.
+This project is managed by SpecFlux. Use the SpecFlux API to create and track epics, tasks, and acceptance criteria.
 
 ## Available Commands
 
 | Command | Description |
 |---------|-------------|
-| \`/prd\` | Create or refine product PRD |
-| \`/epic <name>\` | Define or refine an epic |
-| \`/implement <epic>\` | Implement epic directly (creates tasks as needed) |
+| \`/prd\` | Create or refine product PRD (saved to \`.specflux/prds/\`) |
+| \`/epic <name>\` | Define epic and create in SpecFlux via API |
+| \`/implement <epic>\` | Implement epic, working through tasks |
 | \`/task <id>\` | Work on a specific task |
+
+## Required Skill
+
+Use the \`specflux-api\` skill when working with epics, tasks, or acceptance criteria. It provides API endpoint documentation for:
+- Creating/updating epics and tasks
+- Managing acceptance criteria
+- Tracking task dependencies
+- Updating status and progress
 
 ## File Conventions
 
 - PRD documents: \`.specflux/prds/{name}/prd.md\`
-- Epic PRDs: \`.specflux/epics/{name}/epic.md\`
-- Supporting docs: \`.specflux/epics/{name}/docs/*\`
-- Task states: \`.specflux/task-states/task-{id}-state.md\`
+- Task state files: \`.specflux/task-states/task-{id}-state.md\`
 
-## When Working on Tasks
+## API Reference
 
-1. Read task context (acceptance criteria, dependencies, supporting docs)
-2. Read state file for progress context
-3. Implement directly (don't just suggest)
-4. Check off acceptance criteria as completed
-5. Update progress log in state file
-6. Write chain output for downstream tasks when done
+SpecFlux API at \`http://localhost:8090/api\`:
+- Epics: \`/api/projects/{projectRef}/epics\`
+- Tasks: \`/api/projects/{projectRef}/tasks\`
+- Acceptance criteria: \`.../epics/{epicRef}/acceptance-criteria\` or \`.../tasks/{taskRef}/acceptance-criteria\`
 
 ## Workflow
 
-The typical workflow is:
-
 1. **Create PRD**: \`/prd\` to define what you're building
-2. **Define Epics**: \`/epic <name>\` to break PRD into epics
-3. **Implement**: Either \`/implement <epic>\` or \`/task <id>\` for granular work
-4. **Review**: Create PR when work is complete
+2. **Define Epics**: \`/epic <name>\` creates epic + tasks via API
+3. **Implement**: \`/implement <epic>\` or \`/task <id>\` for granular work
+4. **Track Progress**: Update acceptance criteria and status via API
+5. **Review**: Create PR when work is complete
 `;

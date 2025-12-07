@@ -7,19 +7,23 @@ import {
   exists,
 } from "@tauri-apps/plugin-fs";
 import { join } from "@tauri-apps/api/path";
+import { api, PrdDocumentType } from "../../api";
 
 interface PrdImportModalProps {
   projectPath: string;
+  projectRef: string;
   onClose: () => void;
   onImported: () => void;
 }
 
 export default function PrdImportModal({
   projectPath,
+  projectRef,
   onClose,
   onImported,
 }: PrdImportModalProps) {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [prdTitle, setPrdTitle] = useState<string>("");
   const [refineAfter, setRefineAfter] = useState(false);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,6 +34,10 @@ export default function PrdImportModal({
       const selected = await open({
         multiple: false,
         title: "Select PRD File",
+        filters: [
+          { name: "Markdown", extensions: ["md", "markdown"] },
+          { name: "All Files", extensions: ["*"] },
+        ],
       });
 
       console.log("[PrdImportModal] File picker result:", selected);
@@ -37,6 +45,14 @@ export default function PrdImportModal({
       if (selected && typeof selected === "string") {
         setSelectedFile(selected);
         setError(null);
+
+        // Extract title from filename
+        const filename = selected.split("/").pop() || "";
+        const titleFromFile = filename
+          .replace(/\.md$/i, "")
+          .replace(/[-_]/g, " ")
+          .replace(/\b\w/g, (c) => c.toUpperCase());
+        setPrdTitle(titleFromFile);
       } else if (selected === null) {
         console.log("[PrdImportModal] User cancelled file selection");
       }
@@ -49,7 +65,7 @@ export default function PrdImportModal({
   };
 
   const handleImport = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || !prdTitle.trim()) return;
 
     setImporting(true);
     setError(null);
@@ -58,15 +74,20 @@ export default function PrdImportModal({
       // Read the source file
       const content = await readTextFile(selectedFile);
 
-      // Get the filename and create a folder name from it
-      const filename = selectedFile.split("/").pop() || "imported-prd.md";
-      const folderName = filename
-        .replace(/\.md$/i, "")
-        .replace(/\s+/g, "-")
-        .toLowerCase();
+      // Get the filename for the document
+      const originalFilename = selectedFile.split("/").pop() || "prd.md";
 
-      // Create .specflux/prds/{folder-name}/ directory
-      const prdDir = await join(projectPath, ".specflux", "prds", folderName);
+      // 1. Create PRD via API (folderPath will be auto-generated)
+      const prd = await api.prds.createPrd({
+        projectRef,
+        createPrdRequest: {
+          title: prdTitle.trim(),
+          description: `Imported from ${originalFilename}`,
+        },
+      });
+
+      // 2. Create the folder and write the file
+      const prdDir = await join(projectPath, prd.folderPath);
       const prdDirExists = await exists(prdDir);
 
       if (!prdDirExists) {
@@ -75,11 +96,21 @@ export default function PrdImportModal({
 
       // Write the file as prd.md inside the folder
       const destPath = await join(prdDir, "prd.md");
-
-      // Write the file to destination
       await writeTextFile(destPath, content);
 
-      // TODO: If refineAfter is true, open refine flow (Phase 1C)
+      // 3. Register the document with the PRD
+      await api.prds.addPrdDocument({
+        projectRef,
+        prdRef: prd.id,
+        addPrdDocumentRequest: {
+          fileName: "prd.md",
+          filePath: `${prd.folderPath}/prd.md`,
+          documentType: PrdDocumentType.Prd,
+          isPrimary: true,
+        },
+      });
+
+      // TODO: If refineAfter is true, open refine flow
       if (refineAfter) {
         console.log("Refine after import selected - will be implemented later");
       }
@@ -96,13 +127,6 @@ export default function PrdImportModal({
 
   // Get just the filename for display
   const displayFilename = selectedFile?.split("/").pop();
-  // Get the folder name (without .md extension, lowercase, dashes for spaces)
-  const folderName = displayFilename
-    ?.replace(/\.md$/i, "")
-    .replace(/\s+/g, "-")
-    .toLowerCase();
-  // Get the destination path preview
-  const destPreview = folderName ? `.specflux/prds/${folderName}/prd.md` : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -155,7 +179,7 @@ export default function PrdImportModal({
             </label>
             <div className="flex gap-2">
               <div className="flex-1 px-3 py-2 bg-system-50 dark:bg-system-900 border border-system-200 dark:border-system-700 rounded-lg text-sm font-mono text-system-600 dark:text-system-400 truncate">
-                {selectedFile || (
+                {displayFilename || (
                   <span className="text-system-400 dark:text-system-500 font-sans">
                     No file selected
                   </span>
@@ -184,28 +208,19 @@ export default function PrdImportModal({
             </div>
           </div>
 
-          {/* Destination Preview */}
-          {destPreview && (
-            <div className="text-sm text-system-500 dark:text-system-400 flex items-center gap-1">
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 7l5 5m0 0l-5 5m5-5H6"
-                />
-              </svg>
-              Will copy to{" "}
-              <span className="font-mono text-system-600 dark:text-system-300">
-                {destPreview}
-              </span>
-            </div>
-          )}
+          {/* PRD Title */}
+          <div>
+            <label className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1">
+              PRD Title
+            </label>
+            <input
+              type="text"
+              value={prdTitle}
+              onChange={(e) => setPrdTitle(e.target.value)}
+              placeholder="Enter a title for this PRD"
+              className="input w-full"
+            />
+          </div>
 
           {/* Refine Checkbox */}
           <label className="flex items-center gap-3 cursor-pointer">
@@ -234,7 +249,7 @@ export default function PrdImportModal({
           <button
             type="button"
             onClick={handleImport}
-            disabled={importing || !selectedFile}
+            disabled={importing || !selectedFile || !prdTitle.trim()}
             className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {importing && (

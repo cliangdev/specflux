@@ -1,32 +1,197 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { readDir, readTextFile, stat } from "@tauri-apps/plugin-fs";
+import { readTextFile } from "@tauri-apps/plugin-fs";
 import { join } from "@tauri-apps/api/path";
 import MarkdownRenderer from "../components/ui/MarkdownRenderer";
 import { useProject } from "../contexts/ProjectContext";
+import { usePageContext } from "../hooks/usePageContext";
+import {
+  api,
+  type Prd,
+  type PrdDocument,
+  PrdStatus,
+  PrdDocumentType,
+} from "../api";
 
-interface PrdFile {
-  name: string;
-  path: string;
-  lastModified: Date | null;
+function getStatusBadgeClasses(status: PrdStatus): string {
+  switch (status) {
+    case PrdStatus.Draft:
+      return "bg-system-100 dark:bg-system-700 text-system-600 dark:text-system-300";
+    case PrdStatus.InReview:
+      return "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400";
+    case PrdStatus.Approved:
+      return "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400";
+    case PrdStatus.Archived:
+      return "bg-system-200 dark:bg-system-600 text-system-500 dark:text-system-400";
+    default:
+      return "bg-system-100 dark:bg-system-700 text-system-600 dark:text-system-300";
+  }
+}
+
+function formatStatusLabel(status: PrdStatus): string {
+  switch (status) {
+    case PrdStatus.Draft:
+      return "Draft";
+    case PrdStatus.InReview:
+      return "In Review";
+    case PrdStatus.Approved:
+      return "Approved";
+    case PrdStatus.Archived:
+      return "Archived";
+    default:
+      return status;
+  }
+}
+
+function getDocumentTypeIcon(type: PrdDocumentType): JSX.Element {
+  switch (type) {
+    case PrdDocumentType.Prd:
+      return (
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+          />
+        </svg>
+      );
+    case PrdDocumentType.Wireframe:
+      return (
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"
+          />
+        </svg>
+      );
+    case PrdDocumentType.Mockup:
+      return (
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+          />
+        </svg>
+      );
+    case PrdDocumentType.Design:
+      return (
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"
+          />
+        </svg>
+      );
+    default:
+      return (
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+          />
+        </svg>
+      );
+  }
+}
+
+function formatRelativeTime(date: Date): string {
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (diffInSeconds < 60) return "just now";
+  if (diffInSeconds < 3600)
+    return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+  if (diffInSeconds < 86400)
+    return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+  if (diffInSeconds < 604800)
+    return `${Math.floor(diffInSeconds / 86400)} days ago`;
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+  });
 }
 
 export default function PRDDetailPage() {
   const { prdName } = useParams<{ prdName: string }>();
   const navigate = useNavigate();
-  const { currentProject } = useProject();
+  const { currentProject, getProjectRef } = useProject();
 
-  const [files, setFiles] = useState<PrdFile[]>([]);
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const prdRef = prdName ? decodeURIComponent(prdName) : "";
+
+  // Set page context for terminal suggested commands
+  usePageContext(prdRef ? { type: "prd-detail", title: prdRef } : null);
+
+  const [prd, setPrd] = useState<Prd | null>(null);
+  const [selectedDoc, setSelectedDoc] = useState<PrdDocument | null>(null);
   const [content, setContent] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [contentLoading, setContentLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [metadataCollapsed, setMetadataCollapsed] = useState(false);
+  const statusMenuRef = useRef<HTMLDivElement>(null);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
 
-  const decodedPrdName = prdName ? decodeURIComponent(prdName) : "";
+  // Close menus when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        statusMenuRef.current &&
+        !statusMenuRef.current.contains(event.target as Node)
+      ) {
+        setShowStatusMenu(false);
+      }
+      if (
+        actionsMenuRef.current &&
+        !actionsMenuRef.current.contains(event.target as Node)
+      ) {
+        setShowActionsMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  const loadFiles = useCallback(async () => {
-    if (!currentProject?.localPath || !decodedPrdName) {
+  const loadPrd = useCallback(async () => {
+    const projectRef = getProjectRef();
+    if (!projectRef || !prdRef) {
       setLoading(false);
       return;
     }
@@ -35,65 +200,26 @@ export default function PRDDetailPage() {
     setError(null);
 
     try {
-      const prdPath = await join(
-        currentProject.localPath,
-        ".specflux",
-        "prds",
-        decodedPrdName,
-      );
+      const prdData = await api.prds.getPrd({ projectRef, prdRef });
+      setPrd(prdData);
 
-      const entries = await readDir(prdPath);
-
-      // Get file info for each file
-      const fileList: PrdFile[] = [];
-      for (const entry of entries) {
-        if (entry.isFile && entry.name) {
-          const filePath = await join(prdPath, entry.name);
-          let lastModified: Date | null = null;
-
-          try {
-            const fileStat = await stat(filePath);
-            if (fileStat.mtime) {
-              lastModified = new Date(fileStat.mtime);
-            }
-          } catch {
-            // Skip stat errors
-          }
-
-          fileList.push({
-            name: entry.name,
-            path: filePath,
-            lastModified,
-          });
-        }
-      }
-
-      // Sort: prd.md first, then alphabetically
-      fileList.sort((a, b) => {
-        if (a.name === "prd.md") return -1;
-        if (b.name === "prd.md") return 1;
-        return a.name.localeCompare(b.name);
-      });
-
-      setFiles(fileList);
-
-      // Select default file (prd.md if exists, otherwise first file)
-      if (fileList.length > 0) {
-        const defaultFile =
-          fileList.find((f) => f.name === "prd.md") || fileList[0];
-        setSelectedFile(defaultFile.name);
+      // Select primary document or first document
+      if (prdData.documents && prdData.documents.length > 0) {
+        const primaryDoc =
+          prdData.documents.find((d) => d.isPrimary) || prdData.documents[0];
+        setSelectedDoc(primaryDoc);
       }
     } catch (err) {
-      console.error("Failed to load PRD files:", err);
+      console.error("Failed to load PRD:", err);
       setError(err instanceof Error ? err.message : "Failed to load PRD");
     } finally {
       setLoading(false);
     }
-  }, [currentProject?.localPath, decodedPrdName]);
+  }, [getProjectRef, prdRef]);
 
   // Load file content when selection changes
   const loadContent = useCallback(async () => {
-    if (!currentProject?.localPath || !decodedPrdName || !selectedFile) {
+    if (!currentProject?.localPath || !selectedDoc) {
       setContent("");
       return;
     }
@@ -101,12 +227,10 @@ export default function PRDDetailPage() {
     setContentLoading(true);
 
     try {
+      // Construct full path from project root
       const filePath = await join(
         currentProject.localPath,
-        ".specflux",
-        "prds",
-        decodedPrdName,
-        selectedFile,
+        selectedDoc.filePath,
       );
 
       const text = await readTextFile(filePath);
@@ -119,11 +243,11 @@ export default function PRDDetailPage() {
     } finally {
       setContentLoading(false);
     }
-  }, [currentProject?.localPath, decodedPrdName, selectedFile]);
+  }, [currentProject?.localPath, selectedDoc]);
 
   useEffect(() => {
-    loadFiles();
-  }, [loadFiles]);
+    loadPrd();
+  }, [loadPrd]);
 
   useEffect(() => {
     loadContent();
@@ -133,8 +257,39 @@ export default function PRDDetailPage() {
     navigate("/prds");
   };
 
-  const handleFileSelect = (fileName: string) => {
-    setSelectedFile(fileName);
+  const handleDocSelect = (doc: PrdDocument) => {
+    setSelectedDoc(doc);
+  };
+
+  const handleStatusChange = async (newStatus: PrdStatus) => {
+    const projectRef = getProjectRef();
+    if (!projectRef || !prd) return;
+
+    try {
+      const updated = await api.prds.updatePrd({
+        projectRef,
+        prdRef: prd.id,
+        updatePrdRequest: { status: newStatus },
+      });
+      setPrd(updated);
+      setShowStatusMenu(false);
+    } catch (err) {
+      console.error("Failed to update status:", err);
+    }
+  };
+
+  const handleDelete = async () => {
+    const projectRef = getProjectRef();
+    if (!projectRef || !prd) return;
+
+    if (!confirm(`Delete PRD "${prd.title}"? This cannot be undone.`)) return;
+
+    try {
+      await api.prds.deletePrd({ projectRef, prdRef: prd.id });
+      navigate("/prds");
+    } catch (err) {
+      console.error("Failed to delete PRD:", err);
+    }
   };
 
   // No project
@@ -181,11 +336,13 @@ export default function PRDDetailPage() {
     );
   }
 
-  if (error) {
+  if (error || !prd) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-red-600 dark:text-red-400 mb-4">{error}</div>
+          <div className="text-red-600 dark:text-red-400 mb-4">
+            {error || "PRD not found"}
+          </div>
           <button
             onClick={handleBack}
             className="text-brand-600 hover:text-brand-700 dark:text-brand-400"
@@ -222,76 +379,231 @@ export default function PRDDetailPage() {
               </svg>
               Back to PRDs
             </button>
-            <h1 className="text-xl font-semibold text-system-900 dark:text-white">
-              {decodedPrdName}
-            </h1>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-system-400 dark:text-system-500 font-mono">
+                {prd.displayKey}
+              </span>
+              <h1 className="text-xl font-semibold text-system-900 dark:text-white">
+                {prd.title}
+              </h1>
+            </div>
           </div>
-          <button
-            className="btn btn-secondary"
-            onClick={() => {
-              // TODO: Phase 2B - Add document
-              console.log("Add Document - will be implemented later");
-            }}
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            Add Document
-          </button>
+
+          <div className="flex items-center gap-2">
+            {/* Status dropdown */}
+            <div className="relative" ref={statusMenuRef}>
+              <button
+                onClick={() => setShowStatusMenu(!showStatusMenu)}
+                className={`px-3 py-1.5 text-sm font-medium rounded-lg flex items-center gap-1.5 transition-colors ${getStatusBadgeClasses(prd.status)}`}
+              >
+                {formatStatusLabel(prd.status)}
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </button>
+              {showStatusMenu && (
+                <div className="absolute right-0 mt-1 w-40 bg-white dark:bg-system-800 rounded-lg shadow-lg border border-system-200 dark:border-system-700 py-1 z-50">
+                  {Object.values(PrdStatus).map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => handleStatusChange(status)}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-system-100 dark:hover:bg-system-700 ${
+                        status === prd.status
+                          ? "font-medium text-brand-600 dark:text-brand-400"
+                          : "text-system-700 dark:text-system-300"
+                      }`}
+                    >
+                      {formatStatusLabel(status)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Actions menu */}
+            <div className="relative" ref={actionsMenuRef}>
+              <button
+                onClick={() => setShowActionsMenu(!showActionsMenu)}
+                className="btn btn-ghost"
+                title="Actions"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                  />
+                </svg>
+              </button>
+              {showActionsMenu && (
+                <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-system-800 rounded-lg shadow-lg border border-system-200 dark:border-system-700 py-1 z-50">
+                  <button
+                    onClick={() => {
+                      setShowActionsMenu(false);
+                      // TODO: Implement add document
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm text-system-700 dark:text-system-300 hover:bg-system-100 dark:hover:bg-system-700 flex items-center gap-2"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 4v16m8-8H4"
+                      />
+                    </svg>
+                    Add Document
+                  </button>
+                  <hr className="my-1 border-system-200 dark:border-system-700" />
+                  <button
+                    onClick={() => {
+                      setShowActionsMenu(false);
+                      handleDelete();
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                    Delete PRD
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
+      </div>
+
+      {/* Metadata Panel (collapsible) */}
+      <div className="flex-shrink-0 border-b border-system-200 dark:border-system-700 bg-system-50 dark:bg-system-900/50">
+        <button
+          onClick={() => setMetadataCollapsed(!metadataCollapsed)}
+          className="w-full px-6 py-2 flex items-center justify-between text-xs font-medium uppercase tracking-wider text-system-400 dark:text-system-500 hover:text-system-600 dark:hover:text-system-300"
+        >
+          <span>Details</span>
+          <svg
+            className={`w-4 h-4 transition-transform ${metadataCollapsed ? "-rotate-90" : ""}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        </button>
+        {!metadataCollapsed && (
+          <div className="px-6 pb-4 grid grid-cols-4 gap-6">
+            <div>
+              <div className="text-xs text-system-400 dark:text-system-500 mb-1">
+                Created
+              </div>
+              <div className="text-sm text-system-700 dark:text-system-300">
+                {formatRelativeTime(prd.createdAt)}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-system-400 dark:text-system-500 mb-1">
+                Updated
+              </div>
+              <div className="text-sm text-system-700 dark:text-system-300">
+                {formatRelativeTime(prd.updatedAt)}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-system-400 dark:text-system-500 mb-1">
+                Documents
+              </div>
+              <div className="text-sm text-system-700 dark:text-system-300">
+                {prd.documents?.length ?? 0} files
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-system-400 dark:text-system-500 mb-1">
+                Folder
+              </div>
+              <div className="text-sm text-system-700 dark:text-system-300 font-mono truncate">
+                {prd.folderPath}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* File Sidebar */}
+        {/* Document Sidebar */}
         <div className="w-64 flex-shrink-0 border-r border-system-200 dark:border-system-700 bg-system-50 dark:bg-system-900 overflow-auto">
           <div className="p-4">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-system-400 dark:text-system-500 mb-3">
               Documents
             </h2>
-            {files.length === 0 ? (
+            {!prd.documents || prd.documents.length === 0 ? (
               <p className="text-sm text-system-500 dark:text-system-400">
-                No files found
+                No documents
               </p>
             ) : (
               <ul className="space-y-1">
-                {files.map((file) => (
-                  <li key={file.name}>
+                {prd.documents.map((doc) => (
+                  <li key={doc.id}>
                     <button
-                      onClick={() => handleFileSelect(file.name)}
+                      onClick={() => handleDocSelect(doc)}
                       className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                        selectedFile === file.name
+                        selectedDoc?.id === doc.id
                           ? "bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 font-medium"
                           : "text-system-600 dark:text-system-400 hover:bg-system-100 dark:hover:bg-system-800"
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        <svg
-                          className="w-4 h-4 flex-shrink-0"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
+                        <span
+                          className={`flex-shrink-0 ${
+                            selectedDoc?.id === doc.id
+                              ? "text-brand-600 dark:text-brand-400"
+                              : "text-system-400 dark:text-system-500"
+                          }`}
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                          />
-                        </svg>
-                        <span className="truncate">
-                          {file.name.replace(/\.md$/, "")}
+                          {getDocumentTypeIcon(doc.documentType)}
                         </span>
+                        <span className="truncate flex-1">{doc.fileName}</span>
+                        {doc.isPrimary && (
+                          <span className="text-xs text-brand-500 dark:text-brand-400">
+                            Primary
+                          </span>
+                        )}
                       </div>
                     </button>
                   </li>
@@ -301,7 +613,7 @@ export default function PRDDetailPage() {
           </div>
         </div>
 
-        {/* Markdown Content */}
+        {/* Document Content */}
         <div className="flex-1 overflow-auto">
           {contentLoading ? (
             <div className="flex items-center justify-center h-full">
@@ -328,11 +640,26 @@ export default function PRDDetailPage() {
                 Loading...
               </div>
             </div>
-          ) : !selectedFile ? (
+          ) : !selectedDoc ? (
             <div className="flex items-center justify-center h-full">
-              <p className="text-system-500 dark:text-system-400">
-                Select a file to view
-              </p>
+              <div className="text-center">
+                <svg
+                  className="mx-auto h-12 w-12 text-system-400 dark:text-system-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                <p className="mt-2 text-system-500 dark:text-system-400">
+                  No documents in this PRD
+                </p>
+              </div>
             </div>
           ) : (
             <div className="p-8">
