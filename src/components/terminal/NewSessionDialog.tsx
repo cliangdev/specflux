@@ -4,6 +4,7 @@ import type { ContextType, ContextInfo } from "../../contexts/TerminalContext";
 
 interface NewSessionDialogProps {
   projectId: string;
+  projectPath?: string;
   onClose: () => void;
   onCreated: (context: ContextInfo) => void;
 }
@@ -36,6 +37,7 @@ const CONTEXT_MODE_OPTIONS: {
 
 export default function NewSessionDialog({
   projectId,
+  projectPath,
   onClose,
   onCreated,
 }: NewSessionDialogProps) {
@@ -101,6 +103,7 @@ export default function NewSessionDialog({
           type: "task",
           id: selectedTask.id,
           title: selectedTask.title,
+          workingDirectory: projectPath,
         });
       }
     } else if (contextMode === "epic") {
@@ -115,6 +118,7 @@ export default function NewSessionDialog({
           type: "epic",
           id: selectedEpic.id,
           title: selectedEpic.title,
+          workingDirectory: projectPath,
         });
       }
     } else if (contextMode === "project") {
@@ -122,6 +126,7 @@ export default function NewSessionDialog({
         type: "project",
         id: projectId,
         title: "Project",
+        workingDirectory: projectPath,
       });
     }
   };

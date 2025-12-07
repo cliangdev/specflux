@@ -354,6 +354,7 @@ export default function TerminalPanel() {
       {showNewSessionDialog && currentProject && (
         <NewSessionDialog
           projectId={currentProject.id}
+          projectPath={currentProject.localPath}
           onClose={() => setShowNewSessionDialog(false)}
           onCreated={(context) => {
             openTerminalForContext(context);
