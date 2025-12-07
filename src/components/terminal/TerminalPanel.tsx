@@ -3,7 +3,6 @@ import { useTerminal, type TerminalSession } from "../../contexts/TerminalContex
 import { useProject } from "../../contexts";
 import Terminal from "../Terminal";
 import TerminalTabBar from "./TerminalTabBar";
-import NewSessionDialog from "./NewSessionDialog";
 import DuplicateSessionDialog from "./DuplicateSessionDialog";
 
 const HEADER_HEIGHT = 40;
@@ -114,7 +113,6 @@ export default function TerminalPanel() {
     suggestedCommands,
   } = useTerminal();
 
-  const [showNewSessionDialog, setShowNewSessionDialog] = useState(false);
   const [duplicateSession, setDuplicateSession] = useState<TerminalSession | null>(null);
   const [isResizing, setIsResizing] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -141,15 +139,36 @@ export default function TerminalPanel() {
     }) || null;
   }, [pageContext, sessions]);
 
-  // Handler for starting a new session (checks for duplicates)
+  // Handler for starting a new session from current page context
   const handleStartNewSession = useCallback(() => {
+    if (!pageContext || !pageContext.id) return;
+
+    // Check for existing session
     const existing = findExistingSessionForPageContext();
     if (existing) {
       setDuplicateSession(existing);
-    } else {
-      setShowNewSessionDialog(true);
+      return;
     }
-  }, [findExistingSessionForPageContext]);
+
+    // Map page types to session context types
+    const typeMap: Record<string, "task" | "epic" | "prd-workshop"> = {
+      "prd-detail": "prd-workshop",
+      "task-detail": "task",
+      "epic-detail": "epic",
+    };
+    const contextType = typeMap[pageContext.type];
+    if (!contextType) return;
+
+    // Create session from page context
+    openTerminalForContext({
+      type: contextType,
+      id: pageContext.id,
+      title: pageContext.title || String(pageContext.id),
+      displayKey: pageContext.title, // pageContext.title already contains displayKey
+      workingDirectory: currentProject?.localPath,
+      initialCommand: contextType === "prd-workshop" ? "claude" : undefined,
+    });
+  }, [pageContext, findExistingSessionForPageContext, openTerminalForContext, currentProject?.localPath]);
 
   // Create status change handler for a specific session
   const createStatusChangeHandler = useCallback(
@@ -263,12 +282,12 @@ export default function TerminalPanel() {
               <span>🤖</span>
               <span>Claude</span>
             </span>
-            {/* New Session Button */}
-            {currentProject && (
+            {/* New Session Button - only show when on a detail page with valid context */}
+            {currentProject && pageContext?.id && (
               <button
-                onClick={() => setShowNewSessionDialog(true)}
+                onClick={handleStartNewSession}
                 className="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors flex-shrink-0"
-                title="New session"
+                title={`New session for ${pageContext.title || pageContext.type}`}
                 data-testid="new-session-btn"
               >
                 <PlusIcon />
@@ -397,18 +416,6 @@ export default function TerminalPanel() {
             </div>
           )}
         </div>
-      )}
-
-      {/* New Session Dialog */}
-      {showNewSessionDialog && currentProject && (
-        <NewSessionDialog
-          projectId={currentProject.id}
-          onClose={() => setShowNewSessionDialog(false)}
-          onCreated={(context) => {
-            openTerminalForContext(context);
-            setShowNewSessionDialog(false);
-          }}
-        />
       )}
 
       {/* Duplicate Session Warning Dialog */}
