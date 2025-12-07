@@ -115,17 +115,17 @@ describe("TerminalPanel", () => {
     mockProjectContext.currentProject = null;
   });
 
-  it("renders terminal panel with header", () => {
+  it("renders Claude panel with header", () => {
     render(<TerminalPanel />);
 
-    expect(screen.getByText("Terminal")).toBeInTheDocument();
+    expect(screen.getByText("Claude")).toBeInTheDocument();
     expect(screen.getByTestId("terminal-panel")).toBeInTheDocument();
   });
 
   it("shows collapse button when expanded", () => {
     render(<TerminalPanel />);
 
-    expect(screen.getByTestId("terminal-collapse-btn")).toBeInTheDocument();
+    expect(screen.getByTestId("claude-panel-collapse-btn")).toBeInTheDocument();
     expect(screen.getByTitle("Collapse")).toBeInTheDocument();
   });
 
@@ -140,14 +140,14 @@ describe("TerminalPanel", () => {
   it("shows close button", () => {
     render(<TerminalPanel />);
 
-    expect(screen.getByTestId("terminal-close-btn")).toBeInTheDocument();
-    expect(screen.getByTitle("Close terminal (⌘T)")).toBeInTheDocument();
+    expect(screen.getByTestId("claude-panel-close-btn")).toBeInTheDocument();
+    expect(screen.getByTitle("Close panel (⌘T)")).toBeInTheDocument();
   });
 
   it("calls closePanel when close button clicked", () => {
     render(<TerminalPanel />);
 
-    fireEvent.click(screen.getByTestId("terminal-close-btn"));
+    fireEvent.click(screen.getByTestId("claude-panel-close-btn"));
 
     expect(mockTerminalContext.closePanel).toHaveBeenCalledTimes(1);
   });
@@ -155,7 +155,7 @@ describe("TerminalPanel", () => {
   it("calls toggleCollapse when collapse button clicked", () => {
     render(<TerminalPanel />);
 
-    fireEvent.click(screen.getByTestId("terminal-collapse-btn"));
+    fireEvent.click(screen.getByTestId("claude-panel-collapse-btn"));
 
     expect(mockTerminalContext.toggleCollapse).toHaveBeenCalledTimes(1);
   });

@@ -9,6 +9,7 @@ const mockSessions: TerminalSession[] = [
     contextType: "task",
     contextId: 1,
     contextTitle: "Fix login bug",
+    displayKey: "SPEC-T1",
     taskId: 1,
     taskTitle: "Fix login bug",
     isRunning: false,
@@ -18,9 +19,10 @@ const mockSessions: TerminalSession[] = [
     id: "task-2",
     contextType: "task",
     contextId: 2,
-    contextTitle: "Add search feature",
+    contextTitle: "Add search",
+    displayKey: "SPEC-T2",
     taskId: 2,
-    taskTitle: "Add search feature",
+    taskTitle: "Add search",
     isRunning: true,
     isConnected: true,
   },
@@ -29,6 +31,7 @@ const mockSessions: TerminalSession[] = [
     contextType: "task",
     contextId: 3,
     contextTitle: "Refactor authentication module to use new OAuth flow",
+    displayKey: "SPEC-T3",
     taskId: 3,
     taskTitle: "Refactor authentication module to use new OAuth flow",
     isRunning: false,
@@ -72,7 +75,7 @@ describe("TerminalTabBar", () => {
     expect(screen.getByTestId("terminal-tab-3")).toBeInTheDocument();
   });
 
-  it("displays task ID and title in each tab", () => {
+  it("displays displayKey and title in each tab", () => {
     render(
       <TerminalTabBar
         sessions={mockSessions}
@@ -82,8 +85,8 @@ describe("TerminalTabBar", () => {
       />,
     );
 
-    expect(screen.getByText("#1: Fix login bug")).toBeInTheDocument();
-    expect(screen.getByText("#2: Add search feature")).toBeInTheDocument();
+    expect(screen.getByText("SPEC-T1: Fix login bug")).toBeInTheDocument();
+    expect(screen.getByText("SPEC-T2: Add search")).toBeInTheDocument();
   });
 
   it("truncates long titles", () => {
@@ -96,9 +99,9 @@ describe("TerminalTabBar", () => {
       />,
     );
 
-    // The third session has a long title that should be truncated to 20 chars + "..."
+    // The third session has a long title that should be truncated to 15 chars + "..."
     expect(
-      screen.getByText(/^#3: Refactor authenticat\.\.\.$/),
+      screen.getByText(/^SPEC-T3: Refactor authen\.\.\.$/),
     ).toBeInTheDocument();
   });
 
