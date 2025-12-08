@@ -46,6 +46,7 @@ export default function BoardPage() {
       id: task.id,
       title: task.title,
       displayKey: task.displayKey,
+      projectRef: getProjectRef() ?? undefined,
       workingDirectory: currentProject?.localPath,
       initialCommand: "claude",
     });

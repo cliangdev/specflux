@@ -1,5 +1,5 @@
 /**
- * Initialize Project Structure
+ * Initialize and Sync Project Structure
  *
  * Creates the .specflux/ and .claude/ directories with all required
  * subdirectories and template files for a SpecFlux-managed project.
@@ -7,13 +7,48 @@
 
 import { mkdir, writeTextFile, exists } from "@tauri-apps/plugin-fs";
 import { join } from "@tauri-apps/api/path";
-import {
-  PRD_COMMAND_TEMPLATE,
-  EPIC_COMMAND_TEMPLATE,
-  IMPLEMENT_COMMAND_TEMPLATE,
-  TASK_COMMAND_TEMPLATE,
-  CLAUDE_MD_TEMPLATE,
-} from "./projectTemplates";
+import { TEMPLATE_REGISTRY, type TemplateDefinition } from "./registry";
+import { getTemplateContent } from "./templateContent";
+
+/**
+ * Result of a template sync operation.
+ */
+export interface SyncResult {
+  /** Templates that were created (didn't exist before) */
+  created: string[];
+  /** Templates that were skipped (already exist, not forced) */
+  skipped: string[];
+  /** Templates that were updated (force mode) */
+  updated: string[];
+  /** Templates that failed to sync */
+  errors: Array<{ id: string; error: string }>;
+}
+
+/**
+ * Status of a single template in a project.
+ */
+export interface TemplateStatus {
+  /** Template ID from registry */
+  id: string;
+  /** Whether the template file exists in the project */
+  exists: boolean;
+  /** Full path to the template in the project */
+  path: string;
+  /** Template description */
+  description: string;
+  /** Template category */
+  category: TemplateDefinition["category"];
+}
+
+/**
+ * Options for syncing templates.
+ */
+export interface SyncOptions {
+  /** If true, overwrite existing templates */
+  force?: boolean;
+  /** Specific template IDs to sync (default: all) */
+  templateIds?: string[];
+}
 
 /**
  * Initialize the project directory structure.
@@ -22,7 +57,7 @@ import {
  * - .specflux/prds/
  * - .specflux/epics/
  * - .specflux/task-states/
- * - .claude/commands/ (with prd.md, epic.md, implement.md, task.md)
+ * - .claude/commands/ (with all command templates)
  * - .claude/agents/
  * - .claude/skills/
  * - CLAUDE.md
@@ -57,32 +92,112 @@ export async function initProjectStructure(projectPath: string): Promise<void> {
     }
   }
 
-  // Write slash command templates
-  const commandTemplates = [
-    { filename: "prd.md", content: PRD_COMMAND_TEMPLATE },
-    { filename: "epic.md", content: EPIC_COMMAND_TEMPLATE },
-    { filename: "implement.md", content: IMPLEMENT_COMMAND_TEMPLATE },
-    { filename: "task.md", content: TASK_COMMAND_TEMPLATE },
-  ];
+  // Sync all templates (without forcing overwrites)
+  await syncTemplates(projectPath);
+}
 
-  for (const template of commandTemplates) {
-    const templatePath = await join(
-      projectPath,
-      ".claude/commands",
-      template.filename,
-    );
-    const templateExists = await exists(templatePath);
-    if (!templateExists) {
-      await writeTextFile(templatePath, template.content);
+/**
+ * Sync templates to a project directory.
+ *
+ * @param projectPath - The root path of the project
+ * @param options - Sync options (force, templateIds)
+ * @returns Promise with sync results
+ */
+export async function syncTemplates(
+  projectPath: string,
+  options: SyncOptions = {},
+): Promise<SyncResult> {
+  const { force = false, templateIds } = options;
+
+  const result: SyncResult = {
+    created: [],
+    skipped: [],
+    updated: [],
+    errors: [],
+  };
+
+  // Filter templates if specific IDs requested
+  const templates = templateIds
+    ? TEMPLATE_REGISTRY.filter((t) => templateIds.includes(t.id))
+    : TEMPLATE_REGISTRY;
+
+  // Ensure parent directories exist for command templates
+  const commandsDir = await join(projectPath, ".claude/commands");
+  const commandsDirExists = await exists(commandsDir);
+  if (!commandsDirExists) {
+    await mkdir(commandsDir, { recursive: true });
+  }
+
+  for (const template of templates) {
+    try {
+      const destPath = await join(projectPath, template.destPath);
+      const content = getTemplateContent(template.sourceFile);
+
+      if (!content) {
+        result.errors.push({
+          id: template.id,
+          error: `Template content not found for ${template.sourceFile}`,
+        });
+        continue;
+      }
+
+      const fileExists = await exists(destPath);
+
+      if (fileExists && !force) {
+        result.skipped.push(template.id);
+      } else if (fileExists && force) {
+        await writeTextFile(destPath, content);
+        result.updated.push(template.id);
+      } else {
+        await writeTextFile(destPath, content);
+        result.created.push(template.id);
+      }
+    } catch (error) {
+      result.errors.push({
+        id: template.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
-  // Write CLAUDE.md at project root (only if it doesn't exist)
-  const claudeMdPath = await join(projectPath, "CLAUDE.md");
-  const claudeMdExists = await exists(claudeMdPath);
-  if (!claudeMdExists) {
-    await writeTextFile(claudeMdPath, CLAUDE_MD_TEMPLATE);
+  return result;
+}
+
+/**
+ * Get the status of all templates in a project.
+ *
+ * @param projectPath - The root path of the project
+ * @returns Promise with status of each template
+ */
+export async function getTemplateStatus(
+  projectPath: string,
+): Promise<TemplateStatus[]> {
+  const statuses: TemplateStatus[] = [];
+
+  for (const template of TEMPLATE_REGISTRY) {
+    try {
+      const fullPath = await join(projectPath, template.destPath);
+      const fileExists = await exists(fullPath);
+
+      statuses.push({
+        id: template.id,
+        exists: fileExists,
+        path: fullPath,
+        description: template.description,
+        category: template.category,
+      });
+    } catch {
+      statuses.push({
+        id: template.id,
+        exists: false,
+        path: template.destPath,
+        description: template.description,
+        category: template.category,
+      });
+    }
   }
+
+  return statuses;
 }
 
 /**

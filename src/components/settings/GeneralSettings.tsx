@@ -1,9 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useProject } from "../../contexts/ProjectContext";
 import { api } from "../../api";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
-import { initProjectStructure, isProjectInitialized } from "../../templates";
+import {
+  initProjectStructure,
+  isProjectInitialized,
+  syncTemplates,
+  getTemplateStatus,
+  type TemplateStatus,
+  type SyncResult,
+} from "../../templates";
 
 export function GeneralSettings() {
   const { currentProject, refreshProjects, getProjectRef } = useProject();
@@ -17,6 +24,50 @@ export function GeneralSettings() {
     localPath: "",
     gitRemote: "",
   });
+
+  // Template sync state
+  const [templateStatuses, setTemplateStatuses] = useState<TemplateStatus[]>(
+    [],
+  );
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
+  const [showTemplates, setShowTemplates] = useState(false);
+
+  // Load template statuses when local path is set
+  const loadTemplateStatus = useCallback(async (path: string) => {
+    if (!path) {
+      setTemplateStatuses([]);
+      return;
+    }
+    try {
+      const statuses = await getTemplateStatus(path);
+      setTemplateStatuses(statuses);
+    } catch (err) {
+      console.error("Failed to load template status:", err);
+      setTemplateStatuses([]);
+    }
+  }, []);
+
+  // Handle template sync
+  const handleSyncTemplates = async (force: boolean = false) => {
+    if (!formData.localPath) return;
+
+    setSyncing(true);
+    setSyncResult(null);
+
+    try {
+      const result = await syncTemplates(formData.localPath, { force });
+      setSyncResult(result);
+      await loadTemplateStatus(formData.localPath);
+
+      // Clear result after 5 seconds
+      setTimeout(() => setSyncResult(null), 5000);
+    } catch (err) {
+      setError("Failed to sync templates: " + String(err));
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   // Helper function to detect git remote URL by reading .git/config directly
   // No git CLI required - just file system access
@@ -51,6 +102,8 @@ export function GeneralSettings() {
           let detectedGitRemote = "";
           if (projectData.localPath) {
             detectedGitRemote = await detectGitRemote(projectData.localPath);
+            // Also load template status
+            await loadTemplateStatus(projectData.localPath);
           }
 
           setFormData({
@@ -65,7 +118,7 @@ export function GeneralSettings() {
         })
         .finally(() => setLoading(false));
     }
-  }, [currentProject, getProjectRef]);
+  }, [currentProject, getProjectRef, loadTemplateStatus]);
 
   const handleBrowse = async () => {
     try {
@@ -243,6 +296,139 @@ export function GeneralSettings() {
           )}
         </div>
       </div>
+
+      {/* Claude Code Templates */}
+      {formData.localPath && (
+        <div className="border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden">
+          <div className="bg-gray-50 dark:bg-slate-800 px-4 py-3 border-b border-gray-200 dark:border-slate-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                  Claude Code Templates
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  {templateStatuses.length > 0 ? (
+                    <>
+                      {templateStatuses.filter((t) => t.exists).length}/
+                      {templateStatuses.length} templates synced
+                    </>
+                  ) : (
+                    "Loading..."
+                  )}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowTemplates(!showTemplates)}
+                  className="px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                >
+                  {showTemplates ? "Hide" : "Show"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSyncTemplates(false)}
+                  disabled={syncing}
+                  className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white text-xs font-medium rounded"
+                >
+                  {syncing ? "Syncing..." : "Sync All"}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Sync result message */}
+          {syncResult && (
+            <div className="px-4 py-2 bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-200 dark:border-emerald-800 text-xs text-emerald-700 dark:text-emerald-300">
+              {syncResult.created.length > 0 && (
+                <span>Created: {syncResult.created.join(", ")}. </span>
+              )}
+              {syncResult.updated.length > 0 && (
+                <span>Updated: {syncResult.updated.join(", ")}. </span>
+              )}
+              {syncResult.skipped.length > 0 && (
+                <span>
+                  Skipped (already exist): {syncResult.skipped.join(", ")}.
+                </span>
+              )}
+              {syncResult.errors.length > 0 && (
+                <span className="text-red-600 dark:text-red-400">
+                  {" "}
+                  Errors: {syncResult.errors.map((e) => e.id).join(", ")}.
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Template list */}
+          {showTemplates && templateStatuses.length > 0 && (
+            <div className="divide-y divide-gray-100 dark:divide-slate-700">
+              {templateStatuses.map((template) => (
+                <div
+                  key={template.id}
+                  className="px-4 py-2 flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-2">
+                    {template.exists ? (
+                      <svg
+                        className="w-4 h-4 text-emerald-500"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    ) : (
+                      <svg
+                        className="w-4 h-4 text-gray-300 dark:text-gray-600"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    )}
+                    <span
+                      className={`text-sm ${template.exists ? "text-gray-700 dark:text-gray-300" : "text-gray-400 dark:text-gray-500"}`}
+                    >
+                      {template.description}
+                    </span>
+                  </div>
+                  {!template.exists && (
+                    <span className="text-xs text-gray-400 dark:text-gray-500">
+                      missing
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Force sync option */}
+          {showTemplates && (
+            <div className="px-4 py-2 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => handleSyncTemplates(true)}
+                disabled={syncing}
+                className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline"
+              >
+                Force update all templates (overwrites existing)
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Error message */}
       {error && (

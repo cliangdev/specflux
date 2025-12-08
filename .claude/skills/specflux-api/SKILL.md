@@ -14,6 +14,18 @@ Include Firebase JWT token in all requests:
 Authorization: Bearer <firebase-id-token>
 ```
 
+### Get Test Token (Local Development)
+
+For local development, get a token from the Firebase emulator:
+```bash
+curl -s 'http://localhost:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake-api-key' \
+  -H 'Content-Type: application/json' \
+  -d '{"email": "dev@specflux.local", "password": "devpass123", "returnSecureToken": true}' \
+  | jq -r '.idToken'
+```
+
+Use the returned `idToken` as the Bearer token for API calls.
+
 ## Core Workflows
 
 ### Create PRD with Documents

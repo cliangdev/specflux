@@ -252,6 +252,7 @@ export default function PRDsPage() {
                 id: `new-${Date.now()}`,
                 title: "PRD Workshop",
                 displayKey: "PRD Workshop",
+                projectRef: getProjectRef() ?? undefined,
                 workingDirectory: currentProject?.localPath,
                 initialCommand: "claude",
               });
