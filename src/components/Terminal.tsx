@@ -29,10 +29,11 @@ type ContextType = "task" | "epic" | "project" | "prd-workshop";
 
 interface TerminalProps {
   contextType?: ContextType;
-  contextId?: number | string; // v1 uses number, v2 uses publicId string
-  taskId?: number | string; // Deprecated: use contextType + contextId instead
+  contextId?: string;
+  contextDisplayKey?: string; // Human-readable key like "SPEC-P1" or "SPEC-T42"
+  projectRef?: string; // Project reference for API calls
   workingDirectory?: string; // Working directory for the terminal
-  initialCommand?: string; // Command to run after terminal starts (e.g., "claude" then "/prd")
+  initialCommand?: string; // Command to run after terminal starts (e.g., "claude")
   onStatusChange?: (running: boolean) => void;
   onConnectionChange?: (connected: boolean) => void;
   onExit?: (exitCode: number) => void;
@@ -54,7 +55,8 @@ interface TerminalProps {
 export function Terminal({
   contextType = "task",
   contextId,
-  taskId, // Deprecated
+  contextDisplayKey,
+  projectRef,
   workingDirectory,
   initialCommand,
   onStatusChange,
@@ -65,9 +67,6 @@ export function Terminal({
   onProgress,
   onDimensionsReady,
 }: TerminalProps) {
-  // Support backwards compat: use taskId if contextId not provided
-  const effectiveContextId = contextId ?? taskId;
-  const effectiveContextType = contextType;
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -82,10 +81,22 @@ export function Terminal({
   const userScrolledRef = useRef(false);
 
   // Session ID for Tauri IPC
-  const sessionId = `${effectiveContextType}-${effectiveContextId}`;
+  const sessionId = `${contextType}-${contextId}`;
 
   // Track if initial command has been sent (only send once per session)
   const initialCommandSentRef = useRef(false);
+
+  // Use refs for context values so connect() uses latest values
+  const contextDisplayKeyRef = useRef(contextDisplayKey);
+  const projectRefRef = useRef(projectRef);
+
+  // Keep context refs in sync
+  useEffect(() => {
+    contextDisplayKeyRef.current = contextDisplayKey;
+  }, [contextDisplayKey]);
+  useEffect(() => {
+    projectRefRef.current = projectRef;
+  }, [projectRef]);
 
   // Use refs for callbacks to avoid reconnection loops
   const runningRef = useRef(running);
@@ -243,7 +254,7 @@ export function Terminal({
             console.error("Failed to resize terminal:", e),
           );
         } catch (e) {
-          // Ignore resize errors during component unmount
+          console.warn("Resize errors during component unmount:", e);
         }
       });
     };
@@ -265,12 +276,12 @@ export function Terminal({
       webglAddon?.dispose();
       term.dispose();
     };
-  }, [effectiveContextType, effectiveContextId]);
+  }, [contextType, contextId]);
 
   // Connect via Tauri IPC
   useEffect(() => {
     const term = xtermRef.current;
-    if (!term || !effectiveContextId) return;
+    if (!term || !contextId) return;
 
     let cancelled = false;
     let outputUnlisten: (() => void) | undefined;
@@ -286,8 +297,32 @@ export function Terminal({
         if (cancelled) return;
 
         if (!exists) {
-          // Spawn new terminal session
-          await spawnTerminal(sessionId, workingDirectory);
+          // Wait a tick for refs to be updated with latest prop values
+          // This handles the case where props update after initial render
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          if (cancelled) return;
+
+
+          // Build environment variables with context for Claude
+          const env: Record<string, string> = {};
+          if (projectRefRef.current) {
+            env.SPECFLUX_PROJECT_REF = projectRefRef.current;
+          }
+          if (contextId) {
+            env.SPECFLUX_CONTEXT_TYPE = contextType;
+            env.SPECFLUX_CONTEXT_ID = contextId;
+          }
+          if (contextDisplayKeyRef.current) {
+            env.SPECFLUX_CONTEXT_REF = contextDisplayKeyRef.current;
+            env.SPECFLUX_CONTEXT_DISPLAY_KEY = contextDisplayKeyRef.current;
+          }
+
+          // Spawn new terminal session with context
+          await spawnTerminal(
+            sessionId,
+            workingDirectory,
+            Object.keys(env).length > 0 ? env : undefined,
+          );
         }
 
         // Check again after spawn
@@ -385,7 +420,7 @@ export function Terminal({
         console.error("Failed to close terminal:", e),
       );
     };
-  }, [sessionId, effectiveContextId, workingDirectory]);
+  }, [sessionId, contextId, workingDirectory]);
 
   // Clear scrollback buffer (useful for long sessions)
   const clearBuffer = useCallback(() => {

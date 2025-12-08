@@ -84,21 +84,24 @@ describe("Terminal", () => {
   });
 
   it("renders terminal container", () => {
-    render(<Terminal taskId={1} />);
+    render(<Terminal contextType="task" contextId="task_123" />);
     expect(screen.getByTestId("terminal")).toBeInTheDocument();
   });
 
   it("displays terminal header with title", () => {
-    render(<Terminal taskId={1} />);
+    render(<Terminal contextType="task" contextId="task_123" />);
     expect(screen.getByText("Agent Terminal")).toBeInTheDocument();
   });
 
-  it("spawns terminal session with context ID", async () => {
-    render(<Terminal contextType="task" contextId={42} />);
+  it("spawns terminal session with context type", async () => {
+    render(<Terminal contextType="task" contextId="task_42" />);
 
     // Wait for async spawn
     await vi.waitFor(() => {
-      expect(spawnTerminal).toHaveBeenCalledWith("task-42", undefined);
+      expect(spawnTerminal).toHaveBeenCalledWith("task-task_42", undefined, {
+        SPECFLUX_CONTEXT_TYPE: "task",
+        SPECFLUX_CONTEXT_ID: "task_42",
+      });
     });
   });
 
@@ -106,15 +109,19 @@ describe("Terminal", () => {
     render(
       <Terminal
         contextType="project"
-        contextId="abc123"
+        contextId="proj_abc123"
         workingDirectory="/home/user/project"
       />,
     );
 
     await vi.waitFor(() => {
       expect(spawnTerminal).toHaveBeenCalledWith(
-        "project-abc123",
+        "project-proj_abc123",
         "/home/user/project",
+        {
+          SPECFLUX_CONTEXT_TYPE: "project",
+          SPECFLUX_CONTEXT_ID: "proj_abc123",
+        },
       );
     });
   });
@@ -122,10 +129,10 @@ describe("Terminal", () => {
   it("checks for existing session before spawning", async () => {
     vi.mocked(hasTerminalSession).mockResolvedValue(true);
 
-    render(<Terminal contextType="epic" contextId={5} />);
+    render(<Terminal contextType="epic" contextId="epic_5" />);
 
     await vi.waitFor(() => {
-      expect(hasTerminalSession).toHaveBeenCalledWith("epic-5");
+      expect(hasTerminalSession).toHaveBeenCalledWith("epic-epic_5");
     });
 
     // Should not spawn if session already exists
@@ -133,10 +140,34 @@ describe("Terminal", () => {
   });
 
   it("supports prd-workshop context type", async () => {
-    render(<Terminal contextType="prd-workshop" contextId={1} />);
+    render(<Terminal contextType="prd-workshop" contextId="prd_1" />);
 
     await vi.waitFor(() => {
-      expect(spawnTerminal).toHaveBeenCalledWith("prd-workshop-1", undefined);
+      expect(spawnTerminal).toHaveBeenCalledWith("prd-workshop-prd_1", undefined, {
+        SPECFLUX_CONTEXT_TYPE: "prd-workshop",
+        SPECFLUX_CONTEXT_ID: "prd_1",
+      });
+    });
+  });
+
+  it("includes all context environment variables when contextDisplayKey is provided", async () => {
+    render(
+      <Terminal
+        contextType="task"
+        contextId="task_42"
+        contextDisplayKey="SPEC-T42"
+        projectRef="SPEC"
+      />,
+    );
+
+    await vi.waitFor(() => {
+      expect(spawnTerminal).toHaveBeenCalledWith("task-task_42", undefined, {
+        SPECFLUX_PROJECT_REF: "SPEC",
+        SPECFLUX_CONTEXT_TYPE: "task",
+        SPECFLUX_CONTEXT_ID: "task_42",
+        SPECFLUX_CONTEXT_REF: "SPEC-T42",
+        SPECFLUX_CONTEXT_DISPLAY_KEY: "SPEC-T42",
+      });
     });
   });
 });

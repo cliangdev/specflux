@@ -91,7 +91,7 @@ export default function EpicDetailPage() {
   // Set page context for terminal suggested commands
   usePageContext(
     epic
-      ? { type: "epic-detail", id: epic.v2Id || epic.id, title: epic.title }
+      ? { type: "epic-detail", id: epic.v2Id || epic.id, title: epic.displayKey || epic.title }
       : null,
   );
 

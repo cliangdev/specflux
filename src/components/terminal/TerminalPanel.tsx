@@ -94,7 +94,7 @@ const RestoreIcon = () => (
 );
 
 export default function TerminalPanel() {
-  const { currentProject } = useProject();
+  const { currentProject, getProjectRef } = useProject();
   const {
     isCollapsed,
     panelHeight,
@@ -152,16 +152,22 @@ export default function TerminalPanel() {
       return;
     }
 
+    // Use title as displayKey (pages set title to displayKey || title)
+    // Fall back to id if title is not available
+    const displayKey = pageContext.title || String(pageContext.id);
+    const projRef = getProjectRef() ?? undefined;
+
     // Create session from page context - always start claude
     openTerminalForContext({
       type: contextType,
       id: pageContext.id,
-      title: pageContext.title || String(pageContext.id),
-      displayKey: pageContext.title, // pageContext.title already contains displayKey
+      title: displayKey,
+      displayKey: displayKey,
+      projectRef: projRef,
       workingDirectory: currentProject?.localPath,
       initialCommand: "claude",
     });
-  }, [pageContext, findExistingSessionForPageContext, openTerminalForContext, currentProject?.localPath]);
+  }, [pageContext, findExistingSessionForPageContext, openTerminalForContext, currentProject?.localPath, getProjectRef]);
 
   // Create status change handler for a specific session
   const createStatusChangeHandler = useCallback(
@@ -345,33 +351,24 @@ export default function TerminalPanel() {
           </div>
         </div>
 
-        {/* Line 2: Context and suggestions (only show when expanded) */}
-        {!isCollapsed && (pageContext || suggestedCommands.length > 0) && (
-          <div className="h-7 flex items-center px-3 border-t border-slate-700/50 text-xs">
-            {/* Current context */}
-            {pageContext && (
-              <span className="text-slate-500">
-                {pageContext.title || pageContext.type}
-              </span>
-            )}
-            {/* Suggested commands */}
-            {suggestedCommands.length > 0 && (
-              <span className="text-slate-600 ml-auto">
-                try:{" "}
-                {suggestedCommands.map((cmd, i) => (
-                  <span key={cmd.command}>
-                    {i > 0 && <span className="mx-1">·</span>}
-                    <button
-                      onClick={() => navigator.clipboard.writeText(cmd.command)}
-                      className="text-slate-500 hover:text-slate-300 transition-colors"
-                      title={cmd.description || `Copy: ${cmd.command}`}
-                    >
-                      {cmd.label}
-                    </button>
-                  </span>
-                ))}
-              </span>
-            )}
+        {/* Line 2: Suggested commands (only show when expanded and has suggestions) */}
+        {!isCollapsed && suggestedCommands.length > 0 && (
+          <div className="h-7 flex items-center justify-end px-3 border-t border-slate-700/50 text-xs">
+            <span className="text-slate-600">
+              try:{" "}
+              {suggestedCommands.map((cmd, i) => (
+                <span key={cmd.command}>
+                  {i > 0 && <span className="mx-1">·</span>}
+                  <button
+                    onClick={() => navigator.clipboard.writeText(cmd.command)}
+                    className="text-slate-500 hover:text-slate-300 transition-colors"
+                    title={cmd.description || `Copy: ${cmd.command}`}
+                  >
+                    {cmd.label}
+                  </button>
+                </span>
+              ))}
+            </span>
           </div>
         )}
       </div>
@@ -391,6 +388,8 @@ export default function TerminalPanel() {
                 <Terminal
                   contextType={session.contextType}
                   contextId={session.contextId}
+                  contextDisplayKey={session.displayKey}
+                  projectRef={session.projectRef}
                   workingDirectory={session.workingDirectory}
                   initialCommand={session.initialCommand}
                   onStatusChange={createStatusChangeHandler(session.id)}

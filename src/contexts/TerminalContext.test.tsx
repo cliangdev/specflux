@@ -22,13 +22,13 @@ function TestConsumer() {
   const {
     isOpen,
     isCollapsed,
-    activeTask,
+    activeSession,
     isRunning,
     togglePanel,
     openPanel,
     closePanel,
     toggleCollapse,
-    openTerminalForTask,
+    openTerminalForContext,
     setIsRunning,
     pageContext,
     setPageContext,
@@ -41,7 +41,7 @@ function TestConsumer() {
       <span data-testid="is-collapsed">
         {isCollapsed ? "collapsed" : "expanded"}
       </span>
-      <span data-testid="active-task">{activeTask?.title || "none"}</span>
+      <span data-testid="active-task">{activeSession?.contextTitle || "none"}</span>
       <span data-testid="is-running">{isRunning ? "running" : "idle"}</span>
       <span data-testid="page-context">
         {pageContext ? `${pageContext.type}:${pageContext.id || ""}` : "none"}
@@ -63,7 +63,7 @@ function TestConsumer() {
       </button>
       <button
         data-testid="open-for-task"
-        onClick={() => openTerminalForTask({ id: 1, title: "Test Task" })}
+        onClick={() => openTerminalForContext({ type: "task", id: "task_1", title: "Test Task" })}
       >
         Open Task
       </button>
@@ -73,7 +73,7 @@ function TestConsumer() {
       <button
         data-testid="set-page-context"
         onClick={() =>
-          setPageContext({ type: "task-detail", id: 123, title: "Test Task" })
+          setPageContext({ type: "task-detail", id: "task_123", title: "Test Task" })
         }
       >
         Set Page Context
@@ -279,7 +279,7 @@ describe("TerminalContext", () => {
       });
 
       expect(screen.getByTestId("page-context")).toHaveTextContent(
-        "task-detail:123",
+        "task-detail:task_123",
       );
 
       act(() => {
@@ -334,7 +334,7 @@ describe("TerminalContext", () => {
       expect(typeof result.current.openPanel).toBe("function");
       expect(typeof result.current.closePanel).toBe("function");
       expect(typeof result.current.toggleCollapse).toBe("function");
-      expect(typeof result.current.openTerminalForTask).toBe("function");
+      expect(typeof result.current.openTerminalForContext).toBe("function");
       expect(typeof result.current.closeSession).toBe("function");
       expect(typeof result.current.switchToSession).toBe("function");
       expect(typeof result.current.updateSessionStatus).toBe("function");

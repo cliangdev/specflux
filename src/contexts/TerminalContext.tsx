@@ -8,7 +8,7 @@ import {
 } from "react";
 
 export interface TaskInfo {
-  id: number | string; // v1 uses number, v2 uses publicId string
+  id: string;
   title: string;
 }
 
@@ -32,7 +32,7 @@ export type PageContextType =
 
 export interface PageContext {
   type: PageContextType;
-  id?: string | number; // Optional ID for detail pages
+  id?: string; // Optional ID for detail pages
   title?: string; // Optional title for display
 }
 
@@ -43,37 +43,32 @@ export interface SuggestedCommand {
 }
 
 export interface AgentInfo {
-  id: number | string; // v1 uses number, v2 uses publicId string
+  id: string;
   name: string;
   emoji: string;
 }
 
 export interface ContextInfo {
   type: ContextType;
-  id: number | string; // v1 uses number, v2 uses publicId string
+  id: string;
   title: string;
   displayKey?: string; // Human-readable key like "SPEC-T1" for display in tabs
+  projectRef?: string; // Project reference for API calls
   agent?: AgentInfo;
   workingDirectory?: string; // Working directory for the terminal
-  initialCommand?: string; // Command to run after terminal starts (e.g., "claude" for PRD workshop)
+  initialCommand?: string; // Command to run after terminal starts (e.g., "claude")
 }
 
 export interface TerminalSession {
   id: string; // e.g., "task-123", "epic-5", "project-2"
   contextType: ContextType;
-  contextId: number | string; // v1 uses number, v2 uses publicId string
+  contextId: string;
   contextTitle: string;
-  // Human-readable key like "SPEC-T1" for display in tabs
-  displayKey?: string;
-  // Agent assigned to this session (for task contexts)
-  agent?: AgentInfo;
-  // Working directory for the terminal
-  workingDirectory?: string;
-  // Command to run after terminal starts
-  initialCommand?: string;
-  // Backwards compatibility aliases
-  taskId: number | string; // v1 uses number, v2 uses publicId string
-  taskTitle: string;
+  displayKey?: string; // Human-readable key like "SPEC-T1" for display in tabs
+  projectRef?: string; // Project reference for API calls
+  agent?: AgentInfo; // Agent assigned to this session (for task contexts)
+  workingDirectory?: string; // Working directory for the terminal
+  initialCommand?: string; // Command to run after terminal starts
   isRunning: boolean;
   isConnected: boolean;
 }
@@ -96,7 +91,6 @@ interface TerminalContextValue {
   activeSessionId: string | null;
   getExistingSession: (context: ContextInfo) => TerminalSession | null;
   openTerminalForContext: (context: ContextInfo) => void;
-  openTerminalForTask: (task: TaskInfo) => void; // Backwards compat
   closeSession: (sessionId: string) => void;
   switchToSession: (sessionId: string) => void;
   updateSessionStatus: (
@@ -109,8 +103,8 @@ interface TerminalContextValue {
   setPageContext: (context: PageContext | null) => void;
   suggestedCommands: SuggestedCommand[];
 
-  // Backwards compatibility - returns active session's task info
-  activeTask: TaskInfo | null;
+  // Active session info
+  activeSession: TerminalSession | null;
   isRunning: boolean;
   setIsRunning: (running: boolean) => void;
 }
@@ -169,9 +163,10 @@ const MAX_PANEL_HEIGHT_PERCENT = 0.8;
 interface StoredSession {
   id: string;
   contextType: ContextType;
-  contextId: number | string; // v1 uses number, v2 uses publicId string
+  contextId: string;
   contextTitle: string;
   displayKey?: string;
+  projectRef?: string;
   agent?: AgentInfo;
   workingDirectory?: string;
   initialCommand?: string;
@@ -234,11 +229,10 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
         contextId: s.contextId,
         contextTitle: s.contextTitle,
         displayKey: s.displayKey,
+        projectRef: s.projectRef,
         agent: s.agent,
         workingDirectory: s.workingDirectory,
         initialCommand: s.initialCommand,
-        taskId: s.contextId,
-        taskTitle: s.contextTitle,
         isRunning: false,
         isConnected: false,
       }));
@@ -258,6 +252,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
       contextId: s.contextId,
       contextTitle: s.contextTitle,
       displayKey: s.displayKey,
+      projectRef: s.projectRef,
       agent: s.agent,
       workingDirectory: s.workingDirectory,
       initialCommand: s.initialCommand,
@@ -349,10 +344,23 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
       // Check if session already exists
       const existingSession = prev.find((s) => s.id === sessionId);
       if (existingSession) {
-        // Session exists, update agent if provided and switch to it
-        if (context.agent && !existingSession.agent) {
+        // Session exists - update metadata that may have changed
+        // (e.g., displayKey or projectRef that weren't available initially)
+        const needsUpdate =
+          (context.displayKey && !existingSession.displayKey) ||
+          (context.projectRef && !existingSession.projectRef) ||
+          (context.agent && !existingSession.agent);
+
+        if (needsUpdate) {
           return prev.map((s) =>
-            s.id === sessionId ? { ...s, agent: context.agent } : s,
+            s.id === sessionId
+              ? {
+                  ...s,
+                  displayKey: context.displayKey || s.displayKey,
+                  projectRef: context.projectRef || s.projectRef,
+                  agent: context.agent || s.agent,
+                }
+              : s,
           );
         }
         return prev;
@@ -366,12 +374,10 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
           contextId: context.id,
           contextTitle: context.title,
           displayKey: context.displayKey,
+          projectRef: context.projectRef,
           agent: context.agent,
           workingDirectory: context.workingDirectory,
           initialCommand: context.initialCommand,
-          // Backwards compat aliases
-          taskId: context.id,
-          taskTitle: context.title,
           isRunning: false,
           isConnected: false,
         },
@@ -382,14 +388,6 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
     setIsOpen(true);
     setIsCollapsed(false);
   }, []);
-
-  // Backwards compatibility wrapper
-  const openTerminalForTask = useCallback(
-    (task: TaskInfo) => {
-      openTerminalForContext({ type: "task", id: task.id, title: task.title });
-    },
-    [openTerminalForContext],
-  );
 
   const closeSession = useCallback(
     (sessionId: string) => {
@@ -440,11 +438,8 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  // Backwards compatibility: derive activeTask from sessions
-  const activeSession = sessions.find((s) => s.id === activeSessionId);
-  const activeTask: TaskInfo | null = activeSession
-    ? { id: activeSession.taskId, title: activeSession.taskTitle }
-    : null;
+  // Derive active session
+  const activeSession = sessions.find((s) => s.id === activeSessionId) ?? null;
   const isRunning = activeSession?.isRunning ?? false;
 
   const setIsRunning = useCallback(
@@ -474,14 +469,13 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
     activeSessionId,
     getExistingSession,
     openTerminalForContext,
-    openTerminalForTask,
     closeSession,
     switchToSession,
     updateSessionStatus,
     pageContext,
     setPageContext,
     suggestedCommands,
-    activeTask,
+    activeSession,
     isRunning,
     setIsRunning,
   };
