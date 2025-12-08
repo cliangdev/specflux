@@ -9,8 +9,6 @@ const mockSession: TerminalSession = {
   contextId: "task_1",
   contextTitle: "Fix login bug",
   displayKey: "SPEC-T1",
-  taskId: "task_1",
-  taskTitle: "Fix login bug",
   isRunning: false,
   isConnected: true,
 };

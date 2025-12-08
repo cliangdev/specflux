@@ -66,7 +66,7 @@ export default function TaskDetailPage() {
     openTerminalForContext,
     getExistingSession,
     switchToSession,
-    activeTask,
+    activeSession,
     isRunning: terminalIsRunning,
   } = useTerminal();
 
@@ -91,7 +91,7 @@ export default function TaskDetailPage() {
   );
 
   // Check if terminal is showing this task
-  const isTerminalShowingThisTask = activeTask?.id === taskId;
+  const isTerminalShowingThisTask = activeSession?.contextId === taskId;
 
   const fetchTask = useCallback(async () => {
     if (!taskId) return;

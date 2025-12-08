@@ -153,13 +153,11 @@ export default function TerminalTabBar({
     >
       {sessions.map((session, index) => {
         const isActive = session.id === activeSessionId;
-        const contextType = session.contextType ?? "task";
-        const contextId = session.contextId ?? session.taskId;
-        const contextTitle = session.contextTitle ?? session.taskTitle;
+        const contextType = session.contextType;
         // Use displayKey if available, otherwise fall back to title (for workshops) or ID
         const displayLabel =
           session.displayKey ||
-          (contextType === "prd-workshop" ? contextTitle : `#${contextId}`);
+          (contextType === "prd-workshop" ? session.contextTitle : `#${session.contextId}`);
 
         return (
           <div
@@ -174,8 +172,8 @@ export default function TerminalTabBar({
               }
             `}
             onClick={() => onSwitchSession(session.id)}
-            data-testid={`terminal-tab-${contextId}`}
-            title={`${displayLabel}${contextTitle !== displayLabel ? ` - ${contextTitle}` : ""} (⌘${index + 1})`}
+            data-testid={`terminal-tab-${session.contextId}`}
+            title={`${displayLabel}${session.contextTitle !== displayLabel ? ` - ${session.contextTitle}` : ""} (⌘${index + 1})`}
           >
             {/* Context type icon */}
             <ContextIcon type={contextType} />
@@ -185,21 +183,21 @@ export default function TerminalTabBar({
               <span
                 className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0"
                 title="Disconnected"
-                data-testid={`terminal-tab-disconnected-${contextId}`}
+                data-testid={`terminal-tab-disconnected-${session.contextId}`}
               />
             )}
             {session.isRunning && (
               <span
                 className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0"
                 title="Running"
-                data-testid={`terminal-tab-running-${contextId}`}
+                data-testid={`terminal-tab-running-${session.contextId}`}
               />
             )}
             {session.isConnected && !session.isRunning && (
               <span
                 className="w-1.5 h-1.5 rounded-full bg-slate-500 flex-shrink-0"
                 title="Connected"
-                data-testid={`terminal-tab-connected-${contextId}`}
+                data-testid={`terminal-tab-connected-${session.contextId}`}
               />
             )}
 
@@ -228,7 +226,7 @@ export default function TerminalTabBar({
                 ${isActive ? "text-slate-400 hover:text-slate-200" : "text-slate-500 hover:text-slate-300"}
               `}
               title="Close tab"
-              data-testid={`terminal-tab-close-${contextId}`}
+              data-testid={`terminal-tab-close-${session.contextId}`}
             >
               <XIcon />
             </button>

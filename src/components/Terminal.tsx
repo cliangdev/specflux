@@ -29,12 +29,11 @@ type ContextType = "task" | "epic" | "project" | "prd-workshop";
 
 interface TerminalProps {
   contextType?: ContextType;
-  contextId?: number | string; // v1 uses number, v2 uses publicId string
+  contextId?: string;
   contextDisplayKey?: string; // Human-readable key like "SPEC-P1" or "SPEC-T42"
   projectRef?: string; // Project reference for API calls
-  taskId?: number | string; // Deprecated: use contextType + contextId instead
   workingDirectory?: string; // Working directory for the terminal
-  initialCommand?: string; // Command to run after terminal starts (e.g., "claude" then "/prd")
+  initialCommand?: string; // Command to run after terminal starts (e.g., "claude")
   onStatusChange?: (running: boolean) => void;
   onConnectionChange?: (connected: boolean) => void;
   onExit?: (exitCode: number) => void;
@@ -58,7 +57,6 @@ export function Terminal({
   contextId,
   contextDisplayKey,
   projectRef,
-  taskId, // Deprecated
   workingDirectory,
   initialCommand,
   onStatusChange,
@@ -69,9 +67,6 @@ export function Terminal({
   onProgress,
   onDimensionsReady,
 }: TerminalProps) {
-  // Support backwards compat: use taskId if contextId not provided
-  const effectiveContextId = contextId ?? taskId;
-  const effectiveContextType = contextType;
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -86,7 +81,7 @@ export function Terminal({
   const userScrolledRef = useRef(false);
 
   // Session ID for Tauri IPC
-  const sessionId = `${effectiveContextType}-${effectiveContextId}`;
+  const sessionId = `${contextType}-${contextId}`;
 
   // Track if initial command has been sent (only send once per session)
   const initialCommandSentRef = useRef(false);
@@ -281,12 +276,12 @@ export function Terminal({
       webglAddon?.dispose();
       term.dispose();
     };
-  }, [effectiveContextType, effectiveContextId]);
+  }, [contextType, contextId]);
 
   // Connect via Tauri IPC
   useEffect(() => {
     const term = xtermRef.current;
-    if (!term || !effectiveContextId) return;
+    if (!term || !contextId) return;
 
     let cancelled = false;
     let outputUnlisten: (() => void) | undefined;
@@ -313,8 +308,8 @@ export function Terminal({
           if (projectRefRef.current) {
             env.SPECFLUX_PROJECT_REF = projectRefRef.current;
           }
-          if (effectiveContextId) {
-            env.SPECFLUX_CONTEXT_TYPE = effectiveContextType;
+          if (contextId) {
+            env.SPECFLUX_CONTEXT_TYPE = contextType;
           }
           if (contextDisplayKeyRef.current) {
             env.SPECFLUX_CONTEXT_REF = contextDisplayKeyRef.current;
@@ -423,7 +418,7 @@ export function Terminal({
         console.error("Failed to close terminal:", e),
       );
     };
-  }, [sessionId, effectiveContextId, workingDirectory]);
+  }, [sessionId, contextId, workingDirectory]);
 
   // Clear scrollback buffer (useful for long sessions)
   const clearBuffer = useCallback(() => {
