@@ -15,7 +15,6 @@ interface EpicsFilters {
   status: string;
   release: string;
   prd: string;
-  q: string;
 }
 
 function loadFilters(): EpicsFilters {
@@ -27,13 +26,12 @@ function loadFilters(): EpicsFilters {
         status: parsed.status ?? "",
         release: parsed.release ?? "",
         prd: parsed.prd ?? "",
-        q: parsed.q ?? "",
       };
     }
   } catch {
     // Invalid JSON, use defaults
   }
-  return { status: "", release: "", prd: "", q: "" };
+  return { status: "", release: "", prd: "" };
 }
 
 function saveFilters(filters: EpicsFilters): void {
@@ -77,16 +75,6 @@ export default function EpicsPage() {
   const [prdFilter, setPrdFilter] = useState(
     () => searchParams.get("prd") || initialFilters.prd,
   );
-  const [searchQuery, setSearchQuery] = useState(
-    () => searchParams.get("q") || initialFilters.q,
-  );
-
-  const clearFilters = () => {
-    setStatusFilter("");
-    setReleaseFilter("");
-    setPrdFilter("");
-    setSearchQuery("");
-  };
 
   // Persist view mode to localStorage
   useEffect(() => {
@@ -99,9 +87,8 @@ export default function EpicsPage() {
       status: statusFilter,
       release: releaseFilter,
       prd: prdFilter,
-      q: searchQuery,
     });
-  }, [statusFilter, releaseFilter, prdFilter, searchQuery]);
+  }, [statusFilter, releaseFilter, prdFilter]);
 
   // Sync URL params with filter state (for shareability)
   useEffect(() => {
@@ -109,9 +96,8 @@ export default function EpicsPage() {
     if (statusFilter) newParams.set("status", statusFilter);
     if (releaseFilter) newParams.set("release", releaseFilter);
     if (prdFilter) newParams.set("prd", prdFilter);
-    if (searchQuery) newParams.set("q", searchQuery);
     setSearchParams(newParams, { replace: true });
-  }, [statusFilter, releaseFilter, prdFilter, searchQuery, setSearchParams]);
+  }, [statusFilter, releaseFilter, prdFilter, setSearchParams]);
 
   const fetchReleases = useCallback(async () => {
     if (!currentProject) return;
@@ -219,7 +205,7 @@ export default function EpicsPage() {
     fetchEpics();
   }, [fetchReleases, fetchPrds, fetchEpics]);
 
-  // Filter epics by search query and release (client-side)
+  // Filter epics by release (client-side, status and prd are server-side)
   const filteredEpics = epics.filter((epic) => {
     // Release filter - handle both v1 (numeric) and v2 (publicId)
     if (releaseFilter) {
@@ -235,28 +221,11 @@ export default function EpicsPage() {
       }
     }
 
-    // Search filter - handle both v1 (id) and v2 (displayKey/publicId)
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      const matchesTitle = epic.title.toLowerCase().includes(query);
-      const matchesDescription = epic.description
-        ?.toLowerCase()
-        .includes(query);
-      const epicWithV2 = epic as Epic & {
-        displayKey?: string;
-        publicId?: string;
-      };
-      const epicRef =
-        epicWithV2.displayKey || epicWithV2.publicId || epic.id.toString();
-      const matchesRef = epicRef.toLowerCase().includes(query);
-      if (!matchesTitle && !matchesDescription && !matchesRef) return false;
-    }
-
     return true;
   });
 
   const hasActiveFilters =
-    statusFilter !== "" || releaseFilter !== "" || prdFilter !== "" || searchQuery !== "";
+    statusFilter !== "" || releaseFilter !== "" || prdFilter !== "";
 
   if (!currentProject) {
     return (
@@ -271,41 +240,14 @@ export default function EpicsPage() {
     );
   }
 
-  // Helper to get display name for active filters
-  const getActiveFilterLabel = (type: "release" | "prd" | "status", value: string): string => {
-    if (type === "release") {
-      if (value === "unassigned") return "Unassigned";
-      const release = releases.find(
-        (r) => ((r as Release & { publicId?: string }).publicId || r.id) === value
-      );
-      return release?.name ?? value;
-    }
-    if (type === "prd") {
-      const prd = prds.find((p) => p.id === value);
-      return prd ? `${prd.displayKey}` : value;
-    }
-    if (type === "status") {
-      const option = STATUS_OPTIONS.find((o) => o.value === value);
-      return option?.label ?? value;
-    }
-    return value;
-  };
-
   return (
     <div className="flex flex-col h-full">
-      {/* Header row: Title + Count + Actions */}
-      <div className="flex items-center justify-between mb-5 shrink-0">
+      {/* Header row: Title + Actions (matching TasksPage pattern) */}
+      <div className="flex items-center justify-between mb-6 shrink-0">
+        <h1 className="text-2xl font-semibold text-system-900 dark:text-white">
+          Epics
+        </h1>
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-semibold text-system-900 dark:text-white">
-            Epics
-          </h1>
-          {!loading && (
-            <span className="px-2 py-0.5 text-xs font-medium bg-system-100 dark:bg-system-800 text-system-600 dark:text-system-400 rounded-full">
-              {filteredEpics.length}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
           {/* View toggle */}
           <div className="flex items-center bg-system-100 dark:bg-system-800 rounded-lg p-0.5">
             <button
@@ -336,9 +278,54 @@ export default function EpicsPage() {
             </button>
           </div>
 
+          {/* Status filter */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="select"
+          >
+            {STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Release filter */}
+          <select
+            value={releaseFilter}
+            onChange={(e) => setReleaseFilter(e.target.value)}
+            className="select"
+          >
+            <option value="">All Releases</option>
+            <option value="unassigned">Unassigned</option>
+            {releases.map((release) => (
+              <option
+                key={(release as Release & { publicId?: string }).publicId || release.id}
+                value={(release as Release & { publicId?: string }).publicId || release.id}
+              >
+                {release.name}
+              </option>
+            ))}
+          </select>
+
+          {/* PRD filter */}
+          <select
+            value={prdFilter}
+            onChange={(e) => setPrdFilter(e.target.value)}
+            className="select max-w-[200px]"
+          >
+            <option value="">All PRDs</option>
+            {prds.map((prd) => (
+              <option key={prd.id} value={prd.id}>
+                {prd.displayKey}: {prd.title}
+              </option>
+            ))}
+          </select>
+
           {/* Refresh button */}
-          <button onClick={fetchEpics} className="btn btn-ghost p-2" title="Refresh">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <button onClick={fetchEpics} className="btn btn-ghost" title="Refresh">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
           </button>
@@ -352,171 +339,6 @@ export default function EpicsPage() {
           </button>
         </div>
       </div>
-
-      {/* Filter bar */}
-      <div className="flex items-center gap-2 mb-4 shrink-0">
-        {/* Search input - more prominent */}
-        <div className="relative flex-1 max-w-xs">
-          <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-system-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search epics..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="input text-sm h-9 pl-9 w-full"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-system-400 hover:text-system-600 dark:hover:text-system-300"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
-        </div>
-
-        {/* Divider */}
-        <div className="h-6 w-px bg-system-200 dark:bg-system-700" />
-
-        {/* Filter dropdowns */}
-        <div className="flex items-center gap-2">
-          {/* Status filter */}
-          <div className="relative">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className={`select text-sm h-9 pr-8 ${
-                statusFilter ? "text-brand-600 dark:text-brand-400 border-brand-300 dark:border-brand-600" : ""
-              }`}
-            >
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Release filter */}
-          <div className="relative">
-            <select
-              value={releaseFilter}
-              onChange={(e) => setReleaseFilter(e.target.value)}
-              className={`select text-sm h-9 pr-8 ${
-                releaseFilter ? "text-brand-600 dark:text-brand-400 border-brand-300 dark:border-brand-600" : ""
-              }`}
-            >
-              <option value="">All Releases</option>
-              <option value="unassigned">Unassigned</option>
-              {releases.map((release) => (
-                <option
-                  key={(release as Release & { publicId?: string }).publicId || release.id}
-                  value={(release as Release & { publicId?: string }).publicId || release.id}
-                >
-                  {release.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* PRD filter */}
-          <div className="relative">
-            <select
-              value={prdFilter}
-              onChange={(e) => setPrdFilter(e.target.value)}
-              className={`select text-sm h-9 pr-8 max-w-[180px] ${
-                prdFilter ? "text-brand-600 dark:text-brand-400 border-brand-300 dark:border-brand-600" : ""
-              }`}
-            >
-              <option value="">All PRDs</option>
-              {prds.map((prd) => (
-                <option key={prd.id} value={prd.id}>
-                  {prd.displayKey}: {prd.title.length > 20 ? prd.title.slice(0, 20) + "..." : prd.title}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Active filter chips */}
-      {hasActiveFilters && (
-        <div className="flex items-center gap-2 mb-4 shrink-0 flex-wrap">
-          <span className="text-xs text-system-500 dark:text-system-400">Filters:</span>
-
-          {statusFilter && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 rounded-full">
-              Status: {getActiveFilterLabel("status", statusFilter)}
-              <button
-                onClick={() => setStatusFilter("")}
-                className="hover:text-brand-900 dark:hover:text-brand-100"
-              >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </span>
-          )}
-
-          {releaseFilter && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full">
-              Release: {getActiveFilterLabel("release", releaseFilter)}
-              <button
-                onClick={() => setReleaseFilter("")}
-                className="hover:text-purple-900 dark:hover:text-purple-100"
-              >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </span>
-          )}
-
-          {prdFilter && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-full">
-              PRD: {getActiveFilterLabel("prd", prdFilter)}
-              <button
-                onClick={() => setPrdFilter("")}
-                className="hover:text-emerald-900 dark:hover:text-emerald-100"
-              >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </span>
-          )}
-
-          {searchQuery && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-system-100 dark:bg-system-800 text-system-700 dark:text-system-300 rounded-full">
-              Search: "{searchQuery}"
-              <button
-                onClick={() => setSearchQuery("")}
-                className="hover:text-system-900 dark:hover:text-system-100"
-              >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </span>
-          )}
-
-          <button
-            onClick={clearFilters}
-            className="text-xs text-system-500 dark:text-system-400 hover:text-system-700 dark:hover:text-system-200 underline underline-offset-2"
-          >
-            Clear all
-          </button>
-        </div>
-      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
@@ -576,7 +398,7 @@ export default function EpicsPage() {
         </div>
       ) : viewMode === "graph" ? (
         <EpicGraph
-          key={`${releaseFilter}-${prdFilter}-${statusFilter}-${searchQuery}`}
+          key={`${releaseFilter}-${prdFilter}-${statusFilter}`}
           epics={filteredEpics}
           className="flex-1 min-h-0"
         />
