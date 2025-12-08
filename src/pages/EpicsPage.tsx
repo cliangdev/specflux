@@ -271,22 +271,49 @@ export default function EpicsPage() {
     );
   }
 
+  // Helper to get display name for active filters
+  const getActiveFilterLabel = (type: "release" | "prd" | "status", value: string): string => {
+    if (type === "release") {
+      if (value === "unassigned") return "Unassigned";
+      const release = releases.find(
+        (r) => ((r as Release & { publicId?: string }).publicId || r.id) === value
+      );
+      return release?.name ?? value;
+    }
+    if (type === "prd") {
+      const prd = prds.find((p) => p.id === value);
+      return prd ? `${prd.displayKey}` : value;
+    }
+    if (type === "status") {
+      const option = STATUS_OPTIONS.find((o) => o.value === value);
+      return option?.label ?? value;
+    }
+    return value;
+  };
+
   return (
     <div className="flex flex-col h-full">
-      {/* Header row: Title + Actions */}
-      <div className="flex items-center justify-between mb-4 shrink-0">
-        <h1 className="text-2xl font-semibold text-system-900 dark:text-white">
-          Epics
-        </h1>
+      {/* Header row: Title + Count + Actions */}
+      <div className="flex items-center justify-between mb-5 shrink-0">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-semibold text-system-900 dark:text-white">
+            Epics
+          </h1>
+          {!loading && (
+            <span className="px-2 py-0.5 text-xs font-medium bg-system-100 dark:bg-system-800 text-system-600 dark:text-system-400 rounded-full">
+              {filteredEpics.length}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {/* View toggle */}
-          <div className="flex items-center bg-system-100 dark:bg-system-800 rounded-lg p-1">
+          <div className="flex items-center bg-system-100 dark:bg-system-800 rounded-lg p-0.5">
             <button
               onClick={() => setViewMode("cards")}
               className={`p-1.5 rounded-md transition-colors ${
                 viewMode === "cards"
                   ? "bg-white dark:bg-system-700 text-system-900 dark:text-white shadow-sm"
-                  : "text-system-500 dark:text-system-400 hover:text-system-900 dark:hover:text-white"
+                  : "text-system-500 dark:text-system-400 hover:text-system-700 dark:hover:text-white"
               }`}
               title="Card view"
             >
@@ -299,7 +326,7 @@ export default function EpicsPage() {
               className={`p-1.5 rounded-md transition-colors ${
                 viewMode === "graph"
                   ? "bg-white dark:bg-system-700 text-system-900 dark:text-white shadow-sm"
-                  : "text-system-500 dark:text-system-400 hover:text-system-900 dark:hover:text-white"
+                  : "text-system-500 dark:text-system-400 hover:text-system-700 dark:hover:text-white"
               }`}
               title="Dependency graph view"
             >
@@ -326,57 +353,12 @@ export default function EpicsPage() {
         </div>
       </div>
 
-      {/* Filters row */}
-      <div className="flex items-center gap-3 mb-4 shrink-0">
-        {/* Release filter */}
-        <select
-          value={releaseFilter}
-          onChange={(e) => setReleaseFilter(e.target.value)}
-          className="select text-sm h-9"
-        >
-          <option value="">All Releases</option>
-          <option value="unassigned">Unassigned</option>
-          {releases.map((release) => (
-            <option
-              key={(release as Release & { publicId?: string }).publicId || release.id}
-              value={(release as Release & { publicId?: string }).publicId || release.id}
-            >
-              {release.name}
-            </option>
-          ))}
-        </select>
-
-        {/* PRD filter */}
-        <select
-          value={prdFilter}
-          onChange={(e) => setPrdFilter(e.target.value)}
-          className="select text-sm h-9"
-        >
-          <option value="">All PRDs</option>
-          {prds.map((prd) => (
-            <option key={prd.id} value={prd.id}>
-              {prd.displayKey}: {prd.title}
-            </option>
-          ))}
-        </select>
-
-        {/* Status filter */}
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="select text-sm h-9"
-        >
-          {STATUS_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-
-        {/* Search input */}
-        <div className="relative">
+      {/* Filter bar */}
+      <div className="flex items-center gap-2 mb-4 shrink-0">
+        {/* Search input - more prominent */}
+        <div className="relative flex-1 max-w-xs">
           <svg
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-system-400"
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-system-400"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -385,28 +367,154 @@ export default function EpicsPage() {
           </svg>
           <input
             type="text"
-            placeholder="Search..."
+            placeholder="Search epics..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="input text-sm h-9 pl-8 w-[160px]"
+            className="input text-sm h-9 pl-9 w-full"
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-system-400 hover:text-system-600 dark:hover:text-system-300"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
 
-        {/* Clear filters */}
-        {hasActiveFilters && (
-          <button
-            onClick={clearFilters}
-            className="text-sm text-system-500 dark:text-system-400 hover:text-system-700 dark:hover:text-system-300"
-          >
-            Clear
-          </button>
-        )}
+        {/* Divider */}
+        <div className="h-6 w-px bg-system-200 dark:bg-system-700" />
+
+        {/* Filter dropdowns */}
+        <div className="flex items-center gap-2">
+          {/* Status filter */}
+          <div className="relative">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className={`select text-sm h-9 pr-8 ${
+                statusFilter ? "text-brand-600 dark:text-brand-400 border-brand-300 dark:border-brand-600" : ""
+              }`}
+            >
+              {STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Release filter */}
+          <div className="relative">
+            <select
+              value={releaseFilter}
+              onChange={(e) => setReleaseFilter(e.target.value)}
+              className={`select text-sm h-9 pr-8 ${
+                releaseFilter ? "text-brand-600 dark:text-brand-400 border-brand-300 dark:border-brand-600" : ""
+              }`}
+            >
+              <option value="">All Releases</option>
+              <option value="unassigned">Unassigned</option>
+              {releases.map((release) => (
+                <option
+                  key={(release as Release & { publicId?: string }).publicId || release.id}
+                  value={(release as Release & { publicId?: string }).publicId || release.id}
+                >
+                  {release.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* PRD filter */}
+          <div className="relative">
+            <select
+              value={prdFilter}
+              onChange={(e) => setPrdFilter(e.target.value)}
+              className={`select text-sm h-9 pr-8 max-w-[180px] ${
+                prdFilter ? "text-brand-600 dark:text-brand-400 border-brand-300 dark:border-brand-600" : ""
+              }`}
+            >
+              <option value="">All PRDs</option>
+              {prds.map((prd) => (
+                <option key={prd.id} value={prd.id}>
+                  {prd.displayKey}: {prd.title.length > 20 ? prd.title.slice(0, 20) + "..." : prd.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
 
-      {/* Filter summary - show count when filters are active */}
-      {hasActiveFilters && filteredEpics.length !== epics.length && (
-        <div className="text-xs text-system-500 dark:text-system-400 mb-3 shrink-0">
-          Showing {filteredEpics.length} of {epics.length} epics
+      {/* Active filter chips */}
+      {hasActiveFilters && (
+        <div className="flex items-center gap-2 mb-4 shrink-0 flex-wrap">
+          <span className="text-xs text-system-500 dark:text-system-400">Filters:</span>
+
+          {statusFilter && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 rounded-full">
+              Status: {getActiveFilterLabel("status", statusFilter)}
+              <button
+                onClick={() => setStatusFilter("")}
+                className="hover:text-brand-900 dark:hover:text-brand-100"
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
+          )}
+
+          {releaseFilter && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full">
+              Release: {getActiveFilterLabel("release", releaseFilter)}
+              <button
+                onClick={() => setReleaseFilter("")}
+                className="hover:text-purple-900 dark:hover:text-purple-100"
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
+          )}
+
+          {prdFilter && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-full">
+              PRD: {getActiveFilterLabel("prd", prdFilter)}
+              <button
+                onClick={() => setPrdFilter("")}
+                className="hover:text-emerald-900 dark:hover:text-emerald-100"
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
+          )}
+
+          {searchQuery && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-system-100 dark:bg-system-800 text-system-700 dark:text-system-300 rounded-full">
+              Search: "{searchQuery}"
+              <button
+                onClick={() => setSearchQuery("")}
+                className="hover:text-system-900 dark:hover:text-system-100"
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
+          )}
+
+          <button
+            onClick={clearFilters}
+            className="text-xs text-system-500 dark:text-system-400 hover:text-system-700 dark:hover:text-system-200 underline underline-offset-2"
+          >
+            Clear all
+          </button>
         </div>
       )}
 
