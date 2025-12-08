@@ -67,6 +67,8 @@ impl PtySession {
         });
 
         let mut cmd = CommandBuilder::new(&shell);
+        // Start as login shell to source user's shell config (.zshrc, .bashrc, etc.)
+        cmd.arg("-l");
 
         // Set working directory
         if let Some(dir) = cwd {
