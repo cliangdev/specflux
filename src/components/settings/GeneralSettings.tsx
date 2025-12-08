@@ -76,11 +76,10 @@ export function GeneralSettings() {
       const configPath = `${path}/.git/config`;
       const content = await readTextFile(configPath);
       // Parse [remote "origin"] section and extract url
-      const match = content.match(/\[remote "origin"\][^\[]*url\s*=\s*(.+)/);
+      const match = content.match(/\[remote "origin"\][^[]*url\s*=\s*(.+)/);
       return match?.[1]?.trim() || "";
-    } catch (err) {
+    } catch {
       // .git/config doesn't exist or not readable - not a git repo
-      console.debug("No git remote found:", err);
     }
     return "";
   };
