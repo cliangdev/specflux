@@ -53,6 +53,7 @@ export interface ContextInfo {
   id: number | string; // v1 uses number, v2 uses publicId string
   title: string;
   displayKey?: string; // Human-readable key like "SPEC-T1" for display in tabs
+  projectRef?: string; // Project reference for API calls
   agent?: AgentInfo;
   workingDirectory?: string; // Working directory for the terminal
   initialCommand?: string; // Command to run after terminal starts (e.g., "claude" for PRD workshop)
@@ -65,6 +66,8 @@ export interface TerminalSession {
   contextTitle: string;
   // Human-readable key like "SPEC-T1" for display in tabs
   displayKey?: string;
+  // Project reference for API calls
+  projectRef?: string;
   // Agent assigned to this session (for task contexts)
   agent?: AgentInfo;
   // Working directory for the terminal
@@ -172,6 +175,7 @@ interface StoredSession {
   contextId: number | string; // v1 uses number, v2 uses publicId string
   contextTitle: string;
   displayKey?: string;
+  projectRef?: string; // Project reference for API calls
   agent?: AgentInfo;
   workingDirectory?: string;
   initialCommand?: string;
@@ -234,6 +238,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
         contextId: s.contextId,
         contextTitle: s.contextTitle,
         displayKey: s.displayKey,
+        projectRef: s.projectRef,
         agent: s.agent,
         workingDirectory: s.workingDirectory,
         initialCommand: s.initialCommand,
@@ -258,6 +263,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
       contextId: s.contextId,
       contextTitle: s.contextTitle,
       displayKey: s.displayKey,
+      projectRef: s.projectRef,
       agent: s.agent,
       workingDirectory: s.workingDirectory,
       initialCommand: s.initialCommand,
@@ -349,10 +355,23 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
       // Check if session already exists
       const existingSession = prev.find((s) => s.id === sessionId);
       if (existingSession) {
-        // Session exists, update agent if provided and switch to it
-        if (context.agent && !existingSession.agent) {
+        // Session exists - update metadata that may have changed
+        // (e.g., displayKey or projectRef that weren't available initially)
+        const needsUpdate =
+          (context.displayKey && !existingSession.displayKey) ||
+          (context.projectRef && !existingSession.projectRef) ||
+          (context.agent && !existingSession.agent);
+
+        if (needsUpdate) {
           return prev.map((s) =>
-            s.id === sessionId ? { ...s, agent: context.agent } : s,
+            s.id === sessionId
+              ? {
+                  ...s,
+                  displayKey: context.displayKey || s.displayKey,
+                  projectRef: context.projectRef || s.projectRef,
+                  agent: context.agent || s.agent,
+                }
+              : s,
           );
         }
         return prev;
@@ -366,6 +385,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
           contextId: context.id,
           contextTitle: context.title,
           displayKey: context.displayKey,
+          projectRef: context.projectRef,
           agent: context.agent,
           workingDirectory: context.workingDirectory,
           initialCommand: context.initialCommand,

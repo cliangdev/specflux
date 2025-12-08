@@ -30,6 +30,8 @@ type ContextType = "task" | "epic" | "project" | "prd-workshop";
 interface TerminalProps {
   contextType?: ContextType;
   contextId?: number | string; // v1 uses number, v2 uses publicId string
+  contextDisplayKey?: string; // Human-readable key like "SPEC-P1" or "SPEC-T42"
+  projectRef?: string; // Project reference for API calls
   taskId?: number | string; // Deprecated: use contextType + contextId instead
   workingDirectory?: string; // Working directory for the terminal
   initialCommand?: string; // Command to run after terminal starts (e.g., "claude" then "/prd")
@@ -54,6 +56,8 @@ interface TerminalProps {
 export function Terminal({
   contextType = "task",
   contextId,
+  contextDisplayKey,
+  projectRef,
   taskId, // Deprecated
   workingDirectory,
   initialCommand,
@@ -86,6 +90,18 @@ export function Terminal({
 
   // Track if initial command has been sent (only send once per session)
   const initialCommandSentRef = useRef(false);
+
+  // Use refs for context values so connect() uses latest values
+  const contextDisplayKeyRef = useRef(contextDisplayKey);
+  const projectRefRef = useRef(projectRef);
+
+  // Keep context refs in sync
+  useEffect(() => {
+    contextDisplayKeyRef.current = contextDisplayKey;
+  }, [contextDisplayKey]);
+  useEffect(() => {
+    projectRefRef.current = projectRef;
+  }, [projectRef]);
 
   // Use refs for callbacks to avoid reconnection loops
   const runningRef = useRef(running);
@@ -286,8 +302,30 @@ export function Terminal({
         if (cancelled) return;
 
         if (!exists) {
-          // Spawn new terminal session
-          await spawnTerminal(sessionId, workingDirectory);
+          // Wait a tick for refs to be updated with latest prop values
+          // This handles the case where props update after initial render
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          if (cancelled) return;
+
+
+          // Build environment variables with context for Claude
+          const env: Record<string, string> = {};
+          if (projectRefRef.current) {
+            env.SPECFLUX_PROJECT_REF = projectRefRef.current;
+          }
+          if (effectiveContextId) {
+            env.SPECFLUX_CONTEXT_TYPE = effectiveContextType;
+          }
+          if (contextDisplayKeyRef.current) {
+            env.SPECFLUX_CONTEXT_REF = contextDisplayKeyRef.current;
+          }
+
+          // Spawn new terminal session with context
+          await spawnTerminal(
+            sessionId,
+            workingDirectory,
+            Object.keys(env).length > 0 ? env : undefined,
+          );
         }
 
         // Check again after spawn

@@ -98,6 +98,7 @@ const mockProjectContext = {
   loading: false,
   setCurrentProject: vi.fn(),
   refreshProjects: vi.fn(),
+  getProjectRef: vi.fn().mockReturnValue("test-project"),
 };
 
 vi.mock("../../../contexts", () => ({
@@ -290,6 +291,27 @@ describe("TerminalPanel", () => {
         id: "task_123",
         title: "SPEC-T1",
         displayKey: "SPEC-T1",
+        projectRef: "test-project",
+        workingDirectory: "/path/to/project",
+        initialCommand: "claude",
+      });
+    });
+
+    it("uses id as fallback when title is empty", () => {
+      mockProjectContext.currentProject = { id: 1, name: "Test Project", localPath: "/path/to/project" };
+      // pageContext has id but no title
+      mockTerminalContext.pageContext = { type: "prd-detail", id: "prd_abc123" };
+
+      render(<TerminalPanel />);
+
+      fireEvent.click(screen.getByTestId("new-session-btn"));
+
+      expect(mockTerminalContext.openTerminalForContext).toHaveBeenCalledWith({
+        type: "prd-workshop",
+        id: "prd_abc123",
+        title: "prd_abc123", // Falls back to id
+        displayKey: "prd_abc123", // Falls back to id
+        projectRef: "test-project",
         workingDirectory: "/path/to/project",
         initialCommand: "claude",
       });

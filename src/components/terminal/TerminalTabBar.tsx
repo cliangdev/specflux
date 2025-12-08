@@ -160,10 +160,6 @@ export default function TerminalTabBar({
         const displayLabel =
           session.displayKey ||
           (contextType === "prd-workshop" ? contextTitle : `#${contextId}`);
-        const truncatedTitle =
-          contextTitle.length > 15
-            ? contextTitle.substring(0, 15) + "..."
-            : contextTitle;
 
         return (
           <div
@@ -179,7 +175,7 @@ export default function TerminalTabBar({
             `}
             onClick={() => onSwitchSession(session.id)}
             data-testid={`terminal-tab-${contextId}`}
-            title={`${contextTitle} (⌘${index + 1})`}
+            title={`${displayLabel}${contextTitle !== displayLabel ? ` - ${contextTitle}` : ""} (⌘${index + 1})`}
           >
             {/* Context type icon */}
             <ContextIcon type={contextType} />
@@ -217,10 +213,8 @@ export default function TerminalTabBar({
               </span>
             )}
 
-            {/* Tab label */}
-            <span className="truncate">
-              {displayLabel}: {truncatedTitle}
-            </span>
+            {/* Tab label - just show displayKey/displayLabel, not title (often duplicated) */}
+            <span className="truncate">{displayLabel}</span>
 
             {/* Close button */}
             <button

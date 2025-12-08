@@ -75,7 +75,7 @@ describe("TerminalTabBar", () => {
     expect(screen.getByTestId("terminal-tab-3")).toBeInTheDocument();
   });
 
-  it("displays displayKey and title in each tab", () => {
+  it("displays displayKey in each tab", () => {
     render(
       <TerminalTabBar
         sessions={mockSessions}
@@ -85,24 +85,10 @@ describe("TerminalTabBar", () => {
       />,
     );
 
-    expect(screen.getByText("SPEC-T1: Fix login bug")).toBeInTheDocument();
-    expect(screen.getByText("SPEC-T2: Add search")).toBeInTheDocument();
-  });
-
-  it("truncates long titles", () => {
-    render(
-      <TerminalTabBar
-        sessions={mockSessions}
-        activeSessionId="task-1"
-        onSwitchSession={mockOnSwitchSession}
-        onCloseSession={mockOnCloseSession}
-      />,
-    );
-
-    // The third session has a long title that should be truncated to 15 chars + "..."
-    expect(
-      screen.getByText(/^SPEC-T3: Refactor authen\.\.\.$/),
-    ).toBeInTheDocument();
+    // Tab labels now show just displayKey, not "displayKey: title"
+    expect(screen.getByText("SPEC-T1")).toBeInTheDocument();
+    expect(screen.getByText("SPEC-T2")).toBeInTheDocument();
+    expect(screen.getByText("SPEC-T3")).toBeInTheDocument();
   });
 
   it("shows running indicator for running sessions", () => {
@@ -174,7 +160,7 @@ describe("TerminalTabBar", () => {
     expect(inactiveTab.className).toContain("bg-slate-700");
   });
 
-  it("shows keyboard shortcut hint in title attribute", () => {
+  it("shows keyboard shortcut hint and full title in title attribute", () => {
     render(
       <TerminalTabBar
         sessions={mockSessions}
@@ -187,6 +173,9 @@ describe("TerminalTabBar", () => {
     const tab1 = screen.getByTestId("terminal-tab-1");
     const tab2 = screen.getByTestId("terminal-tab-2");
 
+    // Title should include displayKey, full title (if different), and shortcut
+    expect(tab1.getAttribute("title")).toContain("SPEC-T1");
+    expect(tab1.getAttribute("title")).toContain("Fix login bug");
     expect(tab1.getAttribute("title")).toContain("⌘1");
     expect(tab2.getAttribute("title")).toContain("⌘2");
   });

@@ -93,12 +93,14 @@ describe("Terminal", () => {
     expect(screen.getByText("Agent Terminal")).toBeInTheDocument();
   });
 
-  it("spawns terminal session with context ID", async () => {
+  it("spawns terminal session with context type", async () => {
     render(<Terminal contextType="task" contextId={42} />);
 
     // Wait for async spawn
     await vi.waitFor(() => {
-      expect(spawnTerminal).toHaveBeenCalledWith("task-42", undefined);
+      expect(spawnTerminal).toHaveBeenCalledWith("task-42", undefined, {
+        SPECFLUX_CONTEXT_TYPE: "task",
+      });
     });
   });
 
@@ -115,6 +117,9 @@ describe("Terminal", () => {
       expect(spawnTerminal).toHaveBeenCalledWith(
         "project-abc123",
         "/home/user/project",
+        {
+          SPECFLUX_CONTEXT_TYPE: "project",
+        },
       );
     });
   });
@@ -136,7 +141,28 @@ describe("Terminal", () => {
     render(<Terminal contextType="prd-workshop" contextId={1} />);
 
     await vi.waitFor(() => {
-      expect(spawnTerminal).toHaveBeenCalledWith("prd-workshop-1", undefined);
+      expect(spawnTerminal).toHaveBeenCalledWith("prd-workshop-1", undefined, {
+        SPECFLUX_CONTEXT_TYPE: "prd-workshop",
+      });
+    });
+  });
+
+  it("includes SPECFLUX_CONTEXT_REF when contextDisplayKey is provided", async () => {
+    render(
+      <Terminal
+        contextType="task"
+        contextId={42}
+        contextDisplayKey="SPEC-T42"
+        projectRef="SPEC"
+      />,
+    );
+
+    await vi.waitFor(() => {
+      expect(spawnTerminal).toHaveBeenCalledWith("task-42", undefined, {
+        SPECFLUX_PROJECT_REF: "SPEC",
+        SPECFLUX_CONTEXT_TYPE: "task",
+        SPECFLUX_CONTEXT_REF: "SPEC-T42",
+      });
     });
   });
 });

@@ -74,7 +74,7 @@ impl PtySession {
         }
 
         // Set environment variables
-        if let Some(env_vars) = env {
+        if let Some(ref env_vars) = env {
             for (key, value) in env_vars {
                 cmd.env(key, value);
             }
