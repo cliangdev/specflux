@@ -2250,7 +2250,7 @@ components:
 
     CreateEpicRequest:
       type: object
-      required: [title]
+      required: [title, acceptanceCriteria]
       properties:
         title:
           type: string
@@ -2275,6 +2275,18 @@ components:
           nullable: true
           maxLength: 500
           description: Path to the PRD document (deprecated, use prdRef)
+        acceptanceCriteria:
+          type: array
+          description: List of acceptance criteria (at least one required)
+          minItems: 1
+          items:
+            type: object
+            required: [criteria]
+            properties:
+              criteria:
+                type: string
+                minLength: 1
+                maxLength: 2000
 
     UpdateEpicRequest:
       type: object
