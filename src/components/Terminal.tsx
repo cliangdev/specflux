@@ -310,9 +310,11 @@ export function Terminal({
           }
           if (contextId) {
             env.SPECFLUX_CONTEXT_TYPE = contextType;
+            env.SPECFLUX_CONTEXT_ID = contextId;
           }
           if (contextDisplayKeyRef.current) {
             env.SPECFLUX_CONTEXT_REF = contextDisplayKeyRef.current;
+            env.SPECFLUX_CONTEXT_DISPLAY_KEY = contextDisplayKeyRef.current;
           }
 
           // Spawn new terminal session with context

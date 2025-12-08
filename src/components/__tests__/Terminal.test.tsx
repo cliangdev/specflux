@@ -100,6 +100,7 @@ describe("Terminal", () => {
     await vi.waitFor(() => {
       expect(spawnTerminal).toHaveBeenCalledWith("task-task_42", undefined, {
         SPECFLUX_CONTEXT_TYPE: "task",
+        SPECFLUX_CONTEXT_ID: "task_42",
       });
     });
   });
@@ -119,6 +120,7 @@ describe("Terminal", () => {
         "/home/user/project",
         {
           SPECFLUX_CONTEXT_TYPE: "project",
+          SPECFLUX_CONTEXT_ID: "proj_abc123",
         },
       );
     });
@@ -143,11 +145,12 @@ describe("Terminal", () => {
     await vi.waitFor(() => {
       expect(spawnTerminal).toHaveBeenCalledWith("prd-workshop-prd_1", undefined, {
         SPECFLUX_CONTEXT_TYPE: "prd-workshop",
+        SPECFLUX_CONTEXT_ID: "prd_1",
       });
     });
   });
 
-  it("includes SPECFLUX_CONTEXT_REF when contextDisplayKey is provided", async () => {
+  it("includes all context environment variables when contextDisplayKey is provided", async () => {
     render(
       <Terminal
         contextType="task"
@@ -161,7 +164,9 @@ describe("Terminal", () => {
       expect(spawnTerminal).toHaveBeenCalledWith("task-task_42", undefined, {
         SPECFLUX_PROJECT_REF: "SPEC",
         SPECFLUX_CONTEXT_TYPE: "task",
+        SPECFLUX_CONTEXT_ID: "task_42",
         SPECFLUX_CONTEXT_REF: "SPEC-T42",
+        SPECFLUX_CONTEXT_DISPLAY_KEY: "SPEC-T42",
       });
     });
   });
