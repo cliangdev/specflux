@@ -327,11 +327,11 @@ export function GeneralSettings() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleSyncTemplates(false)}
+                  onClick={() => handleSyncTemplates(true)}
                   disabled={syncing}
                   className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white text-xs font-medium rounded"
                 >
-                  {syncing ? "Syncing..." : "Sync All"}
+                  {syncing ? "Syncing..." : "Re-sync All"}
                 </button>
               </div>
             </div>
@@ -414,19 +414,6 @@ export function GeneralSettings() {
             </div>
           )}
 
-          {/* Force sync option */}
-          {showTemplates && (
-            <div className="px-4 py-2 bg-gray-50 dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700">
-              <button
-                type="button"
-                onClick={() => handleSyncTemplates(true)}
-                disabled={syncing}
-                className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline"
-              >
-                Force update all templates (overwrites existing)
-              </button>
-            </div>
-          )}
         </div>
       )}
 

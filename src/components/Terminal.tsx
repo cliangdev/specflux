@@ -259,7 +259,7 @@ export function Terminal({
             console.error("Failed to resize terminal:", e),
           );
         } catch (e) {
-          // Ignore resize errors during component unmount
+          console.warn("Resize errors during component unmount:", e);
         }
       });
     };
