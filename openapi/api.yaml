@@ -427,6 +427,11 @@ paths:
           in: query
           schema:
             $ref: '#/components/schemas/EpicStatus'
+        - name: prdRef
+          in: query
+          description: Filter by PRD (public ID or display key)
+          schema:
+            type: string
       responses:
         '200':
           description: List of epics
