@@ -101,6 +101,7 @@ export default function NewSessionDialog({
           type: "task",
           id: selectedTask.id,
           title: selectedTask.title,
+          displayKey: selectedTask.displayKey,
         });
       }
     } else if (contextMode === "epic") {
@@ -115,6 +116,7 @@ export default function NewSessionDialog({
           type: "epic",
           id: selectedEpic.id,
           title: selectedEpic.title,
+          displayKey: selectedEpic.displayKey,
         });
       }
     } else if (contextMode === "project") {

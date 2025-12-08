@@ -259,6 +259,7 @@ describe("NewSessionDialog", () => {
       type: "task",
       id: "task_1",
       title: "Task 1",
+      displayKey: "TSK-1",
     });
   });
 
@@ -383,6 +384,7 @@ describe("NewSessionDialog", () => {
         type: "epic",
         id: "epic_1",
         title: "Epic 1",
+        displayKey: "EPIC-1",
       });
     });
 

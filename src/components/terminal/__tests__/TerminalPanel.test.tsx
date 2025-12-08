@@ -36,22 +36,19 @@ vi.mock("../TerminalTabBar", () => ({
   ),
 }));
 
-// Mock the NewSessionDialog component
-vi.mock("../NewSessionDialog", () => ({
+// Mock the DuplicateSessionDialog component
+vi.mock("../DuplicateSessionDialog", () => ({
   default: ({
-    onClose,
-    onCreated,
+    onOpenExisting,
+    onCancel,
   }: {
-    onClose: () => void;
-    onCreated: (context: { type: string; id: number; title: string }) => void;
+    existingSession: { id: string };
+    onOpenExisting: () => void;
+    onCancel: () => void;
   }) => (
-    <div data-testid="new-session-dialog">
-      <button onClick={onClose}>Close Dialog</button>
-      <button
-        onClick={() => onCreated({ type: "task", id: 99, title: "Test Task" })}
-      >
-        Create Session
-      </button>
+    <div data-testid="duplicate-session-dialog">
+      <button onClick={onOpenExisting}>Open Existing</button>
+      <button onClick={onCancel}>Cancel</button>
     </div>
   ),
 }));
@@ -64,10 +61,10 @@ const mockTerminalContext = {
   isMaximized: false,
   sessions: [] as Array<{
     id: string;
-    contextType: "task" | "epic" | "project";
-    contextId: number;
+    contextType: "task" | "epic" | "project" | "prd-workshop";
+    contextId: number | string;
     contextTitle: string;
-    taskId: number;
+    taskId: number | string;
     taskTitle: string;
     isRunning: boolean;
     isConnected: boolean;
@@ -84,6 +81,7 @@ const mockTerminalContext = {
   switchToSession: vi.fn(),
   closeSession: vi.fn(),
   updateSessionStatus: vi.fn(),
+  getExistingSession: vi.fn().mockReturnValue(null),
   pageContext: null as { type: string; id?: string | number; title?: string } | null,
   setPageContext: vi.fn(),
   suggestedCommands: [] as Array<{ label: string; command: string; description?: string }>,
@@ -95,7 +93,7 @@ vi.mock("../../../contexts/TerminalContext", () => ({
 
 // Mock the ProjectContext
 const mockProjectContext = {
-  currentProject: null as { id: number; name: string } | null,
+  currentProject: null as { id: number; name: string; localPath?: string } | null,
   projects: [],
   loading: false,
   setCurrentProject: vi.fn(),
@@ -112,20 +110,21 @@ describe("TerminalPanel", () => {
     mockTerminalContext.isCollapsed = false;
     mockTerminalContext.sessions = [];
     mockTerminalContext.activeSessionId = null;
+    mockTerminalContext.pageContext = null;
     mockProjectContext.currentProject = null;
   });
 
-  it("renders terminal panel with header", () => {
+  it("renders Claude panel with header", () => {
     render(<TerminalPanel />);
 
-    expect(screen.getByText("Terminal")).toBeInTheDocument();
+    expect(screen.getByText("Claude")).toBeInTheDocument();
     expect(screen.getByTestId("terminal-panel")).toBeInTheDocument();
   });
 
   it("shows collapse button when expanded", () => {
     render(<TerminalPanel />);
 
-    expect(screen.getByTestId("terminal-collapse-btn")).toBeInTheDocument();
+    expect(screen.getByTestId("claude-panel-collapse-btn")).toBeInTheDocument();
     expect(screen.getByTitle("Collapse")).toBeInTheDocument();
   });
 
@@ -140,14 +139,14 @@ describe("TerminalPanel", () => {
   it("shows close button", () => {
     render(<TerminalPanel />);
 
-    expect(screen.getByTestId("terminal-close-btn")).toBeInTheDocument();
-    expect(screen.getByTitle("Close terminal (⌘T)")).toBeInTheDocument();
+    expect(screen.getByTestId("claude-panel-close-btn")).toBeInTheDocument();
+    expect(screen.getByTitle("Close panel (⌘T)")).toBeInTheDocument();
   });
 
   it("calls closePanel when close button clicked", () => {
     render(<TerminalPanel />);
 
-    fireEvent.click(screen.getByTestId("terminal-close-btn"));
+    fireEvent.click(screen.getByTestId("claude-panel-close-btn"));
 
     expect(mockTerminalContext.closePanel).toHaveBeenCalledTimes(1);
   });
@@ -155,7 +154,7 @@ describe("TerminalPanel", () => {
   it("calls toggleCollapse when collapse button clicked", () => {
     render(<TerminalPanel />);
 
-    fireEvent.click(screen.getByTestId("terminal-collapse-btn"));
+    fireEvent.click(screen.getByTestId("claude-panel-collapse-btn"));
 
     expect(mockTerminalContext.toggleCollapse).toHaveBeenCalledTimes(1);
   });
@@ -250,63 +249,98 @@ describe("TerminalPanel", () => {
   });
 
   describe("New Session Button", () => {
-    it("shows new session button when project is selected", () => {
+    it("shows new session button when project is selected and page context has id", () => {
       mockProjectContext.currentProject = { id: 1, name: "Test Project" };
+      mockTerminalContext.pageContext = { type: "task-detail", id: "task_123", title: "SPEC-T1" };
 
       render(<TerminalPanel />);
 
       expect(screen.getByTestId("new-session-btn")).toBeInTheDocument();
-      expect(screen.getByTitle("New session")).toBeInTheDocument();
+      expect(screen.getByTitle("New session for SPEC-T1")).toBeInTheDocument();
     });
 
     it("does not show new session button when no project is selected", () => {
       mockProjectContext.currentProject = null;
+      mockTerminalContext.pageContext = { type: "task-detail", id: "task_123", title: "SPEC-T1" };
 
       render(<TerminalPanel />);
 
       expect(screen.queryByTestId("new-session-btn")).not.toBeInTheDocument();
     });
 
-    it("opens new session dialog when + button is clicked", () => {
+    it("does not show new session button when page context has no id", () => {
       mockProjectContext.currentProject = { id: 1, name: "Test Project" };
+      mockTerminalContext.pageContext = { type: "tasks" }; // list page, no id
 
       render(<TerminalPanel />);
 
-      fireEvent.click(screen.getByTestId("new-session-btn"));
-
-      expect(screen.getByTestId("new-session-dialog")).toBeInTheDocument();
+      expect(screen.queryByTestId("new-session-btn")).not.toBeInTheDocument();
     });
 
-    it("closes dialog when close is clicked", () => {
-      mockProjectContext.currentProject = { id: 1, name: "Test Project" };
+    it("creates session directly when + button is clicked", () => {
+      mockProjectContext.currentProject = { id: 1, name: "Test Project", localPath: "/path/to/project" };
+      mockTerminalContext.pageContext = { type: "task-detail", id: "task_123", title: "SPEC-T1" };
 
       render(<TerminalPanel />);
 
       fireEvent.click(screen.getByTestId("new-session-btn"));
-      expect(screen.getByTestId("new-session-dialog")).toBeInTheDocument();
-
-      fireEvent.click(screen.getByText("Close Dialog"));
-      expect(
-        screen.queryByTestId("new-session-dialog"),
-      ).not.toBeInTheDocument();
-    });
-
-    it("calls openTerminalForContext and closes dialog when session is created", () => {
-      mockProjectContext.currentProject = { id: 1, name: "Test Project" };
-
-      render(<TerminalPanel />);
-
-      fireEvent.click(screen.getByTestId("new-session-btn"));
-      fireEvent.click(screen.getByText("Create Session"));
 
       expect(mockTerminalContext.openTerminalForContext).toHaveBeenCalledWith({
         type: "task",
-        id: 99,
-        title: "Test Task",
+        id: "task_123",
+        title: "SPEC-T1",
+        displayKey: "SPEC-T1",
+        workingDirectory: "/path/to/project",
+        initialCommand: "claude",
       });
-      expect(
-        screen.queryByTestId("new-session-dialog"),
-      ).not.toBeInTheDocument();
+    });
+
+    it("shows duplicate session warning when session already exists", () => {
+      mockProjectContext.currentProject = { id: 1, name: "Test Project", localPath: "/path/to/project" };
+      mockTerminalContext.pageContext = { type: "task-detail", id: "task_123", title: "SPEC-T1" };
+      mockTerminalContext.sessions = [
+        {
+          id: "task-task_123",
+          contextType: "task",
+          contextId: "task_123",
+          contextTitle: "SPEC-T1",
+          taskId: "task_123",
+          taskTitle: "SPEC-T1",
+          isRunning: false,
+          isConnected: true,
+        },
+      ];
+
+      render(<TerminalPanel />);
+
+      fireEvent.click(screen.getByTestId("new-session-btn"));
+
+      expect(screen.getByTestId("duplicate-session-dialog")).toBeInTheDocument();
+      expect(mockTerminalContext.openTerminalForContext).not.toHaveBeenCalled();
+    });
+
+    it("switches to existing session when Open Existing is clicked in duplicate dialog", () => {
+      mockProjectContext.currentProject = { id: 1, name: "Test Project", localPath: "/path/to/project" };
+      mockTerminalContext.pageContext = { type: "task-detail", id: "task_123", title: "SPEC-T1" };
+      mockTerminalContext.sessions = [
+        {
+          id: "task-task_123",
+          contextType: "task",
+          contextId: "task_123",
+          contextTitle: "SPEC-T1",
+          taskId: "task_123",
+          taskTitle: "SPEC-T1",
+          isRunning: false,
+          isConnected: true,
+        },
+      ];
+
+      render(<TerminalPanel />);
+
+      fireEvent.click(screen.getByTestId("new-session-btn"));
+      fireEvent.click(screen.getByText("Open Existing"));
+
+      expect(mockTerminalContext.switchToSession).toHaveBeenCalledWith("task-task_123");
     });
   });
 });

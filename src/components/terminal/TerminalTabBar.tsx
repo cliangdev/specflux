@@ -1,6 +1,7 @@
 import type {
   TerminalSession,
   ContextType,
+  PageContext,
 } from "../../contexts/TerminalContext";
 
 interface TerminalTabBarProps {
@@ -8,6 +9,8 @@ interface TerminalTabBarProps {
   activeSessionId: string | null;
   onSwitchSession: (sessionId: string) => void;
   onCloseSession: (sessionId: string) => void;
+  pageContext?: PageContext | null;
+  onStartNewSession?: () => void;
 }
 
 // Close icon
@@ -87,15 +90,61 @@ function ContextIcon({ type }: { type: ContextType }) {
   }
 }
 
+// Plus icon for ghost tab
+const PlusIcon = () => (
+  <svg
+    className="w-3 h-3"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+  </svg>
+);
+
+// Helper to check if page context matches a session
+function pageMatchesSession(
+  pageContext: PageContext | null | undefined,
+  sessions: TerminalSession[],
+): boolean {
+  if (!pageContext || !pageContext.id) return true; // No specific page = matches
+
+  // Check if any session matches the current page context
+  const pageId = String(pageContext.id);
+  return sessions.some((s) => {
+    const sessionId = String(s.contextId);
+    // Check if session ID matches page ID
+    if (sessionId === pageId) return true;
+    // Also check the contextType mapping
+    const typeMap: Record<string, string> = {
+      "prd-detail": "prd-workshop",
+      "task-detail": "task",
+      "epic-detail": "epic",
+    };
+    const expectedType = typeMap[pageContext.type];
+    return expectedType === s.contextType && sessionId === pageId;
+  });
+}
+
 export default function TerminalTabBar({
   sessions,
   activeSessionId,
   onSwitchSession,
   onCloseSession,
+  pageContext,
+  onStartNewSession,
 }: TerminalTabBarProps) {
   if (sessions.length === 0) {
     return null;
   }
+
+  // Determine if we should show ghost tab (current page differs from any session)
+  const showGhostTab =
+    pageContext &&
+    pageContext.id &&
+    !pageMatchesSession(pageContext, sessions) &&
+    onStartNewSession;
 
   return (
     <div
@@ -107,9 +156,13 @@ export default function TerminalTabBar({
         const contextType = session.contextType ?? "task";
         const contextId = session.contextId ?? session.taskId;
         const contextTitle = session.contextTitle ?? session.taskTitle;
+        // Use displayKey if available, otherwise fall back to title (for workshops) or ID
+        const displayLabel =
+          session.displayKey ||
+          (contextType === "prd-workshop" ? contextTitle : `#${contextId}`);
         const truncatedTitle =
-          contextTitle.length > 20
-            ? contextTitle.substring(0, 20) + "..."
+          contextTitle.length > 15
+            ? contextTitle.substring(0, 15) + "..."
             : contextTitle;
 
         return (
@@ -166,7 +219,7 @@ export default function TerminalTabBar({
 
             {/* Tab label */}
             <span className="truncate">
-              #{contextId}: {truncatedTitle}
+              {displayLabel}: {truncatedTitle}
             </span>
 
             {/* Close button */}
@@ -188,6 +241,26 @@ export default function TerminalTabBar({
           </div>
         );
       })}
+
+      {/* Ghost tab - shows when on different page than any session */}
+      {showGhostTab && (
+        <button
+          onClick={onStartNewSession}
+          className={`
+            flex items-center gap-1.5 px-3 py-1.5 rounded-t text-sm cursor-pointer
+            transition-colors min-w-0 flex-shrink-0
+            border border-dashed border-slate-600 text-slate-500
+            hover:border-slate-500 hover:text-slate-400 hover:bg-slate-800/50
+          `}
+          title={`Start session for ${pageContext.title || pageContext.type}`}
+          data-testid="ghost-tab"
+        >
+          <PlusIcon />
+          <span className="truncate max-w-[100px]">
+            {pageContext.title || pageContext.type}
+          </span>
+        </button>
+      )}
     </div>
   );
 }

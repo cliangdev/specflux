@@ -52,6 +52,7 @@ export interface ContextInfo {
   type: ContextType;
   id: number | string; // v1 uses number, v2 uses publicId string
   title: string;
+  displayKey?: string; // Human-readable key like "SPEC-T1" for display in tabs
   agent?: AgentInfo;
   workingDirectory?: string; // Working directory for the terminal
   initialCommand?: string; // Command to run after terminal starts (e.g., "claude" for PRD workshop)
@@ -62,6 +63,8 @@ export interface TerminalSession {
   contextType: ContextType;
   contextId: number | string; // v1 uses number, v2 uses publicId string
   contextTitle: string;
+  // Human-readable key like "SPEC-T1" for display in tabs
+  displayKey?: string;
   // Agent assigned to this session (for task contexts)
   agent?: AgentInfo;
   // Working directory for the terminal
@@ -91,6 +94,7 @@ interface TerminalContextValue {
   // Multi-tab session state
   sessions: TerminalSession[];
   activeSessionId: string | null;
+  getExistingSession: (context: ContextInfo) => TerminalSession | null;
   openTerminalForContext: (context: ContextInfo) => void;
   openTerminalForTask: (task: TaskInfo) => void; // Backwards compat
   closeSession: (sessionId: string) => void;
@@ -167,6 +171,7 @@ interface StoredSession {
   contextType: ContextType;
   contextId: number | string; // v1 uses number, v2 uses publicId string
   contextTitle: string;
+  displayKey?: string;
   agent?: AgentInfo;
   workingDirectory?: string;
   initialCommand?: string;
@@ -228,6 +233,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
         contextType: s.contextType,
         contextId: s.contextId,
         contextTitle: s.contextTitle,
+        displayKey: s.displayKey,
         agent: s.agent,
         workingDirectory: s.workingDirectory,
         initialCommand: s.initialCommand,
@@ -251,6 +257,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
       contextType: s.contextType,
       contextId: s.contextId,
       contextTitle: s.contextTitle,
+      displayKey: s.displayKey,
       agent: s.agent,
       workingDirectory: s.workingDirectory,
       initialCommand: s.initialCommand,
@@ -326,6 +333,15 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
     }
   }, [isMaximized, panelHeight, preMaximizeHeight]);
 
+  // Check if a session already exists for the given context
+  const getExistingSession = useCallback(
+    (context: ContextInfo): TerminalSession | null => {
+      const sessionId = `${context.type}-${context.id}`;
+      return sessions.find((s) => s.id === sessionId) || null;
+    },
+    [sessions],
+  );
+
   const openTerminalForContext = useCallback((context: ContextInfo) => {
     const sessionId = `${context.type}-${context.id}`;
 
@@ -349,6 +365,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
           contextType: context.type,
           contextId: context.id,
           contextTitle: context.title,
+          displayKey: context.displayKey,
           agent: context.agent,
           workingDirectory: context.workingDirectory,
           initialCommand: context.initialCommand,
@@ -455,6 +472,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
     toggleMaximize,
     sessions,
     activeSessionId,
+    getExistingSession,
     openTerminalForContext,
     openTerminalForTask,
     closeSession,

@@ -154,11 +154,15 @@ export default function PRDDetailPage() {
 
   const prdRef = prdName ? decodeURIComponent(prdName) : "";
 
-  // Set page context for terminal suggested commands
-  usePageContext(prdRef ? { type: "prd-detail", title: prdRef } : null);
-
   const [prd, setPrd] = useState<Prd | null>(null);
   const [selectedDoc, setSelectedDoc] = useState<PrdDocument | null>(null);
+
+  // Set page context for terminal suggested commands - use displayKey once PRD is loaded
+  usePageContext(
+    prd
+      ? { type: "prd-detail", id: prd.id, title: prd.displayKey || prd.title }
+      : null,
+  );
   const [content, setContent] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [contentLoading, setContentLoading] = useState(false);

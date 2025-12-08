@@ -1,9 +1,9 @@
 import { useCallback, useState, useRef, useEffect } from "react";
-import { useTerminal } from "../../contexts/TerminalContext";
+import { useTerminal, type TerminalSession } from "../../contexts/TerminalContext";
 import { useProject } from "../../contexts";
 import Terminal from "../Terminal";
 import TerminalTabBar from "./TerminalTabBar";
-import NewSessionDialog from "./NewSessionDialog";
+import DuplicateSessionDialog from "./DuplicateSessionDialog";
 
 const HEADER_HEIGHT = 40;
 const COLLAPSED_HEIGHT = HEADER_HEIGHT;
@@ -113,11 +113,55 @@ export default function TerminalPanel() {
     suggestedCommands,
   } = useTerminal();
 
-  const [showNewSessionDialog, setShowNewSessionDialog] = useState(false);
+  const [duplicateSession, setDuplicateSession] = useState<TerminalSession | null>(null);
   const [isResizing, setIsResizing] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const startYRef = useRef(0);
   const startHeightRef = useRef(0);
+
+  // Map page types to session context types
+  const pageTypeToContextType: Record<string, "task" | "epic" | "prd-workshop"> = {
+    "prd-detail": "prd-workshop",
+    "task-detail": "task",
+    "epic-detail": "epic",
+  };
+
+  // Helper to find existing session for current page context
+  const findExistingSessionForPageContext = useCallback((): TerminalSession | null => {
+    if (!pageContext || !pageContext.id) return null;
+
+    const contextType = pageTypeToContextType[pageContext.type];
+    if (!contextType) return null;
+
+    // Match the session ID format used in openTerminalForContext
+    const expectedSessionId = `${contextType}-${pageContext.id}`;
+    return sessions.find((s) => s.id === expectedSessionId) || null;
+  }, [pageContext, sessions]);
+
+  // Handler for starting a new session from current page context
+  const handleStartNewSession = useCallback(() => {
+    if (!pageContext || !pageContext.id) return;
+
+    const contextType = pageTypeToContextType[pageContext.type];
+    if (!contextType) return;
+
+    // Check for existing session
+    const existing = findExistingSessionForPageContext();
+    if (existing) {
+      setDuplicateSession(existing);
+      return;
+    }
+
+    // Create session from page context - always start claude
+    openTerminalForContext({
+      type: contextType,
+      id: pageContext.id,
+      title: pageContext.title || String(pageContext.id),
+      displayKey: pageContext.title, // pageContext.title already contains displayKey
+      workingDirectory: currentProject?.localPath,
+      initialCommand: "claude",
+    });
+  }, [pageContext, findExistingSessionForPageContext, openTerminalForContext, currentProject?.localPath]);
 
   // Create status change handler for a specific session
   const createStatusChangeHandler = useCallback(
@@ -222,97 +266,114 @@ export default function TerminalPanel() {
         </div>
       )}
 
-      {/* Header */}
-      <div className="h-10 flex items-center justify-between px-1 bg-slate-800 border-b border-slate-700 flex-shrink-0">
-        <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
-          <span className="text-sm font-medium text-slate-300 flex-shrink-0 pl-2">
-            Terminal
-          </span>
-          {/* Page Context Indicator */}
-          {pageContext && (
-            <span className="text-xs text-slate-500 flex-shrink-0">
-              | {pageContext.title || pageContext.type}
+      {/* Header - Two lines: Line 1 = branding + tabs + controls, Line 2 = suggestions */}
+      <div className="bg-slate-800 border-b border-slate-700 flex-shrink-0">
+        {/* Line 1: Main header */}
+        <div className="h-10 flex items-center justify-between px-1">
+          <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
+            <span className="text-sm font-medium text-slate-300 flex-shrink-0 pl-2 flex items-center gap-1.5">
+              <span>🤖</span>
+              <span>Claude</span>
             </span>
-          )}
-          {/* New Session Button */}
-          {currentProject && (
-            <button
-              onClick={() => setShowNewSessionDialog(true)}
-              className="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors flex-shrink-0"
-              title="New session"
-              data-testid="new-session-btn"
-            >
-              <PlusIcon />
-            </button>
-          )}
-          {sessions.length > 0 && (
-            <>
-              <span className="text-slate-600 flex-shrink-0">|</span>
-              <TerminalTabBar
-                sessions={sessions}
-                activeSessionId={activeSessionId}
-                onSwitchSession={switchToSession}
-                onCloseSession={closeSession}
-              />
-            </>
-          )}
-          {/* Suggested Commands */}
-          {suggestedCommands.length > 0 && (
-            <>
-              <span className="text-slate-600 flex-shrink-0">|</span>
-              <div className="flex items-center gap-1 flex-shrink-0">
-                {suggestedCommands.map((cmd) => (
-                  <button
-                    key={cmd.command}
-                    onClick={() => {
-                      // Copy command to clipboard for now
-                      // In future, could inject into active terminal
-                      navigator.clipboard.writeText(cmd.command);
-                    }}
-                    className="px-2 py-0.5 text-xs rounded bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-slate-100 transition-colors"
-                    title={cmd.description || `Copy: ${cmd.command}`}
-                  >
-                    {cmd.label}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
+            {/* New Session Button - only show when on a detail page with valid context */}
+            {currentProject && pageContext?.id && (
+              <button
+                onClick={handleStartNewSession}
+                className="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors flex-shrink-0"
+                title={`New session for ${pageContext.title || pageContext.type}`}
+                data-testid="new-session-btn"
+              >
+                <PlusIcon />
+              </button>
+            )}
+            {sessions.length > 0 && (
+              <>
+                <span className="text-slate-600 flex-shrink-0">|</span>
+                <TerminalTabBar
+                  sessions={sessions}
+                  activeSessionId={activeSessionId}
+                  onSwitchSession={switchToSession}
+                  onCloseSession={closeSession}
+                  pageContext={pageContext}
+                  onStartNewSession={handleStartNewSession}
+                />
+              </>
+            )}
+          </div>
 
-        <div className="flex items-center gap-1 flex-shrink-0 pr-2">
-          {/* Maximize/Restore button - only show when expanded */}
-          {!isCollapsed && (
+          <div className="flex items-center gap-1 flex-shrink-0 pr-2">
+            {/* Help button */}
             <button
-              onClick={toggleMaximize}
               className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
-              title={isMaximized ? "Restore" : "Maximize"}
-              data-testid="terminal-maximize-btn"
+              title="Keyboard shortcuts:&#10;⌘T - Toggle panel&#10;⌘1-9 - Switch tabs&#10;⌘W - Close tab"
+              data-testid="claude-panel-help-btn"
             >
-              {isMaximized ? <RestoreIcon /> : <MaximizeIcon />}
+              <span className="text-xs font-medium">?</span>
             </button>
-          )}
 
-          {/* Collapse/Expand button */}
-          <button
-            onClick={toggleCollapse}
-            className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
-            title={isCollapsed ? "Expand" : "Collapse"}
-            data-testid="terminal-collapse-btn"
-          >
-            {isCollapsed ? <ChevronUpIcon /> : <MinusIcon />}
-          </button>
+            {/* Maximize/Restore button - only show when expanded */}
+            {!isCollapsed && (
+              <button
+                onClick={toggleMaximize}
+                className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
+                title={isMaximized ? "Restore" : "Maximize"}
+                data-testid="claude-panel-maximize-btn"
+              >
+                {isMaximized ? <RestoreIcon /> : <MaximizeIcon />}
+              </button>
+            )}
 
-          {/* Close button */}
-          <button
-            onClick={closePanel}
-            className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
-            title="Close terminal (⌘T)"
-            data-testid="terminal-close-btn"
-          >
-            <XMarkIcon />
-          </button>
+            {/* Collapse/Expand button */}
+            <button
+              onClick={toggleCollapse}
+              className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
+              title={isCollapsed ? "Expand" : "Collapse"}
+              data-testid="claude-panel-collapse-btn"
+            >
+              {isCollapsed ? <ChevronUpIcon /> : <MinusIcon />}
+            </button>
+
+            {/* Close button */}
+            <button
+              onClick={closePanel}
+              className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
+              title="Close panel (⌘T)"
+              data-testid="claude-panel-close-btn"
+            >
+              <XMarkIcon />
+            </button>
+          </div>
         </div>
+
+        {/* Line 2: Context and suggestions (only show when expanded) */}
+        {!isCollapsed && (pageContext || suggestedCommands.length > 0) && (
+          <div className="h-7 flex items-center px-3 border-t border-slate-700/50 text-xs">
+            {/* Current context */}
+            {pageContext && (
+              <span className="text-slate-500">
+                {pageContext.title || pageContext.type}
+              </span>
+            )}
+            {/* Suggested commands */}
+            {suggestedCommands.length > 0 && (
+              <span className="text-slate-600 ml-auto">
+                try:{" "}
+                {suggestedCommands.map((cmd, i) => (
+                  <span key={cmd.command}>
+                    {i > 0 && <span className="mx-1">·</span>}
+                    <button
+                      onClick={() => navigator.clipboard.writeText(cmd.command)}
+                      className="text-slate-500 hover:text-slate-300 transition-colors"
+                      title={cmd.description || `Copy: ${cmd.command}`}
+                    >
+                      {cmd.label}
+                    </button>
+                  </span>
+                ))}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Terminal content - render all sessions, show/hide based on active */}
@@ -350,15 +411,15 @@ export default function TerminalPanel() {
         </div>
       )}
 
-      {/* New Session Dialog */}
-      {showNewSessionDialog && currentProject && (
-        <NewSessionDialog
-          projectId={currentProject.id}
-          onClose={() => setShowNewSessionDialog(false)}
-          onCreated={(context) => {
-            openTerminalForContext(context);
-            setShowNewSessionDialog(false);
+      {/* Duplicate Session Warning Dialog */}
+      {duplicateSession && (
+        <DuplicateSessionDialog
+          existingSession={duplicateSession}
+          onOpenExisting={() => {
+            switchToSession(duplicateSession.id);
+            setDuplicateSession(null);
           }}
+          onCancel={() => setDuplicateSession(null)}
         />
       )}
     </div>

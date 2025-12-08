@@ -5,6 +5,7 @@ import Sidebar from "./Sidebar";
 import { ThemeProvider } from "../../contexts";
 import { TerminalProvider, useTerminal } from "../../contexts/TerminalContext";
 import TerminalPanel from "../terminal/TerminalPanel";
+import ClaudePill from "../terminal/ClaudePill";
 
 function MainLayoutContent() {
   const { isOpen, togglePanel, sessions, switchToSession, openPanel } =
@@ -51,6 +52,8 @@ function MainLayoutContent() {
       </div>
       {/* Terminal panel spans full width at bottom */}
       {isOpen && <TerminalPanel />}
+      {/* Floating pill when panel is closed */}
+      <ClaudePill />
     </div>
   );
 }
