@@ -291,7 +291,7 @@ describe("TerminalPanel", () => {
         title: "SPEC-T1",
         displayKey: "SPEC-T1",
         workingDirectory: "/path/to/project",
-        initialCommand: undefined,
+        initialCommand: "claude",
       });
     });
 

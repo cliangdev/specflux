@@ -46,6 +46,8 @@ export default function BoardPage() {
       id: task.id,
       title: task.title,
       displayKey: task.displayKey,
+      workingDirectory: currentProject?.localPath,
+      initialCommand: "claude",
     });
   };
 

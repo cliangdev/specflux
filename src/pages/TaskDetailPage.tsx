@@ -61,7 +61,7 @@ export default function TaskDetailPage() {
   const { taskId } = useParams<{ taskId: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { getProjectRef } = useProject();
+  const { currentProject, getProjectRef } = useProject();
   const {
     openTerminalForContext,
     getExistingSession,
@@ -286,6 +286,8 @@ export default function TaskDetailPage() {
         id: task.id,
         title: task.title,
         displayKey: task.displayKey,
+        workingDirectory: currentProject?.localPath,
+        initialCommand: "claude",
       };
 
       // Check if session already exists

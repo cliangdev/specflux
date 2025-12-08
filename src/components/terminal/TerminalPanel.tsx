@@ -152,14 +152,14 @@ export default function TerminalPanel() {
       return;
     }
 
-    // Create session from page context
+    // Create session from page context - always start claude
     openTerminalForContext({
       type: contextType,
       id: pageContext.id,
       title: pageContext.title || String(pageContext.id),
       displayKey: pageContext.title, // pageContext.title already contains displayKey
       workingDirectory: currentProject?.localPath,
-      initialCommand: contextType === "prd-workshop" ? "claude" : undefined,
+      initialCommand: "claude",
     });
   }, [pageContext, findExistingSessionForPageContext, openTerminalForContext, currentProject?.localPath]);
 
