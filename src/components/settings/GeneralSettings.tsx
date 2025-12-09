@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { useProject } from "../../contexts/ProjectContext";
 import { api } from "../../api";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -13,11 +14,17 @@ import {
 } from "../../templates";
 
 export function GeneralSettings() {
+  const navigate = useNavigate();
   const { currentProject, refreshProjects, getProjectRef } = useProject();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  // Delete confirmation state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -188,6 +195,38 @@ export function GeneralSettings() {
       console.error(err);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!currentProject) return;
+
+    // Case-insensitive comparison
+    if (deleteConfirmText.toLowerCase() !== currentProject.name.toLowerCase()) {
+      return;
+    }
+
+    setDeleting(true);
+    setError(null);
+
+    try {
+      const projectRef = getProjectRef();
+      if (!projectRef) {
+        setError("Project reference not available");
+        return;
+      }
+
+      await api.projects.deleteProject({ ref: projectRef });
+
+      // Close modal and navigate away
+      setShowDeleteModal(false);
+      await refreshProjects();
+      navigate("/");
+    } catch (err) {
+      setError("Failed to delete project: " + String(err));
+      console.error(err);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -440,6 +479,105 @@ export function GeneralSettings() {
           {saving ? "Saving..." : "Save Changes"}
         </button>
       </div>
+
+      {/* Danger Zone */}
+      <div className="mt-12 pt-8 border-t border-red-200 dark:border-red-900/50">
+        <h3 className="text-sm font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider mb-4">
+          Danger Zone
+        </h3>
+        <div className="border border-red-200 dark:border-red-900/50 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                Delete this project
+              </h4>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Once deleted, the project and all its data will be permanently removed.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setDeleteConfirmText("");
+                setShowDeleteModal(true);
+              }}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded"
+            >
+              Delete Project
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setShowDeleteModal(false)}
+            aria-hidden="true"
+          />
+
+          {/* Modal */}
+          <div className="relative bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md mx-4 border border-gray-200 dark:border-slate-700">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Delete Project
+              </h2>
+            </div>
+
+            <div className="px-6 py-4 space-y-4">
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                This action cannot be undone. This will permanently delete the{" "}
+                <span className="font-semibold text-gray-900 dark:text-white">
+                  {currentProject.name}
+                </span>{" "}
+                project and all of its data including epics, tasks, and settings.
+              </p>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Please type{" "}
+                  <span className="font-mono bg-gray-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-gray-900 dark:text-white">
+                    {currentProject.name}
+                  </span>{" "}
+                  to confirm
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="Type project name here"
+                  className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded px-3 py-2 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={
+                  deleting ||
+                  deleteConfirmText.toLowerCase() !== currentProject.name.toLowerCase()
+                }
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded"
+              >
+                {deleting ? "Deleting..." : "Delete Project"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
