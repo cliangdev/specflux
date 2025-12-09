@@ -218,29 +218,62 @@ export function GeneralSettings() {
 
       // Delete all related entities before deleting the project
       // Order matters: tasks -> epics -> prds -> releases -> repos -> agents -> skills -> mcp servers
+      // Use pagination (limit 100 max) to handle large datasets
 
-      // 1. Delete all tasks
-      const tasksResponse = await api.tasks.listTasks({ projectRef, limit: 1000 });
-      for (const task of tasksResponse.data ?? []) {
-        await api.tasks.deleteTask({ projectRef, taskRef: task.id });
+      // 1. Delete all tasks (paginate through all)
+      let hasMoreTasks = true;
+      while (hasMoreTasks) {
+        const tasksResponse = await api.tasks.listTasks({ projectRef, limit: 100 });
+        const tasks = tasksResponse.data ?? [];
+        if (tasks.length === 0) {
+          hasMoreTasks = false;
+        } else {
+          for (const task of tasks) {
+            await api.tasks.deleteTask({ projectRef, taskRef: task.id });
+          }
+        }
       }
 
-      // 2. Delete all epics
-      const epicsResponse = await api.epics.listEpics({ projectRef, limit: 1000 });
-      for (const epic of epicsResponse.data ?? []) {
-        await api.epics.deleteEpic({ projectRef, epicRef: epic.id });
+      // 2. Delete all epics (paginate through all)
+      let hasMoreEpics = true;
+      while (hasMoreEpics) {
+        const epicsResponse = await api.epics.listEpics({ projectRef, limit: 100 });
+        const epics = epicsResponse.data ?? [];
+        if (epics.length === 0) {
+          hasMoreEpics = false;
+        } else {
+          for (const epic of epics) {
+            await api.epics.deleteEpic({ projectRef, epicRef: epic.id });
+          }
+        }
       }
 
-      // 3. Delete all PRDs
-      const prdsResponse = await api.prds.listPrds({ projectRef, limit: 1000 });
-      for (const prd of prdsResponse.data ?? []) {
-        await api.prds.deletePrd({ projectRef, prdRef: prd.id });
+      // 3. Delete all PRDs (paginate through all)
+      let hasMorePrds = true;
+      while (hasMorePrds) {
+        const prdsResponse = await api.prds.listPrds({ projectRef, limit: 100 });
+        const prds = prdsResponse.data ?? [];
+        if (prds.length === 0) {
+          hasMorePrds = false;
+        } else {
+          for (const prd of prds) {
+            await api.prds.deletePrd({ projectRef, prdRef: prd.id });
+          }
+        }
       }
 
-      // 4. Delete all releases
-      const releasesResponse = await api.releases.listReleases({ projectRef, limit: 1000 });
-      for (const release of releasesResponse.data ?? []) {
-        await api.releases.deleteRelease({ projectRef, releaseRef: release.id });
+      // 4. Delete all releases (paginate through all)
+      let hasMoreReleases = true;
+      while (hasMoreReleases) {
+        const releasesResponse = await api.releases.listReleases({ projectRef, limit: 100 });
+        const releases = releasesResponse.data ?? [];
+        if (releases.length === 0) {
+          hasMoreReleases = false;
+        } else {
+          for (const release of releases) {
+            await api.releases.deleteRelease({ projectRef, releaseRef: release.id });
+          }
+        }
       }
 
       // 5. Delete all repositories
