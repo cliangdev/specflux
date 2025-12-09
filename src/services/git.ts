@@ -475,21 +475,28 @@ export async function addToGitignore(
 
 /**
  * Create initial .gitignore for project (if doesn't exist)
+ * Optionally include existing repository names to ignore
  */
 export async function createInitialGitignore(
   projectPath: string,
+  existingRepoNames: string[] = [],
 ): Promise<void> {
   const gitignorePath = `${projectPath}/.gitignore`;
 
   try {
     await readTextFile(gitignorePath);
-    // File exists, don't overwrite
+    // File exists - add any missing repos
+    for (const repoName of existingRepoNames) {
+      await addToGitignore(projectPath, repoName);
+    }
   } catch {
+    // File doesn't exist - create with header and repos
+    const repoEntries = existingRepoNames.map((name) => `${name}/`).join("\n");
     const content = `# SpecFlux Project
 # Version control for PRDs, specs, and configuration
 
 # Code repositories (managed separately):
-
+${repoEntries}
 `;
     await writeTextFile(gitignorePath, content);
   }

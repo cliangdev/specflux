@@ -150,7 +150,7 @@ export function GeneralSettings() {
 
   // Handle git initialization
   const handleInitGit = async () => {
-    if (!formData.localPath) return;
+    if (!formData.localPath || !currentProject?.id) return;
 
     setInitializingGit(true);
     setError(null);
@@ -158,7 +158,13 @@ export function GeneralSettings() {
     try {
       const result = await initializeGit(formData.localPath);
       if (result.success) {
-        await createInitialGitignore(formData.localPath);
+        // Fetch existing repositories to add to .gitignore
+        const reposResponse = await api.repositories.listRepositories({
+          projectRef: currentProject.id,
+        });
+        const existingRepoNames = (reposResponse.data ?? []).map((r) => r.name);
+
+        await createInitialGitignore(formData.localPath, existingRepoNames);
         setGitInitialized(true);
         setSuccess(true);
         setTimeout(() => setSuccess(false), 3000);
