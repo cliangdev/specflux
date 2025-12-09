@@ -52,25 +52,15 @@ export default function EpicCreateModal({
         description: description.trim() || undefined,
         prdFilePath: prdFilePath.trim() || undefined,
         releaseRef: releaseId ?? undefined,
+        acceptanceCriteria: validCriteria.map((c) => ({
+          criteria: c.text.trim(),
+        })),
       };
 
-      // Create the epic first
-      const epic = await api.epics.createEpic({
+      await api.epics.createEpic({
         projectRef: projectId,
         createEpicRequest: request,
       });
-
-      // Then add acceptance criteria
-      for (let i = 0; i < validCriteria.length; i++) {
-        await api.epics.createEpicAcceptanceCriteria({
-          projectRef: projectId,
-          epicRef: epic.id,
-          createAcceptanceCriteriaRequest: {
-            criteria: validCriteria[i].text.trim(),
-            orderIndex: i,
-          },
-        });
-      }
 
       onCreated();
       onClose();
