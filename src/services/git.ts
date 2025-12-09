@@ -6,6 +6,7 @@
  */
 
 import { Command, Child } from "@tauri-apps/plugin-shell";
+import { readTextFile, writeTextFile, mkdir } from "@tauri-apps/plugin-fs";
 
 export interface GitHubUrlInfo {
   owner: string;
@@ -376,4 +377,120 @@ export async function getRemotes(
     // Fall through to empty array
   }
   return [];
+}
+
+/**
+ * Initialize git in a directory
+ */
+export async function initializeGit(
+  path: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const command = Command.create("git", ["-C", path, "init"]);
+    const output = await command.execute();
+    if (output.code === 0) {
+      return { success: true };
+    }
+    return { success: false, error: output.stderr || "Git init failed" };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to initialize git",
+    };
+  }
+}
+
+/**
+ * Check if a directory has git initialized
+ */
+export async function isGitInitialized(path: string): Promise<boolean> {
+  try {
+    const command = Command.create("git", ["-C", path, "rev-parse", "--git-dir"]);
+    const output = await command.execute();
+    return output.code === 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Create a new repository directory and initialize git
+ */
+export async function createRepository(
+  projectPath: string,
+  repoName: string,
+): Promise<{ success: boolean; path: string; error?: string }> {
+  const repoPath = `${projectPath}/${repoName}`;
+
+  try {
+    await mkdir(repoPath, { recursive: true });
+
+    const initResult = await initializeGit(repoPath);
+    if (!initResult.success) {
+      return { success: false, path: repoPath, error: initResult.error };
+    }
+
+    return { success: true, path: repoPath };
+  } catch (err) {
+    return {
+      success: false,
+      path: repoPath,
+      error: err instanceof Error ? err.message : "Failed to create repository",
+    };
+  }
+}
+
+/**
+ * Add a repository to the project's .gitignore
+ */
+export async function addToGitignore(
+  projectPath: string,
+  repoName: string,
+): Promise<{ success: boolean; error?: string }> {
+  const gitignorePath = `${projectPath}/.gitignore`;
+  const entry = `${repoName}/`;
+
+  try {
+    let content = "";
+    try {
+      content = await readTextFile(gitignorePath);
+    } catch {
+      content = `# SpecFlux - Code Repositories\n# These have their own git history\n\n`;
+    }
+
+    if (content.includes(entry)) {
+      return { success: true };
+    }
+
+    const newContent = content.trimEnd() + `\n${entry}\n`;
+    await writeTextFile(gitignorePath, newContent);
+    return { success: true };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to update .gitignore",
+    };
+  }
+}
+
+/**
+ * Create initial .gitignore for project (if doesn't exist)
+ */
+export async function createInitialGitignore(
+  projectPath: string,
+): Promise<void> {
+  const gitignorePath = `${projectPath}/.gitignore`;
+
+  try {
+    await readTextFile(gitignorePath);
+    // File exists, don't overwrite
+  } catch {
+    const content = `# SpecFlux Project
+# Version control for PRDs, specs, and configuration
+
+# Code repositories (managed separately):
+
+`;
+    await writeTextFile(gitignorePath, content);
+  }
 }
