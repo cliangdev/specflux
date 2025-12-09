@@ -360,7 +360,7 @@ export function GeneralSettings() {
         />
       </div>
 
-      {/* Local Path (editable with browse button) */}
+      {/* Local Path */}
       <div id="local-path-section">
         <label className="flex items-center gap-2 text-sm font-medium mb-2 text-gray-900 dark:text-white">
           Local Path
@@ -384,24 +384,30 @@ export function GeneralSettings() {
             </span>
           </span>
         </label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={formData.localPath}
-            onChange={(e) =>
-              setFormData({ ...formData, localPath: e.target.value })
-            }
-            className="flex-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
-            placeholder="/Users/you/projects/my-project"
-          />
-          <button
-            type="button"
-            onClick={handleBrowse}
-            className="px-4 py-2 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-600"
-          >
-            Browse
-          </button>
-        </div>
+        {currentProject.localPath ? (
+          <div className="px-3 py-2 bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded text-sm text-gray-700 dark:text-gray-300 font-mono">
+            {formData.localPath}
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={formData.localPath}
+              onChange={(e) =>
+                setFormData({ ...formData, localPath: e.target.value })
+              }
+              className="flex-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
+              placeholder="/Users/you/projects/my-project"
+            />
+            <button
+              type="button"
+              onClick={handleBrowse}
+              className="px-4 py-2 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-600"
+            >
+              Browse
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Git URL (read-only, auto-detected) */}
