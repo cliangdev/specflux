@@ -12,6 +12,8 @@ import {
   type TemplateStatus,
   type SyncResult,
 } from "../../templates";
+import { useProjectHealth } from "../../hooks/useProjectHealth";
+import { ProjectHealthPanel } from "./ProjectHealthPanel";
 
 export function GeneralSettings() {
   const navigate = useNavigate();
@@ -39,6 +41,14 @@ export function GeneralSettings() {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
   const [showTemplates, setShowTemplates] = useState(false);
+
+  // Project health check
+  const {
+    status: healthStatus,
+    items: healthItems,
+    loading: healthLoading,
+    refresh: refreshHealth,
+  } = useProjectHealth(currentProject);
 
   // Load template statuses when local path is set
   const loadTemplateStatus = useCallback(async (path: string) => {
@@ -327,6 +337,13 @@ export function GeneralSettings() {
     return <div className="text-gray-500 dark:text-gray-400">Loading...</div>;
   }
 
+  // Handler for navigating to change local path
+  const handleChangeLocalPath = () => {
+    // Scroll to local path section or focus the browse button
+    const localPathSection = document.getElementById("local-path-section");
+    localPathSection?.scrollIntoView({ behavior: "smooth" });
+  };
+
   return (
     <div className="space-y-6">
       {/* Project Name */}
@@ -344,7 +361,7 @@ export function GeneralSettings() {
       </div>
 
       {/* Local Path (editable with browse button) */}
-      <div>
+      <div id="local-path-section">
         <label className="flex items-center gap-2 text-sm font-medium mb-2 text-gray-900 dark:text-white">
           Local Path
           <span className="group relative inline-flex">
@@ -564,6 +581,15 @@ export function GeneralSettings() {
           {saving ? "Saving..." : "Save Changes"}
         </button>
       </div>
+
+      {/* Setup Checklist - helpful info, not alarming */}
+      <ProjectHealthPanel
+        status={healthStatus}
+        items={healthItems}
+        onRefresh={refreshHealth}
+        onChangeLocalPath={handleChangeLocalPath}
+        loading={healthLoading}
+      />
 
       {/* Danger Zone */}
       <div className="mt-12 pt-8 border-t border-red-200 dark:border-red-900/50">

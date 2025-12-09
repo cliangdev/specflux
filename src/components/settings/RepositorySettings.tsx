@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useProject } from "../../contexts/ProjectContext";
 import { api } from "../../api";
 import type { Repository } from "../../api/generated/models/Repository";
 import { open } from "@tauri-apps/plugin-dialog";
+import { useProjectHealth } from "../../hooks/useProjectHealth";
+import { CloneRepositoryModal } from "./CloneRepositoryModal";
 
 interface RepositoryFormData {
   name: string;
@@ -17,6 +19,7 @@ interface ValidationState {
 }
 
 type ModalMode = "add" | "edit" | null;
+type AddMode = "browse" | "clone" | null;
 
 export function RepositorySettings() {
   const { currentProject } = useProject();
@@ -24,6 +27,7 @@ export function RepositorySettings() {
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [modalMode, setModalMode] = useState<ModalMode>(null);
+  const [addMode, setAddMode] = useState<AddMode>(null);
   const [editingRepo, setEditingRepo] = useState<Repository | null>(null);
   const [deletingRepo, setDeletingRepo] = useState<Repository | null>(null);
   const [formData, setFormData] = useState<RepositoryFormData>({
@@ -37,14 +41,12 @@ export function RepositorySettings() {
     isGitRepo: true,
   });
 
-  // Load repositories
-  useEffect(() => {
-    if (currentProject) {
-      loadRepositories();
-    }
-  }, [currentProject]);
+  // Project health check - only need status for clone button
+  const { status: healthStatus } = useProjectHealth(currentProject);
 
-  const loadRepositories = async () => {
+  const canClone = healthStatus !== "error" && currentProject?.localPath;
+
+  const loadRepositories = useCallback(async () => {
     if (!currentProject?.id) return;
 
     setLoading(true);
@@ -62,7 +64,13 @@ export function RepositorySettings() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentProject?.id]);
+
+  useEffect(() => {
+    if (currentProject) {
+      loadRepositories();
+    }
+  }, [currentProject, loadRepositories]);
 
   const handleAddClick = () => {
     setFormData({
@@ -172,18 +180,14 @@ export function RepositorySettings() {
   };
 
   const handleBrowse = async () => {
-    console.log("Browse button clicked");
     try {
-      console.log("Opening directory picker...");
       const selected = await open({
         directory: true,
         multiple: false,
         title: "Select Repository Directory",
       });
 
-      console.log("Selected:", selected);
       if (selected && typeof selected === "string") {
-        console.log("Setting path to:", selected);
 
         // Extract directory name as default repo name
         const pathParts = selected.split("/");
@@ -249,6 +253,27 @@ export function RepositorySettings() {
     return <div className="text-gray-500 dark:text-gray-400">Loading...</div>;
   }
 
+  // Handle cloned repository
+  const handleCloned = async (repoName: string, repoPath: string) => {
+    if (!currentProject?.id) return;
+
+    try {
+      // Register the cloned repository in the backend
+      await api.repositories.createRepository({
+        projectRef: currentProject.id,
+        createRepositoryRequest: {
+          name: repoName,
+          path: repoPath,
+        },
+      });
+
+      await loadRepositories();
+    } catch (err) {
+      setError("Failed to register cloned repository");
+      console.error(err);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -256,12 +281,26 @@ export function RepositorySettings() {
         <h2 className="text-base font-semibold text-gray-900 dark:text-white">
           Code Repositories
         </h2>
-        <button
-          onClick={handleAddClick}
-          className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
-        >
-          Add Repository
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleAddClick}
+            className="bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-600"
+          >
+            Browse Local
+          </button>
+          <button
+            onClick={() => setAddMode("clone")}
+            disabled={!canClone}
+            title={
+              !canClone
+                ? "Complete project setup first (set local path and install git)"
+                : "Clone a repository from GitHub"
+            }
+            className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
+          >
+            Clone from GitHub
+          </button>
+        </div>
       </div>
 
       {/* Error message */}
@@ -498,6 +537,15 @@ export function RepositorySettings() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Clone Repository Modal */}
+      {addMode === "clone" && currentProject?.localPath && (
+        <CloneRepositoryModal
+          localPath={currentProject.localPath}
+          onClose={() => setAddMode(null)}
+          onCloned={handleCloned}
+        />
       )}
     </div>
   );
