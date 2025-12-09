@@ -216,6 +216,58 @@ export function GeneralSettings() {
         return;
       }
 
+      // Delete all related entities before deleting the project
+      // Order matters: tasks -> epics -> prds -> releases -> repos -> agents -> skills -> mcp servers
+
+      // 1. Delete all tasks
+      const tasksResponse = await api.tasks.listTasks({ projectRef, limit: 1000 });
+      for (const task of tasksResponse.data ?? []) {
+        await api.tasks.deleteTask({ projectRef, taskRef: task.id });
+      }
+
+      // 2. Delete all epics
+      const epicsResponse = await api.epics.listEpics({ projectRef, limit: 1000 });
+      for (const epic of epicsResponse.data ?? []) {
+        await api.epics.deleteEpic({ projectRef, epicRef: epic.id });
+      }
+
+      // 3. Delete all PRDs
+      const prdsResponse = await api.prds.listPrds({ projectRef, limit: 1000 });
+      for (const prd of prdsResponse.data ?? []) {
+        await api.prds.deletePrd({ projectRef, prdRef: prd.id });
+      }
+
+      // 4. Delete all releases
+      const releasesResponse = await api.releases.listReleases({ projectRef, limit: 1000 });
+      for (const release of releasesResponse.data ?? []) {
+        await api.releases.deleteRelease({ projectRef, releaseRef: release.id });
+      }
+
+      // 5. Delete all repositories
+      const reposResponse = await api.repositories.listRepositories({ projectRef });
+      for (const repo of reposResponse.data ?? []) {
+        await api.repositories.deleteRepository({ projectRef, repoRef: repo.id });
+      }
+
+      // 6. Delete all agents
+      const agentsResponse = await api.agents.listAgents({ projectRef });
+      for (const agent of agentsResponse.data ?? []) {
+        await api.agents.deleteAgent({ projectRef, agentRef: agent.id });
+      }
+
+      // 7. Delete all skills
+      const skillsResponse = await api.skills.listSkills({ projectRef });
+      for (const skill of skillsResponse.data ?? []) {
+        await api.skills.deleteSkill({ projectRef, skillRef: skill.id });
+      }
+
+      // 8. Delete all MCP servers
+      const mcpResponse = await api.mcpServers.listMcpServers({ projectRef });
+      for (const server of mcpResponse.data ?? []) {
+        await api.mcpServers.deleteMcpServer({ projectRef, serverRef: server.id });
+      }
+
+      // 9. Finally delete the project
       await api.projects.deleteProject({ ref: projectRef });
 
       // Close modal and navigate away
