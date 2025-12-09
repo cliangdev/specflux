@@ -7,7 +7,23 @@
     "core:default",
     "opener:default",
     "dialog:default",
-    "shell:allow-execute",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        { "name": "git", "cmd": "git", "args": true },
+        { "name": "claude", "cmd": "claude", "args": true }
+      ]
+    },
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        { "name": "git", "cmd": "git", "args": true },
+        { "name": "claude", "cmd": "claude", "args": true }
+      ]
+    },
+    "shell:allow-stdin-write",
+    "shell:allow-kill",
+    "shell:allow-open",
     {
       "identifier": "fs:scope",
       "allow": [
