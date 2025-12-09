@@ -472,14 +472,50 @@ export function GeneralSettings() {
         </label>
         {formData.localPath ? (
           gitInitialized ? (
-            // Git is initialized - show remote or "no remote" message
-            <div className="px-3 py-2 bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded text-sm text-gray-600 dark:text-gray-400 min-h-[38px] flex items-center break-all font-mono">
-              {formData.gitRemote || (
-                <span className="text-gray-400 dark:text-gray-500 font-sans">
-                  No remote configured
-                </span>
-              )}
-            </div>
+            // Git is initialized - show remote or next steps
+            formData.gitRemote ? (
+              <div className="px-3 py-2 bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded text-sm text-gray-600 dark:text-gray-400 min-h-[38px] flex items-center break-all font-mono">
+                {formData.gitRemote}
+              </div>
+            ) : (
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <svg
+                    className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                      No remote configured
+                    </p>
+                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                      To back up your PRDs and specs to GitHub:
+                    </p>
+                    <ol className="text-xs text-blue-700 dark:text-blue-300 mt-2 space-y-1 list-decimal list-inside">
+                      <li>Create a new repository on GitHub</li>
+                      <li>
+                        Run in terminal:{" "}
+                        <code className="bg-blue-100 dark:bg-blue-900/50 px-1 py-0.5 rounded font-mono text-[11px]">
+                          cd "{formData.localPath}" && git remote add origin git@github.com:you/your-repo.git
+                        </code>
+                      </li>
+                    </ol>
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-2 italic">
+                      Refresh this page after adding the remote.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )
           ) : (
             // Local path set but no git - show init prompt
             <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
