@@ -11,9 +11,8 @@ import { useProject } from "../contexts";
 import { TaskOverviewTab, TaskContextTab } from "../components/tasks";
 import TaskDetailHeader from "../components/tasks/TaskDetailHeader";
 import { TabNavigation } from "../components/ui";
-import { useTerminal, type TerminalSession } from "../contexts/TerminalContext";
+import { useTerminal } from "../contexts/TerminalContext";
 import { usePageContext } from "../hooks/usePageContext";
-import DuplicateSessionDialog from "../components/terminal/DuplicateSessionDialog";
 
 // Tab definitions
 const TABS = [
@@ -81,7 +80,6 @@ export default function TaskDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [dependencies, setDependencies] = useState<TaskDependency[]>([]);
   const [deleting, setDeleting] = useState(false);
-  const [duplicateSession, setDuplicateSession] = useState<TerminalSession | null>(null);
 
   // Set page context for terminal suggested commands - use displayKey for terminal header
   usePageContext(
@@ -92,6 +90,15 @@ export default function TaskDetailPage() {
 
   // Check if terminal is showing this task
   const isTerminalShowingThisTask = activeSession?.contextId === taskId;
+
+  // Check if a session exists for this task (for button text)
+  const hasExistingSession = task
+    ? !!getExistingSession({
+        type: "task" as const,
+        id: task.id,
+        title: task.title,
+      })
+    : false;
 
   const fetchTask = useCallback(async () => {
     if (!taskId) return;
@@ -291,10 +298,10 @@ export default function TaskDetailPage() {
         initialCommand: "claude",
       };
 
-      // Check if session already exists
+      // Check if session already exists - switch to it directly
       const existing = getExistingSession(context);
       if (existing) {
-        setDuplicateSession(existing);
+        switchToSession(existing.id);
       } else {
         openTerminalForContext(context);
       }
@@ -467,7 +474,7 @@ export default function TaskDetailPage() {
                     d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                   />
                 </svg>
-                Open in Terminal
+                {hasExistingSession ? "Continue Work" : "Start Work"}
               </button>
               {isTerminalShowingThisTask && terminalIsRunning && (
                 <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400">
@@ -572,17 +579,6 @@ export default function TaskDetailPage() {
         </div>
       </div>
 
-      {/* Duplicate Session Warning Dialog */}
-      {duplicateSession && (
-        <DuplicateSessionDialog
-          existingSession={duplicateSession}
-          onOpenExisting={() => {
-            switchToSession(duplicateSession.id);
-            setDuplicateSession(null);
-          }}
-          onCancel={() => setDuplicateSession(null)}
-        />
-      )}
     </div>
   );
 }
