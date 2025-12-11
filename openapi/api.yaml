@@ -432,6 +432,11 @@ paths:
           description: Filter by PRD (public ID or display key)
           schema:
             type: string
+        - name: releaseRef
+          in: query
+          description: Filter by Release (public ID or display key)
+          schema:
+            type: string
       responses:
         '200':
           description: List of epics

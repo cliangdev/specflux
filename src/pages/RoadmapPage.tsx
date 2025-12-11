@@ -160,6 +160,8 @@ function RoadmapSkeleton() {
 
 interface ReleaseHeaderProps {
   release: Release;
+  epicCount?: number;
+  completedEpicCount?: number;
   onUpdate: () => void;
 }
 
@@ -170,9 +172,14 @@ const RELEASE_STATUSES = [
   { value: "CANCELLED" as ReleaseStatus, label: "Cancelled" },
 ] as const;
 
-function ReleaseHeader({ release, onUpdate }: ReleaseHeaderProps) {
+function ReleaseHeader({
+  release,
+  epicCount = 0,
+  completedEpicCount = 0,
+  onUpdate,
+}: ReleaseHeaderProps) {
   const statusBadge = getReleaseStatusBadge(release.status);
-  const progress = 0; // progressPercentage not available in v2 API yet
+  const progress = epicCount > 0 ? Math.round((completedEpicCount / epicCount) * 100) : 0;
 
   // Editing state
   const [editingName, setEditingName] = useState(false);
@@ -505,10 +512,12 @@ function ReleaseHeader({ release, onUpdate }: ReleaseHeaderProps) {
         </div>
       </div>
 
-      {/* Progress bar - Note: epic counts not available in v2 API yet */}
+      {/* Progress bar */}
       <div className="space-y-2">
         <div className="flex justify-between text-sm">
-          <span className="text-system-600 dark:text-system-400">0 epics</span>
+          <span className="text-system-600 dark:text-system-400">
+            {epicCount} {epicCount === 1 ? "epic" : "epics"}
+          </span>
           <span className="font-medium text-system-900 dark:text-white">
             {progress}% complete
           </span>
@@ -621,37 +630,96 @@ export default function RoadmapPage() {
     }
   }, [currentProject, selectedReleaseId, getProjectRef]);
 
+  // Helper to compute phases from epics
+  const computePhases = useCallback((epics: Epic[]) => {
+    // Group epics by phase
+    const phaseMap = new Map<number, Epic[]>();
+    for (const epic of epics) {
+      const phase = epic.phase ?? 1;
+      if (!phaseMap.has(phase)) {
+        phaseMap.set(phase, []);
+      }
+      phaseMap.get(phase)!.push(epic);
+    }
+
+    // Convert to phases array
+    return Array.from(phaseMap.entries()).map(([phaseNumber, phaseEpics]) => {
+      const completedCount = phaseEpics.filter(
+        (e) => e.status === "COMPLETED",
+      ).length;
+      const inProgressCount = phaseEpics.filter(
+        (e) => e.status === "IN_PROGRESS",
+      ).length;
+      const blockedCount = phaseEpics.filter(
+        (e) => e.status === "BLOCKED",
+      ).length;
+
+      let status: string;
+      if (completedCount === phaseEpics.length) {
+        status = "completed";
+      } else if (blockedCount > 0) {
+        status = "blocked";
+      } else if (inProgressCount > 0) {
+        status = "in_progress";
+      } else {
+        status = "ready";
+      }
+
+      return {
+        phaseNumber,
+        status,
+        epicIds: phaseEpics.map((e) => e.id),
+        completedCount,
+        totalCount: phaseEpics.length,
+      };
+    });
+  }, []);
+
   // Fetch roadmap data for selected release(s)
   const fetchRoadmap = useCallback(async () => {
-    if (selectedReleaseId === null) {
+    if (selectedReleaseId === null || !currentProject) {
       setRoadmapData(null);
       setAllRoadmapData([]);
       return;
     }
 
+    const projectRef = getProjectRef();
+    if (!projectRef) return;
+
     try {
       setError(null);
 
-      // v2 API may not have getReleaseRoadmap yet
-      // For now, show a simplified view with just releases and their epics
-      console.log("[RoadmapPage] v2 roadmap API not fully implemented yet");
-      // Create empty roadmap data based on releases
       if (selectedReleaseId === "all") {
-        const allData: ReleaseWithEpics[] = releases.map((release) => ({
-          release,
-          epics: [],
-          phases: [],
-        }));
+        // Fetch epics for all releases in parallel
+        const allData: ReleaseWithEpics[] = await Promise.all(
+          releases.map(async (release) => {
+            try {
+              const response = await api.epics.listEpics({
+                projectRef,
+                releaseRef: release.id,
+                limit: 100,
+              });
+              const epics = response.data ?? [];
+              const phases = computePhases(epics);
+              return { release, epics, phases };
+            } catch {
+              return { release, epics: [], phases: [] };
+            }
+          }),
+        );
         setAllRoadmapData(allData);
         setRoadmapData(null);
       } else {
         const release = releases.find((r) => r.id === selectedReleaseId);
         if (release) {
-          setRoadmapData({
-            release,
-            epics: [],
-            phases: [],
+          const response = await api.epics.listEpics({
+            projectRef,
+            releaseRef: release.id,
+            limit: 100,
           });
+          const epics = response.data ?? [];
+          const phases = computePhases(epics);
+          setRoadmapData({ release, epics, phases });
         }
         setAllRoadmapData([]);
       }
@@ -661,7 +729,7 @@ export default function RoadmapPage() {
       setError(message);
       console.error("Failed to fetch roadmap:", err);
     }
-  }, [selectedReleaseId, releases]);
+  }, [selectedReleaseId, releases, currentProject, getProjectRef, computePhases]);
 
   useEffect(() => {
     fetchReleases();
@@ -969,7 +1037,12 @@ export default function RoadmapPage() {
           <div className="space-y-8">
             {filteredAllRoadmapData.map((rd) => (
               <div key={rd.release.id}>
-                <ReleaseHeader release={rd.release} onUpdate={handleRefresh} />
+                <ReleaseHeader
+                  release={rd.release}
+                  epicCount={rd.epics.length}
+                  completedEpicCount={rd.epics.filter((e) => e.status === "COMPLETED").length}
+                  onUpdate={handleRefresh}
+                />
                 {rd.phases.length === 0 && !hasActiveFilters ? (
                   <div className="text-center py-8 card mt-4">
                     <p className="text-system-500 dark:text-system-400">
@@ -1035,6 +1108,8 @@ export default function RoadmapPage() {
         <>
           <ReleaseHeader
             release={roadmapData.release}
+            epicCount={roadmapData.epics.length}
+            completedEpicCount={roadmapData.epics.filter((e) => e.status === "COMPLETED").length}
             onUpdate={handleRefresh}
           />
 
