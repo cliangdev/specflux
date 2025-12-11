@@ -291,8 +291,8 @@ describe("promptGenerator", () => {
         projectKey: "TEST",
         localPath: "/path/to/project",
         ownerId: "user_1",
-        createdAt: "2024-01-01T00:00:00Z",
-        updatedAt: "2024-01-01T00:00:00Z",
+        createdAt: new Date("2024-01-01T00:00:00Z"),
+        updatedAt: new Date("2024-01-01T00:00:00Z"),
       };
 
       const result = projectToConfig(project);
@@ -303,20 +303,20 @@ describe("promptGenerator", () => {
       expect(result.techStack).toBeDefined();
     });
 
-    it("handles null projectKey", () => {
+    it("handles undefined localPath", () => {
       const project = {
         id: "proj_123",
         name: "Test Project",
-        projectKey: null,
-        localPath: null,
+        projectKey: "TEST",
+        // localPath is optional, so we omit it
         ownerId: "user_1",
-        createdAt: "2024-01-01T00:00:00Z",
-        updatedAt: "2024-01-01T00:00:00Z",
+        createdAt: new Date("2024-01-01T00:00:00Z"),
+        updatedAt: new Date("2024-01-01T00:00:00Z"),
       };
 
       const result = projectToConfig(project);
 
-      expect(result.key).toBeUndefined();
+      expect(result.key).toBe("TEST");
       expect(result.localPath).toBeUndefined();
     });
   });

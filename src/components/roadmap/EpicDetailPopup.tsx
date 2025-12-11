@@ -19,16 +19,28 @@ export default function EpicDetailPopup({
   onClose,
   onNavigate,
 }: EpicDetailPopupProps) {
+  // Extended Epic type that includes publicId from v2 conversion
+  type EpicWithPublicId = Epic & { publicId?: string };
+
+  // Helper to get the epic's unique identifier (publicId for v2, id for v1)
+  const getEpicIdentifier = (e: Epic): string => {
+    const epicWithPublicId = e as EpicWithPublicId;
+    return epicWithPublicId.publicId ?? e.id;
+  };
+
   // Find epics that this epic depends on (Needs)
   const epicDeps = Array.isArray(epic.dependsOn) ? epic.dependsOn : [];
   const needsEpics = epicDeps
-    .map((id) => allEpics.find((e) => e.id === id))
+    .map((depId) =>
+      allEpics.find((e) => getEpicIdentifier(e) === String(depId)),
+    )
     .filter((e): e is Epic => e !== undefined);
 
   // Find epics that depend on this epic (Blocks)
+  const currentEpicId = getEpicIdentifier(epic);
   const blocksEpics = allEpics.filter((e) => {
     const deps = Array.isArray(e.dependsOn) ? e.dependsOn : [];
-    return deps.includes(epic.id);
+    return deps.some((depId) => String(depId) === currentEpicId);
   });
 
   const taskStats = epic.taskStats ?? { total: 0, done: 0, inProgress: 0 };
@@ -82,7 +94,7 @@ export default function EpicDetailPopup({
                 {epic.title}
               </h3>
               <span className="text-xs text-system-500 dark:text-system-400">
-                #{epic.id}
+                {epic.displayKey}
               </span>
             </div>
             <span
@@ -130,7 +142,7 @@ export default function EpicDetailPopup({
                     className="text-xs text-system-700 dark:text-system-300 truncate"
                   >
                     <span className="text-system-500 dark:text-system-400">
-                      #{dep.id}
+                      {dep.displayKey}
                     </span>{" "}
                     {dep.title}
                   </div>
@@ -152,7 +164,7 @@ export default function EpicDetailPopup({
                     className="text-xs text-system-700 dark:text-system-300 truncate"
                   >
                     <span className="text-system-500 dark:text-system-400">
-                      #{blocker.id}
+                      {blocker.displayKey}
                     </span>{" "}
                     {blocker.title}
                   </div>
