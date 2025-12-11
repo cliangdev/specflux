@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { join } from "@tauri-apps/api/path";
-import MarkdownRenderer from "../components/ui/MarkdownRenderer";
+import DocumentViewer from "../components/ui/DocumentViewer";
 import { useProject } from "../contexts/ProjectContext";
 import { usePageContext } from "../hooks/usePageContext";
 import {
@@ -11,7 +11,9 @@ import {
   type PrdDocument,
   PrdStatus,
   PrdDocumentType,
+  type AddPrdDocumentRequest,
 } from "../api";
+import { ImportDocumentModal } from "../components/prds/ImportDocumentModal";
 
 function getStatusBadgeClasses(status: PrdStatus): string {
   switch (status) {
@@ -174,6 +176,7 @@ export default function PRDDetailPage() {
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [metadataCollapsed, setMetadataCollapsed] = useState(false);
+  const [showAddDocModal, setShowAddDocModal] = useState(false);
   const statusMenuRef = useRef<HTMLDivElement>(null);
   const actionsMenuRef = useRef<HTMLDivElement>(null);
 
@@ -297,6 +300,39 @@ export default function PRDDetailPage() {
       navigate("/prds");
     } catch (err) {
       console.error("Failed to delete PRD:", err);
+    }
+  };
+
+  const handleAddDocument = async (data: {
+    fileName: string;
+    filePath: string;
+    documentType: PrdDocumentType;
+  }) => {
+    const projectRef = getProjectRef();
+    if (!projectRef || !prd) return;
+
+    const request: AddPrdDocumentRequest = {
+      fileName: data.fileName,
+      filePath: data.filePath,
+      documentType: data.documentType,
+    };
+
+    const updated = await api.prds.addPrdDocument({
+      projectRef,
+      prdRef: prd.id,
+      addPrdDocumentRequest: request,
+    });
+
+    setPrd(updated);
+
+    // Select the newly added document
+    if (updated.documents && updated.documents.length > 0) {
+      const newDoc = updated.documents.find(
+        (d) => d.filePath === data.filePath
+      );
+      if (newDoc) {
+        setSelectedDoc(newDoc);
+      }
     }
   };
 
@@ -464,7 +500,7 @@ export default function PRDDetailPage() {
                   <button
                     onClick={() => {
                       setShowActionsMenu(false);
-                      // TODO: Implement add document
+                      setShowAddDocModal(true);
                     }}
                     className="w-full text-left px-3 py-2 text-sm text-system-700 dark:text-system-300 hover:bg-system-100 dark:hover:bg-system-700 flex items-center gap-2"
                   >
@@ -478,10 +514,10 @@ export default function PRDDetailPage() {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         strokeWidth={2}
-                        d="M12 4v16m8-8H4"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
                       />
                     </svg>
-                    Add Document
+                    Import Document
                   </button>
                   <hr className="my-1 border-system-200 dark:border-system-700" />
                   <button
@@ -577,9 +613,17 @@ export default function PRDDetailPage() {
         {/* Document Sidebar */}
         <div className="w-64 flex-shrink-0 border-r border-system-200 dark:border-system-700 bg-system-50 dark:bg-system-900 overflow-auto">
           <div className="p-4">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-system-400 dark:text-system-500 mb-3">
-              Documents
-            </h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-system-400 dark:text-system-500">
+                Documents
+              </h2>
+              <button
+                onClick={() => setShowAddDocModal(true)}
+                className="text-xs text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 font-medium"
+              >
+                + Import
+              </button>
+            </div>
             {!prd.documents || prd.documents.length === 0 ? (
               <p className="text-sm text-system-500 dark:text-system-400">
                 No documents
@@ -670,12 +714,24 @@ export default function PRDDetailPage() {
               </div>
             </div>
           ) : (
-            <div className="p-8">
-              <MarkdownRenderer source={content} />
+            <div className="p-8 h-full">
+              <DocumentViewer
+                content={content}
+                fileName={selectedDoc.fileName}
+              />
             </div>
           )}
         </div>
       </div>
+
+      {/* Import Document Modal */}
+      <ImportDocumentModal
+        isOpen={showAddDocModal}
+        onClose={() => setShowAddDocModal(false)}
+        onImport={handleAddDocument}
+        prdFolderPath={prd.folderPath}
+        projectPath={currentProject.localPath}
+      />
     </div>
   );
 }
