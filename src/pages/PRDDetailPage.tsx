@@ -21,6 +21,8 @@ function getStatusBadgeClasses(status: PrdStatus): string {
       return "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400";
     case PrdStatus.Approved:
       return "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400";
+    case PrdStatus.Implemented:
+      return "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400";
     case PrdStatus.Archived:
       return "bg-system-200 dark:bg-system-600 text-system-500 dark:text-system-400";
     default:
@@ -36,6 +38,8 @@ function formatStatusLabel(status: PrdStatus): string {
       return "In Review";
     case PrdStatus.Approved:
       return "Approved";
+    case PrdStatus.Implemented:
+      return "Implemented";
     case PrdStatus.Archived:
       return "Archived";
     default:

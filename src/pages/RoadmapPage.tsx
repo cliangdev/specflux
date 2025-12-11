@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useProject } from "../contexts";
+import { useTerminal } from "../contexts/TerminalContext";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import type { Release, ReleaseStatus } from "../api/generated/models";
@@ -160,7 +161,12 @@ function RoadmapSkeleton() {
 
 interface ReleaseHeaderProps {
   release: Release;
+  epicCount?: number;
+  completedEpicCount?: number;
   onUpdate: () => void;
+  onOpenInTerminal?: () => void;
+  hasExistingSession?: boolean;
+  isTerminalActive?: boolean;
 }
 
 const RELEASE_STATUSES = [
@@ -170,9 +176,17 @@ const RELEASE_STATUSES = [
   { value: "CANCELLED" as ReleaseStatus, label: "Cancelled" },
 ] as const;
 
-function ReleaseHeader({ release, onUpdate }: ReleaseHeaderProps) {
+function ReleaseHeader({
+  release,
+  epicCount = 0,
+  completedEpicCount = 0,
+  onUpdate,
+  onOpenInTerminal,
+  hasExistingSession,
+  isTerminalActive,
+}: ReleaseHeaderProps) {
   const statusBadge = getReleaseStatusBadge(release.status);
-  const progress = 0; // progressPercentage not available in v2 API yet
+  const progress = epicCount > 0 ? Math.round((completedEpicCount / epicCount) * 100) : 0;
 
   // Editing state
   const [editingName, setEditingName] = useState(false);
@@ -505,20 +519,54 @@ function ReleaseHeader({ release, onUpdate }: ReleaseHeaderProps) {
         </div>
       </div>
 
-      {/* Progress bar - Note: epic counts not available in v2 API yet */}
-      <div className="space-y-2">
-        <div className="flex justify-between text-sm">
-          <span className="text-system-600 dark:text-system-400">0 epics</span>
-          <span className="font-medium text-system-900 dark:text-white">
-            {progress}% complete
-          </span>
+      {/* Progress bar and Terminal button row */}
+      <div className="flex items-end gap-4">
+        <div className="flex-1 space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-system-600 dark:text-system-400">
+              {epicCount} {epicCount === 1 ? "epic" : "epics"}
+            </span>
+            <span className="font-medium text-system-900 dark:text-white">
+              {progress}% complete
+            </span>
+          </div>
+          <div className="h-2 bg-system-200 dark:bg-system-700 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-brand-500 rounded-full transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
         </div>
-        <div className="h-2 bg-system-200 dark:bg-system-700 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-brand-500 rounded-full transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
+
+        {/* Terminal button */}
+        {onOpenInTerminal && (
+          <div className="flex-shrink-0">
+            <button
+              onClick={onOpenInTerminal}
+              className="btn btn-secondary text-sm flex items-center gap-2"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+              {hasExistingSession ? "Continue Work" : "Start Work"}
+            </button>
+            {isTerminalActive && (
+              <p className="mt-1 text-xs text-emerald-600 dark:text-emerald-400 text-right">
+                Terminal active
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -526,6 +574,13 @@ function ReleaseHeader({ release, onUpdate }: ReleaseHeaderProps) {
 
 export default function RoadmapPage() {
   const { currentProject, getProjectRef } = useProject();
+  const {
+    openTerminalForContext,
+    getExistingSession,
+    switchToSession,
+    activeSession,
+    isRunning: terminalIsRunning,
+  } = useTerminal();
   const [searchParams, setSearchParams] = useSearchParams();
   const [releases, setReleases] = useState<Release[]>([]);
 
@@ -621,37 +676,96 @@ export default function RoadmapPage() {
     }
   }, [currentProject, selectedReleaseId, getProjectRef]);
 
+  // Helper to compute phases from epics
+  const computePhases = useCallback((epics: Epic[]) => {
+    // Group epics by phase
+    const phaseMap = new Map<number, Epic[]>();
+    for (const epic of epics) {
+      const phase = epic.phase ?? 1;
+      if (!phaseMap.has(phase)) {
+        phaseMap.set(phase, []);
+      }
+      phaseMap.get(phase)!.push(epic);
+    }
+
+    // Convert to phases array
+    return Array.from(phaseMap.entries()).map(([phaseNumber, phaseEpics]) => {
+      const completedCount = phaseEpics.filter(
+        (e) => e.status === "COMPLETED",
+      ).length;
+      const inProgressCount = phaseEpics.filter(
+        (e) => e.status === "IN_PROGRESS",
+      ).length;
+      const blockedCount = phaseEpics.filter(
+        (e) => e.status === "BLOCKED",
+      ).length;
+
+      let status: string;
+      if (completedCount === phaseEpics.length) {
+        status = "completed";
+      } else if (blockedCount > 0) {
+        status = "blocked";
+      } else if (inProgressCount > 0) {
+        status = "in_progress";
+      } else {
+        status = "ready";
+      }
+
+      return {
+        phaseNumber,
+        status,
+        epicIds: phaseEpics.map((e) => e.id),
+        completedCount,
+        totalCount: phaseEpics.length,
+      };
+    });
+  }, []);
+
   // Fetch roadmap data for selected release(s)
   const fetchRoadmap = useCallback(async () => {
-    if (selectedReleaseId === null) {
+    if (selectedReleaseId === null || !currentProject) {
       setRoadmapData(null);
       setAllRoadmapData([]);
       return;
     }
 
+    const projectRef = getProjectRef();
+    if (!projectRef) return;
+
     try {
       setError(null);
 
-      // v2 API may not have getReleaseRoadmap yet
-      // For now, show a simplified view with just releases and their epics
-      console.log("[RoadmapPage] v2 roadmap API not fully implemented yet");
-      // Create empty roadmap data based on releases
       if (selectedReleaseId === "all") {
-        const allData: ReleaseWithEpics[] = releases.map((release) => ({
-          release,
-          epics: [],
-          phases: [],
-        }));
+        // Fetch epics for all releases in parallel
+        const allData: ReleaseWithEpics[] = await Promise.all(
+          releases.map(async (release) => {
+            try {
+              const response = await api.epics.listEpics({
+                projectRef,
+                releaseRef: release.id,
+                limit: 100,
+              });
+              const epics = response.data ?? [];
+              const phases = computePhases(epics);
+              return { release, epics, phases };
+            } catch {
+              return { release, epics: [], phases: [] };
+            }
+          }),
+        );
         setAllRoadmapData(allData);
         setRoadmapData(null);
       } else {
         const release = releases.find((r) => r.id === selectedReleaseId);
         if (release) {
-          setRoadmapData({
-            release,
-            epics: [],
-            phases: [],
+          const response = await api.epics.listEpics({
+            projectRef,
+            releaseRef: release.id,
+            limit: 100,
           });
+          const epics = response.data ?? [];
+          const phases = computePhases(epics);
+          setRoadmapData({ release, epics, phases });
         }
         setAllRoadmapData([]);
       }
@@ -661,7 +775,7 @@ export default function RoadmapPage() {
       setError(message);
       console.error("Failed to fetch roadmap:", err);
     }
-  }, [selectedReleaseId, releases]);
+  }, [selectedReleaseId, releases, currentProject, getProjectRef, computePhases]);
 
   useEffect(() => {
     fetchReleases();
@@ -677,6 +791,48 @@ export default function RoadmapPage() {
     fetchReleases();
     fetchRoadmap();
   };
+
+  // Handle opening terminal for a release
+  const handleOpenReleaseInTerminal = useCallback(
+    (release: Release) => {
+      const context = {
+        type: "release" as const,
+        id: release.id,
+        title: release.name,
+        displayKey: release.displayKey,
+        projectRef: getProjectRef() ?? undefined,
+        workingDirectory: currentProject?.localPath,
+        initialCommand: "claude",
+      };
+
+      // Check if session already exists
+      const existing = getExistingSession(context);
+      if (existing) {
+        switchToSession(existing.id);
+      } else {
+        openTerminalForContext(context);
+      }
+    },
+    [getProjectRef, currentProject?.localPath, getExistingSession, switchToSession, openTerminalForContext]
+  );
+
+  // Check if a release has an existing terminal session
+  const getReleaseSessionInfo = useCallback(
+    (release: Release) => {
+      const context = {
+        type: "release" as const,
+        id: release.id,
+        title: release.name,
+      };
+      const existing = getExistingSession(context);
+      const isActive = activeSession?.id === `release-${release.id}`;
+      return {
+        hasExistingSession: !!existing,
+        isTerminalActive: isActive && terminalIsRunning,
+      };
+    },
+    [getExistingSession, activeSession?.id, terminalIsRunning]
+  );
 
   // Helper to filter epics
   const filterEpics = useCallback(
@@ -967,9 +1123,19 @@ export default function RoadmapPage() {
 
           {/* All releases view */}
           <div className="space-y-8">
-            {filteredAllRoadmapData.map((rd) => (
+            {filteredAllRoadmapData.map((rd) => {
+              const sessionInfo = getReleaseSessionInfo(rd.release);
+              return (
               <div key={rd.release.id}>
-                <ReleaseHeader release={rd.release} onUpdate={handleRefresh} />
+                <ReleaseHeader
+                  release={rd.release}
+                  epicCount={rd.epics.length}
+                  completedEpicCount={rd.epics.filter((e) => e.status === "COMPLETED").length}
+                  onUpdate={handleRefresh}
+                  onOpenInTerminal={() => handleOpenReleaseInTerminal(rd.release)}
+                  hasExistingSession={sessionInfo.hasExistingSession}
+                  isTerminalActive={sessionInfo.isTerminalActive}
+                />
                 {rd.phases.length === 0 && !hasActiveFilters ? (
                   <div className="text-center py-8 card mt-4">
                     <p className="text-system-500 dark:text-system-400">
@@ -1026,16 +1192,25 @@ export default function RoadmapPage() {
                     )
                 )}
               </div>
-            ))}
+            );
+            })}
           </div>
 
           {/* Epic Edit Modal - Note: Epic API not fully migrated yet */}
         </>
       ) : roadmapData ? (
+        (() => {
+          const sessionInfo = getReleaseSessionInfo(roadmapData.release);
+          return (
         <>
           <ReleaseHeader
             release={roadmapData.release}
+            epicCount={roadmapData.epics.length}
+            completedEpicCount={roadmapData.epics.filter((e) => e.status === "COMPLETED").length}
             onUpdate={handleRefresh}
+            onOpenInTerminal={() => handleOpenReleaseInTerminal(roadmapData.release)}
+            hasExistingSession={sessionInfo.hasExistingSession}
+            isTerminalActive={sessionInfo.isTerminalActive}
           />
 
           {/* Filter controls */}
@@ -1218,6 +1393,8 @@ export default function RoadmapPage() {
 
           {/* Epic Edit Modal - Note: Epic API not fully migrated yet */}
         </>
+          );
+        })()
       ) : null}
 
       {/* Create Release Modal - Note: Modal may need v2 API updates */}

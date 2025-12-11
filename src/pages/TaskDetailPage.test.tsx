@@ -58,6 +58,7 @@ vi.mock("../contexts/TerminalContext", () => ({
   useTerminal: () => ({
     sessions: [],
     activeSessionId: null,
+    activeSession: null,
     showPanel: false,
     createSession: vi.fn(),
     closeSession: vi.fn(),
@@ -68,6 +69,8 @@ vi.mock("../contexts/TerminalContext", () => ({
     resizePanel: vi.fn(),
     panelSize: 300,
     openTerminalForContext: vi.fn(),
+    getExistingSession: vi.fn(() => null),
+    switchToSession: vi.fn(),
     activeTask: null,
     isRunning: false,
     pageContext: null,

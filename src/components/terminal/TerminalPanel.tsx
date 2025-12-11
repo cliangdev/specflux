@@ -120,10 +120,11 @@ export default function TerminalPanel() {
   const startHeightRef = useRef(0);
 
   // Map page types to session context types
-  const pageTypeToContextType: Record<string, "task" | "epic" | "prd-workshop"> = {
+  const pageTypeToContextType: Record<string, "task" | "epic" | "prd-workshop" | "release"> = {
     "prd-detail": "prd-workshop",
     "task-detail": "task",
     "epic-detail": "epic",
+    "release-detail": "release",
   };
 
   // Helper to find existing session for current page context
@@ -389,6 +390,7 @@ export default function TerminalPanel() {
                   contextType={session.contextType}
                   contextId={session.contextId}
                   contextDisplayKey={session.displayKey}
+                  contextTitle={session.contextTitle}
                   projectRef={session.projectRef}
                   workingDirectory={session.workingDirectory}
                   initialCommand={session.initialCommand}

@@ -432,6 +432,11 @@ paths:
           description: Filter by PRD (public ID or display key)
           schema:
             type: string
+        - name: releaseRef
+          in: query
+          description: Filter by Release (public ID or display key)
+          schema:
+            type: string
       responses:
         '200':
           description: List of epics
@@ -1224,13 +1229,24 @@ paths:
       operationId: getRelease
       summary: Get a release
       tags: [Releases]
+      parameters:
+        - name: include
+          in: query
+          required: false
+          description: |
+            Comma-separated list of nested resources to include:
+            - epics: Include all epics in this release
+            - tasks: Include tasks within each epic (requires epics)
+            Example: include=epics,tasks
+          schema:
+            type: string
       responses:
         '200':
-          description: Release details
+          description: Release details (with optional nested epics/tasks based on include param)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Release'
+                $ref: '#/components/schemas/ReleaseWithEpics'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -2022,7 +2038,7 @@ components:
     # PRD
     PrdStatus:
       type: string
-      enum: [DRAFT, IN_REVIEW, APPROVED, ARCHIVED]
+      enum: [DRAFT, IN_REVIEW, APPROVED, IMPLEMENTED, ARCHIVED]
 
     PrdDocumentType:
       type: string
@@ -2223,6 +2239,10 @@ components:
           type: string
           nullable: true
           description: Path to the epic document
+        notes:
+          type: string
+          nullable: true
+          description: Internal notes about the epic for session handoff
         dependsOn:
           type: array
           items:
@@ -2316,6 +2336,10 @@ components:
           nullable: true
           maxLength: 500
           description: Path to the PRD document (deprecated, use prdRef)
+        notes:
+          type: string
+          nullable: true
+          description: Internal notes about the epic for session handoff
 
     EpicListResponse:
       type: object
@@ -2525,6 +2549,163 @@ components:
             $ref: '#/components/schemas/Release'
         pagination:
           $ref: '#/components/schemas/CursorPagination'
+
+    ReleaseWithEpics:
+      description: Release with optionally nested epics and tasks (based on include parameter)
+      type: object
+      required: [id, displayKey, projectId, name, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          description: Unique identifier (e.g., rel_abc123xyz789)
+        displayKey:
+          type: string
+        projectId:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        targetDate:
+          type: string
+          format: date
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ReleaseStatus'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        epics:
+          type: array
+          nullable: true
+          description: Nested epics (present when include=epics)
+          items:
+            $ref: '#/components/schemas/EpicWithTasks'
+
+    EpicWithTasks:
+      description: Epic with optionally nested tasks (based on include parameter)
+      type: object
+      required: [id, displayKey, projectId, title, status, createdById, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          description: Unique identifier (e.g., epic_xyz789abc123)
+        displayKey:
+          type: string
+        projectId:
+          type: string
+        releaseId:
+          type: string
+          nullable: true
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/EpicStatus'
+        targetDate:
+          type: string
+          format: date
+          nullable: true
+        prdId:
+          type: string
+          nullable: true
+        prdFilePath:
+          type: string
+          nullable: true
+        epicFilePath:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+          description: Internal notes about the epic for session handoff
+        dependsOn:
+          type: array
+          items:
+            type: string
+        phase:
+          type: integer
+          minimum: 1
+        taskStats:
+          $ref: '#/components/schemas/TaskStats'
+        progressPercentage:
+          type: integer
+          minimum: 0
+          maximum: 100
+        createdById:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        tasks:
+          type: array
+          nullable: true
+          description: Nested tasks (present when include=epics,tasks)
+          items:
+            $ref: '#/components/schemas/TaskWithCriteria'
+
+    TaskWithCriteria:
+      description: Task with nested acceptance criteria
+      type: object
+      required: [id, displayKey, projectId, title, status, priority, requiresApproval, createdById, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        displayKey:
+          type: string
+        projectId:
+          type: string
+        epicId:
+          type: string
+          nullable: true
+        epicDisplayKey:
+          type: string
+          nullable: true
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        priority:
+          $ref: '#/components/schemas/TaskPriority'
+        requiresApproval:
+          type: boolean
+        estimatedDuration:
+          type: string
+          nullable: true
+        actualDuration:
+          type: string
+          nullable: true
+        assignedToId:
+          type: string
+          nullable: true
+        githubPrUrl:
+          type: string
+          nullable: true
+        createdById:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        acceptanceCriteria:
+          type: array
+          description: List of acceptance criteria for this task
+          items:
+            $ref: '#/components/schemas/AcceptanceCriteria'
 
     # Task Dependency
     TaskDependency:

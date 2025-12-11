@@ -161,13 +161,17 @@ describe("Terminal", () => {
     );
 
     await vi.waitFor(() => {
-      expect(spawnTerminal).toHaveBeenCalledWith("task-task_42", undefined, {
-        SPECFLUX_PROJECT_REF: "SPEC",
-        SPECFLUX_CONTEXT_TYPE: "task",
-        SPECFLUX_CONTEXT_ID: "task_42",
-        SPECFLUX_CONTEXT_REF: "SPEC-T42",
-        SPECFLUX_CONTEXT_DISPLAY_KEY: "SPEC-T42",
-      });
+      expect(spawnTerminal).toHaveBeenCalledWith(
+        "task-task_42",
+        undefined,
+        expect.objectContaining({
+          SPECFLUX_PROJECT_REF: "SPEC",
+          SPECFLUX_CONTEXT_TYPE: "task",
+          SPECFLUX_CONTEXT_ID: "task_42",
+          SPECFLUX_CONTEXT_REF: "SPEC-T42",
+          SPECFLUX_CONTEXT_DISPLAY_KEY: "SPEC-T42",
+        }),
+      );
     });
   });
 });
