@@ -287,7 +287,7 @@ export function Terminal({
       webglAddon?.dispose();
       term.dispose();
     };
-  }, [contextType, contextId]);
+  }, [sessionId]);
 
   // Connect via Tauri IPC
   useEffect(() => {
