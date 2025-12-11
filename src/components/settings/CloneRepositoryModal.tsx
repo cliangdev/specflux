@@ -7,7 +7,6 @@ import {
   cancelClone,
   getDefaultBranch,
   buildGitHubSshUrl,
-  addRemote,
   type CloneProgress,
 } from "../../services/git";
 
@@ -28,57 +27,41 @@ export function CloneRepositoryModal({
   const [urlError, setUrlError] = useState<string | null>(null);
   const [clonePath, setClonePath] = useState("");
   const [repoName, setRepoName] = useState("");
-  const [originalOwner, setOriginalOwner] = useState("");
   const [state, setState] = useState<CloneState>("input");
   const [progress, setProgress] = useState<CloneProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [defaultBranch, setDefaultBranch] = useState("main");
 
-  // Fork workflow & SSH alias
-  const [githubUsername, setGithubUsername] = useState("");
   const [sshAlias, setSshAlias] = useState("");
   const [originUrl, setOriginUrl] = useState("");
-  const [upstreamUrl, setUpstreamUrl] = useState("");
 
   useEffect(() => {
     const parsed = parseGitHubUrl(gitUrl);
     if (parsed) {
       setRepoName(parsed.repo);
-      setOriginalOwner(parsed.owner);
       setClonePath(getClonePath(localPath, parsed.repo));
       setUrlError(null);
 
-      const username = githubUsername.trim();
       const alias = sshAlias.trim() || (parsed.isSshAlias ? parsed.sshAliasHost : undefined);
 
-      if (username) {
-        setOriginUrl(buildGitHubSshUrl(username, parsed.repo, alias));
-        setUpstreamUrl(buildGitHubSshUrl(parsed.owner, parsed.repo, parsed.isSshAlias ? parsed.sshAliasHost : undefined));
+      if (parsed.isSshAlias && !sshAlias.trim()) {
+        setOriginUrl(parsed.fullUrl);
       } else {
-        if (parsed.isSshAlias && !sshAlias.trim()) {
-          setOriginUrl(parsed.fullUrl);
-        } else {
-          setOriginUrl(buildGitHubSshUrl(parsed.owner, parsed.repo, alias));
-        }
-        setUpstreamUrl("");
+        setOriginUrl(buildGitHubSshUrl(parsed.owner, parsed.repo, alias));
       }
     } else if (gitUrl.trim()) {
       setRepoName("");
-      setOriginalOwner("");
       setClonePath("");
       setOriginUrl("");
-      setUpstreamUrl("");
       const validation = validateGitUrl(gitUrl);
       setUrlError(validation.error || null);
     } else {
       setRepoName("");
-      setOriginalOwner("");
       setClonePath("");
       setOriginUrl("");
-      setUpstreamUrl("");
       setUrlError(null);
     }
-  }, [gitUrl, githubUsername, sshAlias, localPath]);
+  }, [gitUrl, sshAlias, localPath]);
 
   const handleClone = async () => {
     const validation = validateGitUrl(gitUrl);
@@ -96,13 +79,6 @@ export function CloneRepositoryModal({
     });
 
     if (result.success) {
-      if (upstreamUrl) {
-        const remoteResult = await addRemote(clonePath, "upstream", upstreamUrl);
-        if (!remoteResult.success) {
-          console.warn("Failed to add upstream remote:", remoteResult.error);
-        }
-      }
-
       const branch = await getDefaultBranch(clonePath);
       setDefaultBranch(branch);
       setState("success");
@@ -128,11 +104,8 @@ export function CloneRepositoryModal({
     setGitUrl("");
     setClonePath("");
     setRepoName("");
-    setOriginalOwner("");
-    setGithubUsername("");
     setSshAlias("");
     setOriginUrl("");
-    setUpstreamUrl("");
     setState("input");
     setProgress(null);
     setError(null);
@@ -207,31 +180,9 @@ export function CloneRepositoryModal({
                   </p>
                 ) : (
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    The repository you want to work with (can be yours or a teammate's)
+                    Supports HTTPS, SSH, and SSH alias formats
                   </p>
                 )}
-              </div>
-
-              {/* GitHub Username (for fork workflow) */}
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
-                  Your GitHub Username{" "}
-                  <span className="text-xs text-gray-400 font-normal">
-                    (optional, for fork workflow)
-                  </span>
-                </label>
-                <input
-                  type="text"
-                  value={githubUsername}
-                  onChange={(e) => setGithubUsername(e.target.value)}
-                  className="w-full border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm focus:ring-1 outline-none bg-white dark:bg-slate-900 focus:border-brand-500 focus:ring-brand-500"
-                  placeholder="your-github-username"
-                />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  {githubUsername.trim()
-                    ? `Will clone your fork and add ${originalOwner || "original"} as upstream`
-                    : "Leave empty to clone directly from the URL above"}
-                </p>
               </div>
 
               {/* SSH Host Alias (for multi-account users) */}
@@ -239,7 +190,7 @@ export function CloneRepositoryModal({
                 <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
                   SSH Host Alias{" "}
                   <span className="text-xs text-gray-400 font-normal">
-                    (optional, for multi-account)
+                    (optional)
                   </span>
                 </label>
                 <input
@@ -252,29 +203,9 @@ export function CloneRepositoryModal({
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   {sshAlias.trim()
                     ? `Will use ${sshAlias}:owner/repo.git format`
-                    : "Leave empty for default git@github.com format"}
+                    : "For users with multiple GitHub accounts"}
                 </p>
               </div>
-
-              {/* Remote URLs Preview */}
-              {originUrl && (
-                <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-3 space-y-1.5">
-                  <div className="flex items-start gap-2 text-xs">
-                    <span className="text-gray-500 dark:text-gray-400 w-16 flex-shrink-0">origin:</span>
-                    <span className="text-gray-700 dark:text-gray-300 font-mono break-all">
-                      {originUrl}
-                    </span>
-                  </div>
-                  {upstreamUrl && (
-                    <div className="flex items-start gap-2 text-xs">
-                      <span className="text-gray-500 dark:text-gray-400 w-16 flex-shrink-0">upstream:</span>
-                      <span className="text-gray-700 dark:text-gray-300 font-mono break-all">
-                        {upstreamUrl}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* Clone Path (Read-only) */}
               <div>
@@ -284,7 +215,7 @@ export function CloneRepositoryModal({
                 <div className="px-3 py-2 bg-gray-100 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded text-sm text-gray-600 dark:text-gray-300 font-mono min-h-[38px] overflow-x-auto whitespace-nowrap">
                   {clonePath || (
                     <span className="text-gray-400 dark:text-gray-500 font-sans">
-                      Enter a GitHub URL above
+                      Enter a repository URL above
                     </span>
                   )}
                 </div>
@@ -364,24 +295,11 @@ export function CloneRepositoryModal({
                   <span className="text-sm text-gray-900 dark:text-white">{defaultBranch}</span>
                 </div>
 
-                {/* Remotes info */}
+                {/* Remote info */}
                 <div className="pt-3 border-t border-gray-200 dark:border-slate-700">
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">Remotes</div>
-                  <div className="space-y-2">
-                    <div>
-                      <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">origin</span>
-                      <div className="text-xs text-gray-700 dark:text-gray-300 font-mono overflow-x-auto whitespace-nowrap mt-0.5">
-                        {originUrl}
-                      </div>
-                    </div>
-                    {upstreamUrl && (
-                      <div>
-                        <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">upstream</span>
-                        <div className="text-xs text-gray-700 dark:text-gray-300 font-mono overflow-x-auto whitespace-nowrap mt-0.5">
-                          {upstreamUrl}
-                        </div>
-                      </div>
-                    )}
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Remote</div>
+                  <div className="text-xs text-gray-700 dark:text-gray-300 font-mono overflow-x-auto whitespace-nowrap">
+                    {originUrl}
                   </div>
                 </div>
               </div>

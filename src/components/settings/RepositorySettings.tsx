@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import { useProject } from "../../contexts/ProjectContext";
 import { api } from "../../api";
 import type { Repository } from "../../api/generated/models/Repository";
-import { open } from "@tauri-apps/plugin-dialog";
 import { useProjectHealth } from "../../hooks/useProjectHealth";
 import { CloneRepositoryModal } from "./CloneRepositoryModal";
+import { CreateRepositoryModal } from "./CreateRepositoryModal";
+import { addToGitignore } from "../../services/git";
 
 interface RepositoryFormData {
   name: string;
@@ -13,13 +14,8 @@ interface RepositoryFormData {
   defaultAgent: string;
 }
 
-interface ValidationState {
-  isGitRepo: boolean;
-  message?: string;
-}
-
-type ModalMode = "add" | "edit" | null;
-type AddMode = "browse" | "clone" | null;
+type ModalMode = "edit" | null;
+type AddMode = "create" | "clone" | null;
 
 export function RepositorySettings() {
   const { currentProject } = useProject();
@@ -37,9 +33,6 @@ export function RepositorySettings() {
     defaultAgent: "",
   });
   const [saving, setSaving] = useState(false);
-  const [validation, setValidation] = useState<ValidationState>({
-    isGitRepo: true,
-  });
 
   // Project health check - only need status for clone button
   const { status: healthStatus } = useProjectHealth(currentProject);
@@ -72,17 +65,6 @@ export function RepositorySettings() {
     }
   }, [currentProject, loadRepositories]);
 
-  const handleAddClick = () => {
-    setFormData({
-      name: "",
-      path: "",
-      gitUrl: "",
-      defaultAgent: "",
-    });
-    setEditingRepo(null);
-    setModalMode("add");
-  };
-
   const handleEditClick = (repo: Repository) => {
     setFormData({
       name: repo.name,
@@ -103,49 +85,28 @@ export function RepositorySettings() {
       gitUrl: "",
       defaultAgent: "",
     });
-    setValidation({
-      isGitRepo: true,
-    });
   };
 
   const handleSave = async () => {
-    if (!currentProject?.id) return;
+    if (!currentProject?.id || !editingRepo) return;
 
     setSaving(true);
     setError(null);
 
     try {
-      if (modalMode === "add") {
-        await api.repositories.createRepository({
-          projectRef: currentProject.id,
-          createRepositoryRequest: {
-            name: formData.name,
-            path: formData.path,
-            gitUrl: formData.gitUrl || undefined,
-          },
-        });
+      await api.repositories.updateRepository({
+        projectRef: currentProject.id,
+        repoRef: editingRepo.id,
+        updateRepositoryRequest: {
+          name: formData.name,
+          gitUrl: formData.gitUrl || undefined,
+        },
+      });
 
-        await loadRepositories();
-        handleModalClose();
-      } else if (modalMode === "edit" && editingRepo) {
-        await api.repositories.updateRepository({
-          projectRef: currentProject.id,
-          repoRef: editingRepo.id,
-          updateRepositoryRequest: {
-            name: formData.name,
-            gitUrl: formData.gitUrl || undefined,
-          },
-        });
-
-        await loadRepositories();
-        handleModalClose();
-      }
+      await loadRepositories();
+      handleModalClose();
     } catch (err) {
-      setError(
-        modalMode === "add"
-          ? "Failed to add repository"
-          : "Failed to update repository",
-      );
+      setError("Failed to update repository");
       console.error(err);
     } finally {
       setSaving(false);
@@ -177,39 +138,6 @@ export function RepositorySettings() {
 
   const handleDeleteCancel = () => {
     setDeletingRepo(null);
-  };
-
-  const handleBrowse = async () => {
-    try {
-      const selected = await open({
-        directory: true,
-        multiple: false,
-        title: "Select Repository Directory",
-      });
-
-      if (selected && typeof selected === "string") {
-
-        // Extract directory name as default repo name
-        const pathParts = selected.split("/");
-        const dirName = pathParts[pathParts.length - 1] || "";
-
-        setFormData({
-          ...formData,
-          path: selected,
-          name: dirName,
-          gitUrl: "",
-        });
-
-        // Assume it's a valid git repo for now
-        // TODO: Add validation when backend API supports it
-        setValidation({
-          isGitRepo: true,
-        });
-      }
-    } catch (err) {
-      console.error("Failed to open directory picker:", err);
-      setError("Failed to open directory picker: " + String(err));
-    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -253,12 +181,15 @@ export function RepositorySettings() {
     return <div className="text-gray-500 dark:text-gray-400">Loading...</div>;
   }
 
-  // Handle cloned repository
-  const handleCloned = async (repoName: string, repoPath: string) => {
-    if (!currentProject?.id) return;
+  // Handle cloned or created repository
+  const handleRepositoryAdded = async (repoName: string, repoPath: string) => {
+    if (!currentProject?.id || !currentProject.localPath) return;
 
     try {
-      // Register the cloned repository in the backend
+      // Add to gitignore
+      await addToGitignore(currentProject.localPath, repoName);
+
+      // Register the repository in the backend
       await api.repositories.createRepository({
         projectRef: currentProject.id,
         createRepositoryRequest: {
@@ -269,7 +200,7 @@ export function RepositorySettings() {
 
       await loadRepositories();
     } catch (err) {
-      setError("Failed to register cloned repository");
+      setError("Failed to register repository");
       console.error(err);
     }
   };
@@ -283,10 +214,16 @@ export function RepositorySettings() {
         </h2>
         <div className="flex items-center gap-2">
           <button
-            onClick={handleAddClick}
-            className="bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-600"
+            onClick={() => setAddMode("create")}
+            disabled={!canClone}
+            title={
+              !canClone
+                ? "Complete project setup first (set local path and install git)"
+                : "Create a new empty repository"
+            }
+            className="bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Browse Local
+            Create New
           </button>
           <button
             onClick={() => setAddMode("clone")}
@@ -373,14 +310,14 @@ export function RepositorySettings() {
         </div>
       )}
 
-      {/* Add/Edit Modal */}
-      {modalMode && (
+      {/* Edit Modal */}
+      {modalMode === "edit" && editingRepo && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-lg mx-4">
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {modalMode === "add" ? "Add Repository" : "Edit Repository"}
+                Edit Repository
               </h3>
             </div>
 
@@ -389,69 +326,21 @@ export function RepositorySettings() {
               <div>
                 <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
                   Local Path
-                  {modalMode === "edit" && (
-                    <span className="text-xs text-gray-400 ml-2">
-                      (cannot be changed)
-                    </span>
-                  )}
+                  <span className="text-xs text-gray-400 ml-2">
+                    (cannot be changed)
+                  </span>
                 </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={formData.path}
-                    onChange={(e) =>
-                      setFormData({ ...formData, path: e.target.value })
-                    }
-                    disabled={modalMode === "edit"}
-                    className={`flex-1 border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none ${
-                      modalMode === "edit"
-                        ? "bg-gray-100 dark:bg-slate-700 text-gray-500 cursor-not-allowed"
-                        : "bg-white dark:bg-slate-900"
-                    }`}
-                    placeholder="/Users/you/code/my-backend"
-                  />
-                  {modalMode === "add" && (
-                    <button
-                      type="button"
-                      onClick={handleBrowse}
-                      className="px-4 py-2 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-600"
-                    >
-                      Browse
-                    </button>
-                  )}
+                <div className="px-3 py-2 bg-gray-100 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded text-sm text-gray-500 dark:text-gray-400 font-mono">
+                  {formData.path}
                 </div>
               </div>
-
-              {/* Validation Warning */}
-              {!validation.isGitRepo && validation.message && (
-                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded text-sm text-amber-800 dark:text-amber-200 flex gap-2">
-                  <svg
-                    className="w-5 h-5 flex-shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                    />
-                  </svg>
-                  <span>{validation.message}</span>
-                </div>
-              )}
 
               <div>
                 <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
                   Repository Name
                 </label>
                 <div className="px-3 py-2 bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded text-sm text-gray-600 dark:text-gray-400 min-h-[38px] flex items-center font-mono">
-                  {formData.name || (
-                    <span className="text-gray-400 dark:text-gray-500 font-sans">
-                      Select a directory to auto-detect
-                    </span>
-                  )}
+                  {formData.name}
                 </div>
               </div>
 
@@ -462,7 +351,7 @@ export function RepositorySettings() {
                 <div className="px-3 py-2 bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded text-sm text-gray-600 dark:text-gray-400 min-h-[38px] flex items-center break-all font-mono">
                   {formData.gitUrl || (
                     <span className="text-gray-400 dark:text-gray-500 font-sans">
-                      Not configured (GitHub integration coming soon)
+                      Not configured
                     </span>
                   )}
                 </div>
@@ -479,19 +368,10 @@ export function RepositorySettings() {
               </button>
               <button
                 onClick={handleSave}
-                disabled={
-                  saving ||
-                  !formData.name ||
-                  !formData.path ||
-                  !validation.isGitRepo
-                }
+                disabled={saving || !formData.name || !formData.path}
                 className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
               >
-                {saving
-                  ? "Saving..."
-                  : modalMode === "add"
-                    ? "Add Repository"
-                    : "Save Changes"}
+                {saving ? "Saving..." : "Save Changes"}
               </button>
             </div>
           </div>
@@ -544,7 +424,16 @@ export function RepositorySettings() {
         <CloneRepositoryModal
           localPath={currentProject.localPath}
           onClose={() => setAddMode(null)}
-          onCloned={handleCloned}
+          onCloned={handleRepositoryAdded}
+        />
+      )}
+
+      {/* Create Repository Modal */}
+      {addMode === "create" && currentProject?.localPath && (
+        <CreateRepositoryModal
+          localPath={currentProject.localPath}
+          onClose={() => setAddMode(null)}
+          onCreated={handleRepositoryAdded}
         />
       )}
     </div>
