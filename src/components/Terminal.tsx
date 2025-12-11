@@ -25,7 +25,7 @@ interface TerminalDimensions {
   rows: number;
 }
 
-type ContextType = "task" | "epic" | "project" | "prd-workshop";
+type ContextType = "task" | "epic" | "project" | "prd-workshop" | "release";
 
 interface TerminalProps {
   contextType?: ContextType;

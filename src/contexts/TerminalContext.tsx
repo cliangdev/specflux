@@ -12,7 +12,7 @@ export interface TaskInfo {
   title: string;
 }
 
-export type ContextType = "task" | "epic" | "project" | "prd-workshop";
+export type ContextType = "task" | "epic" | "project" | "prd-workshop" | "release";
 
 // Page context types for suggested commands
 export type PageContextType =
@@ -22,6 +22,8 @@ export type PageContextType =
   | "epic-detail"
   | "tasks"
   | "task-detail"
+  | "releases"
+  | "release-detail"
   | "board"
   | "files"
   | "settings"
@@ -144,6 +146,15 @@ function getSuggestedCommands(pageContext: PageContext | null): SuggestedCommand
     case "task-detail":
       return [
         { label: `/task ${pageContext.id || ""}`, command: `/task ${pageContext.id || ""}`, description: "Start this task" },
+      ];
+    case "releases":
+      return [
+        { label: "/epic", command: "/epic", description: "Create a new epic" },
+      ];
+    case "release-detail":
+      return [
+        { label: "/implement", command: "/implement", description: "Implement the release" },
+        { label: "/epic", command: "/epic", description: "Create epic for release" },
       ];
     case "agents":
     case "agent-detail":
