@@ -390,6 +390,7 @@ export default function TerminalPanel() {
                   contextType={session.contextType}
                   contextId={session.contextId}
                   contextDisplayKey={session.displayKey}
+                  contextTitle={session.contextTitle}
                   projectRef={session.projectRef}
                   workingDirectory={session.workingDirectory}
                   initialCommand={session.initialCommand}

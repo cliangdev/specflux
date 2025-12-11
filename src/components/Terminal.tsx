@@ -14,6 +14,11 @@ import {
   onTerminalExit,
   hasTerminalSession,
 } from "../services/tauriTerminal";
+import {
+  generateSessionPrompt,
+  generateContextHeader,
+  type SessionScope,
+} from "../services/promptGenerator";
 
 interface FileChangeEvent {
   action: "created" | "modified" | "deleted";
@@ -31,6 +36,7 @@ interface TerminalProps {
   contextType?: ContextType;
   contextId?: string;
   contextDisplayKey?: string; // Human-readable key like "SPEC-P1" or "SPEC-T42"
+  contextTitle?: string; // Human-readable title for context
   projectRef?: string; // Project reference for API calls
   workingDirectory?: string; // Working directory for the terminal
   initialCommand?: string; // Command to run after terminal starts (e.g., "claude")
@@ -56,6 +62,7 @@ export function Terminal({
   contextType = "task",
   contextId,
   contextDisplayKey,
+  contextTitle,
   projectRef,
   workingDirectory,
   initialCommand,
@@ -88,12 +95,16 @@ export function Terminal({
 
   // Use refs for context values so connect() uses latest values
   const contextDisplayKeyRef = useRef(contextDisplayKey);
+  const contextTitleRef = useRef(contextTitle);
   const projectRefRef = useRef(projectRef);
 
   // Keep context refs in sync
   useEffect(() => {
     contextDisplayKeyRef.current = contextDisplayKey;
   }, [contextDisplayKey]);
+  useEffect(() => {
+    contextTitleRef.current = contextTitle;
+  }, [contextTitle]);
   useEffect(() => {
     projectRefRef.current = projectRef;
   }, [projectRef]);
@@ -315,6 +326,28 @@ export function Terminal({
           if (contextDisplayKeyRef.current) {
             env.SPECFLUX_CONTEXT_REF = contextDisplayKeyRef.current;
             env.SPECFLUX_CONTEXT_DISPLAY_KEY = contextDisplayKeyRef.current;
+          }
+          if (contextTitleRef.current) {
+            env.SPECFLUX_CONTEXT_TITLE = contextTitleRef.current;
+          }
+
+          // Generate session prompt for task/epic/release scopes
+          if (
+            projectRefRef.current &&
+            contextId &&
+            (contextType === "task" ||
+              contextType === "epic" ||
+              contextType === "release")
+          ) {
+            const sessionContext = {
+              scope: contextType as SessionScope,
+              ref: contextId,
+              displayKey: contextDisplayKeyRef.current,
+              title: contextTitleRef.current,
+              projectRef: projectRefRef.current,
+            };
+            env.SPECFLUX_SESSION_PROMPT = generateSessionPrompt(sessionContext);
+            env.SPECFLUX_CONTEXT_HEADER = generateContextHeader(sessionContext);
           }
 
           // Spawn new terminal session with context
