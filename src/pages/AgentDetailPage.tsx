@@ -155,7 +155,7 @@ export default function AgentDetailPage() {
     // Note: File deletion not implemented - would need to use Tauri fs remove
     // For now, just navigate back
     setShowDeleteConfirm(false);
-    navigate("/settings/agents");
+    navigate("/settings?tab=agents");
   };
 
   const handleEmojiSelect = (emoji: string) => {
@@ -221,7 +221,7 @@ export default function AgentDetailPage() {
       {/* Header */}
       <div className="flex items-center gap-3 mb-6 flex-shrink-0">
         <Link
-          to="/settings/agents"
+          to="/settings?tab=agents"
           className="inline-flex items-center gap-1.5 text-sm text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white transition-colors"
         >
           <svg

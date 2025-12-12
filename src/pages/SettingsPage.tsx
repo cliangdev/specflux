@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { GeneralSettings } from "../components/settings/GeneralSettings";
 import { RepositorySettings } from "../components/settings/RepositorySettings";
 import { AgentSettings } from "../components/settings/AgentSettings";
@@ -13,6 +14,8 @@ type SettingsTab =
   | "skills"
   | "mcp-servers"
   | "backend";
+
+const VALID_TABS: SettingsTab[] = ["general", "repositories", "agents", "skills", "mcp-servers", "backend"];
 
 interface TabGroup {
   label: string;
@@ -42,7 +45,25 @@ const tabGroups: TabGroup[] = [
 ];
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<SettingsTab>("general");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const initialTab = tabParam && VALID_TABS.includes(tabParam as SettingsTab)
+    ? (tabParam as SettingsTab)
+    : "general";
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
+
+  // Sync tab state with URL params
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam && VALID_TABS.includes(tabParam as SettingsTab)) {
+      setActiveTab(tabParam as SettingsTab);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (tab: SettingsTab) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -66,7 +87,7 @@ export default function SettingsPage() {
                 {group.tabs.map((tab) => (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => handleTabChange(tab.id)}
                     className={`
                       w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors
                       ${
