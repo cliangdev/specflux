@@ -137,7 +137,7 @@ export default function NewSessionDialog({
           ? true // Project uses current project automatically
           : CONTEXT_MODE_OPTIONS.find((o) => o.value === contextMode)?.enabled;
 
-  const loading = loadingTasks || loadingEpics;
+  const _loading = loadingTasks || loadingEpics;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -149,14 +149,14 @@ export default function NewSessionDialog({
       />
 
       {/* Modal */}
-      <div className="relative bg-white dark:bg-system-800 rounded-lg shadow-xl w-full max-w-md mx-4 border border-system-200 dark:border-system-700">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-system-200 dark:border-system-700">
-          <h2 className="text-lg font-semibold text-system-900 dark:text-white">
+      <div className="relative bg-white dark:bg-surface-800 rounded-lg shadow-xl w-full max-w-md mx-4 border border-surface-200 dark:border-surface-700">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-surface-200 dark:border-surface-700">
+          <h2 className="text-lg font-semibold text-surface-900 dark:text-white">
             New Terminal Session
           </h2>
           <button
             onClick={onClose}
-            className="text-system-400 hover:text-system-600 dark:hover:text-white transition-colors"
+            className="text-surface-400 hover:text-surface-600 dark:hover:text-white transition-colors"
           >
             <svg
               className="w-5 h-5"
@@ -184,7 +184,7 @@ export default function NewSessionDialog({
 
             {/* Context Mode Selection */}
             <div>
-              <label className="block text-sm font-medium text-system-700 dark:text-system-300 mb-2">
+              <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
                 Context Mode
               </label>
               <div className="space-y-2">
@@ -193,8 +193,8 @@ export default function NewSessionDialog({
                     key={option.value}
                     className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                       contextMode === option.value
-                        ? "border-brand-500 bg-brand-50 dark:bg-brand-900/20"
-                        : "border-system-200 dark:border-system-700 hover:border-system-300 dark:hover:border-system-600"
+                        ? "border-accent-500 bg-accent-50 dark:bg-accent-900/20"
+                        : "border-surface-200 dark:border-surface-700 hover:border-surface-300 dark:hover:border-surface-600"
                     } ${!option.enabled ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     <input
@@ -211,16 +211,16 @@ export default function NewSessionDialog({
                     />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-system-900 dark:text-white">
+                        <span className="text-sm font-medium text-surface-900 dark:text-white">
                           {option.label}
                         </span>
                         {!option.enabled && (
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-system-100 dark:bg-system-700 text-system-500 dark:text-system-400">
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-surface-100 dark:bg-surface-700 text-surface-500 dark:text-surface-400">
                             Coming soon
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-system-500 dark:text-system-400 mt-0.5">
+                      <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5">
                         {option.description}
                       </p>
                     </div>
@@ -234,7 +234,7 @@ export default function NewSessionDialog({
               <div>
                 <label
                   htmlFor="task"
-                  className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
+                  className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1"
                 >
                   Select Task <span className="text-red-500">*</span>
                 </label>
@@ -259,7 +259,7 @@ export default function NewSessionDialog({
                   ))}
                 </select>
                 {tasks.length === 0 && !loadingTasks && (
-                  <p className="mt-1 text-xs text-system-500 dark:text-system-400">
+                  <p className="mt-1 text-xs text-surface-500 dark:text-surface-400">
                     No active tasks found. Create a task first.
                   </p>
                 )}
@@ -271,7 +271,7 @@ export default function NewSessionDialog({
               <div>
                 <label
                   htmlFor="epic"
-                  className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
+                  className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1"
                 >
                   Select Epic <span className="text-red-500">*</span>
                 </label>
@@ -296,11 +296,11 @@ export default function NewSessionDialog({
                   ))}
                 </select>
                 {epics.length === 0 && !loadingEpics && (
-                  <p className="mt-1 text-xs text-system-500 dark:text-system-400">
+                  <p className="mt-1 text-xs text-surface-500 dark:text-surface-400">
                     No epics found. Create an epic first.
                   </p>
                 )}
-                <p className="mt-1 text-xs text-system-500 dark:text-system-400">
+                <p className="mt-1 text-xs text-surface-500 dark:text-surface-400">
                   Claude will review the epic&apos;s PRD and task breakdown.
                 </p>
               </div>
@@ -308,12 +308,12 @@ export default function NewSessionDialog({
 
             {/* Project Mode Info */}
             {contextMode === "project" && (
-              <div className="p-3 bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-700 rounded-lg">
-                <p className="text-sm text-brand-700 dark:text-brand-300">
+              <div className="p-3 bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-700 rounded-lg">
+                <p className="text-sm text-accent-700 dark:text-accent-300">
                   Claude will analyze the project overview, including all epics,
                   task statistics, and repositories.
                 </p>
-                <p className="mt-1 text-xs text-brand-600 dark:text-brand-400">
+                <p className="mt-1 text-xs text-accent-600 dark:text-accent-400">
                   Use this mode for cross-epic coordination and project
                   planning.
                 </p>
@@ -321,11 +321,11 @@ export default function NewSessionDialog({
             )}
           </div>
 
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-system-200 dark:border-system-700">
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-surface-200 dark:border-surface-700">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-system-600 dark:text-system-300 hover:text-system-900 dark:hover:text-white transition-colors"
+              className="px-4 py-2 text-sm font-medium text-surface-600 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white transition-colors"
             >
               Cancel
             </button>

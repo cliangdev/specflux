@@ -68,14 +68,14 @@ export default function ReleaseCreateModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-white dark:bg-system-800 rounded-lg shadow-xl w-full max-w-md mx-4 border border-system-200 dark:border-system-700">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-system-200 dark:border-system-700">
-          <h2 className="text-lg font-semibold text-system-900 dark:text-white">
+      <div className="relative bg-white dark:bg-surface-800 rounded-lg shadow-xl w-full max-w-md mx-4 border border-surface-200 dark:border-surface-700">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-surface-200 dark:border-surface-700">
+          <h2 className="text-lg font-semibold text-surface-900 dark:text-white">
             Create Release
           </h2>
           <button
             onClick={onClose}
-            className="text-system-400 hover:text-system-600 dark:hover:text-white transition-colors"
+            className="text-surface-400 hover:text-surface-600 dark:hover:text-white transition-colors"
           >
             <svg
               className="w-5 h-5"
@@ -104,7 +104,7 @@ export default function ReleaseCreateModal({
             <div>
               <label
                 htmlFor="name"
-                className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
+                className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1"
               >
                 Name <span className="text-red-500">*</span>
               </label>
@@ -122,7 +122,7 @@ export default function ReleaseCreateModal({
             <div>
               <label
                 htmlFor="targetDate"
-                className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
+                className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1"
               >
                 Target Date
               </label>
@@ -156,7 +156,7 @@ export default function ReleaseCreateModal({
             <div>
               <label
                 htmlFor="description"
-                className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
+                className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1"
               >
                 Description
               </label>
@@ -171,12 +171,12 @@ export default function ReleaseCreateModal({
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-system-200 dark:border-system-700">
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-surface-200 dark:border-surface-700">
             <button
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-system-600 dark:text-system-300 hover:text-system-900 dark:hover:text-white transition-colors disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-surface-600 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white transition-colors disabled:opacity-50"
             >
               Cancel
             </button>

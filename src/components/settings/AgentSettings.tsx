@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useProject } from "../../contexts/ProjectContext";
 import { readDir, readTextFile } from "@tauri-apps/plugin-fs";
 
-// Local agent type for filesystem-based agents
+// Local agent type for filesurface-based agents
 export interface LocalAgent {
   id: string;
   name: string;
@@ -72,100 +72,87 @@ export function AgentSettings() {
 
   if (!currentProject) {
     return (
-      <div className="text-gray-500 dark:text-gray-400">
+      <div className="text-surface-500 dark:text-surface-400">
         No project selected
       </div>
     );
   }
 
   if (loading) {
-    return <div className="text-gray-500 dark:text-gray-400">Loading...</div>;
+    return <div className="text-surface-500 dark:text-surface-400">Loading...</div>;
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-          AI Agents
-        </h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Configure specialized Claude Code agents for different tasks
-        </p>
+    <div className="flex flex-col h-full">
+      {/* Header - matches wireframe */}
+      <div className="flex items-center justify-between mb-6 flex-shrink-0">
+        <h1 className="text-lg font-semibold text-surface-900 dark:text-white">
+          Agent Workforce
+        </h1>
+        <button className="text-accent-600 hover:text-accent-500 dark:text-accent-400 dark:hover:text-accent-300 text-sm font-medium">
+          Manage Skills
+        </button>
       </div>
 
-      {/* Info Banner */}
-      <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-        <p className="text-sm text-blue-800 dark:text-blue-200">
-          Agents are automatically discovered from{" "}
-          <code className="px-1 py-0.5 bg-blue-100 dark:bg-blue-800 rounded">
-            .claude/agents/
-          </code>{" "}
-          directory. Each{" "}
-          <code className="px-1 py-0.5 bg-blue-100 dark:bg-blue-800 rounded">
-            .md
-          </code>{" "}
-          file becomes an agent definition.
-        </p>
-      </div>
-
-      {/* Agent Cards */}
-      {agents.length === 0 ? (
-        <div className="text-center py-12 border border-gray-200 dark:border-slate-700 rounded-lg">
-          <div className="text-4xl mb-3">🤖</div>
-          <div className="text-gray-500 dark:text-gray-400 mb-2">
-            No agents found
+      {/* Agent Cards Grid - 3 columns on large screens like wireframe */}
+      <div className="flex-1 overflow-auto">
+        {agents.length === 0 ? (
+          <div className="text-center py-12 border border-surface-200 dark:border-surface-700 rounded-lg bg-surface-50 dark:bg-surface-800">
+            <div className="text-4xl mb-3">🤖</div>
+            <div className="text-surface-500 dark:text-surface-400 mb-2">
+              No agents found
+            </div>
+            <div className="text-sm text-surface-400 dark:text-surface-500">
+              Add .md files to{" "}
+              <code className="px-1 py-0.5 bg-surface-100 dark:bg-surface-700 rounded">
+                .claude/agents/
+              </code>{" "}
+              to define agents
+            </div>
           </div>
-          <div className="text-sm text-gray-400 dark:text-gray-500">
-            Add .md files to .claude/agents/ to define agents
-          </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {agents.map((agent) => (
-            <div
-              key={agent.id}
-              onClick={() => navigate(`/settings/agents/${agent.id}`)}
-              className="border border-gray-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-800 hover:border-brand-300 dark:hover:border-brand-700 transition-colors cursor-pointer"
-            >
-              <div className="flex items-start gap-3">
-                {/* Emoji */}
-                <div className="text-3xl">🤖</div>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-gray-900 dark:text-white truncate">
-                    {agent.name}
-                  </h3>
-                  {agent.description && (
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
-                      {agent.description}
-                    </p>
-                  )}
-                  <div className="text-xs text-gray-500 dark:text-gray-400 font-mono mt-2">
-                    {agent.filePath}
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {agents.map((agent) => (
+              <div
+                key={agent.id}
+                onClick={() => navigate(`/settings/agents/${agent.id}`)}
+                className="bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg p-5 cursor-pointer hover:border-accent-500 transition-all relative overflow-hidden group"
+              >
+                {/* Icon */}
+                <div className="flex justify-between items-start mb-4">
+                  <div className="w-12 h-12 rounded-full bg-accent-100 dark:bg-accent-900/30 flex items-center justify-center text-2xl">
+                    🤖
                   </div>
                 </div>
 
-                {/* Arrow indicator */}
-                <svg
-                  className="w-5 h-5 text-gray-400 dark:text-gray-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
+                {/* Name and Description */}
+                <h3 className="font-semibold text-lg text-surface-900 dark:text-white group-hover:text-accent-600 dark:group-hover:text-accent-400 transition-colors">
+                  {agent.name}
+                </h3>
+                <p className="text-sm text-surface-500 dark:text-surface-400 mb-4 line-clamp-1">
+                  {agent.description || "No description"}
+                </p>
+
+                {/* Task Status */}
+                <div className="bg-surface-100 dark:bg-surface-700 rounded p-2 text-xs font-mono mb-4 flex justify-between">
+                  <span className="text-surface-500 dark:text-surface-400">Task:</span>
+                  <span className="text-surface-500 dark:text-surface-400">Idle</span>
+                </div>
+
+                {/* Footer */}
+                <div className="border-t border-surface-100 dark:border-surface-700 pt-3 flex justify-between items-center">
+                  <span className="text-xs text-surface-500 dark:text-surface-400">
+                    Standby
+                  </span>
+                  <span className="text-xs text-surface-400 dark:text-surface-500 hover:text-accent-600 dark:hover:text-accent-400">
+                    View Details →
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

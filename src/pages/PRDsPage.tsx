@@ -5,49 +5,16 @@ import { useTerminal } from "../contexts/TerminalContext";
 import { usePageContext } from "../hooks/usePageContext";
 import { api, type Prd, PrdStatus } from "../api";
 import PrdImportModal from "../components/ui/PrdImportModal";
+import { ListPageHeader } from "../components/ui/ListPageHeader";
+import { StatusBadge } from "../components/ui/StatusBadge";
 
 const STATUS_OPTIONS = [
-  { value: "", label: "All Statuses" },
   { value: PrdStatus.Draft, label: "Draft" },
   { value: PrdStatus.InReview, label: "In Review" },
   { value: PrdStatus.Approved, label: "Approved" },
   { value: PrdStatus.Implemented, label: "Implemented" },
   { value: PrdStatus.Archived, label: "Archived" },
 ];
-
-function getStatusBadgeClasses(status: PrdStatus): string {
-  switch (status) {
-    case PrdStatus.Draft:
-      return "bg-system-100 dark:bg-system-700 text-system-600 dark:text-system-300";
-    case PrdStatus.InReview:
-      return "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400";
-    case PrdStatus.Approved:
-      return "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400";
-    case PrdStatus.Implemented:
-      return "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400";
-    case PrdStatus.Archived:
-      return "bg-system-200 dark:bg-system-600 text-system-500 dark:text-system-400";
-    default:
-      return "bg-system-100 dark:bg-system-700 text-system-600 dark:text-system-300";
-  }
-}
-
-function formatStatusLabel(status: PrdStatus): string {
-  switch (status) {
-    case PrdStatus.Draft:
-      return "Draft";
-    case PrdStatus.InReview:
-      return "In Review";
-    case PrdStatus.Approved:
-      return "Approved";
-    case PrdStatus.Implemented:
-      return "Implemented";
-    case PrdStatus.Archived:
-      return "Archived";
-    default:
-      return status;
-  }
-}
 
 export default function PRDsPage() {
   const navigate = useNavigate();
@@ -123,10 +90,10 @@ export default function PRDsPage() {
   if (!currentProject) {
     return (
       <div className="text-center py-12">
-        <div className="text-system-500 dark:text-system-400 text-lg">
+        <div className="text-surface-500 dark:text-surface-400 text-lg">
           No project selected
         </div>
-        <p className="text-system-400 dark:text-system-500 mt-2">
+        <p className="text-surface-400 dark:text-surface-500 mt-2">
           Select a project from the dropdown above
         </p>
       </div>
@@ -150,10 +117,10 @@ export default function PRDsPage() {
             d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
           />
         </svg>
-        <h3 className="mt-4 text-lg font-medium text-system-700 dark:text-system-300">
+        <h3 className="mt-4 text-lg font-medium text-surface-700 dark:text-surface-300">
           Project Path Not Set
         </h3>
-        <p className="mt-2 text-system-500">
+        <p className="mt-2 text-surface-500">
           Set the local path for this project to manage PRDs.
         </p>
         <button
@@ -169,7 +136,7 @@ export default function PRDsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-system-900 dark:text-white">
+        <h1 className="text-2xl font-semibold text-surface-900 dark:text-white">
           PRDs
         </h1>
         <div className="flex items-center gap-2 flex-wrap">
@@ -189,7 +156,7 @@ export default function PRDsPage() {
           {/* Search input */}
           <div className="relative">
             <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-system-400"
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -283,7 +250,7 @@ export default function PRDsPage() {
 
       {/* Filter summary */}
       {hasActiveFilters && (
-        <div className="flex items-center gap-2 mb-4 text-sm text-system-500 dark:text-system-400">
+        <div className="flex items-center gap-2 mb-4 text-sm text-surface-500 dark:text-surface-400">
           <span>
             Showing {filteredPrds.length} of {prds.length} PRDs
           </span>
@@ -292,7 +259,7 @@ export default function PRDsPage() {
               setStatusFilter("");
               setSearchQuery("");
             }}
-            className="text-brand-600 dark:text-brand-400 hover:underline"
+            className="text-accent-600 dark:text-accent-400 hover:underline"
           >
             Clear filters
           </button>
@@ -302,7 +269,7 @@ export default function PRDsPage() {
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <svg
-            className="animate-spin w-8 h-8 text-brand-500"
+            className="animate-spin w-8 h-8 text-accent-500"
             viewBox="0 0 24 24"
           >
             <circle
@@ -326,7 +293,7 @@ export default function PRDsPage() {
           <div className="text-red-500 dark:text-red-400 text-lg">
             Error loading PRDs
           </div>
-          <p className="text-system-500 mt-2">{error}</p>
+          <p className="text-surface-500 mt-2">{error}</p>
           <button onClick={loadPrds} className="mt-4 btn btn-primary">
             Try Again
           </button>
@@ -334,7 +301,7 @@ export default function PRDsPage() {
       ) : filteredPrds.length === 0 ? (
         <div className="text-center py-12 card">
           <svg
-            className="mx-auto h-12 w-12 text-system-400 dark:text-system-500"
+            className="mx-auto h-12 w-12 text-surface-400 dark:text-surface-500"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -346,10 +313,10 @@ export default function PRDsPage() {
               d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
             />
           </svg>
-          <h3 className="mt-4 text-lg font-medium text-system-700 dark:text-system-300">
+          <h3 className="mt-4 text-lg font-medium text-surface-700 dark:text-surface-300">
             No PRDs
           </h3>
-          <p className="mt-2 text-system-500">
+          <p className="mt-2 text-surface-500">
             {hasActiveFilters
               ? "No PRDs match the selected filters."
               : "Get started by creating your first PRD."}
@@ -361,12 +328,12 @@ export default function PRDsPage() {
             <button
               key={prd.id}
               onClick={() => handlePrdClick(prd)}
-              className="card text-left p-4 hover:border-brand-500 dark:hover:border-brand-500 hover:shadow-md transition-all group"
+              className="card text-left p-4 hover:border-accent-500 dark:hover:border-accent-500 hover:shadow-md transition-all group"
             >
               <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center">
+                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-accent-100 dark:bg-accent-900/30 flex items-center justify-center">
                   <svg
-                    className="w-5 h-5 text-brand-600 dark:text-brand-400"
+                    className="w-5 h-5 text-accent-600 dark:text-accent-400"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -381,24 +348,20 @@ export default function PRDsPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs text-system-400 dark:text-system-500 font-mono">
+                    <span className="text-xs text-surface-400 dark:text-surface-500 font-mono">
                       {prd.displayKey}
                     </span>
-                    <span
-                      className={`px-1.5 py-0.5 text-xs font-medium rounded ${getStatusBadgeClasses(prd.status)}`}
-                    >
-                      {formatStatusLabel(prd.status)}
-                    </span>
+                    <StatusBadge status={prd.status} size="sm" />
                   </div>
-                  <h3 className="font-medium text-system-900 dark:text-white truncate group-hover:text-brand-600 dark:group-hover:text-brand-400">
+                  <h3 className="font-medium text-surface-900 dark:text-white truncate group-hover:text-accent-600 dark:group-hover:text-accent-400">
                     {prd.title}
                   </h3>
                   {prd.description && (
-                    <p className="text-sm text-system-500 dark:text-system-400 mt-1 line-clamp-2">
+                    <p className="text-sm text-surface-500 dark:text-surface-400 mt-1 line-clamp-2">
                       {prd.description}
                     </p>
                   )}
-                  <p className="text-xs text-system-400 dark:text-system-500 mt-2">
+                  <p className="text-xs text-surface-400 dark:text-surface-500 mt-2">
                     {prd.documentCount ?? 0}{" "}
                     {(prd.documentCount ?? 0) === 1 ? "document" : "documents"}{" "}
                     · {formatDate(prd.updatedAt)}

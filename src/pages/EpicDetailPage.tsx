@@ -11,10 +11,12 @@ import {
 } from "../api";
 import { useProject } from "../contexts";
 import { ProgressBar, TaskCreateModal } from "../components/ui";
-import { EpicDetailHeader } from "../components/epics";
+import { DetailPageHeader } from "../components/ui/DetailPageHeader";
+import { AIActionButton } from "../components/ui/AIActionButton";
 import { AcceptanceCriteriaList } from "../components/ui/AcceptanceCriteriaList";
 import { calculatePhase } from "../utils/phaseCalculation";
 import { usePageContext } from "../hooks/usePageContext";
+import { useTerminal } from "../contexts/TerminalContext";
 
 // Extended type to support v2 fields
 type EpicWithV2Fields = Omit<Epic, "dependsOn" | "taskStats" | "status"> & {
@@ -50,7 +52,7 @@ const TASK_STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
   IN_PROGRESS: {
     label: "In Progress",
     classes:
-      "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300",
+      "bg-accent-100 text-accent-700 dark:bg-accent-900/30 dark:text-accent-300",
   },
   IN_REVIEW: {
     label: "In Review",
@@ -73,10 +75,18 @@ const TASK_STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
   },
 };
 
+// Epic status options for DetailPageHeader
+const EPIC_STATUS_OPTIONS = [
+  { value: "PLANNING", label: "Planning" },
+  { value: "IN_PROGRESS", label: "In Progress" },
+  { value: "COMPLETED", label: "Completed" },
+];
+
 export default function EpicDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getProjectRef } = useProject();
+  const { currentProject, getProjectRef } = useProject();
+  const { openTerminalForContext, getExistingSession, switchToSession, activeSession, isRunning } = useTerminal();
   const [epic, setEpic] = useState<EpicWithV2Fields | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [criteria, setCriteria] = useState<AcceptanceCriterion[]>([]);
@@ -500,6 +510,55 @@ export default function EpicDetailPage() {
     }
   };
 
+  // AI Action handlers
+  const handleStartWork = () => {
+    if (epic) {
+      const context = {
+        type: "epic" as const,
+        id: epic.v2Id || epic.id,
+        title: epic.title,
+        displayKey: epic.displayKey,
+        projectRef: getProjectRef() ?? undefined,
+        workingDirectory: currentProject?.localPath,
+        initialCommand: "claude",
+      };
+
+      const existing = getExistingSession(context);
+      if (existing) {
+        switchToSession(existing.id);
+      } else {
+        openTerminalForContext(context);
+      }
+    }
+  };
+
+  const handleContinueWork = () => {
+    if (epic) {
+      const context = {
+        type: "epic" as const,
+        id: epic.v2Id || epic.id,
+        title: epic.title,
+        displayKey: epic.displayKey,
+      };
+      const existing = getExistingSession(context);
+      if (existing) {
+        switchToSession(existing.id);
+      }
+    }
+  };
+
+  // Check if terminal has existing session for this epic
+  const hasExistingSession = epic
+    ? !!getExistingSession({
+        type: "epic" as const,
+        id: epic.v2Id || epic.id,
+        title: epic.title,
+      })
+    : false;
+
+  // Check if terminal is showing this epic
+  const isTerminalShowingThisEpic = activeSession?.contextId === (epic?.v2Id || epic?.id);
+
   // Keyboard handlers
   const handleKeyDown = (
     e: React.KeyboardEvent,
@@ -518,7 +577,7 @@ export default function EpicDetailPage() {
     return (
       <div className="flex items-center justify-center py-12">
         <svg
-          className="animate-spin w-8 h-8 text-brand-500"
+          className="animate-spin w-8 h-8 text-accent-500"
           viewBox="0 0 24 24"
         >
           <circle
@@ -546,7 +605,7 @@ export default function EpicDetailPage() {
         <div className="text-red-500 dark:text-red-400 text-lg">
           Error loading epic
         </div>
-        <p className="text-system-500 mt-2">{error}</p>
+        <p className="text-surface-500 mt-2">{error}</p>
         <button onClick={fetchEpicData} className="mt-4 btn btn-primary">
           Try Again
         </button>
@@ -557,7 +616,7 @@ export default function EpicDetailPage() {
   if (!epic) {
     return (
       <div className="text-center py-12">
-        <div className="text-system-500 dark:text-system-400 text-lg">
+        <div className="text-surface-500 dark:text-surface-400 text-lg">
           Epic not found
         </div>
         <Link to="/epics" className="mt-4 btn btn-primary inline-block">
@@ -577,23 +636,41 @@ export default function EpicDetailPage() {
   return (
     <div>
       {/* Header */}
-      <EpicDetailHeader
-        epic={epic as unknown as Epic}
-        releases={releases}
-        phase={phase}
+      <DetailPageHeader
+        backTo="/epics"
+        entityKey={epic.displayKey}
+        title={epic.title}
+        status={epic.status.toUpperCase()}
+        statusOptions={EPIC_STATUS_OPTIONS}
         onStatusChange={handleStatusChange}
         onTitleChange={handleTitleChange}
-        onReleaseChange={handleReleaseChange}
+        badges={[
+          { label: "Phase", value: `P${phase}` },
+          { label: "Tasks", value: `${taskStats.total ?? 0}` },
+        ]}
+        createdAt={epic.createdAt}
+        updatedAt={epic.updatedAt}
+        primaryAction={
+          <AIActionButton
+            entityType="epic"
+            entityId={epic.v2Id || epic.id}
+            entityTitle={epic.title}
+            hasExistingSession={hasExistingSession}
+            isTerminalActive={isTerminalShowingThisEpic && isRunning}
+            onStartWork={handleStartWork}
+            onContinueWork={hasExistingSession ? handleContinueWork : undefined}
+          />
+        }
         onDelete={handleDelete}
-        onBack={() => navigate(-1)}
         deleting={deleting}
+        isLoading={loading}
       />
 
       {/* Progress Summary Card */}
       <div className="card p-6 mb-6">
         <div className="flex items-center justify-between gap-8">
           <div className="flex-1">
-            <div className="text-sm text-system-500 dark:text-system-400 mb-2">
+            <div className="text-sm text-surface-500 dark:text-surface-400 mb-2">
               Overall Progress
             </div>
             <ProgressBar percent={progressPercent} size="lg" showLabel />
@@ -601,32 +678,32 @@ export default function EpicDetailPage() {
 
           <div className="flex items-center gap-8 text-sm">
             <div className="text-center">
-              <div className="text-2xl font-semibold text-system-900 dark:text-white">
+              <div className="text-2xl font-semibold text-surface-900 dark:text-white">
                 {taskStats.done ?? 0}
               </div>
-              <div className="text-system-500 dark:text-system-400">Done</div>
+              <div className="text-surface-500 dark:text-surface-400">Done</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-semibold text-brand-600 dark:text-brand-400">
+              <div className="text-2xl font-semibold text-accent-600 dark:text-accent-400">
                 {taskStats.inProgress ?? 0}
               </div>
-              <div className="text-system-500 dark:text-system-400">
+              <div className="text-surface-500 dark:text-surface-400">
                 In Progress
               </div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-semibold text-system-600 dark:text-system-300">
+              <div className="text-2xl font-semibold text-surface-600 dark:text-surface-300">
                 {remaining}
               </div>
-              <div className="text-system-500 dark:text-system-400">
+              <div className="text-surface-500 dark:text-surface-400">
                 Remaining
               </div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-semibold text-system-900 dark:text-white">
+              <div className="text-2xl font-semibold text-surface-900 dark:text-white">
                 {taskStats.total ?? 0}
               </div>
-              <div className="text-system-500 dark:text-system-400">Total</div>
+              <div className="text-surface-500 dark:text-surface-400">Total</div>
             </div>
           </div>
         </div>
@@ -634,7 +711,7 @@ export default function EpicDetailPage() {
 
       {/* Description Section - Inline Editable */}
       <div className="mb-6">
-        <h2 className="text-lg font-semibold text-system-900 dark:text-white mb-3">
+        <h2 className="text-lg font-semibold text-surface-900 dark:text-white mb-3">
           Description
         </h2>
         <div className="card p-5">
@@ -651,16 +728,16 @@ export default function EpicDetailPage() {
                 })
               }
               placeholder="Add a description..."
-              className="w-full text-system-700 dark:text-system-300 bg-transparent border border-brand-500 rounded-md p-3 outline-none resize-none min-h-[100px]"
+              className="w-full text-surface-700 dark:text-surface-300 bg-transparent border border-accent-500 rounded-md p-3 outline-none resize-none min-h-[100px]"
               rows={4}
             />
           ) : (
             <p
               onClick={() => setEditingDescription(true)}
-              className={`whitespace-pre-wrap cursor-pointer hover:text-brand-600 dark:hover:text-brand-400 transition-colors min-h-[24px] ${
+              className={`whitespace-pre-wrap cursor-pointer hover:text-accent-600 dark:hover:text-accent-400 transition-colors min-h-[24px] ${
                 epic.description
-                  ? "text-system-700 dark:text-system-300"
-                  : "text-system-400 dark:text-system-500 italic"
+                  ? "text-surface-700 dark:text-surface-300"
+                  : "text-surface-400 dark:text-surface-500 italic"
               }`}
               title="Click to edit"
             >
@@ -672,14 +749,14 @@ export default function EpicDetailPage() {
 
       {/* PRD File Path - Inline Editable */}
       <div className="mb-6">
-        <h2 className="text-lg font-semibold text-system-900 dark:text-white mb-3">
+        <h2 className="text-lg font-semibold text-surface-900 dark:text-white mb-3">
           PRD File Path
         </h2>
         <div className="card p-4">
           {editingPrd ? (
             <div className="flex items-center gap-3">
               <svg
-                className="w-5 h-5 text-system-500 flex-shrink-0"
+                className="w-5 h-5 text-surface-500 flex-shrink-0"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -704,17 +781,17 @@ export default function EpicDetailPage() {
                   })
                 }
                 placeholder="e.g., prds/feature-name.md"
-                className="flex-1 text-system-700 dark:text-system-300 bg-transparent border-b-2 border-brand-500 outline-none"
+                className="flex-1 text-surface-700 dark:text-surface-300 bg-transparent border-b-2 border-accent-500 outline-none"
               />
             </div>
           ) : (
             <div
               onClick={() => setEditingPrd(true)}
-              className="flex items-center gap-3 cursor-pointer hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+              className="flex items-center gap-3 cursor-pointer hover:text-accent-600 dark:hover:text-accent-400 transition-colors"
               title="Click to edit"
             >
               <svg
-                className="w-5 h-5 text-system-500 flex-shrink-0"
+                className="w-5 h-5 text-surface-500 flex-shrink-0"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -727,11 +804,11 @@ export default function EpicDetailPage() {
                 />
               </svg>
               {epic.prdFilePath ? (
-                <code className="text-sm bg-system-100 dark:bg-system-800 px-2 py-0.5 rounded text-system-700 dark:text-system-300">
+                <code className="text-sm bg-surface-100 dark:bg-surface-800 px-2 py-0.5 rounded text-surface-700 dark:text-surface-300">
                   {epic.prdFilePath}
                 </code>
               ) : (
-                <span className="text-system-400 dark:text-system-500 italic">
+                <span className="text-surface-400 dark:text-surface-500 italic">
                   Click to add PRD file path...
                 </span>
               )}
@@ -742,12 +819,12 @@ export default function EpicDetailPage() {
 
       {/* Acceptance Criteria Section */}
       <div className="mb-6">
-        <h2 className="text-lg font-semibold text-system-900 dark:text-white mb-3">
+        <h2 className="text-lg font-semibold text-surface-900 dark:text-white mb-3">
           Acceptance Criteria
         </h2>
         <div className="card p-5">
           {criteriaLoading ? (
-            <div className="text-sm text-system-400 dark:text-system-500">
+            <div className="text-sm text-surface-400 dark:text-surface-500">
               Loading...
             </div>
           ) : (
@@ -764,7 +841,7 @@ export default function EpicDetailPage() {
       {/* Dependencies Section - Inline Editable */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-system-900 dark:text-white">
+          <h2 className="text-lg font-semibold text-surface-900 dark:text-white">
             Dependencies
           </h2>
           <div className="relative" ref={dependencyPickerRef}>
@@ -790,8 +867,8 @@ export default function EpicDetailPage() {
 
             {/* Dependency Picker Dropdown */}
             {showDependencyPicker && (
-              <div className="absolute right-0 z-50 mt-1 w-80 bg-white dark:bg-system-800 rounded-lg shadow-lg border border-system-200 dark:border-system-700 overflow-hidden">
-                <div className="p-2 border-b border-system-200 dark:border-system-700">
+              <div className="absolute right-0 z-50 mt-1 w-80 bg-white dark:bg-surface-800 rounded-lg shadow-lg border border-surface-200 dark:border-surface-700 overflow-hidden">
+                <div className="p-2 border-b border-surface-200 dark:border-surface-700">
                   <input
                     type="text"
                     value={dependencySearch}
@@ -803,7 +880,7 @@ export default function EpicDetailPage() {
                 </div>
                 <div className="max-h-60 overflow-y-auto">
                   {filteredAvailableEpics.length === 0 ? (
-                    <div className="p-4 text-sm text-system-500 dark:text-system-400 text-center">
+                    <div className="p-4 text-sm text-surface-500 dark:text-surface-400 text-center">
                       No epics found
                     </div>
                   ) : (
@@ -823,27 +900,27 @@ export default function EpicDetailPage() {
                               ? handleRemoveDependency(epicRef)
                               : handleAddDependency(epicRef)
                           }
-                          className={`w-full flex items-center gap-3 px-3 py-2 text-sm text-left hover:bg-system-100 dark:hover:bg-system-700 ${
-                            isSelected ? "bg-brand-50 dark:bg-brand-900/20" : ""
+                          className={`w-full flex items-center gap-3 px-3 py-2 text-sm text-left hover:bg-surface-100 dark:hover:bg-surface-700 ${
+                            isSelected ? "bg-accent-50 dark:bg-accent-900/20" : ""
                           }`}
                         >
                           <input
                             type="checkbox"
                             checked={isSelected}
                             readOnly
-                            className="rounded border-system-300 dark:border-system-600 text-brand-600 focus:ring-brand-500"
+                            className="rounded border-surface-300 dark:border-surface-600 text-accent-600 focus:ring-accent-500"
                           />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="text-xs text-system-500 dark:text-system-400">
+                              <span className="text-xs text-surface-500 dark:text-surface-400">
                                 {displayId}
                               </span>
-                              <span className="text-system-900 dark:text-white truncate">
+                              <span className="text-surface-900 dark:text-white truncate">
                                 {e.title}
                               </span>
                             </div>
                           </div>
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-system-100 dark:bg-system-700 text-system-600 dark:text-system-400">
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-surface-100 dark:bg-surface-700 text-surface-600 dark:text-surface-400">
                             P{epicPhase}
                           </span>
                         </button>
@@ -858,7 +935,7 @@ export default function EpicDetailPage() {
 
         <div className="card p-5">
           {dependencyEpics.length === 0 ? (
-            <p className="text-system-500 dark:text-system-400 text-sm">
+            <p className="text-surface-500 dark:text-surface-400 text-sm">
               No dependencies. This epic is in Phase 1 and can start
               immediately.
             </p>
@@ -871,20 +948,20 @@ export default function EpicDetailPage() {
                 return (
                   <div
                     key={depRef}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-system-100 dark:bg-system-700 rounded-lg text-sm"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-surface-100 dark:bg-surface-700 rounded-lg text-sm"
                   >
                     <Link
                       to={`/epics/${depRef}`}
-                      className="flex items-center gap-2 text-system-700 dark:text-system-300 hover:text-brand-600 dark:hover:text-brand-400"
+                      className="flex items-center gap-2 text-surface-700 dark:text-surface-300 hover:text-accent-600 dark:hover:text-accent-400"
                     >
-                      <span className="text-xs text-system-500 dark:text-system-400">
+                      <span className="text-xs text-surface-500 dark:text-surface-400">
                         {displayId}
                       </span>
                       <span>{depEpic.title}</span>
                     </Link>
                     <button
                       onClick={() => handleRemoveDependency(depRef)}
-                      className="text-system-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                      className="text-surface-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
                       title="Remove dependency"
                     >
                       <svg
@@ -912,7 +989,7 @@ export default function EpicDetailPage() {
       {/* Tasks Section */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-system-900 dark:text-white">
+          <h2 className="text-lg font-semibold text-surface-900 dark:text-white">
             Tasks
           </h2>
           <button
@@ -939,7 +1016,7 @@ export default function EpicDetailPage() {
         {tasks.length === 0 ? (
           <div className="card p-8 text-center">
             <svg
-              className="mx-auto h-10 w-10 text-system-400 dark:text-system-500"
+              className="mx-auto h-10 w-10 text-surface-400 dark:text-surface-500"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -951,24 +1028,24 @@ export default function EpicDetailPage() {
                 d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
               />
             </svg>
-            <p className="mt-3 text-system-500 dark:text-system-400">
+            <p className="mt-3 text-surface-500 dark:text-surface-400">
               No tasks in this epic yet.
             </p>
           </div>
         ) : (
           <div className="card overflow-hidden">
-            <table className="min-w-full divide-y divide-system-200 dark:divide-system-700">
-              <thead className="bg-system-50 dark:bg-system-800">
+            <table className="min-w-full divide-y divide-surface-200 dark:divide-surface-700">
+              <thead className="bg-surface-50 dark:bg-surface-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-system-500 dark:text-system-400 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider">
                     Task
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-system-500 dark:text-system-400 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider">
                     Status
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-system-200 dark:divide-system-700">
+              <tbody className="divide-y divide-surface-200 dark:divide-surface-700">
                 {tasks.map((task) => {
                   const taskStatusConfig =
                     TASK_STATUS_CONFIG[task.status] ||
@@ -990,14 +1067,14 @@ export default function EpicDetailPage() {
                     <tr
                       key={taskRef}
                       onClick={() => navigate(`/tasks/${taskRef}`)}
-                      className="hover:bg-system-50 dark:hover:bg-system-800/50 transition-colors cursor-pointer"
+                      className="hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors cursor-pointer"
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <span className="text-sm text-system-500 dark:text-system-400 font-mono">
+                          <span className="text-sm text-surface-500 dark:text-surface-400 font-mono">
                             {displayId}
                           </span>
-                          <span className="text-sm font-medium text-system-900 dark:text-white">
+                          <span className="text-sm font-medium text-surface-900 dark:text-white">
                             {task.title}
                           </span>
                         </div>

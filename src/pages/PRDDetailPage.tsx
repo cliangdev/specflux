@@ -1,53 +1,33 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { join } from "@tauri-apps/api/path";
 import DocumentViewer from "../components/ui/DocumentViewer";
+import { DetailPageHeader } from "../components/ui/DetailPageHeader";
+import { AIActionButton } from "../components/ui/AIActionButton";
+import { EpicsSection } from "../components/prd/EpicsSection";
 import { useProject } from "../contexts/ProjectContext";
 import { usePageContext } from "../hooks/usePageContext";
+import { useTerminal } from "../contexts/TerminalContext";
 import {
   api,
   type Prd,
   type PrdDocument,
+  type Epic,
   PrdStatus,
   PrdDocumentType,
   type AddPrdDocumentRequest,
 } from "../api";
 import { ImportDocumentModal } from "../components/prds/ImportDocumentModal";
 
-function getStatusBadgeClasses(status: PrdStatus): string {
-  switch (status) {
-    case PrdStatus.Draft:
-      return "bg-system-100 dark:bg-system-700 text-system-600 dark:text-system-300";
-    case PrdStatus.InReview:
-      return "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400";
-    case PrdStatus.Approved:
-      return "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400";
-    case PrdStatus.Implemented:
-      return "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400";
-    case PrdStatus.Archived:
-      return "bg-system-200 dark:bg-system-600 text-system-500 dark:text-system-400";
-    default:
-      return "bg-system-100 dark:bg-system-700 text-system-600 dark:text-system-300";
-  }
-}
-
-function formatStatusLabel(status: PrdStatus): string {
-  switch (status) {
-    case PrdStatus.Draft:
-      return "Draft";
-    case PrdStatus.InReview:
-      return "In Review";
-    case PrdStatus.Approved:
-      return "Approved";
-    case PrdStatus.Implemented:
-      return "Implemented";
-    case PrdStatus.Archived:
-      return "Archived";
-    default:
-      return status;
-  }
-}
+// Status options for PRDs
+const PRD_STATUS_OPTIONS = [
+  { value: PrdStatus.Draft, label: "Draft" },
+  { value: PrdStatus.InReview, label: "In Review" },
+  { value: PrdStatus.Approved, label: "Approved" },
+  { value: PrdStatus.Implemented, label: "Implemented" },
+  { value: PrdStatus.Archived, label: "Archived" },
+];
 
 function getDocumentTypeIcon(type: PrdDocumentType): JSX.Element {
   switch (type) {
@@ -134,25 +114,6 @@ function getDocumentTypeIcon(type: PrdDocumentType): JSX.Element {
   }
 }
 
-function formatRelativeTime(date: Date): string {
-  const now = new Date();
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-  if (diffInSeconds < 60) return "just now";
-  if (diffInSeconds < 3600)
-    return `${Math.floor(diffInSeconds / 60)} minutes ago`;
-  if (diffInSeconds < 86400)
-    return `${Math.floor(diffInSeconds / 3600)} hours ago`;
-  if (diffInSeconds < 604800)
-    return `${Math.floor(diffInSeconds / 86400)} days ago`;
-
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
-  });
-}
-
 export default function PRDDetailPage() {
   const { prdName } = useParams<{ prdName: string }>();
   const navigate = useNavigate();
@@ -162,6 +123,11 @@ export default function PRDDetailPage() {
 
   const [prd, setPrd] = useState<Prd | null>(null);
   const [selectedDoc, setSelectedDoc] = useState<PrdDocument | null>(null);
+  const [epics, setEpics] = useState<Epic[]>([]);
+  const [epicsLoading, setEpicsLoading] = useState(false);
+
+  // Terminal context for AI actions
+  const { openTerminalForContext, getExistingSession, switchToSession, activeSession, isRunning } = useTerminal();
 
   // Set page context for terminal suggested commands - use displayKey once PRD is loaded
   usePageContext(
@@ -173,32 +139,7 @@ export default function PRDDetailPage() {
   const [loading, setLoading] = useState(true);
   const [contentLoading, setContentLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showStatusMenu, setShowStatusMenu] = useState(false);
-  const [showActionsMenu, setShowActionsMenu] = useState(false);
-  const [metadataCollapsed, setMetadataCollapsed] = useState(false);
   const [showAddDocModal, setShowAddDocModal] = useState(false);
-  const statusMenuRef = useRef<HTMLDivElement>(null);
-  const actionsMenuRef = useRef<HTMLDivElement>(null);
-
-  // Close menus when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        statusMenuRef.current &&
-        !statusMenuRef.current.contains(event.target as Node)
-      ) {
-        setShowStatusMenu(false);
-      }
-      if (
-        actionsMenuRef.current &&
-        !actionsMenuRef.current.contains(event.target as Node)
-      ) {
-        setShowActionsMenu(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const loadPrd = useCallback(async () => {
     const projectRef = getProjectRef();
@@ -227,6 +168,25 @@ export default function PRDDetailPage() {
       setLoading(false);
     }
   }, [getProjectRef, prdRef]);
+
+  // Load epics linked to this PRD
+  const loadEpics = useCallback(async () => {
+    const projectRef = getProjectRef();
+    if (!projectRef || !prd?.id) {
+      return;
+    }
+
+    setEpicsLoading(true);
+    try {
+      const response = await api.epics.listEpics({ projectRef, prdRef: prd.id });
+      setEpics(response.data ?? []);
+    } catch (err) {
+      console.error("Failed to load epics:", err);
+      setEpics([]);
+    } finally {
+      setEpicsLoading(false);
+    }
+  }, [getProjectRef, prd?.id]);
 
   // Load file content when selection changes
   const loadContent = useCallback(async () => {
@@ -264,6 +224,10 @@ export default function PRDDetailPage() {
     loadContent();
   }, [loadContent]);
 
+  useEffect(() => {
+    loadEpics();
+  }, [loadEpics]);
+
   const handleBack = () => {
     navigate("/prds");
   };
@@ -272,7 +236,7 @@ export default function PRDDetailPage() {
     setSelectedDoc(doc);
   };
 
-  const handleStatusChange = async (newStatus: PrdStatus) => {
+  const handleStatusChange = async (newStatus: string) => {
     const projectRef = getProjectRef();
     if (!projectRef || !prd) return;
 
@@ -280,10 +244,9 @@ export default function PRDDetailPage() {
       const updated = await api.prds.updatePrd({
         projectRef,
         prdRef: prd.id,
-        updatePrdRequest: { status: newStatus },
+        updatePrdRequest: { status: newStatus as PrdStatus },
       });
       setPrd(updated);
-      setShowStatusMenu(false);
     } catch (err) {
       console.error("Failed to update status:", err);
     }
@@ -336,17 +299,67 @@ export default function PRDDetailPage() {
     }
   };
 
+  // AI Action handlers
+  const handleStartWork = () => {
+    if (prd) {
+      const context = {
+        type: "prd" as const,
+        id: prd.id,
+        title: prd.title,
+        displayKey: prd.displayKey,
+        projectRef: getProjectRef() ?? undefined,
+        workingDirectory: currentProject?.localPath,
+        initialCommand: "claude",
+      };
+
+      // Check if session already exists - switch to it directly
+      const existing = getExistingSession(context);
+      if (existing) {
+        switchToSession(existing.id);
+      } else {
+        openTerminalForContext(context);
+      }
+    }
+  };
+
+  const handleContinueWork = () => {
+    if (prd) {
+      const context = {
+        type: "prd" as const,
+        id: prd.id,
+        title: prd.title,
+        displayKey: prd.displayKey,
+      };
+      const existing = getExistingSession(context);
+      if (existing) {
+        switchToSession(existing.id);
+      }
+    }
+  };
+
+  // Check if terminal has existing session for this PRD
+  const hasExistingSession = prd
+    ? !!getExistingSession({
+        type: "prd" as const,
+        id: prd.id,
+        title: prd.title,
+      })
+    : false;
+
+  // Check if terminal is showing this PRD
+  const isTerminalShowingThisPrd = activeSession?.contextId === prd?.id;
+
   // No project
   if (!currentProject?.localPath) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-system-500 dark:text-system-400">
+          <p className="text-surface-500 dark:text-surface-400">
             Project path not configured.
           </p>
           <button
             onClick={handleBack}
-            className="mt-4 text-brand-600 hover:text-brand-700 dark:text-brand-400"
+            className="mt-4 text-accent-600 hover:text-accent-700 dark:text-accent-400"
           >
             Back to PRDs
           </button>
@@ -358,7 +371,7 @@ export default function PRDDetailPage() {
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="flex items-center gap-3 text-system-500 dark:text-system-400">
+        <div className="flex items-center gap-3 text-surface-500 dark:text-surface-400">
           <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
             <circle
               className="opacity-25"
@@ -389,7 +402,7 @@ export default function PRDDetailPage() {
           </div>
           <button
             onClick={handleBack}
-            className="text-brand-600 hover:text-brand-700 dark:text-brand-400"
+            className="text-accent-600 hover:text-accent-700 dark:text-accent-400"
           >
             Back to PRDs
           </button>
@@ -401,208 +414,52 @@ export default function PRDDetailPage() {
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="flex-shrink-0 px-6 py-4 border-b border-system-200 dark:border-system-700">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleBack}
-              className="flex items-center gap-1 text-system-500 hover:text-system-700 dark:text-system-400 dark:hover:text-system-200 transition-colors"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-              Back to PRDs
-            </button>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-system-400 dark:text-system-500 font-mono">
-                {prd.displayKey}
-              </span>
-              <h1 className="text-xl font-semibold text-system-900 dark:text-white">
-                {prd.title}
-              </h1>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Status dropdown */}
-            <div className="relative" ref={statusMenuRef}>
-              <button
-                onClick={() => setShowStatusMenu(!showStatusMenu)}
-                className={`px-3 py-1.5 text-sm font-medium rounded-lg flex items-center gap-1.5 transition-colors ${getStatusBadgeClasses(prd.status)}`}
-              >
-                {formatStatusLabel(prd.status)}
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
-              {showStatusMenu && (
-                <div className="absolute right-0 mt-1 w-40 bg-white dark:bg-system-800 rounded-lg shadow-lg border border-system-200 dark:border-system-700 py-1 z-50">
-                  {Object.values(PrdStatus).map((status) => (
-                    <button
-                      key={status}
-                      onClick={() => handleStatusChange(status)}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-system-100 dark:hover:bg-system-700 ${
-                        status === prd.status
-                          ? "font-medium text-brand-600 dark:text-brand-400"
-                          : "text-system-700 dark:text-system-300"
-                      }`}
-                    >
-                      {formatStatusLabel(status)}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Actions menu */}
-            <div className="relative" ref={actionsMenuRef}>
-              <button
-                onClick={() => setShowActionsMenu(!showActionsMenu)}
-                className="btn btn-ghost"
-                title="Actions"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-                  />
-                </svg>
-              </button>
-              {showActionsMenu && (
-                <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-system-800 rounded-lg shadow-lg border border-system-200 dark:border-system-700 py-1 z-50">
-                  <button
-                    onClick={() => {
-                      setShowActionsMenu(false);
-                      handleDelete();
-                    }}
-                    className="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
-                  >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
-                    Delete PRD
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Metadata Panel (collapsible) */}
-      <div className="flex-shrink-0 border-b border-system-200 dark:border-system-700 bg-system-50 dark:bg-system-900/50">
-        <button
-          onClick={() => setMetadataCollapsed(!metadataCollapsed)}
-          className="w-full px-6 py-2 flex items-center justify-between text-xs font-medium uppercase tracking-wider text-system-400 dark:text-system-500 hover:text-system-600 dark:hover:text-system-300"
-        >
-          <span>Details</span>
-          <svg
-            className={`w-4 h-4 transition-transform ${metadataCollapsed ? "-rotate-90" : ""}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 9l-7 7-7-7"
-            />
-          </svg>
-        </button>
-        {!metadataCollapsed && (
-          <div className="px-6 pb-4 grid grid-cols-4 gap-6">
-            <div>
-              <div className="text-xs text-system-400 dark:text-system-500 mb-1">
-                Created
-              </div>
-              <div className="text-sm text-system-700 dark:text-system-300">
-                {formatRelativeTime(prd.createdAt)}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-system-400 dark:text-system-500 mb-1">
-                Updated
-              </div>
-              <div className="text-sm text-system-700 dark:text-system-300">
-                {formatRelativeTime(prd.updatedAt)}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-system-400 dark:text-system-500 mb-1">
-                Documents
-              </div>
-              <div className="text-sm text-system-700 dark:text-system-300">
-                {prd.documents?.length ?? 0} files
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-system-400 dark:text-system-500 mb-1">
-                Folder
-              </div>
-              <div className="text-sm text-system-700 dark:text-system-300 font-mono truncate">
-                {prd.folderPath}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+      <DetailPageHeader
+        backTo="/prds"
+        entityKey={prd.displayKey}
+        title={prd.title}
+        status={prd.status}
+        statusOptions={PRD_STATUS_OPTIONS}
+        onStatusChange={handleStatusChange}
+        badges={[
+          { label: "Documents", value: `${prd.documents?.length ?? 0} files` },
+          { label: "Epics", value: `${epics.length}` },
+        ]}
+        createdAt={prd.createdAt}
+        updatedAt={prd.updatedAt}
+        primaryAction={
+          <AIActionButton
+            entityType="prd"
+            entityId={prd.id}
+            entityTitle={prd.title}
+            hasExistingSession={hasExistingSession}
+            isTerminalActive={isTerminalShowingThisPrd && isRunning}
+            onStartWork={handleStartWork}
+            onContinueWork={hasExistingSession ? handleContinueWork : undefined}
+          />
+        }
+        onDelete={handleDelete}
+        isLoading={loading}
+      />
 
       {/* Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Document Sidebar */}
-        <div className="w-64 flex-shrink-0 border-r border-system-200 dark:border-system-700 bg-system-50 dark:bg-system-900 overflow-auto">
+        <div className="w-64 flex-shrink-0 border-r border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 overflow-y-auto scrollbar-hidden">
           <div className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-system-400 dark:text-system-500">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-400 dark:text-surface-500">
                 Documents
               </h2>
               <button
                 onClick={() => setShowAddDocModal(true)}
-                className="text-xs text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 font-medium"
+                className="text-xs text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 font-medium"
               >
                 + Import
               </button>
             </div>
             {!prd.documents || prd.documents.length === 0 ? (
-              <p className="text-sm text-system-500 dark:text-system-400">
+              <p className="text-sm text-surface-500 dark:text-surface-400">
                 No documents
               </p>
             ) : (
@@ -613,23 +470,23 @@ export default function PRDDetailPage() {
                       onClick={() => handleDocSelect(doc)}
                       className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
                         selectedDoc?.id === doc.id
-                          ? "bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 font-medium"
-                          : "text-system-600 dark:text-system-400 hover:bg-system-100 dark:hover:bg-system-800"
+                          ? "bg-accent-100 dark:bg-accent-900/30 text-accent-700 dark:text-accent-300 font-medium"
+                          : "text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800"
                       }`}
                     >
                       <div className="flex items-center gap-2">
                         <span
                           className={`flex-shrink-0 ${
                             selectedDoc?.id === doc.id
-                              ? "text-brand-600 dark:text-brand-400"
-                              : "text-system-400 dark:text-system-500"
+                              ? "text-accent-600 dark:text-accent-400"
+                              : "text-surface-400 dark:text-surface-500"
                           }`}
                         >
                           {getDocumentTypeIcon(doc.documentType)}
                         </span>
                         <span className="truncate flex-1">{doc.fileName}</span>
                         {doc.isPrimary && (
-                          <span className="text-xs text-brand-500 dark:text-brand-400">
+                          <span className="text-xs text-accent-500 dark:text-accent-400">
                             Primary
                           </span>
                         )}
@@ -640,13 +497,22 @@ export default function PRDDetailPage() {
               </ul>
             )}
           </div>
+
+          {/* Epics Section */}
+          <div className="p-4 border-t border-surface-200 dark:border-surface-700">
+            <EpicsSection
+              epics={epics}
+              onAddEpic={() => navigate(`/epics/new?prdRef=${prd.id}`)}
+              loading={epicsLoading}
+            />
+          </div>
         </div>
 
         {/* Document Content */}
         <div className="flex-1 overflow-auto">
           {contentLoading ? (
             <div className="flex items-center justify-center h-full">
-              <div className="flex items-center gap-3 text-system-500 dark:text-system-400">
+              <div className="flex items-center gap-3 text-surface-500 dark:text-surface-400">
                 <svg
                   className="animate-spin w-5 h-5"
                   fill="none"
@@ -673,7 +539,7 @@ export default function PRDDetailPage() {
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <svg
-                  className="mx-auto h-12 w-12 text-system-400 dark:text-system-500"
+                  className="mx-auto h-12 w-12 text-surface-400 dark:text-surface-500"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -685,7 +551,7 @@ export default function PRDDetailPage() {
                     d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                   />
                 </svg>
-                <p className="mt-2 text-system-500 dark:text-system-400">
+                <p className="mt-2 text-surface-500 dark:text-surface-400">
                   No documents in this PRD
                 </p>
               </div>

@@ -102,7 +102,7 @@ function FileTreeItem({
       <div
         className={`flex items-center gap-2 px-3 py-1.5 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 ${
           isSelected
-            ? "bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400"
+            ? "bg-accent-50 dark:bg-accent-900/20 text-accent-600 dark:text-accent-400"
             : "text-gray-700 dark:text-gray-300"
         }`}
         onClick={handleClick}

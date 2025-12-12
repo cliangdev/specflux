@@ -30,7 +30,7 @@ interface TerminalDimensions {
   rows: number;
 }
 
-type ContextType = "task" | "epic" | "project" | "prd-workshop" | "release";
+type ContextType = "task" | "epic" | "project" | "prd" | "prd-workshop" | "release";
 
 interface TerminalProps {
   contextType?: ContextType;

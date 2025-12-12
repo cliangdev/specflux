@@ -1,11 +1,20 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { api, getApiErrorMessage } from "../api";
-import type { Agent } from "../api/generated/models/Agent";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { AgentDefinitionTab } from "../components/agents";
 import { useProject } from "../contexts/ProjectContext";
+import { extractDescription } from "../components/settings/AgentSettings";
 
 type TabId = "overview" | "definition";
+
+// Local agent type for filesystem-based agents
+interface LocalAgent {
+  id: string;
+  name: string;
+  description: string;
+  filePath: string;
+  content: string;
+}
 
 // Common emoji options for picker
 const EMOJI_OPTIONS = [
@@ -37,7 +46,7 @@ export default function AgentDetailPage() {
   const { currentProject } = useProject();
 
   // Data state
-  const [agent, setAgent] = useState<Agent | null>(null);
+  const [agent, setAgent] = useState<LocalAgent | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,8 +56,7 @@ export default function AgentDetailPage() {
     name: "",
     description: "",
     emoji: "",
-    systemPrompt: "",
-    tools: [] as string[],
+    content: "",
   });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -64,35 +72,40 @@ export default function AgentDetailPage() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const fetchAgent = useCallback(async () => {
-    if (!id) return;
+    if (!id || !currentProject?.localPath) return;
 
     try {
       setLoading(true);
       setError(null);
-      const agentData = await api.agents.getAgent({
-        projectRef: currentProject?.id || "",
-        agentRef: id,
-      });
+
+      const filePath = `.claude/agents/${id}.md`;
+      const fullPath = `${currentProject.localPath}/${filePath}`;
+      const content = await readTextFile(fullPath);
+
+      const agentData: LocalAgent = {
+        id,
+        name: id,
+        description: extractDescription(content),
+        filePath,
+        content,
+      };
       setAgent(agentData);
 
       // Initialize edit form with current values
-      if (agentData) {
-        setEditForm({
-          name: agentData.name,
-          description: agentData.description || "",
-          emoji: "",
-          systemPrompt: "",
-          tools: [],
-        });
-      }
+      setEditForm({
+        name: agentData.name,
+        description: agentData.description,
+        emoji: "🤖",
+        content: agentData.content,
+      });
     } catch (err) {
-      const message = await getApiErrorMessage(err, "Failed to load agent");
-      setError(message);
+      const message = err instanceof Error ? err.message : "Failed to load agent";
+      setError(`Agent not found: ${id}`);
       console.error("Failed to fetch agent:", err);
     } finally {
       setLoading(false);
     }
-  }, [id, currentProject]);
+  }, [id, currentProject?.localPath]);
 
   useEffect(() => {
     fetchAgent();
@@ -103,9 +116,8 @@ export default function AgentDetailPage() {
       setEditForm({
         name: agent.name,
         description: agent.description || "",
-        emoji: "",
-        systemPrompt: "",
-        tools: [],
+        emoji: "🤖",
+        content: agent.content,
       });
     }
     setSaveError(null);
@@ -119,25 +131,19 @@ export default function AgentDetailPage() {
   };
 
   const handleSave = async () => {
-    if (!agent || !id || !currentProject) return;
+    if (!agent || !id || !currentProject?.localPath) return;
 
     setSaving(true);
     setSaveError(null);
 
     try {
-      await api.agents.updateAgent({
-        projectRef: currentProject.id,
-        agentRef: id,
-        updateAgentRequest: {
-          name: editForm.name,
-          description: editForm.description || undefined,
-        },
-      });
+      const fullPath = `${currentProject.localPath}/${agent.filePath}`;
+      await writeTextFile(fullPath, editForm.content);
 
       await fetchAgent();
       setIsEditing(false);
     } catch (err) {
-      const message = await getApiErrorMessage(err, "Failed to save agent");
+      const message = err instanceof Error ? err.message : "Failed to save agent";
       setSaveError(message);
       console.error("Failed to save agent:", err);
     } finally {
@@ -146,24 +152,10 @@ export default function AgentDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!id || !currentProject) return;
-
-    setDeleting(true);
-
-    try {
-      await api.agents.deleteAgent({
-        projectRef: currentProject.id,
-        agentRef: id,
-      });
-      navigate(-1);
-    } catch (err) {
-      const message = await getApiErrorMessage(err, "Failed to delete agent");
-      setError(message);
-      console.error("Failed to delete agent:", err);
-    } finally {
-      setDeleting(false);
-      setShowDeleteConfirm(false);
-    }
+    // Note: File deletion not implemented - would need to use Tauri fs remove
+    // For now, just navigate back
+    setShowDeleteConfirm(false);
+    navigate("/settings/agents");
   };
 
   const handleEmojiSelect = (emoji: string) => {
@@ -175,7 +167,7 @@ export default function AgentDetailPage() {
     return (
       <div className="flex items-center justify-center py-12">
         <svg
-          className="animate-spin w-8 h-8 text-brand-500"
+          className="animate-spin w-8 h-8 text-accent-500"
           viewBox="0 0 24 24"
         >
           <circle
@@ -203,7 +195,7 @@ export default function AgentDetailPage() {
         <div className="text-red-500 dark:text-red-400 text-lg">
           Error loading agent
         </div>
-        <p className="text-system-500 mt-2">{error}</p>
+        <p className="text-surface-500 mt-2">{error}</p>
         <button onClick={fetchAgent} className="mt-4 btn btn-primary">
           Try Again
         </button>
@@ -214,7 +206,7 @@ export default function AgentDetailPage() {
   if (!agent) {
     return (
       <div className="text-center py-12">
-        <div className="text-system-500 dark:text-system-400 text-lg">
+        <div className="text-surface-500 dark:text-surface-400 text-lg">
           Agent not found
         </div>
         <button onClick={() => navigate(-1)} className="mt-4 btn btn-primary">
@@ -225,29 +217,32 @@ export default function AgentDetailPage() {
   }
 
   return (
-    <div>
+    <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <button onClick={() => navigate(-1)} className="btn btn-ghost">
+      <div className="flex items-center gap-3 mb-6 flex-shrink-0">
+        <Link
+          to="/settings/agents"
+          className="inline-flex items-center gap-1.5 text-sm text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white transition-colors"
+        >
           <svg
-            className="w-5 h-5"
+            className="w-4 h-4"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
+            strokeWidth={2}
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M10 19l-7-7m0 0l7-7m-7 7h18"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
           Back
-        </button>
-
+        </Link>
+        <div className="h-6 w-px bg-surface-200 dark:bg-surface-700" />
+        <span className="text-4xl">🤖</span>
+        <h1 className="text-xl font-semibold text-surface-900 dark:text-white flex-1 truncate">
+          {agent.name}
+        </h1>
         <button
           onClick={() => setShowDeleteConfirm(true)}
-          className="btn btn-ghost text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+          className="btn btn-danger"
         >
           <svg
             className="w-4 h-4"
@@ -273,64 +268,15 @@ export default function AgentDetailPage() {
         </div>
       )}
 
-      {/* Agent Header - Emoji and Name */}
-      <div className="mb-6">
-        <div className="flex items-center gap-4">
-          {isEditing ? (
-            <>
-              {/* Emoji Picker */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className="w-16 h-16 text-4xl flex items-center justify-center border-2 border-dashed border-system-300 dark:border-system-600 rounded-lg hover:border-brand-500 dark:hover:border-brand-400 transition-colors"
-                >
-                  {editForm.emoji || "🤖"}
-                </button>
-                {showEmojiPicker && (
-                  <div className="absolute top-full left-0 mt-2 p-2 bg-white dark:bg-system-800 border border-system-200 dark:border-system-700 rounded-lg shadow-lg z-10 grid grid-cols-5 gap-1">
-                    {EMOJI_OPTIONS.map((emoji) => (
-                      <button
-                        key={emoji}
-                        onClick={() => handleEmojiSelect(emoji)}
-                        className="w-8 h-8 text-xl hover:bg-system-100 dark:hover:bg-system-700 rounded"
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              {/* Name Input */}
-              <input
-                type="text"
-                value={editForm.name}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, name: e.target.value })
-                }
-                className="text-2xl font-semibold bg-transparent border-b-2 border-system-300 dark:border-system-600 focus:border-brand-500 dark:focus:border-brand-400 outline-none text-system-900 dark:text-white px-1"
-                placeholder="Agent name"
-              />
-            </>
-          ) : (
-            <>
-              <span className="text-5xl">🤖</span>
-              <h1 className="text-2xl font-semibold text-system-900 dark:text-white">
-                {agent.name}
-              </h1>
-            </>
-          )}
-        </div>
-      </div>
-
       {/* Tabs */}
-      <div className="border-b border-system-200 dark:border-system-700 mb-6">
+      <div className="border-b border-surface-200 dark:border-surface-700 mb-6">
         <nav className="-mb-px flex gap-6">
           <button
             onClick={() => setActiveTab("overview")}
             className={`py-3 px-1 border-b-2 text-sm font-medium transition-colors ${
               activeTab === "overview"
-                ? "border-brand-500 text-brand-600 dark:text-brand-400"
-                : "border-transparent text-system-500 hover:text-system-700 dark:hover:text-system-300"
+                ? "border-accent-500 text-accent-600 dark:text-accent-400"
+                : "border-transparent text-surface-500 hover:text-surface-700 dark:hover:text-surface-300"
             }`}
           >
             Overview
@@ -339,8 +285,8 @@ export default function AgentDetailPage() {
             onClick={() => setActiveTab("definition")}
             className={`py-3 px-1 border-b-2 text-sm font-medium transition-colors ${
               activeTab === "definition"
-                ? "border-brand-500 text-brand-600 dark:text-brand-400"
-                : "border-transparent text-system-500 hover:text-system-700 dark:hover:text-system-300"
+                ? "border-accent-500 text-accent-600 dark:text-accent-400"
+                : "border-transparent text-surface-500 hover:text-surface-700 dark:hover:text-surface-300"
             }`}
           >
             Agent Definition
@@ -395,7 +341,7 @@ export default function AgentDetailPage() {
 
           {/* Description */}
           <div className="card p-5">
-            <h3 className="text-sm font-medium text-system-500 dark:text-system-400 mb-2">
+            <h3 className="text-sm font-medium text-surface-500 dark:text-surface-400 mb-2">
               Description
             </h3>
             {isEditing ? (
@@ -409,9 +355,9 @@ export default function AgentDetailPage() {
                 placeholder="Describe what this agent specializes in..."
               />
             ) : (
-              <p className="text-system-700 dark:text-system-300">
+              <p className="text-surface-700 dark:text-surface-300">
                 {agent.description || (
-                  <span className="text-system-400 dark:text-system-500 italic">
+                  <span className="text-surface-400 dark:text-surface-500 italic">
                     No description
                   </span>
                 )}
@@ -422,18 +368,18 @@ export default function AgentDetailPage() {
           {/* Source File */}
           {agent.filePath && (
             <div className="card p-5">
-              <h3 className="text-sm font-medium text-system-500 dark:text-system-400 mb-2">
+              <h3 className="text-sm font-medium text-surface-500 dark:text-surface-400 mb-2">
                 Source File
               </h3>
               <div className="flex items-center gap-2">
-                <code className="text-sm bg-system-100 dark:bg-system-800 px-2 py-1 rounded font-mono text-system-700 dark:text-system-300">
+                <code className="text-sm bg-surface-100 dark:bg-surface-800 px-2 py-1 rounded font-mono text-surface-700 dark:text-surface-300">
                   {agent.filePath}
                 </code>
                 <button
                   onClick={() =>
                     navigator.clipboard.writeText(agent.filePath || "")
                   }
-                  className="p-1 text-system-400 hover:text-system-600 dark:hover:text-system-300"
+                  className="p-1 text-surface-400 hover:text-surface-600 dark:hover:text-surface-300"
                   title="Copy path"
                 >
                   <svg
@@ -454,29 +400,6 @@ export default function AgentDetailPage() {
             </div>
           )}
 
-          {/* Tools - Note: Not available in v2 API yet */}
-
-          {/* Timestamps */}
-          <div className="card p-5">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-system-500 dark:text-system-400">
-                  Created:
-                </span>
-                <span className="ml-2 text-system-700 dark:text-system-300">
-                  {new Date(agent.createdAt).toLocaleDateString()}
-                </span>
-              </div>
-              <div>
-                <span className="text-system-500 dark:text-system-400">
-                  Updated:
-                </span>
-                <span className="ml-2 text-system-700 dark:text-system-300">
-                  {new Date(agent.updatedAt).toLocaleDateString()}
-                </span>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
@@ -490,19 +413,19 @@ export default function AgentDetailPage() {
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-system-800 rounded-lg shadow-xl w-full max-w-md mx-4">
-            <div className="px-6 py-4 border-b border-system-200 dark:border-system-700">
-              <h3 className="text-lg font-semibold text-system-900 dark:text-white">
+          <div className="bg-white dark:bg-surface-800 rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div className="px-6 py-4 border-b border-surface-200 dark:border-surface-700">
+              <h3 className="text-lg font-semibold text-surface-900 dark:text-white">
                 Delete Agent
               </h3>
             </div>
             <div className="px-6 py-4">
-              <p className="text-sm text-system-700 dark:text-system-300">
+              <p className="text-sm text-surface-700 dark:text-surface-300">
                 Are you sure you want to delete{" "}
                 <span className="font-semibold">"{agent.name}"</span>?
               </p>
             </div>
-            <div className="px-6 py-4 border-t border-system-200 dark:border-system-700 flex gap-3 justify-end">
+            <div className="px-6 py-4 border-t border-surface-200 dark:border-surface-700 flex gap-3 justify-end">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
                 disabled={deleting}

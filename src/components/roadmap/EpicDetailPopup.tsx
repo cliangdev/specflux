@@ -59,13 +59,13 @@ export default function EpicDetailPopup({
       case "IN_PROGRESS":
         return {
           label: "In Progress",
-          className: "bg-brand-500/20 text-brand-600 dark:text-brand-400",
+          className: "bg-accent-500/20 text-accent-600 dark:text-accent-400",
         };
       default: // PLANNING
         return {
           label: "Planning",
           className:
-            "bg-system-200 dark:bg-system-700 text-system-600 dark:text-system-400",
+            "bg-surface-200 dark:bg-surface-700 text-surface-600 dark:text-surface-400",
         };
     }
   }
@@ -79,7 +79,7 @@ export default function EpicDetailPopup({
 
       {/* Popup */}
       <div
-        className="absolute z-50 w-72 bg-white dark:bg-system-800 rounded-lg shadow-xl border border-system-200 dark:border-system-700 overflow-hidden"
+        className="absolute z-50 w-72 bg-white dark:bg-surface-800 rounded-lg shadow-xl border border-surface-200 dark:border-surface-700 overflow-hidden"
         style={{
           left: position.x,
           top: position.y,
@@ -87,13 +87,13 @@ export default function EpicDetailPopup({
         }}
       >
         {/* Header */}
-        <div className="p-3 border-b border-system-200 dark:border-system-700">
+        <div className="p-3 border-b border-surface-200 dark:border-surface-700">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-system-900 dark:text-white text-sm leading-tight">
+              <h3 className="font-semibold text-surface-900 dark:text-white text-sm leading-tight">
                 {epic.title}
               </h3>
-              <span className="text-xs text-system-500 dark:text-system-400">
+              <span className="text-xs text-surface-500 dark:text-surface-400">
                 {epic.displayKey}
               </span>
             </div>
@@ -110,19 +110,19 @@ export default function EpicDetailPopup({
           {/* Progress */}
           <div>
             <div className="flex justify-between text-xs mb-1">
-              <span className="text-system-500 dark:text-system-400">
+              <span className="text-surface-500 dark:text-surface-400">
                 Progress
               </span>
-              <span className="font-medium text-system-700 dark:text-system-300">
+              <span className="font-medium text-surface-700 dark:text-surface-300">
                 {taskStats.done}/{taskStats.total} tasks ({progress}%)
               </span>
             </div>
-            <div className="h-1.5 bg-system-200 dark:bg-system-700 rounded-full overflow-hidden">
+            <div className="h-1.5 bg-surface-200 dark:bg-surface-700 rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all ${
                   (epic.status as string) === "COMPLETED"
                     ? "bg-semantic-success"
-                    : "bg-brand-500"
+                    : "bg-accent-500"
                 }`}
                 style={{ width: `${progress}%` }}
               />
@@ -132,16 +132,16 @@ export default function EpicDetailPopup({
           {/* Dependencies */}
           {needsEpics.length > 0 && (
             <div>
-              <div className="text-xs font-medium text-system-600 dark:text-system-400 mb-1">
+              <div className="text-xs font-medium text-surface-600 dark:text-surface-400 mb-1">
                 Depends on ({needsEpics.length})
               </div>
               <div className="space-y-1">
                 {needsEpics.map((dep) => (
                   <div
                     key={dep.id}
-                    className="text-xs text-system-700 dark:text-system-300 truncate"
+                    className="text-xs text-surface-700 dark:text-surface-300 truncate"
                   >
-                    <span className="text-system-500 dark:text-system-400">
+                    <span className="text-surface-500 dark:text-surface-400">
                       {dep.displayKey}
                     </span>{" "}
                     {dep.title}
@@ -154,16 +154,16 @@ export default function EpicDetailPopup({
           {/* Blocks */}
           {blocksEpics.length > 0 && (
             <div>
-              <div className="text-xs font-medium text-system-600 dark:text-system-400 mb-1">
+              <div className="text-xs font-medium text-surface-600 dark:text-surface-400 mb-1">
                 Blocks ({blocksEpics.length})
               </div>
               <div className="space-y-1">
                 {blocksEpics.map((blocker) => (
                   <div
                     key={blocker.id}
-                    className="text-xs text-system-700 dark:text-system-300 truncate"
+                    className="text-xs text-surface-700 dark:text-surface-300 truncate"
                   >
-                    <span className="text-system-500 dark:text-system-400">
+                    <span className="text-surface-500 dark:text-surface-400">
                       {blocker.displayKey}
                     </span>{" "}
                     {blocker.title}
@@ -175,23 +175,23 @@ export default function EpicDetailPopup({
 
           {/* No dependencies message */}
           {needsEpics.length === 0 && blocksEpics.length === 0 && (
-            <div className="text-xs text-system-500 dark:text-system-400 italic">
+            <div className="text-xs text-surface-500 dark:text-surface-400 italic">
               No dependencies
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t border-system-200 dark:border-system-700 flex justify-end gap-2">
+        <div className="p-3 border-t border-surface-200 dark:border-surface-700 flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-3 py-1.5 text-xs text-system-600 dark:text-system-400 hover:bg-system-100 dark:hover:bg-system-700 rounded transition-colors"
+            className="px-3 py-1.5 text-xs text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-700 rounded transition-colors"
           >
             Close
           </button>
           <button
             onClick={onNavigate}
-            className="px-3 py-1.5 text-xs bg-brand-500 text-white rounded hover:bg-brand-600 transition-colors"
+            className="px-3 py-1.5 text-xs bg-accent-500 text-white rounded hover:bg-accent-600 transition-colors"
           >
             View Details
           </button>

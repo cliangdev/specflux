@@ -62,7 +62,7 @@ function Avatar({ name, size = "sm" }: { name: string; size?: "sm" | "md" }) {
 
   return (
     <div
-      className={`${sizeClasses} rounded-full bg-brand-100 dark:bg-brand-900/50 text-brand-700 dark:text-brand-300 flex items-center justify-center font-medium`}
+      className={`${sizeClasses} rounded-full bg-accent-100 dark:bg-accent-900/50 text-accent-700 dark:text-accent-300 flex items-center justify-center font-medium`}
     >
       {initials}
     </div>
@@ -101,41 +101,41 @@ export default function OwnerExecutorBadge({
       {/* Owner */}
       <div className="flex items-center gap-1.5">
         {showLabels && (
-          <span className="text-system-500 dark:text-system-400">Owner:</span>
+          <span className="text-surface-500 dark:text-surface-400">Owner:</span>
         )}
         {hasOwner ? (
           <div className="flex items-center gap-1">
             {owner ? (
               <Avatar name={owner.displayName || owner.email || ""} />
             ) : (
-              <UserIcon className="w-4 h-4 text-system-500 dark:text-system-400" />
+              <UserIcon className="w-4 h-4 text-surface-500 dark:text-surface-400" />
             )}
-            <span className="text-system-700 dark:text-system-200">
+            <span className="text-surface-700 dark:text-surface-200">
               {ownerName}
             </span>
           </div>
         ) : (
-          <span className="text-system-400 dark:text-system-500 italic">
+          <span className="text-surface-400 dark:text-surface-500 italic">
             Unassigned
           </span>
         )}
       </div>
 
       {/* Separator */}
-      <span className="text-system-300 dark:text-system-600">|</span>
+      <span className="text-surface-300 dark:text-surface-600">|</span>
 
       {/* Executor */}
       <div className="flex items-center gap-1.5">
         {showLabels && (
-          <span className="text-system-500 dark:text-system-400">
+          <span className="text-surface-500 dark:text-surface-400">
             Executor:
           </span>
         )}
         <div className="flex items-center gap-1">
           {isAgentExecutor ? (
             <>
-              <AgentIcon className="w-4 h-4 text-brand-500 dark:text-brand-400" />
-              <span className="text-brand-600 dark:text-brand-400 font-medium">
+              <AgentIcon className="w-4 h-4 text-accent-500 dark:text-accent-400" />
+              <span className="text-accent-600 dark:text-accent-400 font-medium">
                 {formatAgentName(executorName)}
               </span>
             </>
@@ -144,14 +144,14 @@ export default function OwnerExecutorBadge({
               <Avatar
                 name={assignedUser.displayName || assignedUser.email || ""}
               />
-              <span className="text-system-700 dark:text-system-200">
+              <span className="text-surface-700 dark:text-surface-200">
                 {executorName}
               </span>
             </>
           ) : (
             <>
-              <UserIcon className="w-4 h-4 text-system-400 dark:text-system-500" />
-              <span className="text-system-400 dark:text-system-500 italic">
+              <UserIcon className="w-4 h-4 text-surface-400 dark:text-surface-500" />
+              <span className="text-surface-400 dark:text-surface-500 italic">
                 Unassigned
               </span>
             </>

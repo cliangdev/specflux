@@ -38,7 +38,7 @@ export default function ClaudePill() {
         text-slate-200 text-sm font-medium
         shadow-lg hover:bg-slate-700 hover:border-slate-600
         transition-all duration-200
-        focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:ring-offset-slate-900
+        focus:outline-none focus:ring-2 focus:ring-accent-500 focus:ring-offset-2 focus:ring-offset-slate-900
       `}
       title="Open Claude panel (⌘T)"
       data-testid="claude-pill"

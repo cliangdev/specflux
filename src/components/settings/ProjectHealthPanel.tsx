@@ -88,7 +88,7 @@ export function ProjectHealthPanel({
       return (
         <button
           onClick={onChangeLocalPath}
-          className="text-xs text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+          className="text-xs text-accent-600 hover:text-accent-700 dark:text-accent-400 dark:hover:text-accent-300"
         >
           Configure
         </button>
@@ -99,7 +99,7 @@ export function ProjectHealthPanel({
       return (
         <button
           onClick={() => setShowInstallGuide(item.name)}
-          className="text-xs text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+          className="text-xs text-accent-600 hover:text-accent-700 dark:text-accent-400 dark:hover:text-accent-300"
         >
           How to install
         </button>
@@ -291,7 +291,7 @@ export function ProjectHealthPanel({
                   setShowInstallGuide(null);
                   handleRefresh();
                 }}
-                className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
+                className="bg-accent-600 hover:bg-accent-700 text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
               >
                 Check Again
               </button>

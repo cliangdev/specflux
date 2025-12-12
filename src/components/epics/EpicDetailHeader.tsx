@@ -51,8 +51,8 @@ const STATUS_CONFIG: Record<
       </svg>
     ),
     classes:
-      "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 border-brand-200 dark:border-brand-800",
-    dropdownClasses: "hover:bg-brand-50 dark:hover:bg-brand-900/20",
+      "bg-accent-100 text-accent-700 dark:bg-accent-900/30 dark:text-accent-300 border-accent-200 dark:border-accent-800",
+    dropdownClasses: "hover:bg-accent-50 dark:hover:bg-accent-900/20",
   },
   COMPLETED: {
     label: "Completed",
@@ -173,7 +173,7 @@ export default function EpicDetailHeader({
       <div className="flex items-center gap-3">
         <button
           onClick={onBack}
-          className="flex items-center gap-1 text-system-500 hover:text-system-700 dark:text-system-400 dark:hover:text-white transition-colors flex-shrink-0"
+          className="flex items-center gap-1 text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-white transition-colors flex-shrink-0"
         >
           <svg
             className="w-5 h-5"
@@ -190,8 +190,8 @@ export default function EpicDetailHeader({
           </svg>
           Back
         </button>
-        <div className="h-6 w-px bg-system-200 dark:bg-system-700 flex-shrink-0" />
-        <span className="text-system-500 dark:text-system-400 text-sm font-mono flex-shrink-0">
+        <div className="h-6 w-px bg-surface-200 dark:bg-surface-700 flex-shrink-0" />
+        <span className="text-surface-500 dark:text-surface-400 text-sm font-mono flex-shrink-0">
           {epic.displayKey}
         </span>
         {editingTitle ? (
@@ -202,12 +202,12 @@ export default function EpicDetailHeader({
             onChange={(e) => setTitleValue(e.target.value)}
             onBlur={handleTitleSave}
             onKeyDown={handleTitleKeyDown}
-            className="text-xl font-semibold text-system-900 dark:text-white flex-1 min-w-0 bg-transparent border-b-2 border-brand-500 outline-none"
+            className="text-xl font-semibold text-surface-900 dark:text-white flex-1 min-w-0 bg-transparent border-b-2 border-accent-500 outline-none"
           />
         ) : (
           <h1
             onClick={() => setEditingTitle(true)}
-            className="text-xl font-semibold text-system-900 dark:text-white truncate flex-1 min-w-0 cursor-pointer hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+            className="text-xl font-semibold text-surface-900 dark:text-white truncate flex-1 min-w-0 cursor-pointer hover:text-accent-600 dark:hover:text-accent-400 transition-colors"
             title="Click to edit"
           >
             {epic.title}
@@ -259,7 +259,7 @@ export default function EpicDetailHeader({
             </svg>
           </button>
           {statusDropdownOpen && (
-            <div className="absolute z-50 mt-1 w-44 bg-white dark:bg-system-800 rounded-lg shadow-lg border border-system-200 dark:border-system-700 py-1">
+            <div className="absolute z-50 mt-1 w-44 bg-white dark:bg-surface-800 rounded-lg shadow-lg border border-surface-200 dark:border-surface-700 py-1">
               {STATUSES.map((status) => {
                 const config = STATUS_CONFIG[status];
                 const isSelected = (epic.status as string) === status;
@@ -271,14 +271,14 @@ export default function EpicDetailHeader({
                       setStatusDropdownOpen(false);
                     }}
                     className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left ${config.dropdownClasses} ${
-                      isSelected ? "bg-system-100 dark:bg-system-700" : ""
+                      isSelected ? "bg-surface-100 dark:bg-surface-700" : ""
                     }`}
                   >
                     <span
                       className={
                         isSelected
-                          ? "text-brand-600 dark:text-brand-400"
-                          : "text-system-500 dark:text-system-400"
+                          ? "text-accent-600 dark:text-accent-400"
+                          : "text-surface-500 dark:text-surface-400"
                       }
                     >
                       {config.icon}
@@ -286,15 +286,15 @@ export default function EpicDetailHeader({
                     <span
                       className={
                         isSelected
-                          ? "font-medium text-system-900 dark:text-white"
-                          : "text-system-700 dark:text-system-300"
+                          ? "font-medium text-surface-900 dark:text-white"
+                          : "text-surface-700 dark:text-surface-300"
                       }
                     >
                       {config.label}
                     </span>
                     {isSelected && (
                       <svg
-                        className="w-4 h-4 ml-auto text-brand-600 dark:text-brand-400"
+                        className="w-4 h-4 ml-auto text-accent-600 dark:text-accent-400"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -321,7 +321,7 @@ export default function EpicDetailHeader({
             className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-sm font-medium rounded border transition-colors ${
               currentRelease
                 ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 border-purple-200 dark:border-purple-800"
-                : "bg-system-100 text-system-600 dark:bg-system-800 dark:text-system-400 border-system-200 dark:border-system-700"
+                : "bg-surface-100 text-surface-600 dark:bg-surface-800 dark:text-surface-400 border-surface-200 dark:border-surface-700"
             }`}
           >
             <svg
@@ -353,28 +353,28 @@ export default function EpicDetailHeader({
             </svg>
           </button>
           {releaseDropdownOpen && (
-            <div className="absolute z-50 mt-1 w-48 bg-white dark:bg-system-800 rounded-lg shadow-lg border border-system-200 dark:border-system-700 py-1">
+            <div className="absolute z-50 mt-1 w-48 bg-white dark:bg-surface-800 rounded-lg shadow-lg border border-surface-200 dark:border-surface-700 py-1">
               <button
                 onClick={() => {
                   onReleaseChange(null);
                   setReleaseDropdownOpen(false);
                 }}
-                className={`w-full flex items-center justify-between px-3 py-2 text-sm text-left hover:bg-system-100 dark:hover:bg-system-700 ${
-                  !epic.releaseId ? "bg-system-100 dark:bg-system-700" : ""
+                className={`w-full flex items-center justify-between px-3 py-2 text-sm text-left hover:bg-surface-100 dark:hover:bg-surface-700 ${
+                  !epic.releaseId ? "bg-surface-100 dark:bg-surface-700" : ""
                 }`}
               >
                 <span
                   className={
                     !epic.releaseId
-                      ? "font-medium text-system-900 dark:text-white"
-                      : "text-system-600 dark:text-system-400"
+                      ? "font-medium text-surface-900 dark:text-white"
+                      : "text-surface-600 dark:text-surface-400"
                   }
                 >
                   No Release
                 </span>
                 {!epic.releaseId && (
                   <svg
-                    className="w-4 h-4 text-brand-600 dark:text-brand-400"
+                    className="w-4 h-4 text-accent-600 dark:text-accent-400"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -397,22 +397,22 @@ export default function EpicDetailHeader({
                       onReleaseChange(release.id);
                       setReleaseDropdownOpen(false);
                     }}
-                    className={`w-full flex items-center justify-between px-3 py-2 text-sm text-left hover:bg-system-100 dark:hover:bg-system-700 ${
-                      isSelected ? "bg-system-100 dark:bg-system-700" : ""
+                    className={`w-full flex items-center justify-between px-3 py-2 text-sm text-left hover:bg-surface-100 dark:hover:bg-surface-700 ${
+                      isSelected ? "bg-surface-100 dark:bg-surface-700" : ""
                     }`}
                   >
                     <span
                       className={
                         isSelected
-                          ? "font-medium text-system-900 dark:text-white"
-                          : "text-system-700 dark:text-system-300"
+                          ? "font-medium text-surface-900 dark:text-white"
+                          : "text-surface-700 dark:text-surface-300"
                       }
                     >
                       {release.name}
                     </span>
                     {isSelected && (
                       <svg
-                        className="w-4 h-4 text-brand-600 dark:text-brand-400"
+                        className="w-4 h-4 text-accent-600 dark:text-accent-400"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -433,7 +433,7 @@ export default function EpicDetailHeader({
         </div>
 
         {/* Phase Badge */}
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-sm font-medium rounded bg-system-100 dark:bg-system-800 text-system-600 dark:text-system-400 border border-system-200 dark:border-system-700">
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-sm font-medium rounded bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-400 border border-surface-200 dark:border-surface-700">
           <svg
             className="w-3.5 h-3.5"
             fill="none"
@@ -459,28 +459,28 @@ export default function EpicDetailHeader({
             onClick={() => !deleting && setConfirmingDelete(false)}
             aria-hidden="true"
           />
-          <div className="relative bg-white dark:bg-system-800 rounded-lg shadow-xl w-full max-w-md mx-4 border border-system-200 dark:border-system-700">
-            <div className="px-6 py-4 border-b border-system-200 dark:border-system-700">
-              <h2 className="text-lg font-semibold text-system-900 dark:text-white">
+          <div className="relative bg-white dark:bg-surface-800 rounded-lg shadow-xl w-full max-w-md mx-4 border border-surface-200 dark:border-surface-700">
+            <div className="px-6 py-4 border-b border-surface-200 dark:border-surface-700">
+              <h2 className="text-lg font-semibold text-surface-900 dark:text-white">
                 Delete Epic
               </h2>
             </div>
             <div className="px-6 py-4">
-              <p className="text-system-600 dark:text-system-300">
+              <p className="text-surface-600 dark:text-surface-300">
                 Are you sure you want to delete{" "}
-                <span className="font-medium text-system-900 dark:text-white">
+                <span className="font-medium text-surface-900 dark:text-white">
                   {epic.title}
                 </span>
                 ? This action cannot be undone. Tasks linked to this epic will
                 be unlinked but not deleted.
               </p>
             </div>
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-system-200 dark:border-system-700">
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-surface-200 dark:border-surface-700">
               <button
                 type="button"
                 onClick={() => setConfirmingDelete(false)}
                 disabled={deleting}
-                className="px-4 py-2 text-sm font-medium text-system-600 dark:text-system-300 hover:text-system-900 dark:hover:text-white transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-surface-600 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>

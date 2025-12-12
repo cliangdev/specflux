@@ -41,11 +41,11 @@ export default function LoginPage() {
   const isLoading = loading || submitting;
 
   return (
-    <div className="h-screen flex items-center justify-center bg-system-50 dark:bg-system-950">
+    <div className="h-screen flex items-center justify-center bg-surface-50 dark:bg-surface-950">
       <div className="w-80">
         {/* Logo/Brand */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-brand-600 mb-3">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-accent-600 mb-3">
             <svg
               className="w-7 h-7 text-white"
               fill="none"
@@ -60,7 +60,7 @@ export default function LoginPage() {
               />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold text-system-900 dark:text-system-100">
+          <h1 className="text-xl font-semibold text-surface-900 dark:text-surface-100">
             SpecFlux
           </h1>
         </div>
@@ -71,7 +71,7 @@ export default function LoginPage() {
             <div>
               <label
                 htmlFor="email"
-                className="block text-xs font-medium text-system-600 dark:text-system-400 mb-1"
+                className="block text-xs font-medium text-surface-600 dark:text-surface-400 mb-1"
               >
                 Email
               </label>
@@ -91,7 +91,7 @@ export default function LoginPage() {
             <div>
               <label
                 htmlFor="password"
-                className="block text-xs font-medium text-system-600 dark:text-system-400 mb-1"
+                className="block text-xs font-medium text-surface-600 dark:text-surface-400 mb-1"
               >
                 Password
               </label>

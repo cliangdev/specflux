@@ -36,14 +36,14 @@ export default function Pagination({
   if (total === 0) return null;
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-t border-system-200 dark:border-system-700 bg-system-50 dark:bg-system-800/50">
-      <div className="text-sm text-system-500 dark:text-system-400">
+    <div className="flex items-center justify-between px-4 py-3 border-t border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/50">
+      <div className="text-sm text-surface-500 dark:text-surface-400">
         Showing{" "}
-        <span className="font-medium text-system-700 dark:text-system-300">
+        <span className="font-medium text-surface-700 dark:text-surface-300">
           {currentCount}
         </span>{" "}
         of{" "}
-        <span className="font-medium text-system-700 dark:text-system-300">
+        <span className="font-medium text-surface-700 dark:text-surface-300">
           {total}
         </span>{" "}
         {itemLabel}

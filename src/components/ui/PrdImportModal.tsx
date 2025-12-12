@@ -138,15 +138,15 @@ export default function PrdImportModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-white dark:bg-system-800 rounded-lg shadow-xl w-full max-w-lg mx-4 border border-system-200 dark:border-system-700">
+      <div className="relative bg-white dark:bg-surface-800 rounded-lg shadow-xl w-full max-w-lg mx-4 border border-surface-200 dark:border-surface-700">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-system-200 dark:border-system-700">
-          <h2 className="text-lg font-semibold text-system-900 dark:text-white">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-surface-200 dark:border-surface-700">
+          <h2 className="text-lg font-semibold text-surface-900 dark:text-white">
             Import PRD
           </h2>
           <button
             onClick={onClose}
-            className="text-system-400 hover:text-system-600 dark:hover:text-white transition-colors"
+            className="text-surface-400 hover:text-surface-600 dark:hover:text-white transition-colors"
           >
             <svg
               className="w-5 h-5"
@@ -174,13 +174,13 @@ export default function PrdImportModal({
 
           {/* File Selection */}
           <div>
-            <label className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1">
+            <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
               Select file
             </label>
             <div className="flex gap-2">
-              <div className="flex-1 px-3 py-2 bg-system-50 dark:bg-system-900 border border-system-200 dark:border-system-700 rounded-lg text-sm font-mono text-system-600 dark:text-system-400 truncate">
+              <div className="flex-1 px-3 py-2 bg-surface-50 dark:bg-surface-900 border border-surface-200 dark:border-surface-700 rounded-lg text-sm font-mono text-surface-600 dark:text-surface-400 truncate">
                 {displayFilename || (
-                  <span className="text-system-400 dark:text-system-500 font-sans">
+                  <span className="text-surface-400 dark:text-surface-500 font-sans">
                     No file selected
                   </span>
                 )}
@@ -188,7 +188,7 @@ export default function PrdImportModal({
               <button
                 type="button"
                 onClick={handleBrowse}
-                className="px-4 py-2 bg-white dark:bg-system-700 border border-system-200 dark:border-system-600 text-system-700 dark:text-system-300 rounded-lg text-sm font-medium hover:bg-system-50 dark:hover:bg-system-600 transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-white dark:bg-surface-700 border border-surface-200 dark:border-surface-600 text-surface-700 dark:text-surface-300 rounded-lg text-sm font-medium hover:bg-surface-50 dark:hover:bg-surface-600 transition-colors flex items-center gap-2"
               >
                 <svg
                   className="w-4 h-4"
@@ -210,7 +210,7 @@ export default function PrdImportModal({
 
           {/* PRD Title */}
           <div>
-            <label className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1">
+            <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
               PRD Title
             </label>
             <input
@@ -228,21 +228,21 @@ export default function PrdImportModal({
               type="checkbox"
               checked={refineAfter}
               onChange={(e) => setRefineAfter(e.target.checked)}
-              className="w-4 h-4 text-brand-600 border-system-300 dark:border-system-600 rounded focus:ring-brand-500 focus:ring-offset-white dark:focus:ring-offset-system-800"
+              className="w-4 h-4 text-accent-600 border-surface-300 dark:border-surface-600 rounded focus:ring-accent-500 focus:ring-offset-white dark:focus:ring-offset-surface-800"
             />
-            <span className="text-sm text-system-700 dark:text-system-300">
+            <span className="text-sm text-surface-700 dark:text-surface-300">
               Refine with Claude after import
             </span>
           </label>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-system-200 dark:border-system-700">
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-surface-200 dark:border-surface-700">
           <button
             type="button"
             onClick={onClose}
             disabled={importing}
-            className="px-4 py-2 text-sm font-medium text-system-600 dark:text-system-300 hover:text-system-900 dark:hover:text-white transition-colors disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium text-surface-600 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white transition-colors disabled:opacity-50"
           >
             Cancel
           </button>

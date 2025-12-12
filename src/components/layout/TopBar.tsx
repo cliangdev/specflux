@@ -41,24 +41,24 @@ export default function TopBar() {
   const { theme, toggleTheme } = useTheme();
 
   return (
-    <header className="h-14 bg-white dark:bg-system-900 border-b border-system-200 dark:border-system-800 px-4 flex items-center justify-between">
+    <header className="h-14 bg-white dark:bg-surface-900 border-b border-surface-200 dark:border-surface-800 px-4 flex items-center justify-between">
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-accent-600 rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-sm">SF</span>
           </div>
-          <span className="text-lg font-semibold text-system-900 dark:text-white">
+          <span className="text-lg font-semibold text-surface-900 dark:text-white">
             SpecFlux
           </span>
         </div>
-        <div className="h-6 w-px bg-system-200 dark:bg-system-700" />
+        <div className="h-6 w-px bg-surface-200 dark:bg-surface-700" />
         <ProjectSelector />
       </div>
 
       <div className="flex items-center gap-2">
         <button
           onClick={toggleTheme}
-          className="w-9 h-9 rounded-lg flex items-center justify-center text-system-500 hover:text-system-700 dark:text-system-400 dark:hover:text-system-200 hover:bg-system-100 dark:hover:bg-system-800 transition-colors"
+          className="w-9 h-9 rounded-lg flex items-center justify-center text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
           aria-label={
             theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
           }
@@ -70,7 +70,7 @@ export default function TopBar() {
           )}
         </button>
         <NotificationBell count={0} />
-        <button className="w-8 h-8 rounded-full bg-brand-600 flex items-center justify-center text-sm font-medium text-white hover:bg-brand-700 transition-colors">
+        <button className="w-8 h-8 rounded-full bg-accent-600 flex items-center justify-center text-sm font-medium text-white hover:bg-accent-700 transition-colors">
           U
         </button>
       </div>

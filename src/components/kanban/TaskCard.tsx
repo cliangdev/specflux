@@ -32,8 +32,8 @@ const AGENT_STATUS_CONFIG: Record<
     label: "Idle",
   },
   running: {
-    icon: <span className="w-2 h-2 bg-brand-500 rounded-full animate-pulse" />,
-    color: "text-brand-500",
+    icon: <span className="w-2 h-2 bg-accent-500 rounded-full animate-pulse" />,
+    color: "text-accent-500",
     label: "Running",
   },
   paused: {
@@ -121,7 +121,7 @@ export function TaskCard({ task, onClick, onContextMenu }: TaskCardProps) {
   const isBlocked = false;
   const statusConfig = AGENT_STATUS_CONFIG.idle;
   // v2 API uses repositoryId instead of repoName - stub for now
-  const repoColors = getRepoColorClasses(null);
+  const _repoColors = getRepoColorClasses(null);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -142,12 +142,12 @@ export function TaskCard({ task, onClick, onContextMenu }: TaskCardProps) {
         cursor-pointer transition-all relative overflow-hidden group
         ${
           isDragging
-            ? "opacity-50 shadow-lg border-brand-400 dark:border-brand-500"
+            ? "opacity-50 shadow-lg border-accent-400 dark:border-accent-500"
             : isRunning
-              ? "border-brand-300 dark:border-brand-600 shadow-md"
+              ? "border-accent-300 dark:border-accent-600 shadow-md"
               : isBlocked
                 ? "border-amber-300 dark:border-amber-600"
-                : "border-gray-200 dark:border-slate-700 hover:border-brand-400 dark:hover:border-brand-500"
+                : "border-gray-200 dark:border-slate-700 hover:border-accent-400 dark:hover:border-accent-500"
         }
       `}
     >
@@ -155,7 +155,7 @@ export function TaskCard({ task, onClick, onContextMenu }: TaskCardProps) {
       {hasProgress && (
         <div className="absolute bottom-0 left-0 h-1 bg-gray-200 dark:bg-slate-700 w-full">
           <div
-            className="h-full bg-brand-500 transition-all duration-300"
+            className="h-full bg-accent-500 transition-all duration-300"
             style={{ width: "0%" }}
           />
         </div>
@@ -220,7 +220,7 @@ export function TaskCard({ task, onClick, onContextMenu }: TaskCardProps) {
 
         {/* Avatar placeholder - shows when task is assigned */}
         {task.assignedToId && (
-          <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-brand-500 to-cyan-500" />
+          <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-accent-500 to-cyan-500" />
         )}
       </div>
     </div>

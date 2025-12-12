@@ -126,8 +126,8 @@ export function AcceptanceCriteriaList({
     <div className="space-y-3">
       {/* Progress indicator */}
       {totalCount > 0 && (
-        <div className="flex items-center gap-2 text-xs text-system-500 dark:text-system-400">
-          <div className="flex-1 bg-system-200 dark:bg-system-700 rounded-full h-1.5 overflow-hidden">
+        <div className="flex items-center gap-2 text-xs text-surface-500 dark:text-surface-400">
+          <div className="flex-1 bg-surface-200 dark:bg-surface-700 rounded-full h-1.5 overflow-hidden">
             <div
               className="bg-emerald-500 h-full transition-all duration-300"
               style={{ width: `${progressPercent}%` }}
@@ -155,7 +155,7 @@ export function AcceptanceCriteriaList({
                 className={`flex-shrink-0 w-5 h-5 rounded border flex items-center justify-center mt-0.5 transition-colors ${
                   criterion.isMet
                     ? "bg-emerald-100 border-emerald-300 dark:bg-emerald-900/30 dark:border-emerald-700"
-                    : "border-system-300 dark:border-system-600 hover:border-brand-400 dark:hover:border-brand-500"
+                    : "border-surface-300 dark:border-surface-600 hover:border-accent-400 dark:hover:border-accent-500"
                 } ${readonly ? "cursor-default" : "cursor-pointer"} ${
                   updating === criterion.id ? "opacity-50" : ""
                 }`}
@@ -179,8 +179,8 @@ export function AcceptanceCriteriaList({
               <span
                 className={`flex-1 text-sm ${
                   criterion.isMet
-                    ? "text-system-500 dark:text-system-400 line-through"
-                    : "text-system-700 dark:text-system-300"
+                    ? "text-surface-500 dark:text-surface-400 line-through"
+                    : "text-surface-700 dark:text-surface-300"
                 }`}
               >
                 {criterion.criteria}
@@ -190,7 +190,7 @@ export function AcceptanceCriteriaList({
                   type="button"
                   onClick={() => handleDelete(criterion.id)}
                   disabled={deleting === criterion.id}
-                  className={`opacity-0 group-hover:opacity-100 p-1 text-system-400 hover:text-red-500 dark:hover:text-red-400 transition-opacity ${
+                  className={`opacity-0 group-hover:opacity-100 p-1 text-surface-400 hover:text-red-500 dark:hover:text-red-400 transition-opacity ${
                     deleting === criterion.id ? "opacity-50" : ""
                   }`}
                   title="Delete criterion"
@@ -214,7 +214,7 @@ export function AcceptanceCriteriaList({
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-system-400 dark:text-system-500 italic">
+        <p className="text-sm text-surface-400 dark:text-surface-500 italic">
           No acceptance criteria defined
         </p>
       )}
@@ -228,14 +228,14 @@ export function AcceptanceCriteriaList({
             onChange={(e) => setNewCriterionText(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Add acceptance criterion..."
-            className="flex-1 text-sm px-3 py-1.5 border border-system-300 dark:border-system-600 rounded bg-white dark:bg-system-800 text-system-900 dark:text-white placeholder-system-400 dark:placeholder-system-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            className="flex-1 text-sm px-3 py-1.5 border border-surface-300 dark:border-surface-600 rounded bg-white dark:bg-surface-800 text-surface-900 dark:text-white placeholder-surface-400 dark:placeholder-surface-500 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent"
             disabled={isAdding}
           />
           <button
             type="button"
             onClick={handleAdd}
             disabled={!newCriterionText.trim() || isAdding}
-            className="px-3 py-1.5 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 disabled:bg-system-300 disabled:dark:bg-system-600 rounded transition-colors"
+            className="px-3 py-1.5 text-sm font-medium text-white bg-accent-600 hover:bg-accent-700 disabled:bg-surface-300 disabled:dark:bg-surface-600 rounded transition-colors"
           >
             {isAdding ? "Adding..." : "Add"}
           </button>

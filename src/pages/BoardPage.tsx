@@ -55,10 +55,10 @@ export default function BoardPage() {
   if (!currentProject) {
     return (
       <div className="text-center py-12">
-        <h2 className="text-xl font-semibold text-system-900 dark:text-white mb-2">
+        <h2 className="text-xl font-semibold text-surface-900 dark:text-white mb-2">
           No Project Selected
         </h2>
-        <p className="text-system-500 dark:text-system-400">
+        <p className="text-surface-500 dark:text-surface-400">
           Select a project from the sidebar to view its board.
         </p>
       </div>

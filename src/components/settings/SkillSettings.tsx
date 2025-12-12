@@ -3,7 +3,7 @@ import { useProject } from "../../contexts/ProjectContext";
 import { readDir, readTextFile } from "@tauri-apps/plugin-fs";
 import { extractDescription } from "./AgentSettings";
 
-// Local skill type for filesystem-based skills
+// Local skill type for filesurface-based skills
 export interface LocalSkill {
   id: string;
   name: string;

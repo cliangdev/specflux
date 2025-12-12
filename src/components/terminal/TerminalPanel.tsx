@@ -266,8 +266,8 @@ export default function TerminalPanel() {
           <div
             className={`w-12 h-1 rounded-full transition-colors ${
               isResizing
-                ? "bg-brand-500"
-                : "bg-slate-600 group-hover:bg-brand-500/70"
+                ? "bg-accent-500"
+                : "bg-slate-600 group-hover:bg-accent-500/70"
             }`}
           />
         </div>

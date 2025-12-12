@@ -49,6 +49,7 @@ vi.mock("../contexts/TerminalContext", () => ({
   useTerminal: () => ({
     sessions: [],
     activeSessionId: null,
+    activeSession: null,
     showPanel: false,
     createSession: vi.fn(),
     closeSession: vi.fn(),
@@ -59,6 +60,8 @@ vi.mock("../contexts/TerminalContext", () => ({
     resizePanel: vi.fn(),
     panelSize: 300,
     openTerminalForContext: vi.fn(),
+    getExistingSession: vi.fn(() => null),
+    switchToSession: vi.fn(),
     activeTask: null,
     isRunning: false,
     pageContext: null,
@@ -321,22 +324,17 @@ describe("EpicDetailPage", () => {
   });
 
   describe("Navigation", () => {
-    it("navigates back when back button is clicked", async () => {
+    it("has back link to epics", async () => {
       renderWithRouter();
 
       await waitFor(() => {
         expect(screen.getByText("Test Epic")).toBeInTheDocument();
       });
 
-      // Find and click the back button
-      const backButtons = screen.getAllByRole("button");
-      const backButton = backButtons.find((btn) =>
-        btn.querySelector('svg[viewBox="0 0 24 24"]'),
-      );
-      if (backButton) {
-        fireEvent.click(backButton);
-        expect(mockNavigate).toHaveBeenCalledWith(-1);
-      }
+      // DetailPageHeader uses a Link component for back navigation
+      const backLink = screen.getByText("Back");
+      expect(backLink).toBeInTheDocument();
+      expect(backLink.closest("a")).toHaveAttribute("href", "/epics");
     });
   });
 

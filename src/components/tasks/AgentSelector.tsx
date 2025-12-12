@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { Agent } from "../../api/generated";
 import { api } from "../../api";
-import { isV2Id } from "../../utils/idUtils";
+// import { isV2Id } from "../../utils/idUtils"; // Kept for future use
 
 interface AgentSelectorProps {
   projectId: string;
@@ -89,8 +89,8 @@ export default function AgentSelector({
           disabled={disabled}
           className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-sm rounded transition-colors ${
             selectedAgent
-              ? "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 hover:bg-brand-200 dark:hover:bg-brand-900/50"
-              : "bg-system-100 text-system-600 dark:bg-system-800 dark:text-system-400 hover:bg-system-200 dark:hover:bg-system-700"
+              ? "bg-accent-100 text-accent-700 dark:bg-accent-900/30 dark:text-accent-300 hover:bg-accent-200 dark:hover:bg-accent-900/50"
+              : "bg-surface-100 text-surface-600 dark:bg-surface-800 dark:text-surface-400 hover:bg-surface-200 dark:hover:bg-surface-700"
           } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
         >
           {selectedAgent ? (
@@ -119,9 +119,9 @@ export default function AgentSelector({
         </button>
 
         {isOpen && (
-          <div className="absolute z-50 mt-1 w-56 bg-white dark:bg-system-800 rounded-lg shadow-lg border border-system-200 dark:border-system-700 py-1">
+          <div className="absolute z-50 mt-1 w-56 bg-white dark:bg-surface-800 rounded-lg shadow-lg border border-surface-200 dark:border-surface-700 py-1">
             {loading ? (
-              <div className="px-3 py-2 text-sm text-system-500 dark:text-system-400">
+              <div className="px-3 py-2 text-sm text-surface-500 dark:text-surface-400">
                 Loading agents...
               </div>
             ) : (
@@ -129,17 +129,17 @@ export default function AgentSelector({
                 <button
                   type="button"
                   onClick={() => handleSelect(null)}
-                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-system-100 dark:hover:bg-system-700 ${
-                    !selectedAgentId ? "bg-system-100 dark:bg-system-700" : ""
+                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-surface-100 dark:hover:bg-surface-700 ${
+                    !selectedAgentId ? "bg-surface-100 dark:bg-surface-700" : ""
                   }`}
                 >
-                  <AgentIcon className="w-4 h-4 text-system-400" />
-                  <span className="text-system-500 dark:text-system-400 italic">
+                  <AgentIcon className="w-4 h-4 text-surface-400" />
+                  <span className="text-surface-500 dark:text-surface-400 italic">
                     No agent assigned
                   </span>
                   {!selectedAgentId && (
                     <svg
-                      className="w-4 h-4 ml-auto text-brand-600 dark:text-brand-400"
+                      className="w-4 h-4 ml-auto text-accent-600 dark:text-accent-400"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -154,7 +154,7 @@ export default function AgentSelector({
                   )}
                 </button>
                 {agents.length === 0 ? (
-                  <div className="px-3 py-2 text-sm text-system-500 dark:text-system-400">
+                  <div className="px-3 py-2 text-sm text-surface-500 dark:text-surface-400">
                     No agents configured
                   </div>
                 ) : (
@@ -165,29 +165,29 @@ export default function AgentSelector({
                         key={agent.id}
                         type="button"
                         onClick={() => handleSelect(agent)}
-                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-system-100 dark:hover:bg-system-700 ${
-                          isSelected ? "bg-system-100 dark:bg-system-700" : ""
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-surface-100 dark:hover:bg-surface-700 ${
+                          isSelected ? "bg-surface-100 dark:bg-surface-700" : ""
                         }`}
                       >
                         <div className="flex-1 min-w-0">
                           <div
                             className={`font-medium truncate ${
                               isSelected
-                                ? "text-brand-600 dark:text-brand-400"
-                                : "text-system-900 dark:text-white"
+                                ? "text-accent-600 dark:text-accent-400"
+                                : "text-surface-900 dark:text-white"
                             }`}
                           >
                             {agent.name}
                           </div>
                           {agent.description && (
-                            <div className="text-xs text-system-500 dark:text-system-400 truncate">
+                            <div className="text-xs text-surface-500 dark:text-surface-400 truncate">
                               {agent.description}
                             </div>
                           )}
                         </div>
                         {isSelected && (
                           <svg
-                            className="w-4 h-4 ml-auto text-brand-600 dark:text-brand-400 flex-shrink-0"
+                            className="w-4 h-4 ml-auto text-accent-600 dark:text-accent-400 flex-shrink-0"
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke="currentColor"
