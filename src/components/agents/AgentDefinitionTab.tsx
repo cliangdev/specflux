@@ -140,9 +140,9 @@ export function AgentDefinitionTab({
   if (!fullFilePath) {
     return (
       <div className="card p-5">
-        <div className="text-center py-8 text-system-500 dark:text-system-400">
+        <div className="text-center py-8 text-surface-500 dark:text-surface-400">
           <svg
-            className="mx-auto h-12 w-12 text-system-400 dark:text-system-500 mb-3"
+            className="mx-auto h-12 w-12 text-surface-400 dark:text-surface-500 mb-3"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -280,7 +280,7 @@ export function AgentDefinitionTab({
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <svg
-                className="animate-spin w-6 h-6 text-brand-500"
+                className="animate-spin w-6 h-6 text-accent-500"
                 viewBox="0 0 24 24"
               >
                 <circle

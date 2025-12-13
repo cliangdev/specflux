@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from "react";
-import { api, type Task, type TaskDependency } from "../../api";
+import { api, type Task } from "../../api";
 
 interface AddDependencyModalProps {
   taskId: string;
@@ -103,14 +103,14 @@ export default function AddDependencyModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-white dark:bg-system-800 rounded-lg shadow-xl w-full max-w-md mx-4 border border-system-200 dark:border-system-700">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-system-200 dark:border-system-700">
-          <h2 className="text-lg font-semibold text-system-900 dark:text-white">
+      <div className="relative bg-white dark:bg-surface-800 rounded-lg shadow-xl w-full max-w-md mx-4 border border-surface-200 dark:border-surface-700">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-surface-200 dark:border-surface-700">
+          <h2 className="text-lg font-semibold text-surface-900 dark:text-white">
             Add Dependency
           </h2>
           <button
             onClick={onClose}
-            className="text-system-400 hover:text-system-600 dark:hover:text-white transition-colors"
+            className="text-surface-400 hover:text-surface-600 dark:hover:text-white transition-colors"
           >
             <svg
               className="w-5 h-5"
@@ -136,14 +136,14 @@ export default function AddDependencyModal({
               </div>
             )}
 
-            <p className="text-sm text-system-600 dark:text-system-400">
+            <p className="text-sm text-surface-600 dark:text-surface-400">
               Select a task that must be completed before this task can start.
             </p>
 
             {/* Search Input */}
             <div className="relative">
               <svg
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-system-400"
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -165,26 +165,26 @@ export default function AddDependencyModal({
             </div>
 
             {/* Task List */}
-            <div className="max-h-64 overflow-y-auto border border-system-200 dark:border-system-700 rounded-lg">
+            <div className="max-h-64 overflow-y-auto border border-surface-200 dark:border-surface-700 rounded-lg">
               {loading ? (
-                <div className="p-4 text-center text-system-500">
+                <div className="p-4 text-center text-surface-500">
                   Loading tasks...
                 </div>
               ) : filteredTasks.length === 0 ? (
-                <div className="p-4 text-center text-system-500">
+                <div className="p-4 text-center text-surface-500">
                   {searchQuery
                     ? "No tasks match your search"
                     : "No available tasks to add as dependencies"}
                 </div>
               ) : (
-                <div className="divide-y divide-system-200 dark:divide-system-700">
+                <div className="divide-y divide-surface-200 dark:divide-surface-700">
                   {filteredTasks.map((t) => (
                     <label
                       key={t.id}
                       className={`flex items-center gap-3 p-3 cursor-pointer transition-colors ${
                         selectedTaskId === t.id
-                          ? "bg-brand-50 dark:bg-brand-900/20"
-                          : "hover:bg-system-50 dark:hover:bg-system-700/50"
+                          ? "bg-accent-50 dark:bg-accent-900/20"
+                          : "hover:bg-surface-50 dark:hover:bg-surface-700/50"
                       }`}
                     >
                       <input
@@ -193,12 +193,12 @@ export default function AddDependencyModal({
                         value={t.id}
                         checked={selectedTaskId === t.id}
                         onChange={() => setSelectedTaskId(t.id)}
-                        className="text-brand-500 focus:ring-brand-500"
+                        className="text-accent-500 focus:ring-accent-500"
                       />
-                      <span className="text-xs font-mono text-system-500 dark:text-system-400">
+                      <span className="text-xs font-mono text-surface-500 dark:text-surface-400">
                         {t.displayKey}
                       </span>
-                      <span className="flex-1 text-sm text-system-700 dark:text-system-200 truncate">
+                      <span className="flex-1 text-sm text-surface-700 dark:text-surface-200 truncate">
                         {t.title}
                       </span>
                       <span
@@ -207,7 +207,7 @@ export default function AddDependencyModal({
                             ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
                             : t.status === "IN_PROGRESS" ||
                                 t.status === "IN_REVIEW"
-                              ? "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300"
+                              ? "bg-accent-100 text-accent-700 dark:bg-accent-900/30 dark:text-accent-300"
                               : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
                         }`}
                       >
@@ -220,12 +220,12 @@ export default function AddDependencyModal({
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-system-200 dark:border-system-700">
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-surface-200 dark:border-surface-700">
             <button
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-system-600 dark:text-system-300 hover:text-system-900 dark:hover:text-white transition-colors disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-surface-600 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white transition-colors disabled:opacity-50"
             >
               Cancel
             </button>

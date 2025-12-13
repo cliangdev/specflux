@@ -70,7 +70,7 @@ export default function ProjectHealthBadge({
     return (
       <button
         onClick={onClick}
-        className="rounded-md hover:bg-system-100 dark:hover:bg-system-800 transition-colors"
+        className="rounded-md hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
         title={`Project Health: ${config.label}`}
       >
         {content}

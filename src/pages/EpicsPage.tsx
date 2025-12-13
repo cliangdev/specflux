@@ -230,10 +230,10 @@ export default function EpicsPage() {
   if (!currentProject) {
     return (
       <div className="text-center py-12">
-        <div className="text-system-500 dark:text-system-400 text-lg">
+        <div className="text-surface-500 dark:text-surface-400 text-lg">
           No project selected
         </div>
-        <p className="text-system-400 dark:text-system-500 mt-2">
+        <p className="text-surface-400 dark:text-surface-500 mt-2">
           Select a project from the dropdown above
         </p>
       </div>
@@ -244,18 +244,18 @@ export default function EpicsPage() {
     <div className="flex flex-col h-full">
       {/* Header row: Title + Actions (matching TasksPage pattern) */}
       <div className="flex items-center justify-between mb-6 shrink-0">
-        <h1 className="text-2xl font-semibold text-system-900 dark:text-white">
+        <h1 className="text-2xl font-semibold text-surface-900 dark:text-white">
           Epics
         </h1>
         <div className="flex items-center gap-3">
           {/* View toggle */}
-          <div className="flex items-center bg-system-100 dark:bg-system-800 rounded-lg p-0.5">
+          <div className="flex items-center bg-surface-100 dark:bg-surface-800 rounded-lg p-0.5">
             <button
               onClick={() => setViewMode("cards")}
               className={`p-1.5 rounded-md transition-colors ${
                 viewMode === "cards"
-                  ? "bg-white dark:bg-system-700 text-system-900 dark:text-white shadow-sm"
-                  : "text-system-500 dark:text-system-400 hover:text-system-700 dark:hover:text-white"
+                  ? "bg-white dark:bg-surface-700 text-surface-900 dark:text-white shadow-sm"
+                  : "text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-white"
               }`}
               title="Card view"
             >
@@ -267,8 +267,8 @@ export default function EpicsPage() {
               onClick={() => setViewMode("graph")}
               className={`p-1.5 rounded-md transition-colors ${
                 viewMode === "graph"
-                  ? "bg-white dark:bg-system-700 text-system-900 dark:text-white shadow-sm"
-                  : "text-system-500 dark:text-system-400 hover:text-system-700 dark:hover:text-white"
+                  ? "bg-white dark:bg-surface-700 text-surface-900 dark:text-white shadow-sm"
+                  : "text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-white"
               }`}
               title="Dependency graph view"
             >
@@ -343,7 +343,7 @@ export default function EpicsPage() {
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <svg
-            className="animate-spin w-8 h-8 text-brand-500"
+            className="animate-spin w-8 h-8 text-accent-500"
             viewBox="0 0 24 24"
           >
             <circle
@@ -367,7 +367,7 @@ export default function EpicsPage() {
           <div className="text-red-500 dark:text-red-400 text-lg">
             Error loading epics
           </div>
-          <p className="text-system-500 mt-2">{error}</p>
+          <p className="text-surface-500 mt-2">{error}</p>
           <button onClick={fetchEpics} className="mt-4 btn btn-primary">
             Try Again
           </button>
@@ -375,7 +375,7 @@ export default function EpicsPage() {
       ) : filteredEpics.length === 0 ? (
         <div className="text-center py-12 card">
           <svg
-            className="mx-auto h-12 w-12 text-system-400 dark:text-system-500"
+            className="mx-auto h-12 w-12 text-surface-400 dark:text-surface-500"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -387,10 +387,10 @@ export default function EpicsPage() {
               d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
             />
           </svg>
-          <h3 className="mt-4 text-lg font-medium text-system-700 dark:text-system-300">
+          <h3 className="mt-4 text-lg font-medium text-surface-700 dark:text-surface-300">
             No epics
           </h3>
-          <p className="mt-2 text-system-500">
+          <p className="mt-2 text-surface-500">
             {hasActiveFilters
               ? "No epics match the selected filters."
               : "Get started by creating your first epic."}

@@ -41,7 +41,7 @@ function MainLayoutContent() {
 
   // Layout: TopBar -> (Sidebar + Content) -> Terminal (full width at bottom)
   return (
-    <div className="h-screen bg-system-50 dark:bg-system-950 text-system-900 dark:text-system-100 flex flex-col overflow-hidden">
+    <div className="h-screen bg-surface-50 dark:bg-surface-950 text-surface-900 dark:text-surface-100 flex flex-col overflow-hidden">
       <TopBar />
       {/* Main area with sidebar and content - shrinks when terminal opens */}
       <div className="flex flex-1 overflow-hidden min-h-0">

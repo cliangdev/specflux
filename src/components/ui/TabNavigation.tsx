@@ -18,7 +18,7 @@ export default function TabNavigation({
   onChange,
 }: TabNavigationProps) {
   return (
-    <div className="flex border-b border-system-200 dark:border-system-700">
+    <div className="flex border-b border-surface-200 dark:border-surface-700">
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
         return (
@@ -27,12 +27,12 @@ export default function TabNavigation({
             onClick={() => onChange(tab.id)}
             className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
               isActive
-                ? "border-brand-500 text-brand-600 dark:text-brand-400"
-                : "border-transparent text-system-500 hover:text-system-700 dark:text-system-400 dark:hover:text-system-200 hover:border-system-300 dark:hover:border-system-600"
+                ? "border-accent-500 text-accent-600 dark:text-accent-400"
+                : "border-transparent text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200 hover:border-surface-300 dark:hover:border-surface-600"
             }`}
           >
             {tab.icon && (
-              <span className={isActive ? "text-brand-500" : "text-system-400"}>
+              <span className={isActive ? "text-accent-500" : "text-surface-400"}>
                 {tab.icon}
               </span>
             )}

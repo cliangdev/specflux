@@ -11,6 +11,8 @@ export interface PhaseSectionProps {
   totalCount: number;
   defaultExpanded?: boolean;
   onEditEpic?: (epic: Epic) => void;
+  onSelectEpic?: (epic: Epic) => void;
+  selectedEpicId?: string | null;
 }
 
 function getPhaseStatusColor(status: string): string {
@@ -18,7 +20,7 @@ function getPhaseStatusColor(status: string): string {
     case "completed":
       return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800";
     case "in_progress":
-      return "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 border-brand-200 dark:border-brand-800";
+      return "bg-accent-100 text-accent-700 dark:bg-accent-900/30 dark:text-accent-300 border-accent-200 dark:border-accent-800";
     case "blocked":
       return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800";
     default:
@@ -52,13 +54,13 @@ function getEpicStatusBadge(status: string): {
     case "IN_PROGRESS":
       return {
         label: "In Progress",
-        className: "bg-brand-500/20 text-brand-600 dark:text-brand-400",
+        className: "bg-accent-500/20 text-accent-600 dark:text-accent-400",
       };
     default:
       return {
         label: "Planning",
         className:
-          "bg-system-200 dark:bg-system-700 text-system-600 dark:text-system-400",
+          "bg-surface-200 dark:bg-surface-700 text-surface-600 dark:text-surface-400",
       };
   }
 }
@@ -67,18 +69,22 @@ interface EpicRowProps {
   epic: Epic;
   allEpics: Epic[];
   isExpanded: boolean;
+  isSelected?: boolean;
   onToggle: () => void;
   onViewTasks: () => void;
   onEdit: () => void;
+  onSelect?: () => void;
 }
 
 function EpicRow({
   epic,
   allEpics,
   isExpanded,
+  isSelected,
   onToggle,
   onViewTasks,
   onEdit,
+  onSelect,
 }: EpicRowProps) {
   const statusBadge = getEpicStatusBadge(epic.status);
 
@@ -95,17 +101,24 @@ function EpicRow({
   const taskStats = epic.taskStats ?? { total: 0, done: 0, inProgress: 0 };
 
   return (
-    <div className="card overflow-hidden">
+    <div
+      className={`card overflow-hidden cursor-pointer transition-all ${
+        isSelected
+          ? "ring-2 ring-accent-500 dark:ring-accent-400 bg-accent-50/50 dark:bg-accent-900/20"
+          : "hover:bg-surface-50 dark:hover:bg-surface-800/50"
+      }`}
+      onClick={onSelect}
+    >
       {/* Epic Header Row */}
       <button
-        onClick={onToggle}
-        className="w-full text-left p-4 hover:bg-system-50 dark:hover:bg-system-700/50 transition-colors"
+        onClick={(e) => { e.stopPropagation(); onToggle(); }}
+        className="w-full text-left p-4 hover:bg-surface-50 dark:hover:bg-surface-700/50 transition-colors"
       >
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-3 flex-1 min-w-0">
             {/* Expand/collapse indicator */}
             <svg
-              className={`w-4 h-4 mt-1 text-system-400 transition-transform duration-200 flex-shrink-0 ${
+              className={`w-4 h-4 mt-1 text-surface-400 transition-transform duration-200 flex-shrink-0 ${
                 isExpanded ? "rotate-90" : ""
               }`}
               fill="none"
@@ -122,15 +135,15 @@ function EpicRow({
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs text-system-500 dark:text-system-400">
+                <span className="text-xs text-surface-500 dark:text-surface-400">
                   #{epic.id}
                 </span>
-                <h3 className="font-medium text-system-900 dark:text-white truncate">
+                <h3 className="font-medium text-surface-900 dark:text-white truncate">
                   {epic.title}
                 </h3>
               </div>
               {epic.description && (
-                <p className="text-sm text-system-600 dark:text-system-400 line-clamp-1">
+                <p className="text-sm text-surface-600 dark:text-surface-400 line-clamp-1">
                   {epic.description}
                 </p>
               )}
@@ -140,13 +153,13 @@ function EpicRow({
           <div className="flex items-center gap-3 ml-4 flex-shrink-0">
             {/* Dependency indicators */}
             {needsEpics.length > 0 && (
-              <span className="text-xs px-1.5 py-0.5 rounded bg-system-100 dark:bg-system-700 text-system-600 dark:text-system-400">
+              <span className="text-xs px-1.5 py-0.5 rounded bg-surface-100 dark:bg-surface-700 text-surface-600 dark:text-surface-400">
                 {needsEpics.length} dep{needsEpics.length !== 1 ? "s" : ""}
               </span>
             )}
 
             {/* Task stats */}
-            <span className="text-xs text-system-500 dark:text-system-400">
+            <span className="text-xs text-surface-500 dark:text-surface-400">
               {taskStats.done}/{taskStats.total} tasks
             </span>
 
@@ -162,15 +175,15 @@ function EpicRow({
 
       {/* Expanded Details */}
       {isExpanded && (
-        <div className="border-t border-system-200 dark:border-system-700 bg-system-50 dark:bg-system-800/50 p-4">
+        <div className="border-t border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/50 p-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Needs (Dependencies) */}
             <div>
-              <h4 className="text-xs font-medium text-system-500 dark:text-system-400 uppercase tracking-wider mb-2">
+              <h4 className="text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-2">
                 Needs (Dependencies)
               </h4>
               {needsEpics.length === 0 ? (
-                <p className="text-sm text-system-400 dark:text-system-500 italic">
+                <p className="text-sm text-surface-400 dark:text-surface-500 italic">
                   No dependencies
                 </p>
               ) : (
@@ -187,14 +200,14 @@ function EpicRow({
                             (e.status as string) === "COMPLETED"
                               ? "bg-semantic-success"
                               : (e.status as string) === "IN_PROGRESS"
-                                ? "bg-brand-500"
-                                : "bg-system-400"
+                                ? "bg-accent-500"
+                                : "bg-surface-400"
                           }`}
                         />
-                        <span className="text-system-500 dark:text-system-400">
+                        <span className="text-surface-500 dark:text-surface-400">
                           #{e.id}
                         </span>
-                        <span className="text-system-900 dark:text-white truncate">
+                        <span className="text-surface-900 dark:text-white truncate">
                           {e.title}
                         </span>
                         <span
@@ -211,11 +224,11 @@ function EpicRow({
 
             {/* Blocks (Dependents) */}
             <div>
-              <h4 className="text-xs font-medium text-system-500 dark:text-system-400 uppercase tracking-wider mb-2">
+              <h4 className="text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-2">
                 Blocks (Dependents)
               </h4>
               {blocksEpics.length === 0 ? (
-                <p className="text-sm text-system-400 dark:text-system-500 italic">
+                <p className="text-sm text-surface-400 dark:text-surface-500 italic">
                   No dependents
                 </p>
               ) : (
@@ -232,14 +245,14 @@ function EpicRow({
                             (e.status as string) === "COMPLETED"
                               ? "bg-semantic-success"
                               : (e.status as string) === "IN_PROGRESS"
-                                ? "bg-brand-500"
-                                : "bg-system-400"
+                                ? "bg-accent-500"
+                                : "bg-surface-400"
                           }`}
                         />
-                        <span className="text-system-500 dark:text-system-400">
+                        <span className="text-surface-500 dark:text-surface-400">
                           #{e.id}
                         </span>
-                        <span className="text-system-900 dark:text-white truncate">
+                        <span className="text-surface-900 dark:text-white truncate">
                           {e.title}
                         </span>
                         <span
@@ -256,23 +269,23 @@ function EpicRow({
           </div>
 
           {/* Task Summary */}
-          <div className="mt-4 pt-4 border-t border-system-200 dark:border-system-700">
+          <div className="mt-4 pt-4 border-t border-surface-200 dark:border-surface-700">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4 text-sm">
-                <span className="text-system-600 dark:text-system-400">
-                  <span className="font-medium text-system-900 dark:text-white">
+                <span className="text-surface-600 dark:text-surface-400">
+                  <span className="font-medium text-surface-900 dark:text-white">
                     {taskStats.done}
                   </span>{" "}
                   done
                 </span>
-                <span className="text-system-600 dark:text-system-400">
-                  <span className="font-medium text-brand-600 dark:text-brand-400">
+                <span className="text-surface-600 dark:text-surface-400">
+                  <span className="font-medium text-accent-600 dark:text-accent-400">
                     {taskStats.inProgress}
                   </span>{" "}
                   in progress
                 </span>
-                <span className="text-system-600 dark:text-system-400">
-                  <span className="font-medium text-system-900 dark:text-white">
+                <span className="text-surface-600 dark:text-surface-400">
+                  <span className="font-medium text-surface-900 dark:text-white">
                     {(taskStats.total ?? 0) -
                       (taskStats.done ?? 0) -
                       (taskStats.inProgress ?? 0)}
@@ -345,6 +358,8 @@ export function PhaseSection({
   totalCount,
   defaultExpanded,
   onEditEpic,
+  onSelectEpic,
+  selectedEpicId,
 }: PhaseSectionProps) {
   const navigate = useNavigate();
   const [expandedEpicId, setExpandedEpicId] = useState<string | null>(null);
@@ -390,12 +405,12 @@ export function PhaseSection({
       {/* Phase Header - Clickable to expand/collapse */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between p-3 rounded-lg bg-system-50 dark:bg-system-800 hover:bg-system-100 dark:hover:bg-system-700 transition-colors"
+        className="w-full flex items-center justify-between p-3 rounded-lg bg-surface-50 dark:bg-surface-800 hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors"
       >
         <div className="flex items-center gap-3">
           {/* Expand/collapse indicator */}
           <svg
-            className={`w-4 h-4 text-system-500 transition-transform duration-200 ${
+            className={`w-4 h-4 text-surface-500 transition-transform duration-200 ${
               isExpanded ? "rotate-90" : ""
             }`}
             fill="none"
@@ -418,27 +433,27 @@ export function PhaseSection({
           </div>
 
           {/* Status label */}
-          <span className="text-sm text-system-600 dark:text-system-400">
+          <span className="text-sm text-surface-600 dark:text-surface-400">
             {statusLabel}
           </span>
         </div>
 
         {/* Completion count */}
         <div className="flex items-center gap-2">
-          <span className="text-sm text-system-500 dark:text-system-400">
+          <span className="text-sm text-surface-500 dark:text-surface-400">
             {completedCount}/{totalCount} complete
           </span>
 
           {/* Progress indicator */}
           {totalCount > 0 && (
-            <div className="w-16 h-1.5 bg-system-200 dark:bg-system-700 rounded-full overflow-hidden">
+            <div className="w-16 h-1.5 bg-surface-200 dark:bg-surface-700 rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-300 ${
                   status === "completed"
                     ? "bg-emerald-500"
                     : status === "blocked"
                       ? "bg-amber-500"
-                      : "bg-brand-500"
+                      : "bg-accent-500"
                 }`}
                 style={{
                   width: `${totalCount > 0 ? (completedCount / totalCount) * 100 : 0}%`,
@@ -458,9 +473,11 @@ export function PhaseSection({
               epic={epic}
               allEpics={allEpics}
               isExpanded={expandedEpicId === epic.id}
+              isSelected={selectedEpicId === epic.id}
               onToggle={() => handleEpicToggle(epic.id)}
               onViewTasks={() => handleViewTasks(epic.id)}
               onEdit={() => handleEdit(epic)}
+              onSelect={() => onSelectEpic?.(epic)}
             />
           ))}
         </div>
@@ -469,7 +486,7 @@ export function PhaseSection({
       {/* Empty state when expanded but no epics */}
       {isExpanded && epics.length === 0 && (
         <div className="mt-3 pl-7">
-          <p className="text-sm text-system-500 dark:text-system-400 italic">
+          <p className="text-sm text-surface-500 dark:text-surface-400 italic">
             No epics in this phase
           </p>
         </div>

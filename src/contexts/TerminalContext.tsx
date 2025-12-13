@@ -12,7 +12,7 @@ export interface TaskInfo {
   title: string;
 }
 
-export type ContextType = "task" | "epic" | "project" | "prd-workshop" | "release";
+export type ContextType = "task" | "epic" | "project" | "prd" | "prd-workshop" | "release";
 
 // Page context types for suggested commands
 export type PageContextType =

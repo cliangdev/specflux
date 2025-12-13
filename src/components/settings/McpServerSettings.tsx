@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useProject } from "../../contexts/ProjectContext";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 
-// Local MCP server type for filesystem-based config
+// Local MCP server type for filesurface-based config
 export interface LocalMcpServer {
   name: string;
   command: string;
@@ -134,7 +134,7 @@ export function McpServerSettings() {
                         .map((key) => (
                           <span
                             key={key}
-                            className="text-xs bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 px-2 py-0.5 rounded"
+                            className="text-xs bg-accent-50 dark:bg-accent-900/30 text-accent-700 dark:text-accent-300 px-2 py-0.5 rounded"
                           >
                             {key}
                           </span>

@@ -75,8 +75,8 @@ export function ContextMenuItem({
         transition-colors rounded
         ${
           disabled
-            ? "text-system-400 dark:text-system-500 cursor-not-allowed"
-            : "text-system-700 dark:text-system-200 hover:bg-system-100 dark:hover:bg-system-700"
+            ? "text-surface-400 dark:text-surface-500 cursor-not-allowed"
+            : "text-surface-700 dark:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-700"
         }
       `}
     >
@@ -156,8 +156,8 @@ export function ContextMenu({ x, y, onClose, children }: ContextMenuProps) {
     <div
       ref={menuRef}
       style={{ left: x, top: y }}
-      className="fixed z-50 min-w-[180px] py-1 bg-white dark:bg-system-800
-        border border-system-200 dark:border-system-700 rounded-lg shadow-lg"
+      className="fixed z-50 min-w-[180px] py-1 bg-white dark:bg-surface-800
+        border border-surface-200 dark:border-surface-700 rounded-lg shadow-lg"
       data-testid="context-menu"
     >
       {children}

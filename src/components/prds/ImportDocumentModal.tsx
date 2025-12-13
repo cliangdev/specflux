@@ -165,19 +165,19 @@ export function ImportDocumentModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-white dark:bg-system-800 rounded-lg shadow-xl w-full max-w-md mx-4 border border-system-200 dark:border-system-700">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-system-200 dark:border-system-700">
+      <div className="relative bg-white dark:bg-surface-800 rounded-lg shadow-xl w-full max-w-md mx-4 border border-surface-200 dark:border-surface-700">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-surface-200 dark:border-surface-700">
           <div>
-            <h2 className="text-lg font-semibold text-system-900 dark:text-white">
+            <h2 className="text-lg font-semibold text-surface-900 dark:text-white">
               Import Document
             </h2>
-            <p className="text-sm text-system-500 dark:text-system-400 mt-0.5">
+            <p className="text-sm text-surface-500 dark:text-surface-400 mt-0.5">
               Import a wireframe, mockup, or supporting document
             </p>
           </div>
           <button
             onClick={handleClose}
-            className="text-system-400 hover:text-system-600 dark:hover:text-white transition-colors"
+            className="text-surface-400 hover:text-surface-600 dark:hover:text-white transition-colors"
           >
             <svg
               className="w-5 h-5"
@@ -205,13 +205,13 @@ export function ImportDocumentModal({
 
             {/* File Selection */}
             <div>
-              <label className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1">
+              <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
                 Select file
               </label>
               <div className="flex gap-2">
-                <div className="flex-1 px-3 py-2 bg-system-50 dark:bg-system-900 border border-system-200 dark:border-system-700 rounded-lg text-sm font-mono text-system-600 dark:text-system-400 truncate">
+                <div className="flex-1 px-3 py-2 bg-surface-50 dark:bg-surface-900 border border-surface-200 dark:border-surface-700 rounded-lg text-sm font-mono text-surface-600 dark:text-surface-400 truncate">
                   {displayFilename || (
-                    <span className="text-system-400 dark:text-system-500 font-sans">
+                    <span className="text-surface-400 dark:text-surface-500 font-sans">
                       No file selected
                     </span>
                   )}
@@ -219,7 +219,7 @@ export function ImportDocumentModal({
                 <button
                   type="button"
                   onClick={handleBrowse}
-                  className="px-4 py-2 bg-white dark:bg-system-700 border border-system-200 dark:border-system-600 text-system-700 dark:text-system-300 rounded-lg text-sm font-medium hover:bg-system-50 dark:hover:bg-system-600 transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-white dark:bg-surface-700 border border-surface-200 dark:border-surface-600 text-surface-700 dark:text-surface-300 rounded-lg text-sm font-medium hover:bg-surface-50 dark:hover:bg-surface-600 transition-colors flex items-center gap-2"
                 >
                   <svg
                     className="w-4 h-4"
@@ -241,7 +241,7 @@ export function ImportDocumentModal({
 
             {/* Document Type */}
             <div>
-              <label className="block text-sm font-medium text-system-700 dark:text-system-300 mb-2">
+              <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
                 Document Type
               </label>
               <div className="space-y-2">
@@ -250,8 +250,8 @@ export function ImportDocumentModal({
                     key={type.value}
                     className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                       documentType === type.value
-                        ? "border-brand-500 bg-brand-50 dark:bg-brand-900/20"
-                        : "border-system-200 dark:border-system-700 hover:bg-system-50 dark:hover:bg-system-700/50"
+                        ? "border-accent-500 bg-accent-50 dark:bg-accent-900/20"
+                        : "border-surface-200 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-700/50"
                     }`}
                   >
                     <input
@@ -260,13 +260,13 @@ export function ImportDocumentModal({
                       value={type.value}
                       checked={documentType === type.value}
                       onChange={() => setDocumentType(type.value)}
-                      className="text-brand-500 focus:ring-brand-500"
+                      className="text-accent-500 focus:ring-accent-500"
                     />
                     <div className="flex-1">
-                      <div className="text-sm font-medium text-system-900 dark:text-white">
+                      <div className="text-sm font-medium text-surface-900 dark:text-white">
                         {type.label}
                       </div>
-                      <div className="text-xs text-system-500 dark:text-system-400">
+                      <div className="text-xs text-surface-500 dark:text-surface-400">
                         {type.description}
                       </div>
                     </div>
@@ -277,18 +277,18 @@ export function ImportDocumentModal({
 
             {/* Destination info */}
             {selectedFile && (
-              <p className="text-xs text-system-500 dark:text-system-400 font-mono">
+              <p className="text-xs text-surface-500 dark:text-surface-400 font-mono">
                 Will be copied to: {prdFolderPath}/{displayFilename}
               </p>
             )}
           </div>
 
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-system-200 dark:border-system-700">
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-surface-200 dark:border-surface-700">
             <button
               type="button"
               onClick={handleClose}
               disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-system-600 dark:text-system-300 hover:text-system-900 dark:hover:text-white transition-colors disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-surface-600 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white transition-colors disabled:opacity-50"
             >
               Cancel
             </button>

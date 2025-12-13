@@ -27,14 +27,14 @@ export default function GraphToolbar() {
   return (
     <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
       {/* Zoom controls */}
-      <div className="flex items-center bg-white dark:bg-system-800 rounded-lg shadow border border-system-200 dark:border-system-700">
+      <div className="flex items-center bg-white dark:bg-surface-800 rounded-lg shadow border border-surface-200 dark:border-surface-700">
         <button
           onClick={handleZoomOut}
-          className="p-2 hover:bg-system-100 dark:hover:bg-system-700 rounded-l-lg transition-colors"
+          className="p-2 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-l-lg transition-colors"
           title="Zoom out"
         >
           <svg
-            className="w-4 h-4 text-system-600 dark:text-system-400"
+            className="w-4 h-4 text-surface-600 dark:text-surface-400"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -45,18 +45,18 @@ export default function GraphToolbar() {
         </button>
         <button
           onClick={handleResetZoom}
-          className="px-2 py-1 text-xs font-medium text-system-600 dark:text-system-400 hover:bg-system-100 dark:hover:bg-system-700 border-x border-system-200 dark:border-system-700 transition-colors"
+          className="px-2 py-1 text-xs font-medium text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-700 border-x border-surface-200 dark:border-surface-700 transition-colors"
           title="Reset to 100%"
         >
           100%
         </button>
         <button
           onClick={handleZoomIn}
-          className="p-2 hover:bg-system-100 dark:hover:bg-system-700 rounded-r-lg transition-colors"
+          className="p-2 hover:bg-surface-100 dark:hover:bg-surface-700 rounded-r-lg transition-colors"
           title="Zoom in"
         >
           <svg
-            className="w-4 h-4 text-system-600 dark:text-system-400"
+            className="w-4 h-4 text-surface-600 dark:text-surface-400"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -74,11 +74,11 @@ export default function GraphToolbar() {
       {/* Fit to screen button */}
       <button
         onClick={handleFitView}
-        className="p-2 bg-white dark:bg-system-800 rounded-lg shadow border border-system-200 dark:border-system-700 hover:bg-system-100 dark:hover:bg-system-700 transition-colors"
+        className="p-2 bg-white dark:bg-surface-800 rounded-lg shadow border border-surface-200 dark:border-surface-700 hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors"
         title="Fit to screen"
       >
         <svg
-          className="w-4 h-4 text-system-600 dark:text-system-400"
+          className="w-4 h-4 text-surface-600 dark:text-surface-400"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"

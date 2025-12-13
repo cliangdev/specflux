@@ -90,7 +90,7 @@ export default function DocumentViewer({
   // Plain text fallback for all other file types
   return (
     <div className={className}>
-      <pre className="whitespace-pre-wrap font-mono text-sm text-system-700 dark:text-system-300 bg-system-50 dark:bg-system-900 p-4 rounded-lg overflow-auto">
+      <pre className="whitespace-pre-wrap font-mono text-sm text-surface-700 dark:text-surface-300 bg-surface-50 dark:bg-surface-900 p-4 rounded-lg overflow-auto">
         {content}
       </pre>
     </div>

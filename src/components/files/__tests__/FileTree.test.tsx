@@ -87,7 +87,7 @@ describe("FileTree", () => {
     render(<FileTree {...defaultProps} selectedPath="README.md" />);
 
     const fileItem = screen.getByText("README.md").closest("div");
-    expect(fileItem).toHaveClass("bg-brand-50");
+    expect(fileItem).toHaveClass("bg-accent-50");
   });
 
   it("shows nested files when directory is expanded", () => {

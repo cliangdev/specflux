@@ -25,15 +25,15 @@ export default function ProgressBar({
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <div
-        className={`flex-1 min-w-[60px] bg-system-200 dark:bg-system-700 rounded-full ${sizeClasses[size]}`}
+        className={`flex-1 min-w-[60px] bg-surface-200 dark:bg-surface-700 rounded-full ${sizeClasses[size]}`}
       >
         <div
-          className={`bg-brand-500 ${sizeClasses[size]} rounded-full transition-all duration-300`}
+          className={`bg-accent-500 ${sizeClasses[size]} rounded-full transition-all duration-300`}
           style={{ width: `${normalizedPercent}%` }}
         />
       </div>
       {showLabel && (
-        <span className="text-sm text-system-500 dark:text-system-400 tabular-nums">
+        <span className="text-sm text-surface-500 dark:text-surface-400 tabular-nums">
           {normalizedPercent}%
         </span>
       )}

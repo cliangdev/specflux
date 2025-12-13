@@ -138,7 +138,7 @@ export function transformEpicsToGraph(epics: Epic[]): GraphData {
             source: depIdStr,
             target: epicId,
             animated: false,
-            style: { stroke: "#6b7280" }, // system-500 gray
+            style: { stroke: "#6b7280" }, // surface-500 gray
           });
         }
       } else {

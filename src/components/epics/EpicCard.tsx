@@ -46,7 +46,7 @@ const EPIC_STATUS_CONFIG: Record<
       </svg>
     ),
     classes:
-      "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 border-brand-200 dark:border-brand-800",
+      "bg-accent-100 text-accent-700 dark:bg-accent-900/30 dark:text-accent-300 border-accent-200 dark:border-accent-800",
   },
   COMPLETED: {
     label: "Completed",
@@ -99,11 +99,11 @@ export default function EpicCard({ epic }: EpicCardProps) {
   return (
     <div
       onClick={handleClick}
-      className="card p-5 cursor-pointer hover:shadow-md dark:hover:bg-system-800/80 transition-all duration-200 flex flex-col"
+      className="card p-5 cursor-pointer hover:shadow-md dark:hover:bg-surface-800/80 transition-all duration-200 flex flex-col"
     >
       {/* Header: ID and Status */}
       <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-mono text-system-500 dark:text-system-400">
+        <span className="text-sm font-mono text-surface-500 dark:text-surface-400">
           {epicDisplayId}
         </span>
         <span
@@ -115,13 +115,13 @@ export default function EpicCard({ epic }: EpicCardProps) {
       </div>
 
       {/* Title */}
-      <h3 className="text-base font-semibold text-system-900 dark:text-white mb-2 line-clamp-1">
+      <h3 className="text-base font-semibold text-surface-900 dark:text-white mb-2 line-clamp-1">
         {epic.title}
       </h3>
 
       {/* Description */}
       {epic.description && (
-        <p className="text-sm text-system-500 dark:text-system-400 mb-4 line-clamp-2">
+        <p className="text-sm text-surface-500 dark:text-surface-400 mb-4 line-clamp-2">
           {epic.description}
         </p>
       )}
@@ -135,16 +135,16 @@ export default function EpicCard({ epic }: EpicCardProps) {
       </div>
 
       {/* Task Stats */}
-      <div className="flex items-center gap-3 text-sm text-system-500 dark:text-system-400">
+      <div className="flex items-center gap-3 text-sm text-surface-500 dark:text-surface-400">
         <span>
           {taskStats.done ?? 0}/{taskStats.total ?? 0} tasks
         </span>
         {(taskStats.inProgress ?? 0) > 0 && (
           <>
-            <span className="text-system-300 dark:text-system-600">|</span>
+            <span className="text-surface-300 dark:text-surface-600">|</span>
             <span className="flex items-center gap-1">
               <svg
-                className="w-4 h-4 text-brand-500 animate-pulse"
+                className="w-4 h-4 text-accent-500 animate-pulse"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -164,8 +164,8 @@ export default function EpicCard({ epic }: EpicCardProps) {
 
       {/* PRD Link */}
       {epic.prdFilePath && (
-        <div className="mt-3 pt-3 border-t border-system-200 dark:border-system-700">
-          <span className="inline-flex items-center gap-1.5 text-xs text-system-500 dark:text-system-400">
+        <div className="mt-3 pt-3 border-t border-surface-200 dark:border-surface-700">
+          <span className="inline-flex items-center gap-1.5 text-xs text-surface-500 dark:text-surface-400">
             <svg
               className="w-4 h-4"
               fill="none"

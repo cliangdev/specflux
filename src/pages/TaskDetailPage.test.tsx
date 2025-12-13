@@ -230,15 +230,10 @@ describe("TaskDetailPage", () => {
       expect(screen.getByText("Test Task")).toBeInTheDocument();
     });
 
-    // Find and click the back button (it has an SVG arrow icon)
-    const backButtons = screen.getAllByRole("button");
-    const backButton = backButtons.find((btn) =>
-      btn.querySelector('svg[viewBox="0 0 24 24"]'),
-    );
-    if (backButton) {
-      fireEvent.click(backButton);
-      expect(mockNavigate).toHaveBeenCalledWith(-1);
-    }
+    // DetailPageHeader uses a Link component for back navigation
+    const backLink = screen.getByText("Back");
+    expect(backLink).toBeInTheDocument();
+    expect(backLink.closest("a")).toHaveAttribute("href", "/tasks");
   });
 
   describe("Epic editing", () => {

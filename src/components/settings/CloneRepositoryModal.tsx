@@ -169,7 +169,7 @@ export function CloneRepositoryModal({
                   className={`w-full border rounded px-3 py-2 text-sm focus:ring-1 outline-none bg-white dark:bg-slate-900 ${
                     urlError
                       ? "border-red-300 dark:border-red-700 focus:border-red-500 focus:ring-red-500"
-                      : "border-gray-200 dark:border-slate-700 focus:border-brand-500 focus:ring-brand-500"
+                      : "border-gray-200 dark:border-slate-700 focus:border-accent-500 focus:ring-accent-500"
                   }`}
                   placeholder="https://github.com/owner/repo-name"
                   autoFocus
@@ -197,7 +197,7 @@ export function CloneRepositoryModal({
                   type="text"
                   value={sshAlias}
                   onChange={(e) => setSshAlias(e.target.value)}
-                  className="w-full border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm focus:ring-1 outline-none bg-white dark:bg-slate-900 focus:border-brand-500 focus:ring-brand-500"
+                  className="w-full border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm focus:ring-1 outline-none bg-white dark:bg-slate-900 focus:border-accent-500 focus:ring-accent-500"
                   placeholder="github.com-work"
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -227,7 +227,7 @@ export function CloneRepositoryModal({
             <div className="space-y-4 py-4">
               <div className="flex items-center gap-3">
                 <svg
-                  className="animate-spin w-5 h-5 text-brand-500"
+                  className="animate-spin w-5 h-5 text-accent-500"
                   viewBox="0 0 24 24"
                   fill="none"
                 >
@@ -254,7 +254,7 @@ export function CloneRepositoryModal({
               <div className="space-y-2">
                 <div className="h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-brand-500 transition-all duration-300"
+                    className="h-full bg-accent-500 transition-all duration-300"
                     style={{ width: `${getProgressPercent()}%` }}
                   />
                 </div>
@@ -344,7 +344,7 @@ export function CloneRepositoryModal({
               <button
                 onClick={handleClone}
                 disabled={!gitUrl.trim() || !!urlError}
-                className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
+                className="bg-accent-600 hover:bg-accent-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
               >
                 Clone Repository
               </button>
@@ -370,7 +370,7 @@ export function CloneRepositoryModal({
               </button>
               <button
                 onClick={handleDone}
-                className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
+                className="bg-accent-600 hover:bg-accent-700 text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
               >
                 Done
               </button>
@@ -387,7 +387,7 @@ export function CloneRepositoryModal({
               </button>
               <button
                 onClick={handleRetry}
-                className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
+                className="bg-accent-600 hover:bg-accent-700 text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
               >
                 Try Again
               </button>

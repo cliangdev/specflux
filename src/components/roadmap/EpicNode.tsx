@@ -19,15 +19,15 @@ function getStatusStyles(status: string): {
       };
     case "IN_PROGRESS":
       return {
-        borderColor: "border-brand-500",
+        borderColor: "border-accent-500",
         bgColor: "bg-blue-100 dark:bg-blue-900/50",
-        iconColor: "text-brand-600 dark:text-brand-400",
+        iconColor: "text-accent-600 dark:text-accent-400",
       };
     default: // PLANNING
       return {
-        borderColor: "border-system-300 dark:border-system-600",
-        bgColor: "bg-system-100 dark:bg-system-800",
-        iconColor: "text-system-500 dark:text-system-400",
+        borderColor: "border-surface-300 dark:border-surface-600",
+        bgColor: "bg-surface-100 dark:bg-surface-800",
+        iconColor: "text-surface-500 dark:text-surface-400",
       };
   }
 }
@@ -122,7 +122,7 @@ function EpicNode({ data, selected }: NodeProps<EpicNodeData>) {
       className={`
         w-[240px] rounded-lg border-2 shadow-sm transition-all
         ${styles.borderColor} ${styles.bgColor}
-        ${selected ? "ring-2 ring-brand-500 ring-offset-2 dark:ring-offset-system-900" : ""}
+        ${selected ? "ring-2 ring-accent-500 ring-offset-2 dark:ring-offset-surface-900" : ""}
         hover:shadow-md
       `}
     >
@@ -130,13 +130,13 @@ function EpicNode({ data, selected }: NodeProps<EpicNodeData>) {
       <Handle
         type="target"
         position={Position.Top}
-        className="!bg-system-400 dark:!bg-system-500 !w-3 !h-3 !border-2 !border-white dark:!border-system-800"
+        className="!bg-surface-400 dark:!bg-surface-500 !w-3 !h-3 !border-2 !border-white dark:!border-surface-800"
       />
 
       <div className="p-3">
         {/* Title */}
         <h3
-          className="font-medium text-system-900 dark:text-white text-sm leading-tight mb-2"
+          className="font-medium text-surface-900 dark:text-white text-sm leading-tight mb-2"
           title={label}
         >
           {truncateText(label, 28)}
@@ -145,17 +145,17 @@ function EpicNode({ data, selected }: NodeProps<EpicNodeData>) {
         {/* Progress bar */}
         <div className="mb-2">
           <div className="flex justify-between text-xs mb-1">
-            <span className="text-system-500 dark:text-system-400">
+            <span className="text-surface-500 dark:text-surface-400">
               Progress
             </span>
-            <span className="font-medium text-system-700 dark:text-system-300">
+            <span className="font-medium text-surface-700 dark:text-surface-300">
               {progress}%
             </span>
           </div>
-          <div className="h-1.5 bg-system-200 dark:bg-system-700 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-surface-200 dark:bg-surface-700 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-300 ${
-                status === "COMPLETED" ? "bg-semantic-success" : "bg-brand-500"
+                status === "COMPLETED" ? "bg-semantic-success" : "bg-accent-500"
               }`}
               style={{ width: `${progress}%` }}
             />
@@ -168,7 +168,7 @@ function EpicNode({ data, selected }: NodeProps<EpicNodeData>) {
             {statusDisplay.icon}
             <span className="text-xs font-medium">{statusDisplay.label}</span>
           </div>
-          <span className="text-xs text-system-500 dark:text-system-400">
+          <span className="text-xs text-surface-500 dark:text-surface-400">
             {doneTasks}/{totalTasks} tasks
           </span>
         </div>
@@ -178,7 +178,7 @@ function EpicNode({ data, selected }: NodeProps<EpicNodeData>) {
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!bg-system-400 dark:!bg-system-500 !w-3 !h-3 !border-2 !border-white dark:!border-system-800"
+        className="!bg-surface-400 dark:!bg-surface-500 !w-3 !h-3 !border-2 !border-white dark:!border-surface-800"
       />
     </div>
   );

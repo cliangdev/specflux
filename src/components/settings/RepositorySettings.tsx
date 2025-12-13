@@ -233,7 +233,7 @@ export function RepositorySettings() {
                 ? "Complete project setup first (set local path and install git)"
                 : "Clone a repository from GitHub"
             }
-            className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
+            className="bg-accent-600 hover:bg-accent-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
           >
             Clone from GitHub
           </button>
@@ -292,7 +292,7 @@ export function RepositorySettings() {
                   <td className="px-4 py-3 text-right space-x-2">
                     <button
                       onClick={() => handleEditClick(repo)}
-                      className="text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 text-sm font-medium"
+                      className="text-accent-600 hover:text-accent-700 dark:text-accent-400 dark:hover:text-accent-300 text-sm font-medium"
                     >
                       Edit
                     </button>
@@ -369,7 +369,7 @@ export function RepositorySettings() {
               <button
                 onClick={handleSave}
                 disabled={saving || !formData.name || !formData.path}
-                className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
+                className="bg-accent-600 hover:bg-accent-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
               >
                 {saving ? "Saving..." : "Save Changes"}
               </button>

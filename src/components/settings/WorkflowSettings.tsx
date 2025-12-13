@@ -48,7 +48,7 @@ export function WorkflowSettings() {
       setLoading(true);
       api.projects
         .getProject({ ref: currentProject.id })
-        .then((project: Project) => {
+        .then((_project: Project) => {
           // Note: workflowTemplate is not yet in the Project type
           // This will be added when the backend endpoint is updated
           const template = "startup-fast" as WorkflowTemplate;
@@ -146,7 +146,7 @@ export function WorkflowSettings() {
           {workflowTemplates.map((template) => (
             <label
               key={template.id}
-              className="flex items-center gap-3 p-3 border border-gray-200 dark:border-slate-700 rounded-lg cursor-pointer hover:border-brand-400 dark:hover:border-brand-600 transition-colors"
+              className="flex items-center gap-3 p-3 border border-gray-200 dark:border-slate-700 rounded-lg cursor-pointer hover:border-accent-400 dark:hover:border-accent-600 transition-colors"
             >
               <input
                 type="radio"
@@ -156,7 +156,7 @@ export function WorkflowSettings() {
                 onChange={(e) =>
                   setSelectedTemplate(e.target.value as WorkflowTemplate)
                 }
-                className="w-4 h-4 text-brand-600 focus:ring-brand-500 border-gray-300"
+                className="w-4 h-4 text-accent-600 focus:ring-accent-500 border-gray-300"
               />
               <div className="flex-1">
                 <div className="font-medium text-sm text-gray-900 dark:text-white">
@@ -221,7 +221,7 @@ export function WorkflowSettings() {
         <button
           onClick={handleSave}
           disabled={saving || !hasChanges}
-          className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
+          className="bg-accent-600 hover:bg-accent-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
         >
           {saving ? "Saving..." : "Save Changes"}
         </button>

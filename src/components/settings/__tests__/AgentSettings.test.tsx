@@ -172,7 +172,7 @@ describe("AgentSettings", () => {
     expect(screen.queryByText("bad-agent")).not.toBeInTheDocument();
   });
 
-  it("displays file path for each agent", async () => {
+  it("displays agent card with View Details link", async () => {
     mockReadDir.mockResolvedValue([
       { name: "test-agent.md", isDirectory: false },
     ]);
@@ -181,9 +181,9 @@ describe("AgentSettings", () => {
     renderWithRouter(<AgentSettings />);
 
     await waitFor(() => {
-      expect(
-        screen.getByText(".claude/agents/test-agent.md"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("test-agent")).toBeInTheDocument();
+      expect(screen.getByText("View Details →")).toBeInTheDocument();
+      expect(screen.getByText("Standby")).toBeInTheDocument();
     });
   });
 });

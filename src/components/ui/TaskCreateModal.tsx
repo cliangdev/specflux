@@ -104,14 +104,14 @@ export default function TaskCreateModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-white dark:bg-system-800 rounded-lg shadow-xl w-full max-w-md mx-4 border border-system-200 dark:border-system-700">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-system-200 dark:border-system-700">
-          <h2 className="text-lg font-semibold text-system-900 dark:text-white">
+      <div className="relative bg-white dark:bg-surface-800 rounded-lg shadow-xl w-full max-w-md mx-4 border border-surface-200 dark:border-surface-700">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-surface-200 dark:border-surface-700">
+          <h2 className="text-lg font-semibold text-surface-900 dark:text-white">
             Create Task
           </h2>
           <button
             onClick={onClose}
-            className="text-system-400 hover:text-system-600 dark:hover:text-white transition-colors"
+            className="text-surface-400 hover:text-surface-600 dark:hover:text-white transition-colors"
           >
             <svg
               className="w-5 h-5"
@@ -140,7 +140,7 @@ export default function TaskCreateModal({
             <div>
               <label
                 htmlFor="title"
-                className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
+                className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1"
               >
                 Title <span className="text-red-500">*</span>
               </label>
@@ -158,7 +158,7 @@ export default function TaskCreateModal({
             <div>
               <label
                 htmlFor="description"
-                className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
+                className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1"
               >
                 Description
               </label>
@@ -173,7 +173,7 @@ export default function TaskCreateModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1">
+              <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
                 Acceptance Criteria <span className="text-red-500">*</span>
               </label>
               <div className="space-y-2">
@@ -198,7 +198,7 @@ export default function TaskCreateModal({
                             criteria.filter((c) => c.id !== criterion.id),
                           )
                         }
-                        className="p-2 text-system-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                        className="p-2 text-surface-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
                         title="Remove criterion"
                       >
                         <svg
@@ -226,12 +226,12 @@ export default function TaskCreateModal({
                       { id: crypto.randomUUID(), text: "" },
                     ])
                   }
-                  className="text-sm text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 font-medium"
+                  className="text-sm text-accent-600 hover:text-accent-700 dark:text-accent-400 dark:hover:text-accent-300 font-medium"
                 >
                   + Add another criterion
                 </button>
               </div>
-              <p className="mt-1 text-xs text-system-500 dark:text-system-400">
+              <p className="mt-1 text-xs text-surface-500 dark:text-surface-400">
                 Define what needs to be true for this task to be complete
               </p>
             </div>
@@ -239,7 +239,7 @@ export default function TaskCreateModal({
             <div>
               <label
                 htmlFor="epic"
-                className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
+                className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1"
               >
                 Epic
               </label>
@@ -257,13 +257,13 @@ export default function TaskCreateModal({
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-xs text-system-500 dark:text-system-400">
+              <p className="mt-1 text-xs text-surface-500 dark:text-surface-400">
                 Optional - group this task under an epic
               </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1">
+              <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
                 Assigned Agent
               </label>
               <AgentSelector
@@ -272,18 +272,18 @@ export default function TaskCreateModal({
                 onChange={(agentId) => setAssignedAgentId(agentId)}
                 variant="dropdown"
               />
-              <p className="mt-1 text-xs text-system-500 dark:text-system-400">
+              <p className="mt-1 text-xs text-surface-500 dark:text-surface-400">
                 Optional - assign an AI agent to execute this task
               </p>
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-system-200 dark:border-system-700">
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-surface-200 dark:border-surface-700">
             <button
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-system-600 dark:text-system-300 hover:text-system-900 dark:hover:text-white transition-colors disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-surface-600 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white transition-colors disabled:opacity-50"
             >
               Cancel
             </button>

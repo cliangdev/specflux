@@ -32,7 +32,7 @@ export default function ProjectSelector() {
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 px-3 py-2 text-sm text-system-500 dark:text-system-400">
+      <div className="flex items-center gap-2 px-3 py-2 text-sm text-surface-500 dark:text-surface-400">
         <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
           <circle
             className="opacity-25"
@@ -58,7 +58,7 @@ export default function ProjectSelector() {
     return (
       <button
         onClick={() => refreshProjects()}
-        className="flex items-center gap-2 px-3 py-2 text-sm text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-system-100 dark:hover:bg-system-800 rounded-lg transition-colors"
+        className="flex items-center gap-2 px-3 py-2 text-sm text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-lg transition-colors"
         title="Click to retry"
       >
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -77,7 +77,7 @@ export default function ProjectSelector() {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-system-700 dark:text-system-300 hover:text-system-900 dark:hover:text-white bg-system-100 dark:bg-system-800 hover:bg-system-200 dark:hover:bg-system-700 rounded-lg border border-system-200 dark:border-system-700 transition-colors"
+        className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-surface-700 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 rounded-lg border border-surface-200 dark:border-surface-700 transition-colors"
       >
         <span>{currentProject?.name || "Select Project"}</span>
         <svg
@@ -96,7 +96,7 @@ export default function ProjectSelector() {
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 mt-2 w-56 bg-white dark:bg-system-800 border border-system-200 dark:border-system-700 rounded-lg shadow-lg z-50">
+        <div className="absolute left-0 mt-2 w-56 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg shadow-lg z-50">
           {projects.length > 0 ? (
             <div className="py-1">
               {projects.map((project) => (
@@ -106,10 +106,10 @@ export default function ProjectSelector() {
                     selectProject(project);
                     setIsOpen(false);
                   }}
-                  className={`w-full px-4 py-2 text-left text-sm hover:bg-system-100 dark:hover:bg-system-700 transition-colors ${
+                  className={`w-full px-4 py-2 text-left text-sm hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors ${
                     project.id === currentProject?.id
-                      ? "text-brand-600 dark:text-brand-400"
-                      : "text-system-700 dark:text-system-300"
+                      ? "text-accent-600 dark:text-accent-400"
+                      : "text-surface-700 dark:text-surface-300"
                   }`}
                 >
                   {project.name}
@@ -117,17 +117,17 @@ export default function ProjectSelector() {
               ))}
             </div>
           ) : (
-            <div className="px-4 py-3 text-sm text-system-500 dark:text-system-400">
+            <div className="px-4 py-3 text-sm text-surface-500 dark:text-surface-400">
               No projects yet
             </div>
           )}
-          <div className="border-t border-system-200 dark:border-system-700 py-1">
+          <div className="border-t border-surface-200 dark:border-surface-700 py-1">
             <button
               onClick={() => {
                 setIsOpen(false);
                 setShowCreateModal(true);
               }}
-              className="w-full px-4 py-2 text-left text-sm text-system-500 dark:text-system-400 hover:text-system-900 dark:hover:text-white hover:bg-system-100 dark:hover:bg-system-700 transition-colors"
+              className="w-full px-4 py-2 text-left text-sm text-surface-500 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors"
             >
               + New Project
             </button>

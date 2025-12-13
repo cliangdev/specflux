@@ -152,7 +152,7 @@ export function BackendSettings() {
                     className="w-10 h-10 rounded-full"
                   />
                 ) : (
-                  <div className="w-10 h-10 rounded-full bg-brand-600 flex items-center justify-center text-white font-medium">
+                  <div className="w-10 h-10 rounded-full bg-accent-600 flex items-center justify-center text-white font-medium">
                     {user.displayName?.charAt(0) ||
                       user.email?.charAt(0) ||
                       "U"}
@@ -203,7 +203,7 @@ export function BackendSettings() {
                     value={devEmail}
                     onChange={(e) => setDevEmail(e.target.value)}
                     placeholder="you@example.com"
-                    className="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
+                    className="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm focus:border-accent-500 focus:ring-1 focus:ring-accent-500 outline-none"
                     disabled={signingIn}
                   />
                 </div>
@@ -216,7 +216,7 @@ export function BackendSettings() {
                     value={devPassword}
                     onChange={(e) => setDevPassword(e.target.value)}
                     placeholder="At least 6 characters"
-                    className="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
+                    className="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm focus:border-accent-500 focus:ring-1 focus:ring-accent-500 outline-none"
                     disabled={signingIn}
                   />
                 </div>
@@ -234,7 +234,7 @@ export function BackendSettings() {
                     <button
                       type="submit"
                       disabled={signingIn}
-                      className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded font-medium text-sm disabled:opacity-50 transition-colors"
+                      className="px-4 py-2 bg-accent-600 hover:bg-accent-700 text-white rounded font-medium text-sm disabled:opacity-50 transition-colors"
                     >
                       {signingIn ? "Signing in..." : "Sign In"}
                     </button>
@@ -321,7 +321,7 @@ export function BackendSettings() {
                 updateBackendSettings({ v2BaseUrl: e.target.value })
               }
               disabled={!isSignedIn}
-              className="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded px-3 py-2 text-sm focus:border-accent-500 focus:ring-1 focus:ring-accent-500 outline-none disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="http://localhost:8090"
             />
           </div>

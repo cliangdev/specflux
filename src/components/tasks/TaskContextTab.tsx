@@ -21,8 +21,8 @@ interface TaskContextTabProps {
   onRemoveDependency?: (dependsOnTaskId: string) => void;
 }
 
-// Status badge for dependency tasks
-function DependencyStatusBadge({ status }: { status: string }) {
+// Status badge for dependency tasks (reserved for future use)
+function _DependencyStatusBadge({ status }: { status: string }) {
   const config: Record<string, { label: string; classes: string }> = {
     done: {
       label: "Done",
@@ -37,7 +37,7 @@ function DependencyStatusBadge({ status }: { status: string }) {
     in_progress: {
       label: "In Progress",
       classes:
-        "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300",
+        "bg-accent-100 text-accent-700 dark:bg-accent-900/30 dark:text-accent-300",
     },
     pending_review: {
       label: "Review",
@@ -118,9 +118,9 @@ export default function TaskContextTab({
       {/* Dependencies Section */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-system-900 dark:text-white flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-surface-900 dark:text-white flex items-center gap-2">
             <svg
-              className="w-4 h-4 text-system-500"
+              className="w-4 h-4 text-surface-500"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -142,7 +142,7 @@ export default function TaskContextTab({
           {onAddDependency && (
             <button
               onClick={onAddDependency}
-              className="text-xs text-brand-500 hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300 font-medium"
+              className="text-xs text-accent-500 hover:text-accent-600 dark:text-accent-400 dark:hover:text-accent-300 font-medium"
             >
               + Add
             </button>
@@ -156,7 +156,7 @@ export default function TaskContextTab({
               return (
                 <div
                   key={`${dep.taskId}-${dep.dependsOnTaskId}`}
-                  className="flex items-center justify-between p-3 rounded-lg border bg-system-50 dark:bg-system-800/50 border-system-200 dark:border-system-700"
+                  className="flex items-center justify-between p-3 rounded-lg border bg-surface-50 dark:bg-surface-800/50 border-surface-200 dark:border-surface-700"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <svg
@@ -175,7 +175,7 @@ export default function TaskContextTab({
                     <div className="min-w-0">
                       <Link
                         to={`/tasks/${dep.dependsOnTaskId}`}
-                        className="text-sm font-medium text-system-900 dark:text-white hover:text-brand-600 dark:hover:text-brand-400 truncate block"
+                        className="text-sm font-medium text-surface-900 dark:text-white hover:text-accent-600 dark:hover:text-accent-400 truncate block"
                       >
                         {dep.dependsOnDisplayKey}
                       </Link>
@@ -185,7 +185,7 @@ export default function TaskContextTab({
                     {onRemoveDependency && (
                       <button
                         onClick={() => onRemoveDependency(dep.dependsOnTaskId)}
-                        className="p-1 text-system-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                        className="p-1 text-surface-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
                         title="Remove dependency"
                       >
                         <svg
@@ -209,7 +209,7 @@ export default function TaskContextTab({
             })}
           </div>
         ) : (
-          <p className="text-sm text-system-500 dark:text-system-400 italic">
+          <p className="text-sm text-surface-500 dark:text-surface-400 italic">
             No dependencies - this task can start anytime
           </p>
         )}
@@ -217,7 +217,7 @@ export default function TaskContextTab({
 
       {/* Epic Context Section */}
       <div>
-        <h3 className="text-sm font-semibold text-system-900 dark:text-white mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-surface-900 dark:text-white mb-3 flex items-center gap-2">
           <svg
             className="w-4 h-4 text-purple-500"
             fill="none"
@@ -251,7 +251,7 @@ export default function TaskContextTab({
             </div>
           </div>
         ) : (
-          <p className="text-sm text-system-500 dark:text-system-400 italic">
+          <p className="text-sm text-surface-500 dark:text-surface-400 italic">
             Not assigned to an epic
           </p>
         )}
@@ -260,9 +260,9 @@ export default function TaskContextTab({
       {/* Task State File Section */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-system-900 dark:text-white flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-surface-900 dark:text-white flex items-center gap-2">
             <svg
-              className="w-4 h-4 text-brand-500"
+              className="w-4 h-4 text-accent-500"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -276,7 +276,7 @@ export default function TaskContextTab({
             </svg>
             Task State
             {stateInfo?.state?.hasChainInputs && (
-              <span className="px-1.5 py-0.5 text-xs font-medium bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 rounded">
+              <span className="px-1.5 py-0.5 text-xs font-medium bg-accent-100 text-accent-700 dark:bg-accent-900/30 dark:text-accent-300 rounded">
                 has chain inputs
               </span>
             )}
@@ -289,7 +289,7 @@ export default function TaskContextTab({
           {stateInfo?.filePath && (
             <button
               onClick={handleOpenInEditor}
-              className="text-xs text-brand-500 hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300 font-medium flex items-center gap-1"
+              className="text-xs text-accent-500 hover:text-accent-600 dark:text-accent-400 dark:hover:text-accent-300 font-medium flex items-center gap-1"
             >
               <svg
                 className="w-3 h-3"
@@ -310,8 +310,8 @@ export default function TaskContextTab({
         </div>
 
         {stateLoading ? (
-          <div className="p-4 rounded-lg border border-system-200 dark:border-system-700 bg-system-50 dark:bg-system-800/50">
-            <p className="text-sm text-system-500 dark:text-system-400">
+          <div className="p-4 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/50">
+            <p className="text-sm text-surface-500 dark:text-surface-400">
               Loading task state...
             </p>
           </div>
@@ -322,32 +322,32 @@ export default function TaskContextTab({
             </p>
           </div>
         ) : !stateInfo?._exists ? (
-          <div className="p-4 rounded-lg border border-system-200 dark:border-system-700 bg-system-50 dark:bg-system-800/50">
-            <p className="text-sm text-system-500 dark:text-system-400 italic">
+          <div className="p-4 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/50">
+            <p className="text-sm text-surface-500 dark:text-surface-400 italic">
               No task state file yet. Start the agent to create one.
             </p>
             {stateInfo?.filePath && (
-              <p className="mt-2 text-xs text-system-400 dark:text-system-500 font-mono">
+              <p className="mt-2 text-xs text-surface-400 dark:text-surface-500 font-mono">
                 {getRelativePath(stateInfo.filePath)}
               </p>
             )}
           </div>
         ) : stateContent ? (
-          <div className="rounded-lg border border-system-200 dark:border-system-700 bg-system-50 dark:bg-system-800/50 overflow-hidden">
+          <div className="rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/50 overflow-hidden">
             <div className="p-4 max-h-[500px] overflow-y-auto">
               <MarkdownRenderer source={stateContent} />
             </div>
             {stateInfo?.filePath && (
-              <div className="px-4 py-2 border-t border-system-200 dark:border-system-700 bg-system-100 dark:bg-system-800">
-                <p className="text-xs text-system-400 dark:text-system-500 font-mono truncate">
+              <div className="px-4 py-2 border-t border-surface-200 dark:border-surface-700 bg-surface-100 dark:bg-surface-800">
+                <p className="text-xs text-surface-400 dark:text-surface-500 font-mono truncate">
                   {getRelativePath(stateInfo.filePath)}
                 </p>
               </div>
             )}
           </div>
         ) : (
-          <div className="p-4 rounded-lg border border-system-200 dark:border-system-700 bg-system-50 dark:bg-system-800/50">
-            <p className="text-sm text-system-500 dark:text-system-400 italic">
+          <div className="p-4 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/50">
+            <p className="text-sm text-surface-500 dark:text-surface-400 italic">
               State file exists but could not be read.
             </p>
           </div>

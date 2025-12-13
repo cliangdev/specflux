@@ -139,7 +139,7 @@ export default function TaskOverviewTab({
     <div className="space-y-6">
       {/* Description */}
       <div>
-        <h3 className="text-sm font-semibold text-system-900 dark:text-white mb-2">
+        <h3 className="text-sm font-semibold text-surface-900 dark:text-white mb-2">
           Description
         </h3>
         {editingDescription ? (
@@ -168,7 +168,7 @@ export default function TaskOverviewTab({
               >
                 Cancel
               </button>
-              <span className="text-xs text-system-400 dark:text-system-500">
+              <span className="text-xs text-surface-400 dark:text-surface-500">
                 Ctrl+Enter to save, Esc to cancel
               </span>
             </div>
@@ -176,11 +176,11 @@ export default function TaskOverviewTab({
         ) : (
           <div
             onClick={() => setEditingDescription(true)}
-            className="text-sm text-system-600 dark:text-system-300 leading-relaxed whitespace-pre-wrap cursor-pointer hover:bg-system-50 dark:hover:bg-system-800 rounded p-2 -m-2 transition-colors"
+            className="text-sm text-surface-600 dark:text-surface-300 leading-relaxed whitespace-pre-wrap cursor-pointer hover:bg-surface-50 dark:hover:bg-surface-800 rounded p-2 -m-2 transition-colors"
             title="Click to edit"
           >
             {descriptionValue || (
-              <span className="text-system-400 dark:text-system-500 italic">
+              <span className="text-surface-400 dark:text-surface-500 italic">
                 Click to add description...
               </span>
             )}
@@ -190,11 +190,11 @@ export default function TaskOverviewTab({
 
       {/* Acceptance Criteria */}
       <div>
-        <h3 className="text-sm font-semibold text-system-900 dark:text-white mb-2">
+        <h3 className="text-sm font-semibold text-surface-900 dark:text-white mb-2">
           Acceptance Criteria
         </h3>
         {criteriaLoading ? (
-          <div className="text-sm text-system-400 dark:text-system-500">
+          <div className="text-sm text-surface-400 dark:text-surface-500">
             Loading...
           </div>
         ) : (

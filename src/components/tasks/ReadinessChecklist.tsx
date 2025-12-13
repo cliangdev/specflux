@@ -93,7 +93,7 @@ export default function ReadinessChecklist({
   onAssignRepo,
 }: ReadinessChecklistProps) {
   const missingCriteria = readiness.criteriaLabels.filter((c) => !c.met);
-  const metCriteria = readiness.criteriaLabels.filter((c) => c.met);
+  const _metCriteria = readiness.criteriaLabels.filter((c) => c.met);
 
   return (
     <div className="space-y-3">
@@ -119,7 +119,7 @@ export default function ReadinessChecklist({
               {item.label}
             </span>
             {!item.met && (
-              <span className="ml-auto text-xs text-system-500 dark:text-system-400">
+              <span className="ml-auto text-xs text-surface-500 dark:text-surface-400">
                 {getMissingText(item.key)}
               </span>
             )}
@@ -129,8 +129,8 @@ export default function ReadinessChecklist({
 
       {/* Missing Summary & Quick Actions */}
       {missingCriteria.length > 0 && (
-        <div className="pt-2 border-t border-system-200 dark:border-system-700">
-          <p className="text-xs text-system-500 dark:text-system-400 mb-2">
+        <div className="pt-2 border-t border-surface-200 dark:border-surface-700">
+          <p className="text-xs text-surface-500 dark:text-surface-400 mb-2">
             {missingCriteria.length} of {readiness.criteriaLabels.length}{" "}
             criteria missing
           </p>
@@ -140,7 +140,7 @@ export default function ReadinessChecklist({
             {!readiness.criteria.hasAcceptanceCriteria && onAddCriteria && (
               <button
                 onClick={onAddCriteria}
-                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 rounded hover:bg-brand-100 dark:hover:bg-brand-900/40 transition-colors"
+                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-accent-600 dark:text-accent-400 bg-accent-50 dark:bg-accent-900/20 rounded hover:bg-accent-100 dark:hover:bg-accent-900/40 transition-colors"
               >
                 <svg
                   className="w-3 h-3"
@@ -161,7 +161,7 @@ export default function ReadinessChecklist({
             {!readiness.criteria.hasExecutor && onAssignExecutor && (
               <button
                 onClick={onAssignExecutor}
-                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 rounded hover:bg-brand-100 dark:hover:bg-brand-900/40 transition-colors"
+                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-accent-600 dark:text-accent-400 bg-accent-50 dark:bg-accent-900/20 rounded hover:bg-accent-100 dark:hover:bg-accent-900/40 transition-colors"
               >
                 <svg
                   className="w-3 h-3"
@@ -182,7 +182,7 @@ export default function ReadinessChecklist({
             {!readiness.criteria.hasRepo && onAssignRepo && (
               <button
                 onClick={onAssignRepo}
-                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 rounded hover:bg-brand-100 dark:hover:bg-brand-900/40 transition-colors"
+                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-accent-600 dark:text-accent-400 bg-accent-50 dark:bg-accent-900/20 rounded hover:bg-accent-100 dark:hover:bg-accent-900/40 transition-colors"
               >
                 <svg
                   className="w-3 h-3"

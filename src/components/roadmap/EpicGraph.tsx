@@ -145,11 +145,11 @@ function EpicGraphInner({
   if (epics.length === 0) {
     return (
       <div
-        className={`w-full min-h-[400px] bg-system-50 dark:bg-system-900 rounded-lg border border-system-200 dark:border-system-700 flex items-center justify-center ${className ?? ""}`}
+        className={`w-full min-h-[400px] bg-surface-50 dark:bg-surface-900 rounded-lg border border-surface-200 dark:border-surface-700 flex items-center justify-center ${className ?? ""}`}
       >
         <div className="text-center">
           <svg
-            className="mx-auto h-12 w-12 text-system-400 dark:text-system-500"
+            className="mx-auto h-12 w-12 text-surface-400 dark:text-surface-500"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -161,7 +161,7 @@ function EpicGraphInner({
               d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
             />
           </svg>
-          <p className="mt-2 text-system-500 dark:text-system-400">
+          <p className="mt-2 text-surface-500 dark:text-surface-400">
             No epics to display
           </p>
         </div>
@@ -171,7 +171,7 @@ function EpicGraphInner({
 
   return (
     <div
-      className={`relative w-full min-h-[400px] bg-system-50 dark:bg-system-900 rounded-lg border border-system-200 dark:border-system-700 ${className ?? ""}`}
+      className={`relative w-full min-h-[400px] bg-surface-50 dark:bg-surface-900 rounded-lg border border-surface-200 dark:border-surface-700 ${className ?? ""}`}
     >
       <ReactFlow
         nodes={nodes}
@@ -196,7 +196,7 @@ function EpicGraphInner({
           variant={BackgroundVariant.Dots}
           gap={16}
           size={1}
-          className="bg-system-50 dark:bg-system-900"
+          className="bg-surface-50 dark:bg-surface-900"
         />
         <GraphToolbar />
       </ReactFlow>

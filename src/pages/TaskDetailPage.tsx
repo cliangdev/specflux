@@ -9,10 +9,21 @@ import {
 } from "../api";
 import { useProject } from "../contexts";
 import { TaskOverviewTab, TaskContextTab } from "../components/tasks";
-import TaskDetailHeader from "../components/tasks/TaskDetailHeader";
-import { TabNavigation } from "../components/ui";
+import EpicSelector from "../components/tasks/EpicSelector";
+import AgentSelector from "../components/tasks/AgentSelector";
+import { TabNavigation, DetailPageHeader } from "../components/ui";
+import { AIActionButton } from "../components/ui/AIActionButton";
 import { useTerminal } from "../contexts/TerminalContext";
 import { usePageContext } from "../hooks/usePageContext";
+
+// Task status options for DetailPageHeader
+const TASK_STATUS_OPTIONS = [
+  { value: "BACKLOG", label: "Backlog" },
+  { value: "READY", label: "Ready" },
+  { value: "IN_PROGRESS", label: "In Progress" },
+  { value: "IN_REVIEW", label: "In Review" },
+  { value: "COMPLETED", label: "Completed" },
+];
 
 // Tab definitions
 const TABS = [
@@ -317,7 +328,7 @@ export default function TaskDetailPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <svg
-          className="animate-spin w-8 h-8 text-brand-500"
+          className="animate-spin w-8 h-8 text-accent-500"
           viewBox="0 0 24 24"
         >
           <circle
@@ -345,7 +356,7 @@ export default function TaskDetailPage() {
         <div className="text-red-500 dark:text-red-400 text-lg">
           Error loading task
         </div>
-        <p className="text-system-500 mt-2">{error}</p>
+        <p className="text-surface-500 mt-2">{error}</p>
         <button onClick={() => navigate(-1)} className="btn btn-secondary mt-4">
           Back
         </button>
@@ -356,7 +367,7 @@ export default function TaskDetailPage() {
   if (!task) {
     return (
       <div className="text-center py-12">
-        <div className="text-system-500 dark:text-system-400 text-lg">
+        <div className="text-surface-500 dark:text-surface-400 text-lg">
           Task not found
         </div>
         <button onClick={() => navigate(-1)} className="btn btn-secondary mt-4">
@@ -393,28 +404,74 @@ export default function TaskDetailPage() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header with Status, Epic, Owner/Executor */}
-      <TaskDetailHeader
-        task={taskForComponents}
-        projectRef={getProjectRef() ?? undefined}
-        onStatusChange={handleStatusChange}
-        onEpicChange={handleEpicChange}
-        onAgentChange={handleAgentChange}
+      {/* Header - consistent with PRD/Epic */}
+      <DetailPageHeader
+        backTo="/tasks"
+        entityKey={task.displayKey || `T-${task.id}`}
+        title={task.title}
         onTitleChange={handleTitleChange}
+        status={task.status}
+        statusOptions={TASK_STATUS_OPTIONS}
+        onStatusChange={handleStatusChange}
+        badges={[
+          { label: "Priority", value: task.priority },
+          ...(task.estimatedDuration ? [{ label: "Estimate", value: `${task.estimatedDuration}h` }] : []),
+        ]}
+        createdAt={task.createdAt}
+        updatedAt={task.updatedAt}
+        primaryAction={
+          <AIActionButton
+            entityType="task"
+            entityId={task.id}
+            entityTitle={task.title}
+            hasExistingSession={hasExistingSession}
+            isTerminalActive={isTerminalShowingThisTask && terminalIsRunning}
+            onStartWork={handleOpenInTerminal}
+            onContinueWork={hasExistingSession ? handleOpenInTerminal : undefined}
+          />
+        }
         onDelete={handleDelete}
-        onBack={() => navigate(-1)}
         deleting={deleting}
+        isLoading={loading}
       />
+
+      {/* Task-specific controls row */}
+      <div className="px-6 py-3 border-b border-surface-200 dark:border-surface-700 flex items-center gap-4">
+        {/* Epic Selector */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-sm text-surface-500 dark:text-surface-400">Epic:</span>
+          <EpicSelector
+            projectId={Number(taskForComponents.projectId)}
+            projectRef={getProjectRef() ?? undefined}
+            selectedEpicId={task.epicId}
+            onChange={handleEpicChange}
+          />
+        </div>
+
+        {/* Separator */}
+        <div className="h-5 w-px bg-surface-200 dark:bg-surface-700" />
+
+        {/* Agent Selector */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-sm text-surface-500 dark:text-surface-400">Agent:</span>
+          <AgentSelector
+            projectId={taskForComponents.projectId}
+            selectedAgentId={taskForComponents.assignedAgentId}
+            onChange={handleAgentChange}
+            variant="inline"
+          />
+        </div>
+      </div>
 
       {/* Error banner */}
       {error && (
-        <div className="px-4 py-3 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-lg text-red-600 dark:text-red-300 text-sm mb-4 flex-shrink-0">
+        <div className="mx-6 mt-4 px-4 py-3 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-lg text-red-600 dark:text-red-300 text-sm flex-shrink-0">
           {error}
         </div>
       )}
 
       {/* Content - Main area with sidebar */}
-      <div className="flex flex-1 min-h-0 overflow-hidden rounded-lg border border-system-200 dark:border-system-800 bg-white dark:bg-system-900">
+      <div className="flex flex-1 min-h-0 overflow-hidden m-6 rounded-lg border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900">
         {/* Main Content - Tabbed Task Details */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Tab Navigation */}
@@ -449,132 +506,27 @@ export default function TaskDetailPage() {
           </div>
         </div>
 
-        {/* Right Sidebar */}
-        <div className="w-72 flex-shrink-0 border-l border-system-200 dark:border-system-700 bg-system-50 dark:bg-system-800/50 flex flex-col overflow-y-auto">
-          <div className="p-4 space-y-6">
-            {/* Terminal Section */}
-            <div>
-              <h3 className="text-xs font-semibold text-system-500 dark:text-system-400 uppercase mb-3">
-                Terminal
-              </h3>
+        {/* Right Sidebar - Info Card */}
+        <div className="w-64 flex-shrink-0 border-l border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/50 overflow-y-auto">
+          <div className="p-4 space-y-4">
+            {/* PR Link */}
+            {task.githubPrUrl && (
               <button
-                onClick={handleOpenInTerminal}
-                className="btn btn-secondary w-full text-sm"
+                onClick={() => {
+                  if (task.githubPrUrl) open(task.githubPrUrl);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors"
               >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
+                <svg className="w-4 h-4 text-surface-500" fill="currentColor" viewBox="0 0 24 24">
                   <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    fillRule="evenodd"
+                    d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+                    clipRule="evenodd"
                   />
                 </svg>
-                {hasExistingSession ? "Continue Work" : "Start Work"}
+                View Pull Request
               </button>
-              {isTerminalShowingThisTask && terminalIsRunning && (
-                <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400">
-                  Terminal is active for this task
-                </p>
-              )}
-            </div>
-
-            {/* PR Section */}
-            {task.githubPrUrl && (
-              <div>
-                <h3 className="text-xs font-semibold text-system-500 dark:text-system-400 uppercase mb-3">
-                  Pull Request
-                </h3>
-                <div className="space-y-2">
-                  <button
-                    onClick={() => {
-                      if (task.githubPrUrl) open(task.githubPrUrl);
-                    }}
-                    className="flex items-center gap-2 text-sm text-brand-500 dark:text-brand-400 hover:underline"
-                  >
-                    <svg
-                      className="w-4 h-4"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    View Pull Request
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (task.githubPrUrl)
-                        navigator.clipboard.writeText(task.githubPrUrl);
-                    }}
-                    className="flex items-center gap-2 text-xs text-system-500 hover:text-system-700 dark:hover:text-system-300"
-                  >
-                    <svg
-                      className="w-3.5 h-3.5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                      />
-                    </svg>
-                    Copy URL
-                  </button>
-                </div>
-              </div>
             )}
-
-            {/* Task Info */}
-            <div>
-              <h3 className="text-xs font-semibold text-system-500 dark:text-system-400 uppercase mb-3">
-                Details
-              </h3>
-              <dl className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <dt className="text-system-500 dark:text-system-400">ID</dt>
-                  <dd className="font-mono text-system-700 dark:text-system-300">
-                    {task.displayKey}
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-system-500 dark:text-system-400">
-                    Priority
-                  </dt>
-                  <dd className="text-system-700 dark:text-system-300">
-                    {task.priority}
-                  </dd>
-                </div>
-                {task.estimatedDuration && (
-                  <div className="flex justify-between">
-                    <dt className="text-system-500 dark:text-system-400">
-                      Estimate
-                    </dt>
-                    <dd className="text-system-700 dark:text-system-300">
-                      {task.estimatedDuration}h
-                    </dd>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <dt className="text-system-500 dark:text-system-400">
-                    Created
-                  </dt>
-                  <dd className="text-system-700 dark:text-system-300">
-                    {new Date(task.createdAt).toLocaleDateString()}
-                  </dd>
-                </div>
-              </dl>
-            </div>
           </div>
         </div>
       </div>

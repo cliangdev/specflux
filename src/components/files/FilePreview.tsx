@@ -52,7 +52,7 @@ export function FilePreview({ filePath }: FilePreviewProps) {
           <div className="text-red-600 dark:text-red-400 mb-2">{error}</div>
           <button
             onClick={loadFileContent}
-            className="text-sm text-brand-600 dark:text-brand-400 hover:underline"
+            className="text-sm text-accent-600 dark:text-accent-400 hover:underline"
           >
             Try again
           </button>

@@ -86,7 +86,7 @@ const STATUS_CONFIG: Record<
     label: "In Progress",
     icon: "timer",
     classes:
-      "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 border-brand-200 dark:border-brand-800",
+      "bg-accent-100 text-accent-700 dark:bg-accent-900/30 dark:text-accent-300 border-accent-200 dark:border-accent-800",
   },
   IN_REVIEW: {
     label: "In Review",
@@ -220,7 +220,7 @@ function SortableHeader({
 
   return (
     <th
-      className="px-6 py-3 text-left text-xs font-medium text-system-500 dark:text-system-400 uppercase tracking-wider cursor-pointer hover:text-system-700 dark:hover:text-system-200 transition-colors select-none"
+      className="px-6 py-3 text-left text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider cursor-pointer hover:text-surface-700 dark:hover:text-surface-200 transition-colors select-none"
       onClick={() => onSort(field)}
     >
       <div className="flex items-center gap-1">
@@ -427,10 +427,10 @@ export default function TasksPage() {
   if (!currentProject) {
     return (
       <div className="text-center py-12">
-        <div className="text-system-500 dark:text-system-400 text-lg">
+        <div className="text-surface-500 dark:text-surface-400 text-lg">
           No project selected
         </div>
-        <p className="text-system-400 dark:text-system-500 mt-2">
+        <p className="text-surface-400 dark:text-surface-500 mt-2">
           Select a project from the dropdown above
         </p>
       </div>
@@ -440,7 +440,7 @@ export default function TasksPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-system-900 dark:text-white">
+        <h1 className="text-2xl font-semibold text-surface-900 dark:text-white">
           Tasks
         </h1>
         <div className="flex items-center gap-3">
@@ -521,7 +521,7 @@ export default function TasksPage() {
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <svg
-            className="animate-spin w-8 h-8 text-brand-500"
+            className="animate-spin w-8 h-8 text-accent-500"
             viewBox="0 0 24 24"
           >
             <circle
@@ -545,7 +545,7 @@ export default function TasksPage() {
           <div className="text-red-500 dark:text-red-400 text-lg">
             Error loading tasks
           </div>
-          <p className="text-system-500 mt-2">{error}</p>
+          <p className="text-surface-500 mt-2">{error}</p>
           <button onClick={() => fetchTasks()} className="mt-4 btn btn-primary">
             Try Again
           </button>
@@ -553,7 +553,7 @@ export default function TasksPage() {
       ) : tasks.length === 0 ? (
         <div className="text-center py-12 card">
           <svg
-            className="mx-auto h-12 w-12 text-system-400 dark:text-system-500"
+            className="mx-auto h-12 w-12 text-surface-400 dark:text-surface-500"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -565,10 +565,10 @@ export default function TasksPage() {
               d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
             />
           </svg>
-          <h3 className="mt-4 text-lg font-medium text-system-700 dark:text-system-300">
+          <h3 className="mt-4 text-lg font-medium text-surface-700 dark:text-surface-300">
             No tasks
           </h3>
-          <p className="mt-2 text-system-500">
+          <p className="mt-2 text-surface-500">
             {statusFilter || epicFilter
               ? "No tasks match the selected filters."
               : "Get started by creating your first task."}
@@ -576,10 +576,10 @@ export default function TasksPage() {
         </div>
       ) : (
         <div className="card overflow-hidden">
-          <table className="min-w-full divide-y divide-system-200 dark:divide-system-700">
-            <thead className="bg-system-50 dark:bg-system-800">
+          <table className="min-w-full divide-y divide-surface-200 dark:divide-surface-700">
+            <thead className="bg-surface-50 dark:bg-surface-800">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-system-500 dark:text-system-400 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider">
                   ID
                 </th>
                 <SortableHeader
@@ -589,10 +589,10 @@ export default function TasksPage() {
                   currentOrder={sortOrder}
                   onSort={handleSort}
                 />
-                <th className="px-6 py-3 text-left text-xs font-medium text-system-500 dark:text-system-400 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-system-500 dark:text-system-400 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wider">
                   Epic
                 </th>
                 <SortableHeader
@@ -604,22 +604,22 @@ export default function TasksPage() {
                 />
               </tr>
             </thead>
-            <tbody className="divide-y divide-system-200 dark:divide-system-700">
+            <tbody className="divide-y divide-surface-200 dark:divide-surface-700">
               {tasks.map((task) => (
                 <tr
                   key={task.id}
-                  className="hover:bg-system-50 dark:hover:bg-system-800/50 transition-colors cursor-pointer"
+                  className="hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors cursor-pointer"
                   onClick={() => navigate(`/tasks/${task.id}`)}
                 >
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-system-500 dark:text-system-400">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">
                     {task.displayKey}
                   </td>
                   <td className="px-6 py-4 max-w-md">
-                    <div className="text-sm font-medium text-system-900 dark:text-white truncate">
+                    <div className="text-sm font-medium text-surface-900 dark:text-white truncate">
                       {task.title}
                     </div>
                     {task.description && (
-                      <div className="text-sm text-system-500 dark:text-system-400 truncate">
+                      <div className="text-sm text-surface-500 dark:text-surface-400 truncate">
                         {task.description}
                       </div>
                     )}
@@ -627,10 +627,10 @@ export default function TasksPage() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <StatusBadge status={task.status} />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-system-500 dark:text-system-400">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">
                     {task.epicDisplayKey || "-"}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-system-500 dark:text-system-400">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500 dark:text-surface-400">
                     {task.createdAt.toLocaleDateString()}
                   </td>
                 </tr>

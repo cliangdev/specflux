@@ -155,14 +155,14 @@ export default function EpicEditModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-white dark:bg-system-800 rounded-lg shadow-xl w-full max-w-lg mx-4 border border-system-200 dark:border-system-700 max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-system-200 dark:border-system-700">
-          <h2 className="text-lg font-semibold text-system-900 dark:text-white">
+      <div className="relative bg-white dark:bg-surface-800 rounded-lg shadow-xl w-full max-w-lg mx-4 border border-surface-200 dark:border-surface-700 max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-surface-200 dark:border-surface-700">
+          <h2 className="text-lg font-semibold text-surface-900 dark:text-white">
             Edit Epic
           </h2>
           <button
             onClick={onClose}
-            className="text-system-400 hover:text-system-600 dark:hover:text-white transition-colors"
+            className="text-surface-400 hover:text-surface-600 dark:hover:text-white transition-colors"
           >
             <svg
               className="w-5 h-5"
@@ -194,7 +194,7 @@ export default function EpicEditModal({
             <div>
               <label
                 htmlFor="title"
-                className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
+                className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1"
               >
                 Title <span className="text-red-500">*</span>
               </label>
@@ -212,7 +212,7 @@ export default function EpicEditModal({
             <div>
               <label
                 htmlFor="description"
-                className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
+                className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1"
               >
                 Description
               </label>
@@ -229,7 +229,7 @@ export default function EpicEditModal({
             <div>
               <label
                 htmlFor="status"
-                className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
+                className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1"
               >
                 Status
               </label>
@@ -248,7 +248,7 @@ export default function EpicEditModal({
             <div>
               <label
                 htmlFor="release"
-                className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
+                className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1"
               >
                 Release
               </label>
@@ -265,7 +265,7 @@ export default function EpicEditModal({
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-xs text-system-500 dark:text-system-400">
+              <p className="mt-1 text-xs text-surface-500 dark:text-surface-400">
                 Assign to a release to show this epic in the Roadmap
               </p>
             </div>
@@ -273,7 +273,7 @@ export default function EpicEditModal({
             <div>
               <label
                 htmlFor="prdFilePath"
-                className="block text-sm font-medium text-system-700 dark:text-system-300 mb-1"
+                className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1"
               >
                 PRD File Path
               </label>
@@ -290,11 +290,11 @@ export default function EpicEditModal({
             {/* Dependencies Section */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-system-700 dark:text-system-300">
+                <label className="block text-sm font-medium text-surface-700 dark:text-surface-300">
                   Depends On
                 </label>
                 {dependsOn.length > 0 && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300">
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-accent-100 dark:bg-accent-900/30 text-accent-700 dark:text-accent-300">
                     Phase {phasePreview}
                   </span>
                 )}
@@ -307,11 +307,11 @@ export default function EpicEditModal({
               )}
 
               {availableEpics.length === 0 ? (
-                <p className="text-sm text-system-500 dark:text-system-400 italic">
+                <p className="text-sm text-surface-500 dark:text-surface-400 italic">
                   No other epics available for dependencies
                 </p>
               ) : (
-                <div className="space-y-2 max-h-40 overflow-y-auto border border-system-200 dark:border-system-700 rounded-lg p-2">
+                <div className="space-y-2 max-h-40 overflow-y-auto border border-surface-200 dark:border-surface-700 rounded-lg p-2">
                   {availableEpics.map((e) => {
                     const isSelected = dependsOn.includes(e.id);
                     const epicPhase = e.phase ?? 1;
@@ -320,27 +320,27 @@ export default function EpicEditModal({
                         key={e.id}
                         className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${
                           isSelected
-                            ? "bg-brand-50 dark:bg-brand-900/20 border border-brand-200 dark:border-brand-800"
-                            : "hover:bg-system-50 dark:hover:bg-system-700/50"
+                            ? "bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800"
+                            : "hover:bg-surface-50 dark:hover:bg-surface-700/50"
                         }`}
                       >
                         <input
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => handleDependencyToggle(e.id)}
-                          className="rounded border-system-300 dark:border-system-600 text-brand-600 focus:ring-brand-500"
+                          className="rounded border-surface-300 dark:border-surface-600 text-accent-600 focus:ring-accent-500"
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-system-500 dark:text-system-400">
+                            <span className="text-xs text-surface-500 dark:text-surface-400">
                               #{e.id}
                             </span>
-                            <span className="text-sm text-system-900 dark:text-white truncate">
+                            <span className="text-sm text-surface-900 dark:text-white truncate">
                               {e.title}
                             </span>
                           </div>
                         </div>
-                        <span className="text-xs px-1.5 py-0.5 rounded bg-system-100 dark:bg-system-700 text-system-600 dark:text-system-400">
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-surface-100 dark:bg-surface-700 text-surface-600 dark:text-surface-400">
                           P{epicPhase}
                         </span>
                       </label>
@@ -349,7 +349,7 @@ export default function EpicEditModal({
                 </div>
               )}
 
-              <p className="mt-1 text-xs text-system-500 dark:text-system-400">
+              <p className="mt-1 text-xs text-surface-500 dark:text-surface-400">
                 Select epics that must be completed before this one can start.
                 {dependsOn.length === 0
                   ? " No dependencies = Phase 1"
@@ -358,12 +358,12 @@ export default function EpicEditModal({
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-system-200 dark:border-system-700">
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-surface-200 dark:border-surface-700">
             <button
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-system-600 dark:text-system-300 hover:text-system-900 dark:hover:text-white transition-colors disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-surface-600 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white transition-colors disabled:opacity-50"
             >
               Cancel
             </button>

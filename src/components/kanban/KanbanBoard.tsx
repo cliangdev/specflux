@@ -44,7 +44,7 @@ interface KanbanBoardProps {
  * - Real-time status updates
  */
 export function KanbanBoard({
-  projectId,
+  projectId: _projectId,
   projectRef,
   workflowTemplate = "startup-fast",
   onTaskClick,
@@ -216,7 +216,7 @@ export function KanbanBoard({
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-500" />
       </div>
     );
   }
@@ -227,7 +227,7 @@ export function KanbanBoard({
         <p className="text-red-500">{error}</p>
         <button
           onClick={loadTasks}
-          className="px-4 py-2 bg-brand-600 text-white rounded-md hover:bg-brand-700"
+          className="px-4 py-2 bg-accent-600 text-white rounded-md hover:bg-accent-700"
         >
           Retry
         </button>
@@ -239,7 +239,7 @@ export function KanbanBoard({
     <div className="flex flex-col h-full overflow-hidden">
       {/* Board Header - matches TasksPage styling */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-system-900 dark:text-white">
+        <h1 className="text-2xl font-semibold text-surface-900 dark:text-white">
           Board
         </h1>
         <div className="flex items-center gap-2">

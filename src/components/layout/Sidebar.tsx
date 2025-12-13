@@ -257,11 +257,11 @@ export default function Sidebar() {
   // Collapsed state: show hamburger icon only
   if (state.collapsed) {
     return (
-      <aside className="w-14 bg-system-50 dark:bg-system-900 border-r border-system-200 dark:border-system-800 flex flex-col">
+      <aside className="w-14 bg-surface-50 dark:bg-surface-900 border-r border-surface-200 dark:border-surface-800 flex flex-col">
         <div className="px-3 py-4">
           <button
             onClick={toggleCollapsed}
-            className="p-2 rounded-lg text-system-600 dark:text-system-400 hover:text-system-900 dark:hover:text-white hover:bg-system-100 dark:hover:bg-system-800 transition-colors"
+            className="p-2 rounded-lg text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
             aria-label="Expand sidebar"
             title="Expand sidebar"
           >
@@ -277,8 +277,8 @@ export default function Sidebar() {
                   className={({ isActive }) =>
                     `flex items-center justify-center p-2 rounded-lg transition-colors ${
                       isActive
-                        ? "bg-brand-600 text-white"
-                        : "text-system-600 dark:text-system-400 hover:text-system-900 dark:hover:text-white hover:bg-system-100 dark:hover:bg-system-800"
+                        ? "bg-accent-600 text-white"
+                        : "text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white hover:bg-surface-100 dark:hover:bg-surface-800"
                     }`
                   }
                   title={item.label}
@@ -297,17 +297,17 @@ export default function Sidebar() {
   return (
     <aside
       ref={sidebarRef}
-      className="bg-system-50 dark:bg-system-900 border-r border-system-200 dark:border-system-800 flex flex-col relative"
+      className="bg-surface-50 dark:bg-surface-900 border-r border-surface-200 dark:border-surface-800 flex flex-col relative"
       style={{ width: state.width }}
     >
       <nav className="flex-1 px-3 py-4 overflow-hidden">
         <div className="mb-2 px-3 flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-wider text-system-400 dark:text-system-500">
+          <span className="text-xs font-semibold uppercase tracking-wider text-surface-400 dark:text-surface-500">
             Navigation
           </span>
           <button
             onClick={toggleCollapsed}
-            className="p-1 rounded text-system-400 dark:text-system-500 hover:text-system-600 dark:hover:text-system-300 hover:bg-system-100 dark:hover:bg-system-800 transition-colors"
+            className="p-1 rounded text-surface-400 dark:text-surface-500 hover:text-surface-600 dark:hover:text-surface-300 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
             aria-label="Collapse sidebar"
             title="Collapse sidebar"
           >
@@ -322,8 +322,8 @@ export default function Sidebar() {
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                     isActive
-                      ? "bg-brand-600 text-white"
-                      : "text-system-600 dark:text-system-400 hover:text-system-900 dark:hover:text-white hover:bg-system-100 dark:hover:bg-system-800"
+                      ? "bg-accent-600 text-white"
+                      : "text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white hover:bg-surface-100 dark:hover:bg-surface-800"
                   }`
                 }
               >
@@ -344,8 +344,8 @@ export default function Sidebar() {
         <div
           className={`w-0.5 h-full transition-colors ${
             isResizing
-              ? "bg-brand-500"
-              : "bg-system-300 dark:bg-system-700 group-hover:bg-brand-500"
+              ? "bg-accent-500"
+              : "bg-surface-300 dark:bg-surface-700 group-hover:bg-accent-500"
           }`}
         />
       </div>

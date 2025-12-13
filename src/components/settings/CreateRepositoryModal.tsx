@@ -88,7 +88,7 @@ export function CreateRepositoryModal({
               className={`w-full border rounded px-3 py-2 text-sm focus:ring-1 outline-none bg-white dark:bg-slate-900 ${
                 repoName && !isValidName
                   ? "border-red-300 dark:border-red-700 focus:border-red-500 focus:ring-red-500"
-                  : "border-gray-200 dark:border-slate-700 focus:border-brand-500 focus:ring-brand-500"
+                  : "border-gray-200 dark:border-slate-700 focus:border-accent-500 focus:ring-accent-500"
               }`}
               placeholder="wealth-management-devops"
               autoFocus
@@ -138,7 +138,7 @@ export function CreateRepositoryModal({
           <button
             onClick={handleCreate}
             disabled={!repoName || !isValidName || creating}
-            className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
+            className="bg-accent-600 hover:bg-accent-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
           >
             {creating ? "Creating..." : "Create Repository"}
           </button>

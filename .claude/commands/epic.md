@@ -28,7 +28,13 @@ Use these to automatically determine which project/PRD you're working with.
 
 2. **Read all documents** - primary PRD and supporting files (wireframes, mockups)
 
-3. **Clarify ambiguities** - Ask about unclear requirements, scope, integrations. Don't proceed until you have clear answers.
+3. **Extract requirements inventory** - Create a numbered list of EVERY requirement:
+   - For UI PRDs: Parse each wireframe section, extract every element shown
+   - For API PRDs: Extract every endpoint, field, validation rule
+   - For feature PRDs: Extract every user story, business rule, edge case
+   - **Reference line numbers** from PRD for traceability (e.g., "PRD lines 364-413")
+
+4. **Clarify ambiguities** - Ask about unclear requirements, scope, integrations. Don't proceed until you have clear answers.
 
 ### Phase 2: Design Epics
 
@@ -62,18 +68,27 @@ POST /api/projects/{projectRef}/epics/{epicRef}/dependencies
 
 ### Phase 4: Create Tasks
 
-1. **Break each epic into 1-4 hour tasks**
+1. **Break each epic into 1-4 hour tasks** - One task = one specific change, NOT "refactor entire page"
 
 2. **Write immediately actionable task descriptions**:
-   - Objective (one sentence)
+   - Objective (one sentence, specific outcome)
    - Files to create/modify
    - Implementation details (endpoints, schemas, validation)
    - Error handling
+   - **PRD reference** (e.g., "See wireframe lines 384-388")
 
-3. **Add verifiable acceptance criteria** - each must be testable:
+3. **Extract acceptance criteria DIRECTLY from PRD** - Don't summarize, copy specific requirements:
+   - For UI: Each visual element in wireframe = one criterion
+   - For API: Each field, validation, response code = one criterion
+   - **Include PRD line reference** for traceability
+   - Example: `[UI] Epics section shows: key, title, status badge, progress bar (PRD line 386)`
+
+4. **Add verifiable test criteria**:
    - `[Unit]` "hashPassword returns bcrypt hash with cost 12"
    - `[Integration]` "POST /auth/register returns 201 for valid input"
    - `[E2E]` "User completes registration and sees welcome message"
+
+5. **Add verification task per epic** - Final task should be "Verify implementation matches PRD wireframe/spec"
 
 ```
 POST /api/projects/{projectRef}/tasks
@@ -88,72 +103,113 @@ POST /api/projects/{projectRef}/tasks/{taskRef}/dependencies
 
 ### Phase 5: Verify Coverage
 
-Present coverage matrix to user:
-- Every PRD requirement → Epic → Tasks
-- No gaps between PRD and implementation
-- Get user approval before finalizing
+**CRITICAL: Do not skip this phase. This prevents incomplete implementations.**
 
-## Example
+1. **Build requirement traceability matrix** - Map EVERY requirement from Phase 1 inventory:
+   ```
+   | # | Requirement (from PRD)              | PRD Line | Epic   | Task(s)  | Status |
+   |---|-------------------------------------|----------|--------|----------|--------|
+   | 1 | PRD Detail: Add Epics section       | 384-388  | E36    | T185     | ✓      |
+   | 2 | PRD Detail: AIActionButton in header| 370      | E36    | T186     | ✓      |
+   | 3 | Roadmap: Split-panel layout         | 560-584  | E37    | T189-190 | ✓      |
+   ```
+
+2. **Verify 100% coverage** - Every row must have Epic + Task mapping
+
+3. **Flag gaps** - If any requirement lacks task coverage, create additional tasks
+
+4. **Present to user** - Show the complete matrix, get explicit approval before creating in API
+
+5. **Include verification tasks** - Each epic should end with "Verify against PRD lines X-Y"
+
+## Example: API PRD
 
 ```
 > /epic
 
 Reading PRD "E-commerce MVP" and documents...
 
+## Requirements Inventory (Phase 1)
+| #  | Requirement                    | PRD Line | Type     |
+|----|--------------------------------|----------|----------|
+| 1  | User registration endpoint     | 45-52    | API      |
+| 2  | Email validation (format)      | 48       | API      |
+| 3  | Password min 8 chars           | 49       | API      |
+| 4  | Duplicate email returns 409    | 51       | API      |
+| 5  | User login endpoint            | 55-60    | API      |
+| 6  | Password reset flow            | 65-80    | API      |
+[... 20 more requirements ...]
+
 Questions before proceeding:
 1. Payment gateway preference? → Stripe
 2. Social login for MVP? → No, email only
 
 ## Proposed Epics
+[... epic details ...]
 
-**E1: User Authentication** (independent)
-Context: Secure user access - foundation for all features.
-Scope IN: Email/password, password reset, JWT sessions
-Scope OUT: Social login, 2FA
-Technical: bcrypt (cost 12), JWT (24h), httpOnly cookies
-API: POST /auth/register, /login, /forgot-password, /reset-password
-Acceptance Criteria:
-1. Users can self-register and immediately access platform
-2. Users can recover access without support intervention
-3. Auth meets security best practices
+## Coverage Matrix (Phase 5)
+| #  | Requirement                    | PRD Line | Epic | Task(s) | ✓ |
+|----|--------------------------------|----------|------|---------|---|
+| 1  | User registration endpoint     | 45-52    | E1   | T1.2    | ✓ |
+| 2  | Email validation (format)      | 48       | E1   | T1.2    | ✓ |
+| 3  | Password min 8 chars           | 49       | E1   | T1.2    | ✓ |
+| 4  | Duplicate email returns 409    | 51       | E1   | T1.2    | ✓ |
+| 5  | User login endpoint            | 55-60    | E1   | T1.3    | ✓ |
+| 6  | Password reset flow            | 65-80    | E1   | T1.4-5  | ✓ |
 
-**E2: Product Catalog** (independent)
-[...]
+All 26 requirements covered. Proceed? → yes
+```
 
-**E3: Shopping Cart** (depends: E1, E2)
-[...]
+## Example: UI PRD with Wireframes
 
-Proceed with creating epics and tasks? → yes
+```
+> /epic
 
-Creating E1: User Authentication...
+Reading PRD "Dashboard Redesign" and wireframes...
 
-**Task 1.1: User database schema**
-Objective: Create users and password_reset_tokens tables
-Files: migrations/001_create_users.sql
-Schema: users(id, email UNIQUE, password_hash, timestamps)
-Acceptance:
-- [Unit] Migration creates tables with correct columns
-- [Unit] Email uniqueness rejects duplicates
+## Requirements Inventory (Phase 1)
+Parsing wireframe sections line by line:
 
-**Task 1.2: Registration endpoint**
-Objective: POST /api/auth/register
-Files: src/routes/auth.ts
-Request: { email, password } → 201 { user, token }
-Validation: email format, password min 8 chars
-Errors: 400 invalid input, 409 duplicate email
-Acceptance:
-- [Integration] Returns 201 with token for valid input
-- [Integration] Returns 409 for duplicate email
-- [Unit] Password hashed with bcrypt cost 12
+| #  | Requirement                              | PRD Line | Type |
+|----|------------------------------------------|----------|------|
+| 1  | Header: Back button on own row           | 251      | UI   |
+| 2  | Header: Entity key + Title in Row 2      | 252      | UI   |
+| 3  | Header: AIActionButton top-right Row 2   | 252      | UI   |
+| 4  | Header: Status dropdown in Row 3         | 253      | UI   |
+| 5  | PRD Detail: Documents section            | 376-382  | UI   |
+| 6  | PRD Detail: Epics section below docs     | 384-388  | UI   |
+| 7  | PRD Detail: Epic row shows progress bar  | 386      | UI   |
+| 8  | Roadmap: Split-panel layout (240px)      | 560-564  | UI   |
+| 9  | Roadmap: Release list in left sidebar    | 566-581  | UI   |
+| 10 | Roadmap: Selected release details right  | 564-604  | UI   |
+[... etc ...]
 
-[...]
+## Proposed Epics
 
-## Coverage Report
-| PRD Requirement | Epic | Tasks | ✓ |
-|-----------------|------|-------|---|
-| Registration    | E1   | 1.1-2 | ✓ |
-| Product browse  | E2   | 2.1-3 | ✓ |
-All requirements covered.
+**E1: Detail Page Header Redesign**
+Tasks:
+- T1.1: Add back button to own row (PRD line 251)
+- T1.2: Add AIActionButton to header Row 2 (PRD line 252)
+- T1.3: Move status to Row 3 (PRD line 253)
+- T1.4: Verify header matches PRD wireframe lines 241-260
+
+**E2: PRD Detail Page Redesign**
+Tasks:
+- T2.1: Add Epics section below documents (PRD lines 384-388)
+  AC: [UI] Shows epic key, title, status badge, progress bar
+  AC: [UI] "+ Add" button to create epic for this PRD
+- T2.2: Verify PRD Detail matches wireframe lines 364-413
+
+## Coverage Matrix
+| #  | Requirement                              | PRD Line | Epic | Task | ✓ |
+|----|------------------------------------------|----------|------|------|---|
+| 1  | Header: Back button on own row           | 251      | E1   | T1.1 | ✓ |
+| 2  | Header: Entity key + Title in Row 2      | 252      | E1   | T1.1 | ✓ |
+| 3  | Header: AIActionButton top-right Row 2   | 252      | E1   | T1.2 | ✓ |
+| 6  | PRD Detail: Epics section below docs     | 384-388  | E2   | T2.1 | ✓ |
+| 7  | PRD Detail: Epic row shows progress bar  | 386      | E2   | T2.1 | ✓ |
+
+All requirements covered. Each epic ends with verification task. Proceed? → yes
 ```
 
 ## Key Principles
@@ -162,4 +218,8 @@ All requirements covered.
 2. **Self-contained** - Epics and tasks include all context needed to code
 3. **Independent first** - Create non-dependent epics/tasks before dependent ones
 4. **Testable criteria** - Every acceptance criterion is verifiable
-5. **No gaps** - 100% PRD coverage verified before finishing
+5. **No gaps** - 100% PRD coverage verified with traceability matrix before finishing
+6. **Line references** - Every task references specific PRD lines for traceability
+7. **Granular tasks** - One task = one specific change (not "refactor entire page")
+8. **Verification tasks** - Each epic ends with "Verify against PRD lines X-Y"
+9. **Extract, don't summarize** - Copy specific requirements from PRD, don't paraphrase

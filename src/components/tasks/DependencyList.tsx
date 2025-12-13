@@ -1,8 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import type { TaskDependency } from "../../api";
 
-// Status configuration for dependency items
-const DEPENDENCY_STATUS_CONFIG: Record<
+// Status configuration for dependency items (reserved for future use)
+const _DEPENDENCY_STATUS_CONFIG: Record<
   string,
   { icon: JSX.Element; classes: string }
 > = {
@@ -58,7 +58,7 @@ const DEPENDENCY_STATUS_CONFIG: Record<
         />
       </svg>
     ),
-    classes: "text-brand-500 dark:text-brand-400",
+    classes: "text-accent-500 dark:text-accent-400",
   },
   pending_review: {
     icon: (
@@ -116,8 +116,8 @@ const DEPENDENCY_STATUS_CONFIG: Record<
   },
 };
 
-// Status badge configuration
-const STATUS_BADGE_CONFIG: Record<string, { label: string; classes: string }> =
+// Status badge configuration (reserved for future use)
+const _STATUS_BADGE_CONFIG: Record<string, { label: string; classes: string }> =
   {
     backlog: {
       label: "Backlog",
@@ -132,7 +132,7 @@ const STATUS_BADGE_CONFIG: Record<string, { label: string; classes: string }> =
     in_progress: {
       label: "In Progress",
       classes:
-        "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300",
+        "bg-accent-100 text-accent-700 dark:bg-accent-900/30 dark:text-accent-300",
     },
     pending_review: {
       label: "Review",
@@ -168,7 +168,7 @@ export default function DependencyList({
 
   if (dependencies.length === 0) {
     return (
-      <div className="text-sm text-system-500 dark:text-system-400 py-2">
+      <div className="text-sm text-surface-500 dark:text-surface-400 py-2">
         {emptyMessage}
       </div>
     );
@@ -186,17 +186,17 @@ export default function DependencyList({
         return (
           <div
             key={`${dep.taskId}-${dep.dependsOnTaskId}`}
-            className="flex items-center gap-2 p-2 rounded-lg bg-system-50 dark:bg-system-800/50 hover:bg-system-100 dark:hover:bg-system-800 transition-colors group"
+            className="flex items-center gap-2 p-2 rounded-lg bg-surface-50 dark:bg-surface-800/50 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors group"
           >
             {/* Task ID - Clickable */}
             <button
               onClick={() => navigate(`/tasks/${taskId}`)}
               className="flex-1 flex items-center gap-2 text-left min-w-0"
             >
-              <span className="text-xs font-mono text-system-500 dark:text-system-400">
+              <span className="text-xs font-mono text-surface-500 dark:text-surface-400">
                 {displayId}
               </span>
-              <span className="text-sm truncate text-system-700 dark:text-system-200">
+              <span className="text-sm truncate text-surface-700 dark:text-surface-200">
                 Depends on {displayId}
               </span>
             </button>
@@ -208,7 +208,7 @@ export default function DependencyList({
                   e.stopPropagation();
                   onRemove(dep.dependsOnTaskId);
                 }}
-                className="opacity-0 group-hover:opacity-100 p-1 text-system-400 hover:text-red-500 dark:hover:text-red-400 transition-all"
+                className="opacity-0 group-hover:opacity-100 p-1 text-surface-400 hover:text-red-500 dark:hover:text-red-400 transition-all"
                 title="Remove dependency"
               >
                 <svg

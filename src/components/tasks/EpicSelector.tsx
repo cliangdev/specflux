@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { api, type Epic } from "../../api";
+import { api } from "../../api";
 
 // Unified epic type for the selector
 interface EpicOption {
@@ -114,7 +114,7 @@ export default function EpicSelector({
         className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-sm rounded transition-colors ${
           selectedEpic
             ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/50"
-            : "bg-system-100 text-system-600 dark:bg-system-800 dark:text-system-400 hover:bg-system-200 dark:hover:bg-system-700"
+            : "bg-surface-100 text-surface-600 dark:bg-surface-800 dark:text-surface-400 hover:bg-surface-200 dark:hover:bg-surface-700"
         } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
       >
         <EpicIcon className="w-3.5 h-3.5" />
@@ -141,9 +141,9 @@ export default function EpicSelector({
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 mt-1 w-64 bg-white dark:bg-system-800 rounded-lg shadow-lg border border-system-200 dark:border-system-700 py-1 max-h-64 overflow-y-auto">
+        <div className="absolute z-50 mt-1 w-64 bg-white dark:bg-surface-800 rounded-lg shadow-lg border border-surface-200 dark:border-surface-700 py-1 max-h-64 overflow-y-auto">
           {loading ? (
-            <div className="px-3 py-2 text-sm text-system-500 dark:text-system-400">
+            <div className="px-3 py-2 text-sm text-surface-500 dark:text-surface-400">
               Loading epics...
             </div>
           ) : (
@@ -151,17 +151,17 @@ export default function EpicSelector({
               <button
                 type="button"
                 onClick={() => handleSelect(null)}
-                className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-system-100 dark:hover:bg-system-700 ${
-                  !selectedEpicId ? "bg-system-100 dark:bg-system-700" : ""
+                className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-surface-100 dark:hover:bg-surface-700 ${
+                  !selectedEpicId ? "bg-surface-100 dark:bg-surface-700" : ""
                 }`}
               >
-                <EpicIcon className="w-4 h-4 text-system-400 flex-shrink-0" />
-                <span className="text-system-500 dark:text-system-400 italic">
+                <EpicIcon className="w-4 h-4 text-surface-400 flex-shrink-0" />
+                <span className="text-surface-500 dark:text-surface-400 italic">
                   No epic
                 </span>
                 {!selectedEpicId && (
                   <svg
-                    className="w-4 h-4 ml-auto text-brand-600 dark:text-brand-400 flex-shrink-0"
+                    className="w-4 h-4 ml-auto text-accent-600 dark:text-accent-400 flex-shrink-0"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -176,7 +176,7 @@ export default function EpicSelector({
                 )}
               </button>
               {epics.length === 0 ? (
-                <div className="px-3 py-2 text-sm text-system-500 dark:text-system-400">
+                <div className="px-3 py-2 text-sm text-surface-500 dark:text-surface-400">
                   No epics in this project
                 </div>
               ) : (
@@ -187,15 +187,15 @@ export default function EpicSelector({
                       key={epic.id}
                       type="button"
                       onClick={() => handleSelect(epic)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-system-100 dark:hover:bg-system-700 ${
-                        isSelected ? "bg-system-100 dark:bg-system-700" : ""
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-surface-100 dark:hover:bg-surface-700 ${
+                        isSelected ? "bg-surface-100 dark:bg-surface-700" : ""
                       }`}
                     >
                       <EpicIcon
                         className={`w-4 h-4 flex-shrink-0 ${
                           isSelected
                             ? "text-purple-600 dark:text-purple-400"
-                            : "text-system-400"
+                            : "text-surface-400"
                         }`}
                       />
                       <div className="flex-1 min-w-0">
@@ -203,12 +203,12 @@ export default function EpicSelector({
                           className={`font-medium truncate ${
                             isSelected
                               ? "text-purple-600 dark:text-purple-400"
-                              : "text-system-900 dark:text-white"
+                              : "text-surface-900 dark:text-white"
                           }`}
                         >
                           {epic.title}
                         </div>
-                        <div className="text-xs text-system-500 dark:text-system-400">
+                        <div className="text-xs text-surface-500 dark:text-surface-400">
                           {epic.status}
                         </div>
                       </div>
