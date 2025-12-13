@@ -10,6 +10,8 @@ import {
 import { api, type Project } from "../api";
 import { useAuth } from "./AuthContext";
 
+const SELECTED_PROJECT_KEY = "specflux_selected_project_id";
+
 interface ProjectContextValue {
   projects: Project[];
   currentProject: Project | null;
@@ -38,6 +40,13 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
   const currentProjectRef = useRef(currentProject);
   currentProjectRef.current = currentProject;
 
+  // Load saved project ID from localStorage
+  const savedProjectId = useRef<string | null>(
+    typeof window !== "undefined"
+      ? localStorage.getItem(SELECTED_PROJECT_KEY)
+      : null
+  );
+
   const fetchProjects = useCallback(async () => {
     try {
       setLoading(true);
@@ -52,9 +61,24 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
       // Use ref to get current value without dependency
       const currentProj = currentProjectRef.current;
 
-      // Auto-select first project if none selected
+      // Auto-select project: saved > current > first
       if (!currentProj && projectList.length > 0) {
-        setCurrentProject(projectList[0]);
+        // Try to restore saved project from localStorage
+        if (savedProjectId.current) {
+          const savedProject = projectList.find(
+            (p) => p.id === savedProjectId.current
+          );
+          if (savedProject) {
+            setCurrentProject(savedProject);
+          } else {
+            // Saved project not found, select first and clear saved
+            setCurrentProject(projectList[0]);
+            localStorage.removeItem(SELECTED_PROJECT_KEY);
+            savedProjectId.current = null;
+          }
+        } else {
+          setCurrentProject(projectList[0]);
+        }
       } else if (currentProj) {
         // Re-find current project in new list
         const found = projectList.find((p) => p.id === currentProj.id);
@@ -83,6 +107,11 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
 
   const selectProject = useCallback((project: Project) => {
     setCurrentProject(project);
+    // Persist selection to localStorage
+    if (project.id) {
+      localStorage.setItem(SELECTED_PROJECT_KEY, project.id);
+      savedProjectId.current = project.id;
+    }
   }, []);
 
   const getProjectRef = useCallback((): string | null => {
