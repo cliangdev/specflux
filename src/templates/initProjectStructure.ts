@@ -121,11 +121,21 @@ export async function syncTemplates(
     ? TEMPLATE_REGISTRY.filter((t) => templateIds.includes(t.id))
     : TEMPLATE_REGISTRY;
 
-  // Ensure parent directories exist for command templates
-  const commandsDir = await join(projectPath, ".claude/commands");
-  const commandsDirExists = await exists(commandsDir);
-  if (!commandsDirExists) {
-    await mkdir(commandsDir, { recursive: true });
+  // Ensure parent directories exist for all template categories
+  const templateDirs = [
+    ".claude/commands",
+    ".claude/agents",
+    ".claude/skills/ui-patterns",
+    ".claude/skills/api-design",
+    ".claude/skills/typescript-patterns",
+  ];
+
+  for (const dir of templateDirs) {
+    const fullPath = await join(projectPath, dir);
+    const dirExists = await exists(fullPath);
+    if (!dirExists) {
+      await mkdir(fullPath, { recursive: true });
+    }
   }
 
   for (const template of templates) {

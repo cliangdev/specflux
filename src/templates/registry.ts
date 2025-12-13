@@ -15,7 +15,7 @@ export interface TemplateDefinition {
   /** Human-readable description */
   description: string;
   /** Category for grouping in UI */
-  category: "command" | "config";
+  category: "command" | "config" | "agent" | "skill" | "mcp";
 }
 
 /**
@@ -56,6 +56,58 @@ export const TEMPLATE_REGISTRY: TemplateDefinition[] = [
     destPath: "CLAUDE.md",
     description: "Project CLAUDE.md with SpecFlux commands",
     category: "config",
+  },
+  // Agent templates
+  {
+    id: "agent-frontend-dev",
+    sourceFile: "agents/frontend-dev.md",
+    destPath: ".claude/agents/frontend-dev.md",
+    description: "Frontend developer agent for React/TypeScript/Tauri",
+    category: "agent",
+  },
+  {
+    id: "agent-backend-dev",
+    sourceFile: "agents/backend-dev.md",
+    destPath: ".claude/agents/backend-dev.md",
+    description: "Backend developer agent for Node.js/TypeScript/Express",
+    category: "agent",
+  },
+  {
+    id: "agent-fullstack-dev",
+    sourceFile: "agents/fullstack-dev.md",
+    destPath: ".claude/agents/fullstack-dev.md",
+    description: "Fullstack developer agent for end-to-end features",
+    category: "agent",
+  },
+  // Skill templates
+  {
+    id: "skill-ui-patterns",
+    sourceFile: "skills/ui-patterns/SKILL.md",
+    destPath: ".claude/skills/ui-patterns/SKILL.md",
+    description: "UI design patterns and dark mode support",
+    category: "skill",
+  },
+  {
+    id: "skill-api-design",
+    sourceFile: "skills/api-design/SKILL.md",
+    destPath: ".claude/skills/api-design/SKILL.md",
+    description: "REST API design patterns and OpenAPI workflow",
+    category: "skill",
+  },
+  {
+    id: "skill-typescript-patterns",
+    sourceFile: "skills/typescript-patterns/SKILL.md",
+    destPath: ".claude/skills/typescript-patterns/SKILL.md",
+    description: "TypeScript best practices and type safety",
+    category: "skill",
+  },
+  // MCP config template
+  {
+    id: "mcp-config",
+    sourceFile: ".mcp.json",
+    destPath: ".claude/.mcp.json",
+    description: "MCP server configuration (GitHub, filesystem)",
+    category: "mcp",
   },
 ];
 
