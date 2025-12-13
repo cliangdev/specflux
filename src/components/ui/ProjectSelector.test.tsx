@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import ProjectSelector from "./ProjectSelector";
 import { ProjectProvider } from "../../contexts";
@@ -53,9 +54,11 @@ const mockProjects: Project[] = [
 
 function renderWithProvider() {
   return render(
-    <ProjectProvider>
-      <ProjectSelector />
-    </ProjectProvider>,
+    <MemoryRouter>
+      <ProjectProvider>
+        <ProjectSelector />
+      </ProjectProvider>
+    </MemoryRouter>,
   );
 }
 

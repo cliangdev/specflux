@@ -38,9 +38,10 @@ vi.mock("./contexts/ProjectContext", () => ({
     },
     loading: false,
     error: null,
-    selectProject: vi.fn(),
+    selectProject: vi.fn().mockReturnValue("/board"),
     refreshProjects: vi.fn(),
     getProjectRef: () => "TEST",
+    saveCurrentRoute: vi.fn(),
   }),
 }));
 

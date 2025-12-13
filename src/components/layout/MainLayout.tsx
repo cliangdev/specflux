@@ -1,8 +1,8 @@
 import { useEffect } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import TopBar from "./TopBar";
 import Sidebar from "./Sidebar";
-import { ThemeProvider } from "../../contexts";
+import { ThemeProvider, useProject } from "../../contexts";
 import { TerminalProvider, useTerminal } from "../../contexts/TerminalContext";
 import TerminalPanel from "../terminal/TerminalPanel";
 import ClaudePill from "../terminal/ClaudePill";
@@ -10,6 +10,14 @@ import ClaudePill from "../terminal/ClaudePill";
 function MainLayoutContent() {
   const { isOpen, togglePanel, sessions, switchToSession, openPanel } =
     useTerminal();
+  const { saveCurrentRoute } = useProject();
+  const location = useLocation();
+
+  // Track route changes and save for current project
+  useEffect(() => {
+    const fullPath = location.pathname + location.search;
+    saveCurrentRoute(fullPath);
+  }, [location.pathname, location.search, saveCurrentRoute]);
 
   // Global keyboard shortcuts: Cmd+T to toggle terminal, Cmd+1-9 to switch tabs
   useEffect(() => {

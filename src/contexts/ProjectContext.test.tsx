@@ -58,6 +58,7 @@ function TestConsumer() {
 describe("ProjectContext", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
   });
 
   describe("ProjectProvider", () => {
@@ -194,6 +195,131 @@ describe("ProjectContext", () => {
       });
 
       expect(api.projects.listProjects).toHaveBeenCalledTimes(callsBefore + 1);
+    });
+
+    it("selectProject returns default route when no saved route", async () => {
+      vi.mocked(api.projects.listProjects).mockResolvedValue({
+        data: mockProjects,
+      });
+
+      const { result } = renderHook(() => useProject(), {
+        wrapper: ({ children }) => (
+          <ProjectProvider>{children}</ProjectProvider>
+        ),
+      });
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      let targetRoute: string = "";
+      act(() => {
+        targetRoute = result.current.selectProject(mockProjects[1]);
+      });
+
+      expect(targetRoute).toBe("/board");
+    });
+
+    it("selectProject returns saved route for project", async () => {
+      vi.mocked(api.projects.listProjects).mockResolvedValue({
+        data: mockProjects,
+      });
+
+      // Set up saved routes in localStorage
+      localStorage.setItem(
+        "specflux_project_routes",
+        JSON.stringify({ proj_def456: "/prds/PRD-1" })
+      );
+
+      const { result } = renderHook(() => useProject(), {
+        wrapper: ({ children }) => (
+          <ProjectProvider>{children}</ProjectProvider>
+        ),
+      });
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      let targetRoute: string = "";
+      act(() => {
+        targetRoute = result.current.selectProject(mockProjects[1]);
+      });
+
+      expect(targetRoute).toBe("/prds/PRD-1");
+    });
+
+    it("saveCurrentRoute saves route for current project", async () => {
+      vi.mocked(api.projects.listProjects).mockResolvedValue({
+        data: mockProjects,
+      });
+
+      const { result } = renderHook(() => useProject(), {
+        wrapper: ({ children }) => (
+          <ProjectProvider>{children}</ProjectProvider>
+        ),
+      });
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      // Save a route for the current project
+      act(() => {
+        result.current.saveCurrentRoute("/tasks/TASK-42");
+      });
+
+      // Verify it was saved to localStorage
+      const savedRoutes = JSON.parse(
+        localStorage.getItem("specflux_project_routes") || "{}"
+      );
+      expect(savedRoutes["proj_abc123"]).toBe("/tasks/TASK-42");
+    });
+
+    it("persists selected project to localStorage", async () => {
+      vi.mocked(api.projects.listProjects).mockResolvedValue({
+        data: mockProjects,
+      });
+
+      const { result } = renderHook(() => useProject(), {
+        wrapper: ({ children }) => (
+          <ProjectProvider>{children}</ProjectProvider>
+        ),
+      });
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      act(() => {
+        result.current.selectProject(mockProjects[1]);
+      });
+
+      expect(localStorage.getItem("specflux_selected_project_id")).toBe(
+        "proj_def456"
+      );
+    });
+
+    it("restores saved project from localStorage on load", async () => {
+      vi.mocked(api.projects.listProjects).mockResolvedValue({
+        data: mockProjects,
+      });
+
+      // Pre-set the saved project ID
+      localStorage.setItem("specflux_selected_project_id", "proj_def456");
+
+      const { result } = renderHook(() => useProject(), {
+        wrapper: ({ children }) => (
+          <ProjectProvider>{children}</ProjectProvider>
+        ),
+      });
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      // Should restore Project Beta instead of auto-selecting first
+      expect(result.current.currentProject?.name).toBe("Project Beta");
     });
   });
 });

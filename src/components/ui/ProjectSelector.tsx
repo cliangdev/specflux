@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useProject } from "../../contexts";
 import ProjectCreateModal from "./ProjectCreateModal";
 
 export default function ProjectSelector() {
+  const navigate = useNavigate();
   const {
     projects,
     currentProject,
@@ -103,8 +105,10 @@ export default function ProjectSelector() {
                 <button
                   key={project.id}
                   onClick={() => {
-                    selectProject(project);
+                    const targetRoute = selectProject(project);
                     setIsOpen(false);
+                    // Navigate to the saved route for this project
+                    navigate(targetRoute);
                   }}
                   className={`w-full px-4 py-2 text-left text-sm hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors ${
                     project.id === currentProject?.id
