@@ -2,16 +2,18 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { GeneralSettings } from "../components/settings/GeneralSettings";
 import { RepositorySettings } from "../components/settings/RepositorySettings";
-import { ClaudeSettings } from "../components/settings/ClaudeSettings";
+import { ClaudeItemsPage } from "../components/settings/ClaudeItemsPage";
 import { BackendSettings } from "../components/settings/BackendSettings";
 
 type SettingsTab =
   | "general"
   | "repositories"
-  | "claude"
+  | "commands"
+  | "skills"
+  | "mcp"
   | "backend";
 
-const VALID_TABS: SettingsTab[] = ["general", "repositories", "claude", "backend"];
+const VALID_TABS: SettingsTab[] = ["general", "repositories", "commands", "skills", "mcp", "backend"];
 
 interface TabGroup {
   label: string;
@@ -24,7 +26,14 @@ const tabGroups: TabGroup[] = [
     tabs: [
       { id: "general", label: "General" },
       { id: "repositories", label: "Repositories" },
-      { id: "claude", label: "Claude Code" },
+    ],
+  },
+  {
+    label: "Claude Code",
+    tabs: [
+      { id: "commands", label: "Commands" },
+      { id: "skills", label: "Skills" },
+      { id: "mcp", label: "MCP Servers" },
     ],
   },
   {
@@ -99,7 +108,9 @@ export default function SettingsPage() {
           <div className="max-w-3xl">
             {activeTab === "general" && <GeneralSettings />}
             {activeTab === "repositories" && <RepositorySettings />}
-            {activeTab === "claude" && <ClaudeSettings />}
+            {activeTab === "commands" && <ClaudeItemsPage category="command" />}
+            {activeTab === "skills" && <ClaudeItemsPage category="skill" />}
+            {activeTab === "mcp" && <ClaudeItemsPage category="mcp" />}
             {activeTab === "backend" && <BackendSettings />}
           </div>
         </div>
