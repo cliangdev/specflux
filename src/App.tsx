@@ -12,7 +12,6 @@ import {
   RoadmapPage,
   FilesPage,
   SettingsPage,
-  AgentDetailPage,
   PRDsPage,
   PRDDetailPage,
 } from "./pages";
@@ -67,10 +66,6 @@ function AppRoutes() {
                   <Route path="epics/:id" element={<EpicDetailPage />} />
                   <Route path="files" element={<FilesPage />} />
                   <Route path="settings" element={<SettingsPage />} />
-                  <Route
-                    path="settings/agents/:id"
-                    element={<AgentDetailPage />}
-                  />
                 </Route>
               </Routes>
             </ProjectProvider>
