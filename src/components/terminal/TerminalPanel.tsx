@@ -5,9 +5,6 @@ import Terminal, { type TerminalRef } from "../Terminal";
 import TerminalTabBar from "./TerminalTabBar";
 import DuplicateSessionDialog from "./DuplicateSessionDialog";
 
-const HEADER_HEIGHT = 40;
-const COLLAPSED_HEIGHT = HEADER_HEIGHT;
-
 // Position indicator icons
 const PositionIcon = ({ position }: { position: PanelPosition }) => {
   switch (position) {
