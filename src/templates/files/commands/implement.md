@@ -37,8 +37,24 @@ Epic ref can be display key (PROJ-E1), public ID (epic_xxx), or epic title.
    ```
 
 3. **If Epic Has Tasks**: Work through tasks in dependency order
-   - Use `/task <taskRef>` for each task
-   - Or implement directly and update task status via API
+   - For each task:
+     a. Update task status to IN_PROGRESS:
+        ```
+        PATCH /api/projects/{projectRef}/tasks/{taskRef}
+        {"status": "IN_PROGRESS"}
+        ```
+     b. Implement the task
+     c. Get task acceptance criteria and mark each as met:
+        ```
+        GET /api/projects/{projectRef}/tasks/{taskRef}/acceptance-criteria
+        PUT /api/projects/{projectRef}/tasks/{taskRef}/acceptance-criteria/{id}
+        {"isMet": true}
+        ```
+     d. Update task status to COMPLETED:
+        ```
+        PATCH /api/projects/{projectRef}/tasks/{taskRef}
+        {"status": "COMPLETED"}
+        ```
 
 4. **If Epic Has No Tasks**: Work through acceptance criteria directly
    - For each criterion:
@@ -51,11 +67,21 @@ Epic ref can be display key (PROJ-E1), public ID (epic_xxx), or epic title.
        {"isMet": true}
        ```
 
-5. **On Completion**
-   ```
-   PUT /api/projects/{projectRef}/epics/{epicRef}
-   {"status": "COMPLETED"}
-   ```
+5. **Mark Epic Acceptance Criteria**
+   - After all tasks complete, verify and mark epic-level acceptance criteria:
+     ```
+     GET /api/projects/{projectRef}/epics/{epicRef}/acceptance-criteria
+     PUT /api/projects/{projectRef}/epics/{epicRef}/acceptance-criteria/{id}
+     {"isMet": true}
+     ```
+
+6. **On Completion**
+   - Verify ALL acceptance criteria (both task and epic level) are met
+   - Update epic status:
+     ```
+     PUT /api/projects/{projectRef}/epics/{epicRef}
+     {"status": "COMPLETED"}
+     ```
    - Suggest creating a PR for review
 
 ## Recommended Skills
@@ -75,7 +101,7 @@ Fetching epic "Authentication" from API...
 **Epic: Authentication** (PROJ-E1)
 Status: PLANNING
 
-**Acceptance Criteria:**
+**Epic Acceptance Criteria:**
 - [ ] Users can sign up with email/password
 - [ ] Users can log in with credentials
 - [ ] Password reset via email
@@ -90,11 +116,31 @@ Updating epic status to IN_PROGRESS...
 
 This epic has 3 tasks. I'll work through them in order.
 
-Starting with PROJ-42: Database schema for users...
+=== Task PROJ-42: Database schema for users ===
+Updating task status to IN_PROGRESS...
+[Implementation...]
+Marking task acceptance criteria as met...
+Updating task status to COMPLETED...
 
-[Implementation proceeds via /task PROJ-42]
+=== Task PROJ-43: Signup API endpoint ===
+Updating task status to IN_PROGRESS...
+[Implementation...]
+Marking task acceptance criteria as met...
+Updating task status to COMPLETED...
+
+=== Task PROJ-44: Login API endpoint ===
+Updating task status to IN_PROGRESS...
+[Implementation...]
+Marking task acceptance criteria as met...
+Updating task status to COMPLETED...
 
 All tasks complete!
+Verifying and marking epic acceptance criteria...
+- [✓] Users can sign up with email/password
+- [✓] Users can log in with credentials
+- [✓] Password reset via email
+- [✓] JWT tokens for session management
+
 Updating epic status to COMPLETED...
 
 Epic complete! Ready for review.
