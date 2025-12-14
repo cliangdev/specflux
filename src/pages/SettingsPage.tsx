@@ -3,17 +3,15 @@ import { useSearchParams } from "react-router-dom";
 import { GeneralSettings } from "../components/settings/GeneralSettings";
 import { RepositorySettings } from "../components/settings/RepositorySettings";
 import { ClaudeItemsPage } from "../components/settings/ClaudeItemsPage";
-import { BackendSettings } from "../components/settings/BackendSettings";
 
 type SettingsTab =
   | "general"
   | "repositories"
   | "commands"
   | "skills"
-  | "mcp"
-  | "backend";
+  | "mcp";
 
-const VALID_TABS: SettingsTab[] = ["general", "repositories", "commands", "skills", "mcp", "backend"];
+const VALID_TABS: SettingsTab[] = ["general", "repositories", "commands", "skills", "mcp"];
 
 interface TabGroup {
   label: string;
@@ -35,10 +33,6 @@ const tabGroups: TabGroup[] = [
       { id: "skills", label: "Skills" },
       { id: "mcp", label: "MCP Servers" },
     ],
-  },
-  {
-    label: "Cloud",
-    tabs: [{ id: "backend", label: "Backend" }],
   },
 ];
 
@@ -111,7 +105,6 @@ export default function SettingsPage() {
             {activeTab === "commands" && <ClaudeItemsPage category="command" />}
             {activeTab === "skills" && <ClaudeItemsPage category="skill" />}
             {activeTab === "mcp" && <ClaudeItemsPage category="mcp" />}
-            {activeTab === "backend" && <BackendSettings />}
           </div>
         </div>
       </div>
