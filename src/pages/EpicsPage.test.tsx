@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import EpicsPage from "./EpicsPage";
 import { ProjectProvider } from "../contexts";
 import type { Epic, Project, Prd, Release } from "../api";
+import { EpicStatus, PrdStatus, ReleaseStatus } from "../api";
 
 // Mock AuthContext to simulate signed-in user
 vi.mock("../contexts/AuthContext", () => ({
@@ -95,10 +96,11 @@ const mockPrd1: Prd = {
   displayKey: "PRD-1",
   projectId: "proj_123",
   title: "PRD for Project One",
-  status: "APPROVED",
+  folderPath: ".specflux/prds/project-one",
+  status: PrdStatus.Approved,
   createdById: "user_123",
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
+  createdAt: new Date(),
+  updatedAt: new Date(),
 };
 
 const mockRelease1: Release = {
@@ -106,31 +108,31 @@ const mockRelease1: Release = {
   displayKey: "REL-1",
   name: "v1.0",
   projectId: "proj_123",
-  status: "PLANNING",
+  status: ReleaseStatus.Planned,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
 
 const mockEpics: Epic[] = [
   {
-    id: 1,
+    id: "epic_123",
     displayKey: "EPIC-1",
     title: "Epic One",
-    status: "PLANNING",
-    projectId: 1,
-    createdByUserId: 1,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    status: EpicStatus.Planning,
+    projectId: "proj_123",
+    createdById: "user_123",
+    createdAt: new Date(),
+    updatedAt: new Date(),
   },
   {
-    id: 2,
+    id: "epic_456",
     displayKey: "EPIC-2",
     title: "Epic Two",
-    status: "IN_PROGRESS",
-    projectId: 1,
-    createdByUserId: 1,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    status: EpicStatus.InProgress,
+    projectId: "proj_123",
+    createdById: "user_123",
+    createdAt: new Date(),
+    updatedAt: new Date(),
   },
 ];
 
