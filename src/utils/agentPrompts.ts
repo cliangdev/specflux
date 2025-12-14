@@ -17,8 +17,16 @@ interface AgentPromptOptions {
  */
 export function generateAgentCommand(options: AgentPromptOptions): string {
   const prompt = generateContextPrompt(options);
-  // Escape double quotes and wrap in quotes for shell
-  const escapedPrompt = prompt.replace(/"/g, '\\"');
+  // Escape special shell characters for double-quoted string:
+  // - Backslashes must be escaped first
+  // - Double quotes
+  // - Backticks (command substitution)
+  // - Dollar signs (variable expansion)
+  const escapedPrompt = prompt
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/`/g, '\\`')
+    .replace(/\$/g, '\\$');
   return `claude "${escapedPrompt}"`;
 }
 
