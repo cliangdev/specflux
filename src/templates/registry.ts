@@ -15,7 +15,7 @@ export interface TemplateDefinition {
   /** Human-readable description */
   description: string;
   /** Category for grouping in UI */
-  category: "command" | "config";
+  category: "command" | "config" | "skill" | "mcp";
 }
 
 /**
@@ -56,6 +56,57 @@ export const TEMPLATE_REGISTRY: TemplateDefinition[] = [
     destPath: "CLAUDE.md",
     description: "Project CLAUDE.md with SpecFlux commands",
     category: "config",
+  },
+  // Skill templates
+  {
+    id: "skill-ui-patterns",
+    sourceFile: "skills/ui-patterns/SKILL.md",
+    destPath: ".claude/skills/ui-patterns/SKILL.md",
+    description: "UI design patterns and dark mode support",
+    category: "skill",
+  },
+  {
+    id: "skill-api-design",
+    sourceFile: "skills/api-design/SKILL.md",
+    destPath: ".claude/skills/api-design/SKILL.md",
+    description: "REST API design patterns and OpenAPI workflow",
+    category: "skill",
+  },
+  {
+    id: "skill-typescript-patterns",
+    sourceFile: "skills/typescript-patterns/SKILL.md",
+    destPath: ".claude/skills/typescript-patterns/SKILL.md",
+    description: "TypeScript best practices and type safety",
+    category: "skill",
+  },
+  {
+    id: "skill-springboot-patterns",
+    sourceFile: "skills/springboot-patterns/SKILL.md",
+    destPath: ".claude/skills/springboot-patterns/SKILL.md",
+    description: "Spring Boot and Java best practices with DDD architecture",
+    category: "skill",
+  },
+  {
+    id: "skill-specflux-api",
+    sourceFile: "skills/specflux-api/SKILL.md",
+    destPath: ".claude/skills/specflux-api/SKILL.md",
+    description: "SpecFlux REST API for managing projects, epics, and tasks",
+    category: "skill",
+  },
+  {
+    id: "skill-frontend-design",
+    sourceFile: "skills/frontend-design/SKILL.md",
+    destPath: ".claude/skills/frontend-design/SKILL.md",
+    description: "Distinctive, production-grade frontend design patterns",
+    category: "skill",
+  },
+  // MCP config template
+  {
+    id: "mcp-config",
+    sourceFile: ".mcp.json",
+    destPath: ".claude/.mcp.json",
+    description: "MCP server configuration (GitHub, filesystem)",
+    category: "mcp",
   },
 ];
 

@@ -12,16 +12,37 @@ import implementTemplate from "./files/commands/implement.md?raw";
 import taskTemplate from "./files/commands/task.md?raw";
 import claudeMdTemplate from "./files/CLAUDE.md?raw";
 
+// Skill templates
+import uiPatternsSkill from "./files/skills/ui-patterns/SKILL.md?raw";
+import apiDesignSkill from "./files/skills/api-design/SKILL.md?raw";
+import typescriptPatternsSkill from "./files/skills/typescript-patterns/SKILL.md?raw";
+import springbootPatternsSkill from "./files/skills/springboot-patterns/SKILL.md?raw";
+import specfluxApiSkill from "./files/skills/specflux-api/SKILL.md?raw";
+import frontendDesignSkill from "./files/skills/frontend-design/SKILL.md?raw";
+
+// MCP config template
+import mcpConfig from "./files/.mcp.json?raw";
+
 /**
  * Map of source file paths to their content.
  * Keys match the sourceFile property in TEMPLATE_REGISTRY.
  */
 export const TEMPLATE_CONTENT: Record<string, string> = {
+  // Commands
   "commands/prd.md": prdTemplate,
   "commands/epic.md": epicTemplate,
   "commands/implement.md": implementTemplate,
   "commands/task.md": taskTemplate,
   "CLAUDE.md": claudeMdTemplate,
+  // Skills
+  "skills/ui-patterns/SKILL.md": uiPatternsSkill,
+  "skills/api-design/SKILL.md": apiDesignSkill,
+  "skills/typescript-patterns/SKILL.md": typescriptPatternsSkill,
+  "skills/springboot-patterns/SKILL.md": springbootPatternsSkill,
+  "skills/specflux-api/SKILL.md": specfluxApiSkill,
+  "skills/frontend-design/SKILL.md": frontendDesignSkill,
+  // MCP config
+  ".mcp.json": mcpConfig,
 };
 
 /**

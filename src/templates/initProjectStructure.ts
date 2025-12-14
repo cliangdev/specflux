@@ -58,8 +58,7 @@ export interface SyncOptions {
  * - .specflux/epics/
  * - .specflux/task-states/
  * - .claude/commands/ (with all command templates)
- * - .claude/agents/
- * - .claude/skills/
+ * - .claude/skills/ (with all skill templates)
  * - CLAUDE.md
  *
  * @param projectPath - The root path of the project
@@ -82,7 +81,7 @@ export async function initProjectStructure(projectPath: string): Promise<void> {
   }
 
   // Create .claude directories
-  const claudeDirs = [".claude/commands", ".claude/agents", ".claude/skills"];
+  const claudeDirs = [".claude/commands", ".claude/skills"];
 
   for (const dir of claudeDirs) {
     const fullPath = await join(projectPath, dir);
@@ -121,11 +120,23 @@ export async function syncTemplates(
     ? TEMPLATE_REGISTRY.filter((t) => templateIds.includes(t.id))
     : TEMPLATE_REGISTRY;
 
-  // Ensure parent directories exist for command templates
-  const commandsDir = await join(projectPath, ".claude/commands");
-  const commandsDirExists = await exists(commandsDir);
-  if (!commandsDirExists) {
-    await mkdir(commandsDir, { recursive: true });
+  // Ensure parent directories exist for all template categories
+  const templateDirs = [
+    ".claude/commands",
+    ".claude/skills/ui-patterns",
+    ".claude/skills/api-design",
+    ".claude/skills/typescript-patterns",
+    ".claude/skills/springboot-patterns",
+    ".claude/skills/specflux-api",
+    ".claude/skills/frontend-design",
+  ];
+
+  for (const dir of templateDirs) {
+    const fullPath = await join(projectPath, dir);
+    const dirExists = await exists(fullPath);
+    if (!dirExists) {
+      await mkdir(fullPath, { recursive: true });
+    }
   }
 
   for (const template of templates) {

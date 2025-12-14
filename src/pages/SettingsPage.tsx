@@ -2,22 +2,16 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { GeneralSettings } from "../components/settings/GeneralSettings";
 import { RepositorySettings } from "../components/settings/RepositorySettings";
-import { AgentSettings } from "../components/settings/AgentSettings";
-import { SkillSettings } from "../components/settings/SkillSettings";
-import { McpServerSettings } from "../components/settings/McpServerSettings";
-import { CommandSettings } from "../components/settings/CommandSettings";
-import { BackendSettings } from "../components/settings/BackendSettings";
+import { ClaudeItemsPage } from "../components/settings/ClaudeItemsPage";
 
 type SettingsTab =
   | "general"
   | "repositories"
-  | "agents"
-  | "skills"
-  | "mcp-servers"
   | "commands"
-  | "backend";
+  | "skills"
+  | "mcp";
 
-const VALID_TABS: SettingsTab[] = ["general", "repositories", "agents", "skills", "mcp-servers", "commands", "backend"];
+const VALID_TABS: SettingsTab[] = ["general", "repositories", "commands", "skills", "mcp"];
 
 interface TabGroup {
   label: string;
@@ -35,15 +29,10 @@ const tabGroups: TabGroup[] = [
   {
     label: "Claude Code",
     tabs: [
-      { id: "agents", label: "Agents" },
-      { id: "skills", label: "Skills" },
-      { id: "mcp-servers", label: "MCP Servers" },
       { id: "commands", label: "Commands" },
+      { id: "skills", label: "Skills" },
+      { id: "mcp", label: "MCP Servers" },
     ],
-  },
-  {
-    label: "Cloud",
-    tabs: [{ id: "backend", label: "Backend" }],
   },
 ];
 
@@ -113,11 +102,9 @@ export default function SettingsPage() {
           <div className="max-w-3xl">
             {activeTab === "general" && <GeneralSettings />}
             {activeTab === "repositories" && <RepositorySettings />}
-            {activeTab === "agents" && <AgentSettings />}
-            {activeTab === "skills" && <SkillSettings />}
-            {activeTab === "mcp-servers" && <McpServerSettings />}
-            {activeTab === "commands" && <CommandSettings />}
-            {activeTab === "backend" && <BackendSettings />}
+            {activeTab === "commands" && <ClaudeItemsPage category="command" />}
+            {activeTab === "skills" && <ClaudeItemsPage category="skill" />}
+            {activeTab === "mcp" && <ClaudeItemsPage category="mcp" />}
           </div>
         </div>
       </div>
