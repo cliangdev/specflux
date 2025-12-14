@@ -24,12 +24,7 @@ const tabGroups: TabGroup[] = [
     tabs: [
       { id: "general", label: "General" },
       { id: "repositories", label: "Repositories" },
-    ],
-  },
-  {
-    label: "Claude Code",
-    tabs: [
-      { id: "claude", label: "Claude" },
+      { id: "claude", label: "Claude Code" },
     ],
   },
   {

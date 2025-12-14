@@ -90,7 +90,10 @@ export function ClaudeSettings() {
 
   // Load templates and check their status
   const loadTemplates = useCallback(async () => {
-    if (!currentProject?.localPath) return;
+    if (!currentProject?.localPath) {
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     const items: TemplateItem[] = [];
