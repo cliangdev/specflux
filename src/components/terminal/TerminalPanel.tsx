@@ -87,6 +87,14 @@ const SearchIcon = () => (
   </svg>
 );
 
+// Map page types to session context types (outside component for stable reference)
+const PAGE_TYPE_TO_CONTEXT_TYPE: Record<string, "task" | "epic" | "prd-workshop" | "release"> = {
+  "prd-detail": "prd-workshop",
+  "task-detail": "task",
+  "epic-detail": "epic",
+  "release-detail": "release",
+};
+
 export default function TerminalPanel() {
   const { currentProject, getProjectRef } = useProject();
   const {
@@ -118,18 +126,10 @@ export default function TerminalPanel() {
   const startSizeRef = useRef(0);
   const terminalRefs = useRef<Map<string, TerminalRef>>(new Map());
 
-  // Map page types to session context types
-  const pageTypeToContextType: Record<string, "task" | "epic" | "prd-workshop" | "release"> = {
-    "prd-detail": "prd-workshop",
-    "task-detail": "task",
-    "epic-detail": "epic",
-    "release-detail": "release",
-  };
-
   // Helper to find existing session for current page context
   const findExistingSessionForPageContext = useCallback((): TerminalSession | null => {
     if (!pageContext || !pageContext.id) return null;
-    const contextType = pageTypeToContextType[pageContext.type];
+    const contextType = PAGE_TYPE_TO_CONTEXT_TYPE[pageContext.type];
     if (!contextType) return null;
     const expectedSessionId = `${contextType}-${pageContext.id}`;
     return sessions.find((s) => s.id === expectedSessionId) || null;
@@ -138,7 +138,7 @@ export default function TerminalPanel() {
   // Handler for starting a new session
   const handleStartNewSession = useCallback(() => {
     if (!pageContext || !pageContext.id) return;
-    const contextType = pageTypeToContextType[pageContext.type];
+    const contextType = PAGE_TYPE_TO_CONTEXT_TYPE[pageContext.type];
     if (!contextType) return;
 
     const existing = findExistingSessionForPageContext();

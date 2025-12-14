@@ -12,9 +12,13 @@ import implementTemplate from "./files/commands/implement.md?raw";
 import taskTemplate from "./files/commands/task.md?raw";
 import claudeMdTemplate from "./files/CLAUDE.md?raw";
 
-// Skill templates (generic skills only - project-specific skills stay in .claude/skills/)
+// Skill templates
 import frontendDesignSkill from "./files/skills/frontend-design/SKILL.md?raw";
-import frontendDesignLicense from "./files/skills/frontend-design/LICENSE.txt?raw";
+import springbootPatternsSkill from "./files/skills/springboot-patterns/SKILL.md?raw";
+import typescriptPatternsSkill from "./files/skills/typescript-patterns/SKILL.md?raw";
+import uiPatternsSkill from "./files/skills/ui-patterns/SKILL.md?raw";
+import specfluxApiSkill from "./files/skills/specflux-api/SKILL.md?raw";
+import specfluxApiReference from "./files/skills/specflux-api/references/api.md?raw";
 
 // MCP config template
 import mcpConfig from "./files/.mcp.json?raw";
@@ -30,9 +34,13 @@ export const TEMPLATE_CONTENT: Record<string, string> = {
   "commands/implement.md": implementTemplate,
   "commands/task.md": taskTemplate,
   "CLAUDE.md": claudeMdTemplate,
-  // Skills (generic only)
+  // Skills
   "skills/frontend-design/SKILL.md": frontendDesignSkill,
-  "skills/frontend-design/LICENSE.txt": frontendDesignLicense,
+  "skills/springboot-patterns/SKILL.md": springbootPatternsSkill,
+  "skills/typescript-patterns/SKILL.md": typescriptPatternsSkill,
+  "skills/ui-patterns/SKILL.md": uiPatternsSkill,
+  "skills/specflux-api/SKILL.md": specfluxApiSkill,
+  "skills/specflux-api/references/api.md": specfluxApiReference,
   // MCP config
   ".mcp.json": mcpConfig,
 };
