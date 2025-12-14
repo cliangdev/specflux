@@ -3,15 +3,17 @@ import { useSearchParams } from "react-router-dom";
 import { GeneralSettings } from "../components/settings/GeneralSettings";
 import { RepositorySettings } from "../components/settings/RepositorySettings";
 import { ClaudeItemsPage } from "../components/settings/ClaudeItemsPage";
+import { ClaudeCodeSettings } from "../components/settings/ClaudeCodeSettings";
 
 type SettingsTab =
   | "general"
   | "repositories"
+  | "security"
   | "commands"
   | "skills"
   | "mcp";
 
-const VALID_TABS: SettingsTab[] = ["general", "repositories", "commands", "skills", "mcp"];
+const VALID_TABS: SettingsTab[] = ["general", "repositories", "security", "commands", "skills", "mcp"];
 
 interface TabGroup {
   label: string;
@@ -29,6 +31,7 @@ const tabGroups: TabGroup[] = [
   {
     label: "Claude Code",
     tabs: [
+      { id: "security", label: "Security" },
       { id: "commands", label: "Commands" },
       { id: "skills", label: "Skills" },
       { id: "mcp", label: "MCP Servers" },
@@ -102,6 +105,7 @@ export default function SettingsPage() {
           <div className="max-w-3xl">
             {activeTab === "general" && <GeneralSettings />}
             {activeTab === "repositories" && <RepositorySettings />}
+            {activeTab === "security" && <ClaudeCodeSettings />}
             {activeTab === "commands" && <ClaudeItemsPage category="command" />}
             {activeTab === "skills" && <ClaudeItemsPage category="skill" />}
             {activeTab === "mcp" && <ClaudeItemsPage category="mcp" />}
