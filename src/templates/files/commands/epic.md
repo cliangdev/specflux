@@ -48,16 +48,29 @@ Use these to automatically determine which project/PRD you're working with.
 
 ### Phase 3: Create Epics via API
 
+**IMPORTANT**: Always include `prdRef` to link epics back to their source PRD. This maintains traceability from requirements to implementation.
+
 ```
 POST /api/projects/{projectRef}/epics
-{ "title": "...", "description": "...", "prdRef": "..." }
+{
+  "title": "...",
+  "description": "...",
+  "prdRef": "{prdRef}",           // REQUIRED - links epic to source PRD
+  "releaseRef": "{releaseRef}",   // Optional - assigns to a release
+  "acceptanceCriteria": [         // REQUIRED - array of criteria objects
+    {"criteria": "..."},
+    {"criteria": "..."}
+  ]
+}
 
-POST /api/projects/{projectRef}/epics/{epicRef}/acceptance-criteria
-{ "criteria": "..." }
-
+# Add dependencies if epic depends on other epics
 POST /api/projects/{projectRef}/epics/{epicRef}/dependencies
 { "dependsOnEpicRef": "..." }
 ```
+
+**Note**: The `prdRef` can be the PRD's displayKey (e.g., "SPEC-P1") or internal ID (e.g., "prd_xxx"). Get it from:
+- Environment: `$SPECFLUX_CONTEXT_REF` when context type is "prd-workshop"
+- API response when fetching the PRD
 
 ### Phase 4: Create Tasks
 
