@@ -15,7 +15,7 @@ export interface TemplateDefinition {
   /** Human-readable description */
   description: string;
   /** Category for grouping in UI */
-  category: "command" | "config" | "agent" | "skill" | "mcp";
+  category: "command" | "config" | "skill" | "mcp";
 }
 
 /**
@@ -57,28 +57,6 @@ export const TEMPLATE_REGISTRY: TemplateDefinition[] = [
     description: "Project CLAUDE.md with SpecFlux commands",
     category: "config",
   },
-  // Agent templates
-  {
-    id: "agent-frontend-dev",
-    sourceFile: "agents/frontend-dev.md",
-    destPath: ".claude/agents/frontend-dev.md",
-    description: "Frontend developer agent for React/TypeScript/Tauri",
-    category: "agent",
-  },
-  {
-    id: "agent-backend-dev",
-    sourceFile: "agents/backend-dev.md",
-    destPath: ".claude/agents/backend-dev.md",
-    description: "Backend developer agent for Node.js/TypeScript/Express",
-    category: "agent",
-  },
-  {
-    id: "agent-fullstack-dev",
-    sourceFile: "agents/fullstack-dev.md",
-    destPath: ".claude/agents/fullstack-dev.md",
-    description: "Fullstack developer agent for end-to-end features",
-    category: "agent",
-  },
   // Skill templates
   {
     id: "skill-ui-patterns",
@@ -99,6 +77,27 @@ export const TEMPLATE_REGISTRY: TemplateDefinition[] = [
     sourceFile: "skills/typescript-patterns/SKILL.md",
     destPath: ".claude/skills/typescript-patterns/SKILL.md",
     description: "TypeScript best practices and type safety",
+    category: "skill",
+  },
+  {
+    id: "skill-springboot-patterns",
+    sourceFile: "skills/springboot-patterns/SKILL.md",
+    destPath: ".claude/skills/springboot-patterns/SKILL.md",
+    description: "Spring Boot and Java best practices with DDD architecture",
+    category: "skill",
+  },
+  {
+    id: "skill-specflux-api",
+    sourceFile: "skills/specflux-api/SKILL.md",
+    destPath: ".claude/skills/specflux-api/SKILL.md",
+    description: "SpecFlux REST API for managing projects, epics, and tasks",
+    category: "skill",
+  },
+  {
+    id: "skill-frontend-design",
+    sourceFile: "skills/frontend-design/SKILL.md",
+    destPath: ".claude/skills/frontend-design/SKILL.md",
+    description: "Distinctive, production-grade frontend design patterns",
     category: "skill",
   },
   // MCP config template

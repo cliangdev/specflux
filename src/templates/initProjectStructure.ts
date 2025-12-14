@@ -58,8 +58,7 @@ export interface SyncOptions {
  * - .specflux/epics/
  * - .specflux/task-states/
  * - .claude/commands/ (with all command templates)
- * - .claude/agents/
- * - .claude/skills/
+ * - .claude/skills/ (with all skill templates)
  * - CLAUDE.md
  *
  * @param projectPath - The root path of the project
@@ -82,7 +81,7 @@ export async function initProjectStructure(projectPath: string): Promise<void> {
   }
 
   // Create .claude directories
-  const claudeDirs = [".claude/commands", ".claude/agents", ".claude/skills"];
+  const claudeDirs = [".claude/commands", ".claude/skills"];
 
   for (const dir of claudeDirs) {
     const fullPath = await join(projectPath, dir);
@@ -124,10 +123,12 @@ export async function syncTemplates(
   // Ensure parent directories exist for all template categories
   const templateDirs = [
     ".claude/commands",
-    ".claude/agents",
     ".claude/skills/ui-patterns",
     ".claude/skills/api-design",
     ".claude/skills/typescript-patterns",
+    ".claude/skills/springboot-patterns",
+    ".claude/skills/specflux-api",
+    ".claude/skills/frontend-design",
   ];
 
   for (const dir of templateDirs) {
