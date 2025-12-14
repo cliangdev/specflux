@@ -2,22 +2,16 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { GeneralSettings } from "../components/settings/GeneralSettings";
 import { RepositorySettings } from "../components/settings/RepositorySettings";
-import { AgentSettings } from "../components/settings/AgentSettings";
-import { SkillSettings } from "../components/settings/SkillSettings";
-import { McpServerSettings } from "../components/settings/McpServerSettings";
-import { CommandSettings } from "../components/settings/CommandSettings";
+import { ClaudeTemplatesSettings } from "../components/settings/ClaudeTemplatesSettings";
 import { BackendSettings } from "../components/settings/BackendSettings";
 
 type SettingsTab =
   | "general"
   | "repositories"
-  | "agents"
-  | "skills"
-  | "mcp-servers"
-  | "commands"
+  | "templates"
   | "backend";
 
-const VALID_TABS: SettingsTab[] = ["general", "repositories", "agents", "skills", "mcp-servers", "commands", "backend"];
+const VALID_TABS: SettingsTab[] = ["general", "repositories", "templates", "backend"];
 
 interface TabGroup {
   label: string;
@@ -35,10 +29,7 @@ const tabGroups: TabGroup[] = [
   {
     label: "Claude Code",
     tabs: [
-      { id: "agents", label: "Agents" },
-      { id: "skills", label: "Skills" },
-      { id: "mcp-servers", label: "MCP Servers" },
-      { id: "commands", label: "Commands" },
+      { id: "templates", label: "Templates" },
     ],
   },
   {
@@ -113,10 +104,7 @@ export default function SettingsPage() {
           <div className="max-w-3xl">
             {activeTab === "general" && <GeneralSettings />}
             {activeTab === "repositories" && <RepositorySettings />}
-            {activeTab === "agents" && <AgentSettings />}
-            {activeTab === "skills" && <SkillSettings />}
-            {activeTab === "mcp-servers" && <McpServerSettings />}
-            {activeTab === "commands" && <CommandSettings />}
+            {activeTab === "templates" && <ClaudeTemplatesSettings />}
             {activeTab === "backend" && <BackendSettings />}
           </div>
         </div>
