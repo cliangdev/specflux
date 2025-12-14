@@ -76,8 +76,12 @@ export function EpicsSection({ epics, onAddEpic, loading }: EpicsSectionProps) {
 }
 
 function EpicRow({ epic }: { epic: Epic }) {
-  const progress = epic.progressPercentage ?? 0;
   const taskStats = epic.taskStats;
+  // Use progressPercentage if available, otherwise calculate from taskStats
+  const progress = epic.progressPercentage ??
+    (taskStats && taskStats.total > 0
+      ? Math.round((taskStats.done / taskStats.total) * 100)
+      : 0);
 
   return (
     <Link
