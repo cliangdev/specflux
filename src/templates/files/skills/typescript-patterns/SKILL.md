@@ -1,9 +1,9 @@
 ---
 name: typescript-patterns
-description: TypeScript best practices. Use when writing TypeScript code for backend services, API handlers, or shared utilities. Applies async/await patterns, typed errors, and strict type safety.
+description: TypeScript best practices for SpecFlux. Use when writing TypeScript code for backend services, API handlers, or shared utilities. Applies async/await patterns, typed errors, and strict type safety.
 ---
 
-# TypeScript Best Practices
+# TypeScript Best Practices for SpecFlux
 
 ## Patterns We Use
 
