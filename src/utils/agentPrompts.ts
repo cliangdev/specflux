@@ -22,16 +22,22 @@ export function generateAgentCommand(options: AgentPromptOptions): string {
   return `claude "${escapedPrompt}"`;
 }
 
+// Instruction to use specflux-api skill for SpecFlux entity operations
+const SPECFLUX_API_INSTRUCTION = `**Important:** Use the \`specflux-api\` skill to read and update PRDs, Epics, Tasks, and other SpecFlux entities. Do not read from local files for entity data.
+
+`;
+
 /**
  * Generate a context-aware prompt based on entity type
  */
 function generateContextPrompt(options: AgentPromptOptions): string {
   const { type, title, displayKey } = options;
   const entityLabel = displayKey ? `${displayKey}: ${title}` : title;
+  const entityId = displayKey || title;
 
   switch (type) {
     case "prd":
-      return `You are working on the PRD: "${entityLabel}"
+      return `${SPECFLUX_API_INSTRUCTION}You are working on the PRD: "${entityLabel}" (ID: ${entityId})
 
 What would you like me to help you with?
 
@@ -44,7 +50,7 @@ What would you like me to help you with?
 Please select an option or describe your task:`;
 
     case "prd-workshop":
-      return `Welcome to the PRD Workshop!
+      return `${SPECFLUX_API_INSTRUCTION}Welcome to the PRD Workshop!
 
 I'm ready to help you create a new Product Requirements Document.
 
@@ -57,7 +63,7 @@ I'm ready to help you create a new Product Requirements Document.
 Please select an option or describe your task:`;
 
     case "epic":
-      return `You are working on the Epic: "${entityLabel}"
+      return `${SPECFLUX_API_INSTRUCTION}You are working on the Epic: "${entityLabel}" (ID: ${entityId})
 
 What would you like me to help you with?
 
@@ -71,7 +77,7 @@ What would you like me to help you with?
 Please select an option or describe your task:`;
 
     case "task":
-      return `You are working on the Task: "${entityLabel}"
+      return `${SPECFLUX_API_INSTRUCTION}You are working on the Task: "${entityLabel}" (ID: ${entityId})
 
 What would you like me to help you with?
 
@@ -85,7 +91,7 @@ What would you like me to help you with?
 Please select an option or describe your task:`;
 
     case "release":
-      return `You are working on the Release: "${entityLabel}"
+      return `${SPECFLUX_API_INSTRUCTION}You are working on the Release: "${entityLabel}" (ID: ${entityId})
 
 What would you like me to help you with?
 
@@ -98,7 +104,7 @@ What would you like me to help you with?
 Please select an option or describe your task:`;
 
     case "project":
-      return `You are working on the Project: "${entityLabel}"
+      return `${SPECFLUX_API_INSTRUCTION}You are working on the Project: "${entityLabel}"
 
 What would you like me to help you with?
 

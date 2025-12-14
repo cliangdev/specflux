@@ -293,7 +293,7 @@ describe("TerminalPanel", () => {
         displayKey: "SPEC-T1",
         projectRef: "test-project",
         workingDirectory: "/path/to/project",
-        initialCommand: expect.stringContaining('claude "You are working on the Task'),
+        initialCommand: expect.stringMatching(/claude.*specflux-api.*Task.*SPEC-T1/s),
       });
     });
 
@@ -313,7 +313,7 @@ describe("TerminalPanel", () => {
         displayKey: "prd_abc123", // Falls back to id
         projectRef: "test-project",
         workingDirectory: "/path/to/project",
-        initialCommand: expect.stringContaining('claude "You are working on the PRD'),
+        initialCommand: expect.stringMatching(/claude.*specflux-api.*PRD.*prd_abc123/s),
       });
     });
 
