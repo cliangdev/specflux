@@ -88,9 +88,10 @@ describe("Terminal", () => {
     expect(screen.getByTestId("terminal")).toBeInTheDocument();
   });
 
-  it("displays terminal header with title", () => {
-    render(<Terminal contextType="task" contextId="task_123" />);
-    expect(screen.getByText("Agent Terminal")).toBeInTheDocument();
+  it("renders terminal wrapper element", () => {
+    const { container } = render(<Terminal contextType="task" contextId="task_123" />);
+    // Terminal component now renders just the terminal wrapper (header is in TerminalPanel)
+    expect(container.querySelector(".terminal-wrapper")).toBeInTheDocument();
   });
 
   it("spawns terminal session with context type", async () => {

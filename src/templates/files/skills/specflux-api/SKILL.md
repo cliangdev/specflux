@@ -52,14 +52,22 @@ PUT /api/projects/{projectRef}/prds/{prdRef}
 ### Create Epic with Tasks
 
 ```bash
-# 1. Create epic (linked to PRD)
+# 1. Create epic (linked to PRD) - acceptanceCriteria is REQUIRED
 POST /api/projects/{projectRef}/epics
-{"title": "User Authentication", "description": "...", "prdRef": "PROJ-P1"}
+{
+  "title": "User Authentication",
+  "description": "...",
+  "prdRef": "PROJ-P1",
+  "acceptanceCriteria": [
+    {"criteria": "Users can sign up with email/password"},
+    {"criteria": "Users can log in with existing credentials"}
+  ]
+}
 # Returns: {"id": "epic_xxx", "displayKey": "PROJ-E1", "prdId": "prd_xxx", ...}
 
-# 2. Add acceptance criteria
+# 2. Add more acceptance criteria (optional)
 POST /api/projects/{projectRef}/epics/{epicRef}/acceptance-criteria
-{"criteria": "Users can sign up with email/password"}
+{"criteria": "Password reset via email works"}
 
 # 3. Create tasks
 POST /api/projects/{projectRef}/tasks
@@ -74,6 +82,8 @@ POST /api/projects/{projectRef}/tasks/{taskRef}/acceptance-criteria
 POST /api/projects/{projectRef}/tasks/{taskRef}/dependencies
 {"dependsOnTaskRef": "PROJ-41"}
 ```
+
+**Important:** `acceptanceCriteria` is required when creating an epic. Each item must be an object with a `criteria` property - NOT a plain string.
 
 ### Update Progress
 

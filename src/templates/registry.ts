@@ -59,24 +59,17 @@ export const TEMPLATE_REGISTRY: TemplateDefinition[] = [
   },
   // Skill templates
   {
-    id: "skill-ui-patterns",
-    sourceFile: "skills/ui-patterns/SKILL.md",
-    destPath: ".claude/skills/ui-patterns/SKILL.md",
-    description: "UI design patterns and dark mode support",
+    id: "skill-frontend-design",
+    sourceFile: "skills/frontend-design/SKILL.md",
+    destPath: ".claude/skills/frontend-design/SKILL.md",
+    description: "Distinctive, production-grade frontend design patterns",
     category: "skill",
   },
   {
-    id: "skill-api-design",
-    sourceFile: "skills/api-design/SKILL.md",
-    destPath: ".claude/skills/api-design/SKILL.md",
-    description: "REST API design patterns and OpenAPI workflow",
-    category: "skill",
-  },
-  {
-    id: "skill-typescript-patterns",
-    sourceFile: "skills/typescript-patterns/SKILL.md",
-    destPath: ".claude/skills/typescript-patterns/SKILL.md",
-    description: "TypeScript best practices and type safety",
+    id: "skill-frontend-design-license",
+    sourceFile: "skills/frontend-design/LICENSE.txt",
+    destPath: ".claude/skills/frontend-design/LICENSE.txt",
+    description: "License for frontend-design skill",
     category: "skill",
   },
   {
@@ -87,6 +80,20 @@ export const TEMPLATE_REGISTRY: TemplateDefinition[] = [
     category: "skill",
   },
   {
+    id: "skill-typescript-patterns",
+    sourceFile: "skills/typescript-patterns/SKILL.md",
+    destPath: ".claude/skills/typescript-patterns/SKILL.md",
+    description: "TypeScript best practices and type safety",
+    category: "skill",
+  },
+  {
+    id: "skill-ui-patterns",
+    sourceFile: "skills/ui-patterns/SKILL.md",
+    destPath: ".claude/skills/ui-patterns/SKILL.md",
+    description: "UI design patterns with React and TailwindCSS",
+    category: "skill",
+  },
+  {
     id: "skill-specflux-api",
     sourceFile: "skills/specflux-api/SKILL.md",
     destPath: ".claude/skills/specflux-api/SKILL.md",
@@ -94,10 +101,10 @@ export const TEMPLATE_REGISTRY: TemplateDefinition[] = [
     category: "skill",
   },
   {
-    id: "skill-frontend-design",
-    sourceFile: "skills/frontend-design/SKILL.md",
-    destPath: ".claude/skills/frontend-design/SKILL.md",
-    description: "Distinctive, production-grade frontend design patterns",
+    id: "skill-specflux-api-reference",
+    sourceFile: "skills/specflux-api/references/api.md",
+    destPath: ".claude/skills/specflux-api/references/api.md",
+    description: "Complete SpecFlux API endpoint documentation",
     category: "skill",
   },
   // MCP config template

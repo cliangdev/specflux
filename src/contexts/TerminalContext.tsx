@@ -80,12 +80,16 @@ interface TerminalContextValue {
   isOpen: boolean;
   isCollapsed: boolean;
   panelHeight: number;
+  panelWidth: number;
+  panelPosition: PanelPosition;
   isMaximized: boolean;
   togglePanel: () => void;
   openPanel: () => void;
   closePanel: () => void;
   toggleCollapse: () => void;
   setPanelHeight: (height: number) => void;
+  setPanelWidth: (width: number) => void;
+  setPanelPosition: (position: PanelPosition) => void;
   toggleMaximize: () => void;
 
   // Multi-tab session state
@@ -166,10 +170,14 @@ function getSuggestedCommands(pageContext: PageContext | null): SuggestedCommand
   }
 }
 
-// Panel height constants
+// Panel position and size constants
+export type PanelPosition = "bottom" | "left" | "right";
 const DEFAULT_PANEL_HEIGHT = 320;
+const DEFAULT_PANEL_WIDTH = 480;
 const MIN_PANEL_HEIGHT = 100;
+const MIN_PANEL_WIDTH = 300;
 const MAX_PANEL_HEIGHT_PERCENT = 0.8;
+const MAX_PANEL_WIDTH_PERCENT = 0.6;
 
 interface StoredSession {
   id: string;
@@ -187,6 +195,8 @@ interface StoredState {
   isOpen: boolean;
   isCollapsed: boolean;
   panelHeight: number;
+  panelWidth: number;
+  panelPosition: PanelPosition;
   isMaximized: boolean;
   sessions: StoredSession[];
   activeSessionId: string | null;
@@ -217,6 +227,14 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
 
   const [panelHeight, setPanelHeightState] = useState(() => {
     return getStoredState().panelHeight ?? DEFAULT_PANEL_HEIGHT;
+  });
+
+  const [panelWidth, setPanelWidthState] = useState(() => {
+    return getStoredState().panelWidth ?? DEFAULT_PANEL_WIDTH;
+  });
+
+  const [panelPosition, setPanelPositionState] = useState<PanelPosition>(() => {
+    return getStoredState().panelPosition ?? "bottom";
   });
 
   const [isMaximized, setIsMaximized] = useState(() => {
@@ -273,6 +291,8 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
       isOpen,
       isCollapsed,
       panelHeight,
+      panelWidth,
+      panelPosition,
       isMaximized,
       sessions: storedSessions,
       activeSessionId,
@@ -282,6 +302,8 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
     isOpen,
     isCollapsed,
     panelHeight,
+    panelWidth,
+    panelPosition,
     isMaximized,
     sessions,
     activeSessionId,
@@ -321,6 +343,30 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
     },
     [isMaximized],
   );
+
+  const setPanelWidth = useCallback(
+    (width: number) => {
+      const maxWidth =
+        typeof window !== "undefined"
+          ? window.innerWidth * MAX_PANEL_WIDTH_PERCENT
+          : 800;
+      const clampedWidth = Math.min(
+        Math.max(width, MIN_PANEL_WIDTH),
+        maxWidth,
+      );
+      setPanelWidthState(clampedWidth);
+      if (isMaximized) {
+        setIsMaximized(false);
+      }
+    },
+    [isMaximized],
+  );
+
+  const setPanelPosition = useCallback((position: PanelPosition) => {
+    setPanelPositionState(position);
+    // Reset maximized state when changing position
+    setIsMaximized(false);
+  }, []);
 
   const toggleMaximize = useCallback(() => {
     if (isMaximized) {
@@ -469,12 +515,16 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
     isOpen,
     isCollapsed,
     panelHeight,
+    panelWidth,
+    panelPosition,
     isMaximized,
     togglePanel,
     openPanel,
     closePanel,
     toggleCollapse,
     setPanelHeight,
+    setPanelWidth,
+    setPanelPosition,
     toggleMaximize,
     sessions,
     activeSessionId,

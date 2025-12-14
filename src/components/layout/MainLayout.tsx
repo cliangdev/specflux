@@ -7,8 +7,10 @@ import { TerminalProvider, useTerminal } from "../../contexts/TerminalContext";
 import TerminalPanel from "../terminal/TerminalPanel";
 import ClaudePill from "../terminal/ClaudePill";
 
+const TOPBAR_HEIGHT = 48;
+
 function MainLayoutContent() {
-  const { isOpen, togglePanel, sessions, switchToSession, openPanel } =
+  const { isOpen, togglePanel, sessions, switchToSession, openPanel, panelPosition, panelHeight, panelWidth, isCollapsed } =
     useTerminal();
   const { saveCurrentRoute } = useProject();
   const location = useLocation();
@@ -47,20 +49,78 @@ function MainLayoutContent() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [togglePanel, sessions, switchToSession, openPanel]);
 
-  // Layout: TopBar -> (Sidebar + Content) -> Terminal (full width at bottom)
+  // Calculate content area style to make room for fixed terminal
+  const getContentStyle = (): React.CSSProperties => {
+    if (!isOpen) return {};
+    const collapsedSize = 40;
+
+    switch (panelPosition) {
+      case "left":
+        return { marginLeft: isCollapsed ? collapsedSize : panelWidth };
+      case "right":
+        return { marginRight: isCollapsed ? collapsedSize : panelWidth };
+      case "bottom":
+      default:
+        return { marginBottom: isCollapsed ? collapsedSize : panelHeight };
+    }
+  };
+
+  // Calculate terminal fixed position styles
+  const getTerminalStyle = (): React.CSSProperties => {
+    const collapsedSize = 40;
+    const base: React.CSSProperties = {
+      position: 'fixed',
+      zIndex: 40,
+    };
+
+    switch (panelPosition) {
+      case "left":
+        return {
+          ...base,
+          top: TOPBAR_HEIGHT,
+          left: 0,
+          bottom: 0,
+          width: isCollapsed ? collapsedSize : panelWidth,
+        };
+      case "right":
+        return {
+          ...base,
+          top: TOPBAR_HEIGHT,
+          right: 0,
+          bottom: 0,
+          width: isCollapsed ? collapsedSize : panelWidth,
+        };
+      case "bottom":
+      default:
+        return {
+          ...base,
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: isCollapsed ? collapsedSize : panelHeight,
+        };
+    }
+  };
+
+  // Single layout structure - terminal always rendered in same JSX position
   return (
     <div className="h-screen bg-surface-50 dark:bg-surface-950 text-surface-900 dark:text-surface-100 flex flex-col overflow-hidden">
       <TopBar />
-      {/* Main area with sidebar and content - shrinks when terminal opens */}
-      <div className="flex flex-1 overflow-hidden min-h-0">
+      <div
+        className="flex flex-1 overflow-hidden min-h-0 transition-[margin] duration-150"
+        style={getContentStyle()}
+      >
         <Sidebar />
         <main className="flex-1 overflow-auto p-6 scrollbar-thin">
           <Outlet />
         </main>
       </div>
-      {/* Terminal panel spans full width at bottom */}
-      {isOpen && <TerminalPanel />}
-      {/* Floating pill when panel is closed */}
+      {/* Terminal always rendered here - uses fixed positioning to avoid remounting */}
+      {isOpen && (
+        <div style={getTerminalStyle()} className="transition-all duration-150">
+          <TerminalPanel />
+        </div>
+      )}
       <ClaudePill />
     </div>
   );
