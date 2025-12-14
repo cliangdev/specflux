@@ -2,16 +2,16 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { GeneralSettings } from "../components/settings/GeneralSettings";
 import { RepositorySettings } from "../components/settings/RepositorySettings";
-import { ClaudeTemplatesSettings } from "../components/settings/ClaudeTemplatesSettings";
+import { ClaudeSettings } from "../components/settings/ClaudeSettings";
 import { BackendSettings } from "../components/settings/BackendSettings";
 
 type SettingsTab =
   | "general"
   | "repositories"
-  | "templates"
+  | "claude"
   | "backend";
 
-const VALID_TABS: SettingsTab[] = ["general", "repositories", "templates", "backend"];
+const VALID_TABS: SettingsTab[] = ["general", "repositories", "claude", "backend"];
 
 interface TabGroup {
   label: string;
@@ -29,7 +29,7 @@ const tabGroups: TabGroup[] = [
   {
     label: "Claude Code",
     tabs: [
-      { id: "templates", label: "Templates" },
+      { id: "claude", label: "Claude" },
     ],
   },
   {
@@ -104,7 +104,7 @@ export default function SettingsPage() {
           <div className="max-w-3xl">
             {activeTab === "general" && <GeneralSettings />}
             {activeTab === "repositories" && <RepositorySettings />}
-            {activeTab === "templates" && <ClaudeTemplatesSettings />}
+            {activeTab === "claude" && <ClaudeSettings />}
             {activeTab === "backend" && <BackendSettings />}
           </div>
         </div>

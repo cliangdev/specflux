@@ -4,6 +4,7 @@ import { readTextFile, writeTextFile, exists, mkdir } from "@tauri-apps/plugin-f
 import { join } from "@tauri-apps/api/path";
 import { TEMPLATE_REGISTRY, type TemplateDefinition } from "../../templates/registry";
 import { getTemplateContent } from "../../templates/templateContent";
+import MarkdownRenderer from "../ui/MarkdownRenderer";
 
 type SyncStatus = "synced" | "modified" | "missing";
 
@@ -80,7 +81,7 @@ function StatusIndicator({ status }: { status: SyncStatus }) {
   }
 }
 
-export function ClaudeTemplatesSettings() {
+export function ClaudeSettings() {
   const { currentProject } = useProject();
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -247,10 +248,10 @@ export function ClaudeTemplatesSettings() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-surface-900 dark:text-white">
-            Claude Code Templates
+            Claude Code
           </h2>
           <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">
-            Commands, skills, and MCP configuration synced from SpecFlux templates
+            Commands, skills, and MCP server configuration
           </p>
         </div>
         <button
@@ -353,9 +354,16 @@ export function ClaudeTemplatesSettings() {
 
               {/* Content Preview */}
               <div className="flex-1 overflow-auto p-4 bg-surface-50 dark:bg-surface-900">
-                <pre className="text-xs font-mono text-surface-700 dark:text-surface-300 whitespace-pre-wrap">
-                  {selectedTemplate.localContent || selectedTemplate.templateContent}
-                </pre>
+                {selectedTemplate.definition.destPath.endsWith(".json") ? (
+                  <pre className="text-xs font-mono text-surface-700 dark:text-surface-300 whitespace-pre-wrap">
+                    {selectedTemplate.localContent || selectedTemplate.templateContent}
+                  </pre>
+                ) : (
+                  <MarkdownRenderer
+                    source={selectedTemplate.localContent || selectedTemplate.templateContent}
+                    className="prose prose-sm dark:prose-invert max-w-none"
+                  />
+                )}
               </div>
             </>
           ) : (
