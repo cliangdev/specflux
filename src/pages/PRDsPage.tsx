@@ -7,6 +7,7 @@ import { api, type Prd, PrdStatus } from "../api";
 import PrdImportModal from "../components/ui/PrdImportModal";
 import { ListPageHeader } from "../components/ui/ListPageHeader";
 import { StatusBadge } from "../components/ui/StatusBadge";
+import { generateAgentCommand } from "../utils/agentPrompts";
 
 const STATUS_OPTIONS = [
   { value: PrdStatus.Draft, label: "Draft" },
@@ -226,7 +227,10 @@ export default function PRDsPage() {
                 displayKey: "PRD Workshop",
                 projectRef: getProjectRef() ?? undefined,
                 workingDirectory: currentProject?.localPath,
-                initialCommand: "claude",
+                initialCommand: generateAgentCommand({
+                  type: "prd-workshop",
+                  title: "PRD Workshop",
+                }),
               });
             }}
           >

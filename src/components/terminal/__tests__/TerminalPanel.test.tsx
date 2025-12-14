@@ -293,7 +293,7 @@ describe("TerminalPanel", () => {
         displayKey: "SPEC-T1",
         projectRef: "test-project",
         workingDirectory: "/path/to/project",
-        initialCommand: "claude",
+        initialCommand: expect.stringContaining('claude "You are working on the Task'),
       });
     });
 
@@ -307,13 +307,13 @@ describe("TerminalPanel", () => {
       fireEvent.click(screen.getByTestId("new-session-btn"));
 
       expect(mockTerminalContext.openTerminalForContext).toHaveBeenCalledWith({
-        type: "prd-workshop",
+        type: "prd",
         id: "prd_abc123",
         title: "prd_abc123", // Falls back to id
         displayKey: "prd_abc123", // Falls back to id
         projectRef: "test-project",
         workingDirectory: "/path/to/project",
-        initialCommand: "claude",
+        initialCommand: expect.stringContaining('claude "You are working on the PRD'),
       });
     });
 

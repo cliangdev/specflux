@@ -9,6 +9,7 @@ import { EpicEditModal, EpicCreateModal } from "../components/epics";
 import { ReleaseCreateModal } from "../components/releases";
 import { AIActionButton } from "../components/ui/AIActionButton";
 import type { Epic as GeneratedEpic } from "../api/generated/models";
+import { generateAgentCommand } from "../utils/agentPrompts";
 
 // Local Epic type extension for roadmap (v2 API Epic doesn't have all fields yet)
 type Epic = GeneratedEpic;
@@ -763,7 +764,11 @@ export default function RoadmapPage() {
         displayKey: release.displayKey,
         projectRef: getProjectRef() ?? undefined,
         workingDirectory: currentProject?.localPath,
-        initialCommand: "claude",
+        initialCommand: generateAgentCommand({
+          type: "release",
+          title: release.name,
+          displayKey: release.displayKey,
+        }),
       };
 
       // Check if session already exists
@@ -805,7 +810,11 @@ export default function RoadmapPage() {
         displayKey: epic.displayKey,
         projectRef: getProjectRef() ?? undefined,
         workingDirectory: currentProject?.localPath,
-        initialCommand: "claude",
+        initialCommand: generateAgentCommand({
+          type: "epic",
+          title: epic.title,
+          displayKey: epic.displayKey,
+        }),
       };
 
       const existing = getExistingSession(context);

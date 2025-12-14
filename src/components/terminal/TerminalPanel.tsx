@@ -4,6 +4,7 @@ import { useProject } from "../../contexts";
 import Terminal from "../Terminal";
 import TerminalTabBar from "./TerminalTabBar";
 import DuplicateSessionDialog from "./DuplicateSessionDialog";
+import { generateAgentCommand, type AgentContextType } from "../../utils/agentPrompts";
 
 const HEADER_HEIGHT = 40;
 const COLLAPSED_HEIGHT = HEADER_HEIGHT;
@@ -120,8 +121,8 @@ export default function TerminalPanel() {
   const startHeightRef = useRef(0);
 
   // Map page types to session context types
-  const pageTypeToContextType: Record<string, "task" | "epic" | "prd-workshop" | "release"> = {
-    "prd-detail": "prd-workshop",
+  const pageTypeToContextType: Record<string, "task" | "epic" | "prd" | "release"> = {
+    "prd-detail": "prd",
     "task-detail": "task",
     "epic-detail": "epic",
     "release-detail": "release",
@@ -158,7 +159,7 @@ export default function TerminalPanel() {
     const displayKey = pageContext.title || String(pageContext.id);
     const projRef = getProjectRef() ?? undefined;
 
-    // Create session from page context - always start claude
+    // Create session from page context with context-aware prompt
     openTerminalForContext({
       type: contextType,
       id: pageContext.id,
@@ -166,7 +167,11 @@ export default function TerminalPanel() {
       displayKey: displayKey,
       projectRef: projRef,
       workingDirectory: currentProject?.localPath,
-      initialCommand: "claude",
+      initialCommand: generateAgentCommand({
+        type: contextType as AgentContextType,
+        title: displayKey,
+        displayKey: displayKey,
+      }),
     });
   }, [pageContext, findExistingSessionForPageContext, openTerminalForContext, currentProject?.localPath, getProjectRef]);
 

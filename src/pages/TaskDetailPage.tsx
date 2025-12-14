@@ -7,6 +7,7 @@ import {
   type TaskStatus,
   type TaskDependency,
 } from "../api";
+import { generateAgentCommand } from "../utils/agentPrompts";
 import { useProject } from "../contexts";
 import { TaskOverviewTab, TaskContextTab } from "../components/tasks";
 import EpicSelector from "../components/tasks/EpicSelector";
@@ -306,7 +307,11 @@ export default function TaskDetailPage() {
         displayKey: task.displayKey,
         projectRef: getProjectRef() ?? undefined,
         workingDirectory: currentProject?.localPath,
-        initialCommand: "claude",
+        initialCommand: generateAgentCommand({
+          type: "task",
+          title: task.title,
+          displayKey: task.displayKey,
+        }),
       };
 
       // Check if session already exists - switch to it directly

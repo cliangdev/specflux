@@ -5,6 +5,7 @@ import { useTerminal } from "../contexts/TerminalContext";
 import { type Task } from "../api";
 import { KanbanBoard, WorkflowTemplate } from "../components/kanban";
 import TaskCreateModal from "../components/ui/TaskCreateModal";
+import { generateAgentCommand } from "../utils/agentPrompts";
 
 export default function BoardPage() {
   const { currentProject, getProjectRef } = useProject();
@@ -48,7 +49,11 @@ export default function BoardPage() {
       displayKey: task.displayKey,
       projectRef: getProjectRef() ?? undefined,
       workingDirectory: currentProject?.localPath,
-      initialCommand: "claude",
+      initialCommand: generateAgentCommand({
+        type: "task",
+        title: task.title,
+        displayKey: task.displayKey,
+      }),
     });
   };
 

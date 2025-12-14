@@ -9,6 +9,7 @@ import {
   type AcceptanceCriteria as AcceptanceCriterion,
   EpicStatus,
 } from "../api";
+import { generateAgentCommand } from "../utils/agentPrompts";
 import { useProject } from "../contexts";
 import { ProgressBar, TaskCreateModal } from "../components/ui";
 import { DetailPageHeader } from "../components/ui/DetailPageHeader";
@@ -520,7 +521,11 @@ export default function EpicDetailPage() {
         displayKey: epic.displayKey,
         projectRef: getProjectRef() ?? undefined,
         workingDirectory: currentProject?.localPath,
-        initialCommand: "claude",
+        initialCommand: generateAgentCommand({
+          type: "epic",
+          title: epic.title,
+          displayKey: epic.displayKey,
+        }),
       };
 
       const existing = getExistingSession(context);

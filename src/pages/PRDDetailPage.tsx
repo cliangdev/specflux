@@ -19,6 +19,7 @@ import {
   type AddPrdDocumentRequest,
 } from "../api";
 import { ImportDocumentModal } from "../components/prds/ImportDocumentModal";
+import { generateAgentCommand } from "../utils/agentPrompts";
 
 // Status options for PRDs
 const PRD_STATUS_OPTIONS = [
@@ -309,7 +310,11 @@ export default function PRDDetailPage() {
         displayKey: prd.displayKey,
         projectRef: getProjectRef() ?? undefined,
         workingDirectory: currentProject?.localPath,
-        initialCommand: "claude",
+        initialCommand: generateAgentCommand({
+          type: "prd",
+          title: prd.title,
+          displayKey: prd.displayKey,
+        }),
       };
 
       // Check if session already exists - switch to it directly
