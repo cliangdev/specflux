@@ -23,7 +23,7 @@ export function generateAgentCommand(options: AgentPromptOptions): string {
 }
 
 // Instruction to use specflux-api skill for SpecFlux entity operations
-const SPECFLUX_API_INSTRUCTION = `**Important:** Use the \`specflux-api\` skill to read and update PRDs, Epics, Tasks, and other SpecFlux entities. Do not read from local files for entity data.
+const SPECFLUX_API_INSTRUCTION = `**Important:** Use the \`specflux-api\` skill to fetch and update PRDs, Epics, Tasks, and other SpecFlux entities via the REST API.
 
 `;
 
