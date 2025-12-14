@@ -199,6 +199,13 @@ export default function EpicsPage() {
     }
   }, [currentProject, statusFilter, prdFilter, getProjectRef]);
 
+  // Clear stale filters when project changes
+  useEffect(() => {
+    // Reset filters when switching projects to avoid stale references
+    setPrdFilter("");
+    setReleaseFilter("");
+  }, [currentProject?.id]);
+
   useEffect(() => {
     fetchReleases();
     fetchPrds();
