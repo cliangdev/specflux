@@ -627,7 +627,12 @@ export default function EpicDetailPage() {
   }
 
   const taskStats = epic.taskStats || { total: 0, done: 0, inProgress: 0 };
-  const progressPercent = epic.progressPercentage ?? 0;
+  const totalTasks = taskStats.total ?? 0;
+  const doneTasks = taskStats.done ?? 0;
+  // Use progressPercentage if available, otherwise calculate from taskStats
+  const progressPercent =
+    epic.progressPercentage ??
+    (totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0);
   const remaining =
     (taskStats.total ?? 0) -
     (taskStats.done ?? 0) -

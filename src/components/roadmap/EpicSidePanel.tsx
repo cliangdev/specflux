@@ -52,7 +52,12 @@ export function EpicSidePanel({
   });
 
   const taskStats = epic.taskStats ?? { total: 0, done: 0, inProgress: 0 };
-  const progress = epic.progressPercentage ?? 0;
+  // Use progressPercentage if available, otherwise calculate from taskStats
+  const progress =
+    epic.progressPercentage ??
+    (taskStats.total > 0
+      ? Math.round((taskStats.done / taskStats.total) * 100)
+      : 0);
 
   return (
     <div className="w-80 flex-shrink-0 border-l border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 flex flex-col h-full">
