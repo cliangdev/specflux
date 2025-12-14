@@ -58,6 +58,8 @@ const mockTerminalContext = {
   isOpen: true,
   isCollapsed: false,
   panelHeight: 320,
+  panelWidth: 480,
+  panelPosition: "bottom" as "bottom" | "left" | "right",
   isMaximized: false,
   sessions: [] as Array<{
     id: string;
@@ -75,6 +77,8 @@ const mockTerminalContext = {
   closePanel: vi.fn(),
   toggleCollapse: vi.fn(),
   setPanelHeight: vi.fn(),
+  setPanelWidth: vi.fn(),
+  setPanelPosition: vi.fn(),
   toggleMaximize: vi.fn(),
   openTerminalForTask: vi.fn(),
   openTerminalForContext: vi.fn(),
@@ -109,16 +113,18 @@ describe("TerminalPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockTerminalContext.isCollapsed = false;
+    mockTerminalContext.panelPosition = "bottom";
     mockTerminalContext.sessions = [];
     mockTerminalContext.activeSessionId = null;
     mockTerminalContext.pageContext = null;
     mockProjectContext.currentProject = null;
   });
 
-  it("renders Claude panel with header", () => {
+  it("renders panel with header", () => {
     render(<TerminalPanel />);
 
-    expect(screen.getByText("Claude")).toBeInTheDocument();
+    // Panel renders with branding emoji
+    expect(screen.getByText("🤖")).toBeInTheDocument();
     expect(screen.getByTestId("terminal-panel")).toBeInTheDocument();
   });
 
@@ -163,9 +169,9 @@ describe("TerminalPanel", () => {
   it("shows placeholder when no sessions exist", () => {
     render(<TerminalPanel />);
 
-    expect(screen.getByText("No task selected")).toBeInTheDocument();
+    expect(screen.getByText("No active session")).toBeInTheDocument();
     expect(
-      screen.getByText('Open a task and click "Open in Terminal" to start'),
+      screen.getByText('Open a task and click "Launch Agent" to start'),
     ).toBeInTheDocument();
   });
 
@@ -229,24 +235,26 @@ describe("TerminalPanel", () => {
     render(<TerminalPanel />);
 
     expect(screen.queryByTestId("terminal-mock")).not.toBeInTheDocument();
-    expect(screen.queryByText("No task selected")).not.toBeInTheDocument();
+    expect(screen.queryByText("No active session")).not.toBeInTheDocument();
   });
 
-  it("has correct height when expanded", () => {
+  it("fills its container when expanded", () => {
     mockTerminalContext.panelHeight = 320;
     render(<TerminalPanel />);
 
     const panel = screen.getByTestId("terminal-panel");
-    expect(panel).toHaveStyle({ height: "320px" });
+    // Panel now fills container - sizing is controlled by MainLayout
+    expect(panel).toHaveStyle({ height: "100%", width: "100%" });
   });
 
-  it("has correct height when collapsed", () => {
+  it("fills its container when collapsed", () => {
     mockTerminalContext.isCollapsed = true;
 
     render(<TerminalPanel />);
 
     const panel = screen.getByTestId("terminal-panel");
-    expect(panel).toHaveStyle({ height: "40px" });
+    // Panel fills container - MainLayout handles collapsed size
+    expect(panel).toHaveStyle({ height: "100%", width: "100%" });
   });
 
   describe("New Session Button", () => {

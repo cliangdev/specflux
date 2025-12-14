@@ -174,9 +174,15 @@ POST /api/projects/{projectRef}/epics
   "description": "Implement login and registration",
   "targetDate": "2024-03-01",
   "releaseRef": "rel_xxx",
-  "prdRef": "SPEC-P1"               // PRD publicId or displayKey
+  "prdRef": "SPEC-P1",              // PRD publicId or displayKey
+  "acceptanceCriteria": [           // required, array of objects
+    {"criteria": "Users can sign up with email/password"},
+    {"criteria": "Users can log in with existing credentials"}
+  ]
 }
 ```
+
+**Important:** `acceptanceCriteria` is required when creating an epic. Each item must be an object with a `criteria` property - NOT a plain string.
 
 Response:
 ```json

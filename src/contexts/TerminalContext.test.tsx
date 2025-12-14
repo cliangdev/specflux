@@ -33,6 +33,10 @@ function TestConsumer() {
     pageContext,
     setPageContext,
     suggestedCommands,
+    panelPosition,
+    panelWidth,
+    setPanelPosition,
+    setPanelWidth,
   } = useTerminal();
 
   return (
@@ -49,6 +53,8 @@ function TestConsumer() {
       <span data-testid="suggested-commands">
         {suggestedCommands.length}
       </span>
+      <span data-testid="panel-position">{panelPosition}</span>
+      <span data-testid="panel-width">{panelWidth}</span>
       <button data-testid="toggle-panel" onClick={togglePanel}>
         Toggle
       </button>
@@ -83,6 +89,30 @@ function TestConsumer() {
         onClick={() => setPageContext(null)}
       >
         Clear Page Context
+      </button>
+      <button
+        data-testid="set-position-left"
+        onClick={() => setPanelPosition("left")}
+      >
+        Position Left
+      </button>
+      <button
+        data-testid="set-position-right"
+        onClick={() => setPanelPosition("right")}
+      >
+        Position Right
+      </button>
+      <button
+        data-testid="set-position-bottom"
+        onClick={() => setPanelPosition("bottom")}
+      >
+        Position Bottom
+      </button>
+      <button
+        data-testid="set-panel-width"
+        onClick={() => setPanelWidth(600)}
+      >
+        Set Width 600
       </button>
     </div>
   );
@@ -351,6 +381,166 @@ describe("TerminalContext", () => {
 
       expect(result.current.pageContext).toBeNull();
       expect(Array.isArray(result.current.suggestedCommands)).toBe(true);
+    });
+
+    it("provides position-related functions", () => {
+      const { result } = renderHook(() => useTerminal(), {
+        wrapper: ({ children }) => (
+          <TerminalProvider>{children}</TerminalProvider>
+        ),
+      });
+
+      expect(typeof result.current.setPanelPosition).toBe("function");
+      expect(typeof result.current.setPanelWidth).toBe("function");
+      expect(result.current.panelPosition).toBe("bottom");
+      expect(result.current.panelWidth).toBe(480);
+    });
+  });
+
+  describe("Panel Position", () => {
+    it("defaults to bottom position", () => {
+      render(
+        <TerminalProvider>
+          <TestConsumer />
+        </TerminalProvider>,
+      );
+
+      expect(screen.getByTestId("panel-position")).toHaveTextContent("bottom");
+    });
+
+    it("changes position to left", () => {
+      render(
+        <TerminalProvider>
+          <TestConsumer />
+        </TerminalProvider>,
+      );
+
+      act(() => {
+        screen.getByTestId("set-position-left").click();
+      });
+
+      expect(screen.getByTestId("panel-position")).toHaveTextContent("left");
+    });
+
+    it("changes position to right", () => {
+      render(
+        <TerminalProvider>
+          <TestConsumer />
+        </TerminalProvider>,
+      );
+
+      act(() => {
+        screen.getByTestId("set-position-right").click();
+      });
+
+      expect(screen.getByTestId("panel-position")).toHaveTextContent("right");
+    });
+
+    it("changes position back to bottom", () => {
+      render(
+        <TerminalProvider>
+          <TestConsumer />
+        </TerminalProvider>,
+      );
+
+      act(() => {
+        screen.getByTestId("set-position-left").click();
+      });
+
+      expect(screen.getByTestId("panel-position")).toHaveTextContent("left");
+
+      act(() => {
+        screen.getByTestId("set-position-bottom").click();
+      });
+
+      expect(screen.getByTestId("panel-position")).toHaveTextContent("bottom");
+    });
+
+    it("persists position to localStorage", () => {
+      render(
+        <TerminalProvider>
+          <TestConsumer />
+        </TerminalProvider>,
+      );
+
+      act(() => {
+        screen.getByTestId("set-position-right").click();
+      });
+
+      expect(localStorageMock.setItem).toHaveBeenCalledWith(
+        "specflux-terminal-panel",
+        expect.stringContaining('"panelPosition":"right"'),
+      );
+    });
+
+    it("restores position from localStorage", () => {
+      localStorageMock.getItem.mockReturnValue(
+        JSON.stringify({ panelPosition: "left", panelWidth: 500 }),
+      );
+
+      render(
+        <TerminalProvider>
+          <TestConsumer />
+        </TerminalProvider>,
+      );
+
+      expect(screen.getByTestId("panel-position")).toHaveTextContent("left");
+      expect(screen.getByTestId("panel-width")).toHaveTextContent("500");
+    });
+
+    it("updates panel width", () => {
+      // Reset localStorage mock to return null (default state)
+      localStorageMock.getItem.mockReturnValue(null);
+      localStorageMock.clear();
+
+      render(
+        <TerminalProvider>
+          <TestConsumer />
+        </TerminalProvider>,
+      );
+
+      expect(screen.getByTestId("panel-width")).toHaveTextContent("480");
+
+      act(() => {
+        screen.getByTestId("set-panel-width").click();
+      });
+
+      expect(screen.getByTestId("panel-width")).toHaveTextContent("600");
+    });
+
+    it("clamps panel width to maximum", () => {
+      // Mock window.innerWidth
+      Object.defineProperty(window, "innerWidth", { value: 1000, writable: true });
+
+      const { result } = renderHook(() => useTerminal(), {
+        wrapper: ({ children }) => (
+          <TerminalProvider>{children}</TerminalProvider>
+        ),
+      });
+
+      // Try to set width larger than 60% of window (600px)
+      act(() => {
+        result.current.setPanelWidth(800);
+      });
+
+      // Should be clamped to max (60% of 1000 = 600)
+      expect(result.current.panelWidth).toBe(600);
+    });
+
+    it("clamps panel width to minimum", () => {
+      const { result } = renderHook(() => useTerminal(), {
+        wrapper: ({ children }) => (
+          <TerminalProvider>{children}</TerminalProvider>
+        ),
+      });
+
+      // Try to set width smaller than minimum (300px)
+      act(() => {
+        result.current.setPanelWidth(100);
+      });
+
+      // Should be clamped to min (300)
+      expect(result.current.panelWidth).toBe(300);
     });
   });
 });
