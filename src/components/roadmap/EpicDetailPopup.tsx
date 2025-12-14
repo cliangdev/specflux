@@ -126,7 +126,7 @@ export default function EpicDetailPopup({
               <div
                 className={`h-full rounded-full transition-all ${
                   (epic.status as string) === "COMPLETED"
-                    ? "bg-semantic-success"
+                    ? "bg-emerald-500"
                     : "bg-accent-500"
                 }`}
                 style={{ width: `${progress}%` }}

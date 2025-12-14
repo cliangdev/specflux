@@ -198,7 +198,7 @@ function EpicRow({
                         <span
                           className={`w-2 h-2 rounded-full ${
                             (e.status as string) === "COMPLETED"
-                              ? "bg-semantic-success"
+                              ? "bg-emerald-500"
                               : (e.status as string) === "IN_PROGRESS"
                                 ? "bg-accent-500"
                                 : "bg-surface-400"
@@ -243,7 +243,7 @@ function EpicRow({
                         <span
                           className={`w-2 h-2 rounded-full ${
                             (e.status as string) === "COMPLETED"
-                              ? "bg-semantic-success"
+                              ? "bg-emerald-500"
                               : (e.status as string) === "IN_PROGRESS"
                                 ? "bg-accent-500"
                                 : "bg-surface-400"

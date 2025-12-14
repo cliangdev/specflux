@@ -155,7 +155,7 @@ function EpicNode({ data, selected }: NodeProps<EpicNodeData>) {
           <div className="h-1.5 bg-surface-200 dark:bg-surface-700 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-300 ${
-                status === "COMPLETED" ? "bg-semantic-success" : "bg-accent-500"
+                status === "COMPLETED" ? "bg-emerald-500" : "bg-accent-500"
               }`}
               style={{ width: `${progress}%` }}
             />

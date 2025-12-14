@@ -17,8 +17,6 @@ interface ClaudeSettings {
   };
 }
 
-type PermissionMode = "default" | "acceptEdits" | "plan";
-
 /**
  * Permission profile types for quick setup
  */
@@ -133,17 +131,6 @@ const PERMISSION_PROFILES: Record<ProfileType, PermissionProfile> = {
   },
 };
 
-const DEFAULT_SETTINGS: ClaudeSettings = {
-  permissions: {
-    allow: [],
-    deny: [],
-  },
-  sandbox: {
-    enabled: true,
-    autoAllowBashIfSandboxed: true,
-  },
-};
-
 export function ClaudeCodeSettings() {
   const { currentProject } = useProject();
   const [loading, setLoading] = useState(true);
@@ -152,7 +139,6 @@ export function ClaudeCodeSettings() {
   const [success, setSuccess] = useState(false);
 
   // Settings state
-  const [permissionMode, setPermissionMode] = useState<PermissionMode>("default");
   const [sandboxEnabled, setSandboxEnabled] = useState(true);
   const [autoAllowBash, setAutoAllowBash] = useState(true);
   const [allowedCommands, setAllowedCommands] = useState<string[]>([]);
@@ -174,7 +160,7 @@ export function ClaudeCodeSettings() {
     setDeniedPaths(mergedDeniedPaths);
   };
 
-  // Load settings from .claude/settings.json
+  // Load settings from .claude/settings.local.json (primary) and .claude/settings.json (fallback)
   const loadSettings = useCallback(async () => {
     if (!currentProject?.localPath) {
       setLoading(false);
@@ -182,24 +168,46 @@ export function ClaudeCodeSettings() {
     }
 
     try {
-      const settingsPath = await join(currentProject.localPath, ".claude", "settings.json");
-      const fileExists = await exists(settingsPath);
+      const localSettingsPath = await join(currentProject.localPath, ".claude", "settings.local.json");
+      const projectSettingsPath = await join(currentProject.localPath, ".claude", "settings.json");
 
-      if (fileExists) {
-        const content = await readTextFile(settingsPath);
-        const settings: ClaudeSettings = JSON.parse(content);
+      // Try to load local settings first (user-specific, not in git)
+      const localExists = await exists(localSettingsPath);
+      const projectExists = await exists(projectSettingsPath);
 
-        setAllowedCommands(settings.permissions?.allow || []);
-        setDeniedPaths(settings.permissions?.deny || []);
-        setSandboxEnabled(settings.sandbox?.enabled ?? true);
-        setAutoAllowBash(settings.sandbox?.autoAllowBashIfSandboxed ?? true);
-      } else {
-        // Use defaults
-        setAllowedCommands(DEFAULT_SETTINGS.permissions.allow);
-        setDeniedPaths(DEFAULT_SETTINGS.permissions.deny);
-        setSandboxEnabled(DEFAULT_SETTINGS.sandbox?.enabled ?? true);
-        setAutoAllowBash(DEFAULT_SETTINGS.sandbox?.autoAllowBashIfSandboxed ?? true);
+      let localSettings: Partial<ClaudeSettings> = {};
+      let projectSettings: Partial<ClaudeSettings> = {};
+
+      if (localExists) {
+        try {
+          const content = await readTextFile(localSettingsPath);
+          localSettings = JSON.parse(content);
+        } catch (e) {
+          console.warn("Failed to parse settings.local.json:", e);
+        }
       }
+
+      if (projectExists) {
+        try {
+          const content = await readTextFile(projectSettingsPath);
+          projectSettings = JSON.parse(content);
+        } catch (e) {
+          console.warn("Failed to parse settings.json:", e);
+        }
+      }
+
+      // Merge settings: local settings override project settings
+      // For permissions, merge the arrays
+      const allowedFromLocal = localSettings.permissions?.allow || [];
+      const allowedFromProject = projectSettings.permissions?.allow || [];
+      const deniedFromLocal = localSettings.permissions?.deny || [];
+      const deniedFromProject = projectSettings.permissions?.deny || [];
+
+      // Use local settings primarily, fall back to project settings
+      setAllowedCommands([...new Set([...allowedFromLocal, ...allowedFromProject])]);
+      setDeniedPaths([...new Set([...deniedFromLocal, ...deniedFromProject])]);
+      setSandboxEnabled(localSettings.sandbox?.enabled ?? projectSettings.sandbox?.enabled ?? true);
+      setAutoAllowBash(localSettings.sandbox?.autoAllowBashIfSandboxed ?? projectSettings.sandbox?.autoAllowBashIfSandboxed ?? true);
     } catch (err) {
       console.error("Failed to load Claude settings:", err);
       setError("Failed to load settings: " + String(err));
@@ -212,7 +220,7 @@ export function ClaudeCodeSettings() {
     loadSettings();
   }, [loadSettings]);
 
-  // Save settings to .claude/settings.json
+  // Save settings to .claude/settings.local.json (user-specific, not committed to git)
   const handleSave = async () => {
     if (!currentProject?.localPath) {
       setError("No project path configured");
@@ -235,7 +243,8 @@ export function ClaudeCodeSettings() {
         },
       };
 
-      const settingsPath = await join(currentProject.localPath, ".claude", "settings.json");
+      // Save to settings.local.json (user-specific settings)
+      const settingsPath = await join(currentProject.localPath, ".claude", "settings.local.json");
       await writeTextFile(settingsPath, JSON.stringify(settings, null, 2));
 
       setSuccess(true);
@@ -323,31 +332,9 @@ export function ClaudeCodeSettings() {
       {/* Description */}
       <p className="text-sm text-surface-600 dark:text-surface-400">
         Configure Claude Code permissions and security settings for this project.
-        These settings are saved to <code className="px-1 py-0.5 bg-surface-100 dark:bg-surface-800 rounded text-xs font-mono">.claude/settings.json</code>.
+        Settings are loaded from both <code className="px-1 py-0.5 bg-surface-100 dark:bg-surface-800 rounded text-xs font-mono">.claude/settings.local.json</code> (user-specific) and <code className="px-1 py-0.5 bg-surface-100 dark:bg-surface-800 rounded text-xs font-mono">.claude/settings.json</code> (project).
+        Changes are saved to the local settings file.
       </p>
-
-      {/* Permission Mode */}
-      <div className="border border-surface-200 dark:border-surface-700 rounded-lg overflow-hidden">
-        <div className="bg-surface-50 dark:bg-surface-800 px-4 py-3 border-b border-surface-200 dark:border-surface-700">
-          <h3 className="text-sm font-medium text-surface-900 dark:text-white">
-            Permission Mode
-          </h3>
-        </div>
-        <div className="p-4">
-          <select
-            value={permissionMode}
-            onChange={(e) => setPermissionMode(e.target.value as PermissionMode)}
-            className="w-full max-w-xs bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg px-3 py-2 text-sm focus:border-accent-500 focus:ring-1 focus:ring-accent-500 outline-none"
-          >
-            <option value="default">Default - Prompts for each tool</option>
-            <option value="acceptEdits">Accept Edits - Auto-accept file changes</option>
-            <option value="plan">Plan Mode - Read-only, no modifications</option>
-          </select>
-          <p className="text-xs text-surface-500 dark:text-surface-400 mt-2">
-            Controls how Claude Code requests permission for operations.
-          </p>
-        </div>
-      </div>
 
       {/* Sandbox Settings */}
       <div className="border border-surface-200 dark:border-surface-700 rounded-lg overflow-hidden">
@@ -554,29 +541,27 @@ export function ClaudeCodeSettings() {
         </div>
       </div>
 
-      {/* Error message */}
-      {error && (
-        <div className="p-3 bg-semantic-error/10 border border-semantic-error/30 rounded-lg text-sm text-semantic-error">
-          {error}
-        </div>
-      )}
-
-      {/* Success message */}
-      {success && (
-        <div className="p-3 bg-semantic-success/10 border border-semantic-success/30 rounded-lg text-sm text-semantic-success">
-          Settings saved successfully
-        </div>
-      )}
-
-      {/* Save button */}
-      <div>
+      {/* Save button and status messages */}
+      <div className="flex items-center gap-4 pt-2">
         <button
           onClick={handleSave}
           disabled={saving}
-          className="bg-accent-600 hover:bg-accent-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
+          className="btn btn-primary"
         >
           {saving ? "Saving..." : "Save Settings"}
         </button>
+
+        {/* Status messages - inline with button to prevent layout shift */}
+        {error && (
+          <span className="text-sm text-red-600 dark:text-red-400">
+            {error}
+          </span>
+        )}
+        {success && (
+          <span className="text-sm text-emerald-600 dark:text-emerald-400">
+            Settings saved successfully
+          </span>
+        )}
       </div>
     </div>
   );

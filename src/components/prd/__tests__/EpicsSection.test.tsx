@@ -209,7 +209,7 @@ describe("EpicsSection", () => {
         <EpicsSection epics={completedEpic} />
       );
       const progressBar = container.querySelector('[style*="width"]');
-      expect(progressBar).toHaveClass("bg-semantic-success");
+      expect(progressBar).toHaveClass("bg-emerald-500");
     });
 
     it("shows blue bar when progress is between 1-99%", () => {

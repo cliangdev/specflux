@@ -109,7 +109,7 @@ function EpicRow({ epic }: { epic: Epic }) {
           <div
             className={`h-full rounded-full transition-all ${
               progress === 100
-                ? "bg-semantic-success"
+                ? "bg-emerald-500"
                 : progress > 0
                   ? "bg-accent-500"
                   : "bg-surface-300 dark:bg-surface-600"
