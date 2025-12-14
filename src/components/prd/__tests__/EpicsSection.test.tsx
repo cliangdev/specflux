@@ -136,10 +136,101 @@ describe("EpicsSection", () => {
   });
 
   describe("progress bar", () => {
-    it("shows progress bar with correct width", () => {
+    it("shows progress bar with correct width from progressPercentage", () => {
       const { container } = renderWithRouter(<EpicsSection epics={mockEpics} />);
       const progressBars = container.querySelectorAll('[style*="width"]');
       expect(progressBars.length).toBeGreaterThan(0);
+      // First epic has 50% progress
+      expect(progressBars[0]).toHaveStyle({ width: "50%" });
+      // Second epic has 100% progress
+      expect(progressBars[1]).toHaveStyle({ width: "100%" });
+    });
+
+    it("calculates progress from taskStats when progressPercentage is undefined", () => {
+      const epicsWithoutPercentage: Epic[] = [
+        {
+          id: "epic-3",
+          title: "Test Epic",
+          displayKey: "PROJ-E3",
+          status: "IN_PROGRESS",
+          // progressPercentage is undefined
+          taskStats: { total: 4, done: 3, inProgress: 1, backlog: 0 },
+          projectId: "project-1",
+          createdById: "user-1",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+      const { container } = renderWithRouter(
+        <EpicsSection epics={epicsWithoutPercentage} />
+      );
+      const progressBar = container.querySelector('[style*="width"]');
+      // 3/4 = 75%
+      expect(progressBar).toHaveStyle({ width: "75%" });
+    });
+
+    it("shows 0% progress when no taskStats and no progressPercentage", () => {
+      const epicsWithNoData: Epic[] = [
+        {
+          id: "epic-4",
+          title: "Empty Epic",
+          displayKey: "PROJ-E4",
+          status: "PLANNING",
+          // No progressPercentage, no taskStats
+          projectId: "project-1",
+          createdById: "user-1",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+      const { container } = renderWithRouter(
+        <EpicsSection epics={epicsWithNoData} />
+      );
+      const progressBar = container.querySelector('[style*="width"]');
+      expect(progressBar).toHaveStyle({ width: "0%" });
+    });
+
+    it("shows green bar when progress is 100%", () => {
+      const completedEpic: Epic[] = [
+        {
+          id: "epic-5",
+          title: "Done Epic",
+          displayKey: "PROJ-E5",
+          status: "COMPLETED",
+          progressPercentage: 100,
+          taskStats: { total: 2, done: 2, inProgress: 0, backlog: 0 },
+          projectId: "project-1",
+          createdById: "user-1",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+      const { container } = renderWithRouter(
+        <EpicsSection epics={completedEpic} />
+      );
+      const progressBar = container.querySelector('[style*="width"]');
+      expect(progressBar).toHaveClass("bg-emerald-500");
+    });
+
+    it("shows blue bar when progress is between 1-99%", () => {
+      const inProgressEpic: Epic[] = [
+        {
+          id: "epic-6",
+          title: "Partial Epic",
+          displayKey: "PROJ-E6",
+          status: "IN_PROGRESS",
+          progressPercentage: 50,
+          projectId: "project-1",
+          createdById: "user-1",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+      const { container } = renderWithRouter(
+        <EpicsSection epics={inProgressEpic} />
+      );
+      const progressBar = container.querySelector('[style*="width"]');
+      expect(progressBar).toHaveClass("bg-accent-500");
     });
   });
 });

@@ -115,6 +115,14 @@ export const TEMPLATE_REGISTRY: TemplateDefinition[] = [
     description: "MCP server configuration (GitHub, filesystem)",
     category: "mcp",
   },
+  // Claude Code settings template
+  {
+    id: "claude-settings",
+    sourceFile: ".claude/settings.json",
+    destPath: ".claude/settings.json",
+    description: "Claude Code permissions and security settings",
+    category: "config",
+  },
 ];
 
 /**

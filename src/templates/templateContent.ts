@@ -23,6 +23,9 @@ import specfluxApiReference from "./files/skills/specflux-api/references/api.md?
 // MCP config template
 import mcpConfig from "./files/.mcp.json?raw";
 
+// Claude Code settings template
+import claudeSettings from "./files/.claude/settings.json?raw";
+
 /**
  * Map of source file paths to their content.
  * Keys match the sourceFile property in TEMPLATE_REGISTRY.
@@ -43,6 +46,8 @@ export const TEMPLATE_CONTENT: Record<string, string> = {
   "skills/specflux-api/references/api.md": specfluxApiReference,
   // MCP config
   ".mcp.json": mcpConfig,
+  // Claude Code settings
+  ".claude/settings.json": claudeSettings,
 };
 
 /**

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useProject } from "../contexts";
 import { api, type Epic, type Release, type Prd, EpicStatus } from "../api";
@@ -15,27 +15,45 @@ interface EpicsFilters {
   status: string;
   release: string;
   prd: string;
+  projectId?: string; // Track which project these filters are for
 }
 
-function loadFilters(): EpicsFilters {
+function loadFilters(): EpicsFilters & { projectId?: string } {
+  const defaults = { status: "", release: "", prd: "" };
   try {
     const stored = localStorage.getItem(FILTERS_STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      return {
-        status: parsed.status ?? "",
-        release: parsed.release ?? "",
-        prd: parsed.prd ?? "",
-      };
+      // Only restore project-specific filters if we have a stored projectId
+      // This ensures we don't use stale filters from before projectId tracking was added
+      if (parsed.projectId) {
+        return {
+          status: parsed.status ?? "",
+          release: parsed.release ?? "",
+          prd: parsed.prd ?? "",
+          projectId: parsed.projectId,
+        };
+      } else {
+        // No projectId stored - only restore status (project-agnostic)
+        return {
+          status: parsed.status ?? "",
+          release: "",
+          prd: "",
+          projectId: undefined,
+        };
+      }
     }
   } catch {
     // Invalid JSON, use defaults
   }
-  return { status: "", release: "", prd: "" };
+  return defaults;
 }
 
-function saveFilters(filters: EpicsFilters): void {
-  localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters));
+function saveFilters(filters: EpicsFilters, projectId?: string): void {
+  localStorage.setItem(
+    FILTERS_STORAGE_KEY,
+    JSON.stringify({ ...filters, projectId })
+  );
 }
 
 const STATUS_OPTIONS = [
@@ -76,19 +94,36 @@ export default function EpicsPage() {
     () => searchParams.get("prd") || initialFilters.prd,
   );
 
+  // Clear stale project-specific filters when project loads and doesn't match stored projectId
+  const staleFiltersCleared = useRef(false);
+  useEffect(() => {
+    if (!staleFiltersCleared.current && currentProject?.id) {
+      // Check if stored filters are for a different project
+      if (initialFilters.projectId && initialFilters.projectId !== currentProject.id) {
+        // Filters are from a different project - clear them
+        setPrdFilter("");
+        setReleaseFilter("");
+      }
+      staleFiltersCleared.current = true;
+    }
+  }, [currentProject?.id, initialFilters.projectId]);
+
   // Persist view mode to localStorage
   useEffect(() => {
     localStorage.setItem(VIEW_STORAGE_KEY, viewMode);
   }, [viewMode]);
 
-  // Persist filters to localStorage
+  // Persist filters to localStorage (include project ID to detect stale filters later)
   useEffect(() => {
-    saveFilters({
-      status: statusFilter,
-      release: releaseFilter,
-      prd: prdFilter,
-    });
-  }, [statusFilter, releaseFilter, prdFilter]);
+    saveFilters(
+      {
+        status: statusFilter,
+        release: releaseFilter,
+        prd: prdFilter,
+      },
+      currentProject?.id
+    );
+  }, [statusFilter, releaseFilter, prdFilter, currentProject?.id]);
 
   // Sync URL params with filter state (for shareability)
   useEffect(() => {
@@ -199,11 +234,25 @@ export default function EpicsPage() {
     }
   }, [currentProject, statusFilter, prdFilter, getProjectRef]);
 
-  // Clear stale filters when project changes
+  // Track previous project ID to detect actual project changes (not initial mount)
+  const prevProjectIdRef = useRef<string | undefined>(currentProject?.id);
+
+  // Clear project-specific filters when user switches to a different project
   useEffect(() => {
-    // Reset filters when switching projects to avoid stale references
-    setPrdFilter("");
-    setReleaseFilter("");
+    const prevProjectId = prevProjectIdRef.current;
+    const currentProjectId = currentProject?.id;
+
+    // Only reset filters if project actually changed (both must be defined for a real switch)
+    if (
+      prevProjectId !== undefined &&
+      currentProjectId !== undefined &&
+      prevProjectId !== currentProjectId
+    ) {
+      setPrdFilter("");
+      setReleaseFilter("");
+    }
+
+    prevProjectIdRef.current = currentProjectId;
   }, [currentProject?.id]);
 
   useEffect(() => {

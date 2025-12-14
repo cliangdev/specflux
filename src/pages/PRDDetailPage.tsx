@@ -299,6 +299,40 @@ export default function PRDDetailPage() {
     }
   };
 
+  const handleDeleteDocument = async (doc: PrdDocument) => {
+    const projectRef = getProjectRef();
+    if (!projectRef || !prd) return;
+
+    // Don't allow deleting the primary document
+    if (doc.isPrimary) {
+      alert("Cannot delete the primary document. Set another document as primary first.");
+      return;
+    }
+
+    if (!confirm(`Remove "${doc.fileName}" from this PRD?`)) return;
+
+    try {
+      await api.prds.deletePrdDocument({
+        projectRef,
+        prdRef: prd.id,
+        docId: doc.id,
+      });
+
+      // Refresh PRD to get updated documents list
+      const updated = await api.prds.getPrd({ projectRef, prdRef: prd.id });
+      setPrd(updated);
+
+      // If we deleted the selected doc, select the primary or first doc
+      if (selectedDoc?.id === doc.id && updated.documents && updated.documents.length > 0) {
+        const primaryDoc = updated.documents.find((d) => d.isPrimary) || updated.documents[0];
+        setSelectedDoc(primaryDoc);
+      }
+    } catch (err) {
+      console.error("Failed to delete document:", err);
+      alert("Failed to delete document");
+    }
+  };
+
   // AI Action handlers
   const handleStartWork = () => {
     if (prd) {
@@ -476,7 +510,7 @@ export default function PRDDetailPage() {
             ) : (
               <ul className="space-y-1">
                 {prd.documents.map((doc) => (
-                  <li key={doc.id}>
+                  <li key={doc.id} className="group relative">
                     <button
                       onClick={() => handleDocSelect(doc)}
                       className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
@@ -503,6 +537,21 @@ export default function PRDDetailPage() {
                         )}
                       </div>
                     </button>
+                    {/* Delete button - only show for non-primary documents */}
+                    {!doc.isPrimary && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteDocument(doc);
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/30 text-surface-400 hover:text-red-600 dark:hover:text-red-400 transition-all"
+                        title="Remove document"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>

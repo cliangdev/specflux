@@ -44,7 +44,12 @@ export default function EpicDetailPopup({
   });
 
   const taskStats = epic.taskStats ?? { total: 0, done: 0, inProgress: 0 };
-  const progress = epic.progressPercentage ?? 0;
+  // Use progressPercentage if available, otherwise calculate from taskStats
+  const progress =
+    epic.progressPercentage ??
+    (taskStats.total > 0
+      ? Math.round((taskStats.done / taskStats.total) * 100)
+      : 0);
 
   function getStatusBadge(status: string): {
     label: string;
@@ -121,7 +126,7 @@ export default function EpicDetailPopup({
               <div
                 className={`h-full rounded-full transition-all ${
                   (epic.status as string) === "COMPLETED"
-                    ? "bg-semantic-success"
+                    ? "bg-emerald-500"
                     : "bg-accent-500"
                 }`}
                 style={{ width: `${progress}%` }}

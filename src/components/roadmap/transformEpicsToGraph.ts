@@ -53,9 +53,12 @@ export function transformEpicsToGraph(epics: Epic[]): GraphData {
   // Create nodes for each epic
   const nodes: Node<EpicNodeData>[] = epics.map((epic) => {
     const epicWithV2 = epic as EpicWithV2;
-    const progress = epic.progressPercentage ?? 0;
     const totalTasks = epic.taskStats?.total ?? 0;
     const doneTasks = epic.taskStats?.done ?? 0;
+    // Use progressPercentage if available, otherwise calculate from taskStats
+    const progress =
+      epic.progressPercentage ??
+      (totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0);
 
     return {
       id: getEpicId(epicWithV2),

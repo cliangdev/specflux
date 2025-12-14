@@ -76,8 +76,12 @@ export function EpicsSection({ epics, onAddEpic, loading }: EpicsSectionProps) {
 }
 
 function EpicRow({ epic }: { epic: Epic }) {
-  const progress = epic.progressPercentage ?? 0;
   const taskStats = epic.taskStats;
+  // Use progressPercentage if available, otherwise calculate from taskStats
+  const progress = epic.progressPercentage ??
+    (taskStats && taskStats.total > 0
+      ? Math.round((taskStats.done / taskStats.total) * 100)
+      : 0);
 
   return (
     <Link
@@ -105,7 +109,7 @@ function EpicRow({ epic }: { epic: Epic }) {
           <div
             className={`h-full rounded-full transition-all ${
               progress === 100
-                ? "bg-semantic-success"
+                ? "bg-emerald-500"
                 : progress > 0
                   ? "bg-accent-500"
                   : "bg-surface-300 dark:bg-surface-600"
