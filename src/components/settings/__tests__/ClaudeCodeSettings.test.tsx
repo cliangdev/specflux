@@ -20,6 +20,21 @@ vi.mock("../../../contexts/ProjectContext", () => ({
 
 import { readTextFile, writeTextFile, exists } from "@tauri-apps/plugin-fs";
 import { useProject } from "../../../contexts/ProjectContext";
+import type { Project } from "../../../api";
+
+// Helper to create mock project context value
+function createMockProjectContext(currentProject: Project | null) {
+  return {
+    currentProject,
+    projects: currentProject ? [currentProject] : [],
+    loading: false,
+    error: null,
+    selectProject: vi.fn(() => "/board"),
+    refreshProjects: vi.fn(),
+    getProjectRef: vi.fn(() => currentProject?.projectKey ?? null),
+    saveCurrentRoute: vi.fn(),
+  };
+}
 
 describe("ClaudeCodeSettings", () => {
   beforeEach(() => {
@@ -27,62 +42,42 @@ describe("ClaudeCodeSettings", () => {
   });
 
   it("shows message when no project is selected", () => {
-    vi.mocked(useProject).mockReturnValue({
-      currentProject: null,
-      projects: [],
-      loading: false,
-      setCurrentProject: vi.fn(),
-      refreshProjects: vi.fn(),
-      getProjectRef: vi.fn(),
-    });
+    vi.mocked(useProject).mockReturnValue(createMockProjectContext(null));
 
     render(<ClaudeCodeSettings />);
     expect(screen.getByText("No project selected")).toBeInTheDocument();
   });
 
   it("shows warning when project has no local path", () => {
-    vi.mocked(useProject).mockReturnValue({
-      currentProject: {
-        id: "proj_123",
-        name: "Test Project",
-        projectKey: "TEST",
-        ownerId: "user_1",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        // localPath is undefined
-      },
-      projects: [],
-      loading: false,
-      setCurrentProject: vi.fn(),
-      refreshProjects: vi.fn(),
-      getProjectRef: vi.fn(),
-    });
+    vi.mocked(useProject).mockReturnValue(createMockProjectContext({
+      id: "proj_123",
+      name: "Test Project",
+      projectKey: "TEST",
+      ownerId: "user_1",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      // localPath is undefined
+    }));
 
     render(<ClaudeCodeSettings />);
     expect(screen.getByText("Local path required")).toBeInTheDocument();
   });
 
   it("loads settings from settings.local.json", async () => {
-    vi.mocked(useProject).mockReturnValue({
-      currentProject: {
-        id: "proj_123",
-        name: "Test Project",
-        projectKey: "TEST",
-        ownerId: "user_1",
-        localPath: "/path/to/project",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      projects: [],
-      loading: false,
-      setCurrentProject: vi.fn(),
-      refreshProjects: vi.fn(),
-      getProjectRef: vi.fn(),
-    });
+    vi.mocked(useProject).mockReturnValue(createMockProjectContext({
+      id: "proj_123",
+      name: "Test Project",
+      projectKey: "TEST",
+      ownerId: "user_1",
+      localPath: "/path/to/project",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
 
     vi.mocked(exists).mockResolvedValue(true);
-    vi.mocked(readTextFile).mockImplementation(async (path: string) => {
-      if (path.includes("settings.local.json")) {
+    vi.mocked(readTextFile).mockImplementation(async (path) => {
+      const pathStr = String(path);
+      if (pathStr.includes("settings.local.json")) {
         return JSON.stringify({
           permissions: {
             allow: ["Bash(npm:*)", "Bash(git:*)"],
@@ -107,26 +102,20 @@ describe("ClaudeCodeSettings", () => {
   });
 
   it("merges permissions from both local and project settings", async () => {
-    vi.mocked(useProject).mockReturnValue({
-      currentProject: {
-        id: "proj_123",
-        name: "Test Project",
-        projectKey: "TEST",
-        ownerId: "user_1",
-        localPath: "/path/to/project",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      projects: [],
-      loading: false,
-      setCurrentProject: vi.fn(),
-      refreshProjects: vi.fn(),
-      getProjectRef: vi.fn(),
-    });
+    vi.mocked(useProject).mockReturnValue(createMockProjectContext({
+      id: "proj_123",
+      name: "Test Project",
+      projectKey: "TEST",
+      ownerId: "user_1",
+      localPath: "/path/to/project",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
 
     vi.mocked(exists).mockResolvedValue(true);
-    vi.mocked(readTextFile).mockImplementation(async (path: string) => {
-      if (path.includes("settings.local.json")) {
+    vi.mocked(readTextFile).mockImplementation(async (path) => {
+      const pathStr = String(path);
+      if (pathStr.includes("settings.local.json")) {
         return JSON.stringify({
           permissions: {
             allow: ["Bash(npm:*)"],
@@ -153,22 +142,15 @@ describe("ClaudeCodeSettings", () => {
   });
 
   it("saves settings to settings.local.json", async () => {
-    vi.mocked(useProject).mockReturnValue({
-      currentProject: {
-        id: "proj_123",
-        name: "Test Project",
-        projectKey: "TEST",
-        ownerId: "user_1",
-        localPath: "/path/to/project",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      projects: [],
-      loading: false,
-      setCurrentProject: vi.fn(),
-      refreshProjects: vi.fn(),
-      getProjectRef: vi.fn(),
-    });
+    vi.mocked(useProject).mockReturnValue(createMockProjectContext({
+      id: "proj_123",
+      name: "Test Project",
+      projectKey: "TEST",
+      ownerId: "user_1",
+      localPath: "/path/to/project",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
 
     vi.mocked(exists).mockResolvedValue(false);
     vi.mocked(writeTextFile).mockResolvedValue(undefined);
@@ -185,27 +167,20 @@ describe("ClaudeCodeSettings", () => {
       expect(writeTextFile).toHaveBeenCalled();
       // Check it saves to settings.local.json
       const [path] = vi.mocked(writeTextFile).mock.calls[0];
-      expect(path).toContain("settings.local.json");
+      expect(String(path)).toContain("settings.local.json");
     });
   });
 
   it("applies quick profile and merges with existing commands", async () => {
-    vi.mocked(useProject).mockReturnValue({
-      currentProject: {
-        id: "proj_123",
-        name: "Test Project",
-        projectKey: "TEST",
-        ownerId: "user_1",
-        localPath: "/path/to/project",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      projects: [],
-      loading: false,
-      setCurrentProject: vi.fn(),
-      refreshProjects: vi.fn(),
-      getProjectRef: vi.fn(),
-    });
+    vi.mocked(useProject).mockReturnValue(createMockProjectContext({
+      id: "proj_123",
+      name: "Test Project",
+      projectKey: "TEST",
+      ownerId: "user_1",
+      localPath: "/path/to/project",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
 
     vi.mocked(exists).mockResolvedValue(false);
 
