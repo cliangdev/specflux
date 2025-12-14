@@ -11,12 +11,12 @@ const defaultProps = {
 
 describe("AIActionButton", () => {
   describe("rendering", () => {
-    it("renders Start Work button by default", () => {
+    it("renders Launch Agent button by default", () => {
       render(<AIActionButton {...defaultProps} />);
-      expect(screen.getByText("Start Work")).toBeInTheDocument();
+      expect(screen.getByText("Launch Agent")).toBeInTheDocument();
     });
 
-    it("renders Continue Work when hasExistingSession is true", () => {
+    it("renders Resume Agent when hasExistingSession is true", () => {
       render(
         <AIActionButton
           {...defaultProps}
@@ -24,7 +24,7 @@ describe("AIActionButton", () => {
           onContinueWork={vi.fn()}
         />
       );
-      expect(screen.getByText("Continue Work")).toBeInTheDocument();
+      expect(screen.getByText("Resume Agent")).toBeInTheDocument();
     });
 
     it("renders dropdown toggle when onContinueWork is provided", () => {
@@ -57,7 +57,7 @@ describe("AIActionButton", () => {
   describe("disabled state", () => {
     it("disables button when disabled prop is true", () => {
       render(<AIActionButton {...defaultProps} disabled />);
-      expect(screen.getByText("Start Work").closest("button")).toBeDisabled();
+      expect(screen.getByText("Launch Agent").closest("button")).toBeDisabled();
     });
 
     it("disables dropdown toggle when disabled", () => {
@@ -73,17 +73,17 @@ describe("AIActionButton", () => {
   });
 
   describe("actions", () => {
-    it("calls onStartWork when Start Work is clicked", () => {
+    it("calls onStartWork when Launch Agent is clicked", () => {
       const handleStartWork = vi.fn();
       render(
         <AIActionButton {...defaultProps} onStartWork={handleStartWork} />
       );
 
-      fireEvent.click(screen.getByText("Start Work"));
+      fireEvent.click(screen.getByText("Launch Agent"));
       expect(handleStartWork).toHaveBeenCalled();
     });
 
-    it("calls onContinueWork when Continue Work is clicked", () => {
+    it("calls onContinueWork when Resume Agent is clicked", () => {
       const handleContinueWork = vi.fn();
       render(
         <AIActionButton
@@ -93,7 +93,7 @@ describe("AIActionButton", () => {
         />
       );
 
-      fireEvent.click(screen.getByText("Continue Work"));
+      fireEvent.click(screen.getByText("Resume Agent"));
       expect(handleContinueWork).toHaveBeenCalled();
     });
   });
@@ -105,11 +105,11 @@ describe("AIActionButton", () => {
       );
 
       fireEvent.click(screen.getByLabelText("More options"));
-      expect(screen.getByText("Start New Session")).toBeInTheDocument();
-      expect(screen.getByText("Continue Existing Session")).toBeInTheDocument();
+      expect(screen.getByText("Launch New Agent")).toBeInTheDocument();
+      expect(screen.getByText("Resume Existing Agent")).toBeInTheDocument();
     });
 
-    it("calls onStartWork when Start New Session is clicked in dropdown", () => {
+    it("calls onStartWork when Launch New Agent is clicked in dropdown", () => {
       const handleStartWork = vi.fn();
       render(
         <AIActionButton
@@ -120,12 +120,12 @@ describe("AIActionButton", () => {
       );
 
       fireEvent.click(screen.getByLabelText("More options"));
-      fireEvent.click(screen.getByText("Start New Session"));
+      fireEvent.click(screen.getByText("Launch New Agent"));
 
       expect(handleStartWork).toHaveBeenCalled();
     });
 
-    it("calls onContinueWork when Continue Existing Session is clicked in dropdown", () => {
+    it("calls onContinueWork when Resume Existing Agent is clicked in dropdown", () => {
       const handleContinueWork = vi.fn();
       render(
         <AIActionButton
@@ -135,7 +135,7 @@ describe("AIActionButton", () => {
       );
 
       fireEvent.click(screen.getByLabelText("More options"));
-      fireEvent.click(screen.getByText("Continue Existing Session"));
+      fireEvent.click(screen.getByText("Resume Existing Agent"));
 
       expect(handleContinueWork).toHaveBeenCalled();
     });
@@ -146,9 +146,9 @@ describe("AIActionButton", () => {
       );
 
       fireEvent.click(screen.getByLabelText("More options"));
-      fireEvent.click(screen.getByText("Start New Session"));
+      fireEvent.click(screen.getByText("Launch New Agent"));
 
-      expect(screen.queryByText("Start New Session")).not.toBeInTheDocument();
+      expect(screen.queryByText("Launch New Agent")).not.toBeInTheDocument();
     });
   });
 
@@ -173,11 +173,11 @@ describe("AIActionButton", () => {
   describe("title attribute", () => {
     it("sets title attribute with entity title", () => {
       render(<AIActionButton {...defaultProps} />);
-      const button = screen.getByText("Start Work").closest("button");
-      expect(button).toHaveAttribute("title", "Start Work on Test Task");
+      const button = screen.getByText("Launch Agent").closest("button");
+      expect(button).toHaveAttribute("title", "Launch Agent on Test Task");
     });
 
-    it("sets title attribute for continue work", () => {
+    it("sets title attribute for resume agent", () => {
       render(
         <AIActionButton
           {...defaultProps}
@@ -185,8 +185,8 @@ describe("AIActionButton", () => {
           onContinueWork={vi.fn()}
         />
       );
-      const button = screen.getByText("Continue Work").closest("button");
-      expect(button).toHaveAttribute("title", "Continue Work on Test Task");
+      const button = screen.getByText("Resume Agent").closest("button");
+      expect(button).toHaveAttribute("title", "Resume Agent on Test Task");
     });
   });
 

@@ -1,24 +1,24 @@
 import { useState, useRef, useEffect } from "react";
 
 // Inline SVG icons
-const PlayIcon = ({ className }: { className?: string }) => (
+const RobotIcon = ({ className }: { className?: string }) => (
   <svg
     className={className}
     fill="none"
     viewBox="0 0 24 24"
     stroke="currentColor"
-    strokeWidth={2}
+    strokeWidth={1.5}
   >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-    />
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-    />
+    {/* Robot head */}
+    <rect x="4" y="8" width="16" height="12" rx="2" />
+    {/* Antenna */}
+    <path strokeLinecap="round" d="M12 8V5" />
+    <circle cx="12" cy="4" r="1" fill="currentColor" />
+    {/* Eyes */}
+    <circle cx="9" cy="13" r="1.5" fill="currentColor" />
+    <circle cx="15" cy="13" r="1.5" fill="currentColor" />
+    {/* Mouth */}
+    <path strokeLinecap="round" d="M9 17h6" />
   </svg>
 );
 
@@ -93,7 +93,7 @@ export function AIActionButton({
   const sizeClasses =
     size === "sm" ? "px-3 py-1.5 text-sm gap-1.5" : "px-4 py-2 text-sm gap-2";
 
-  const buttonLabel = hasExistingSession ? "Continue Work" : "Start Work";
+  const buttonLabel = hasExistingSession ? "Resume Agent" : "Launch Agent";
 
   return (
     <div className={`relative inline-flex ${className}`} ref={dropdownRef}>
@@ -116,7 +116,7 @@ export function AIActionButton({
           </span>
         )}
 
-        <PlayIcon className={size === "sm" ? "w-3.5 h-3.5" : "w-4 h-4"} />
+        <RobotIcon className={size === "sm" ? "w-4 h-4" : "w-5 h-5"} />
         <span>{buttonLabel}</span>
       </button>
 
@@ -146,8 +146,8 @@ export function AIActionButton({
             }}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors"
           >
-            <PlayIcon className="w-4 h-4" />
-            Start New Session
+            <RobotIcon className="w-4 h-4" />
+            Launch New Agent
           </button>
           <button
             onClick={() => {
@@ -169,7 +169,7 @@ export function AIActionButton({
                 d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
               />
             </svg>
-            Continue Existing Session
+            Resume Existing Agent
           </button>
         </div>
       )}
