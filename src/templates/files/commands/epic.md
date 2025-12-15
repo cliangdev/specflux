@@ -8,10 +8,12 @@ Transform a PRD into actionable epics and tasks ready for AI implementation.
 
 The terminal session provides context via environment variables:
 - `SPECFLUX_PROJECT_REF` - Project reference for API calls (e.g., "SPEC")
-- `SPECFLUX_CONTEXT_TYPE` - Current context type (e.g., "prd-workshop")
-- `SPECFLUX_CONTEXT_REF` - Context reference for API calls (e.g., "SPEC-P1")
+- `SPECFLUX_CONTEXT_TYPE` - Current context type (e.g., "prd" or "prd-workshop")
+- `SPECFLUX_CONTEXT_ID` - PRD ID (e.g., "prd_abc123")
+- `SPECFLUX_CONTEXT_REF` - Display key (e.g., "SPEC-P1")
+- `SPECFLUX_CONTEXT_TITLE` - PRD title
 
-Use these to automatically determine which project/PRD you're working with.
+Use these to automatically determine which project/PRD you're working with. When `SPECFLUX_CONTEXT_TYPE` is "prd" and `SPECFLUX_CONTEXT_ID` is set, you already know which PRD to work with.
 
 ## Process
 
@@ -20,10 +22,12 @@ Use these to automatically determine which project/PRD you're working with.
 1. **Get context from environment**, then fetch PRD:
    ```
    # projectRef from $SPECFLUX_PROJECT_REF
-   # prdRef from $SPECFLUX_CONTEXT_REF (if context type is prd-workshop)
+   # prdRef from $SPECFLUX_CONTEXT_ID (when context type is "prd" or "prd-workshop")
    GET /api/projects/{projectRef}/prds/{prdRef}
    GET /api/projects/{projectRef}/prds/{prdRef}/documents
    ```
+
+   The PRD is: **$SPECFLUX_CONTEXT_TITLE** ($SPECFLUX_CONTEXT_REF)
 
 2. **Read all documents** - primary PRD and supporting files (wireframes, mockups)
 
@@ -69,7 +73,7 @@ POST /api/projects/{projectRef}/epics/{epicRef}/dependencies
 ```
 
 **Note**: The `prdRef` can be the PRD's displayKey (e.g., "SPEC-P1") or internal ID (e.g., "prd_xxx"). Get it from:
-- Environment: `$SPECFLUX_CONTEXT_REF` when context type is "prd-workshop"
+- Environment: `$SPECFLUX_CONTEXT_ID` when context type is "prd" or "prd-workshop"
 - API response when fetching the PRD
 
 ### Phase 4: Create Tasks

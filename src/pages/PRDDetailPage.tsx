@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { join } from "@tauri-apps/api/path";
+import { ask } from "@tauri-apps/plugin-dialog";
 import DocumentViewer from "../components/ui/DocumentViewer";
 import { DetailPageHeader } from "../components/ui/DetailPageHeader";
 import { AIActionButton } from "../components/ui/AIActionButton";
 import { EpicsSection } from "../components/prd/EpicsSection";
+import { GettingStartedBanner } from "../components/prds/GettingStartedBanner";
 import { useProject } from "../contexts/ProjectContext";
 import { usePageContext } from "../hooks/usePageContext";
 import { useTerminal } from "../contexts/TerminalContext";
@@ -117,14 +119,26 @@ function getDocumentTypeIcon(type: PrdDocumentType): JSX.Element {
 export default function PRDDetailPage() {
   const { prdName } = useParams<{ prdName: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentProject, getProjectRef } = useProject();
 
   const prdRef = prdName ? decodeURIComponent(prdName) : "";
+
+  // Check if we should show getting started banner (from navigation state)
+  const locationState = location.state as {
+    showGettingStarted?: boolean;
+    hasDocument?: boolean;
+  } | null;
 
   const [prd, setPrd] = useState<Prd | null>(null);
   const [selectedDoc, setSelectedDoc] = useState<PrdDocument | null>(null);
   const [epics, setEpics] = useState<Epic[]>([]);
   const [epicsLoading, setEpicsLoading] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(() => {
+    // Check if user dismissed the banner for this PRD
+    const dismissed = localStorage.getItem(`prd-banner-dismissed-${prdRef}`);
+    return dismissed === "true";
+  });
 
   // Terminal context for AI actions
   const { openTerminalForContext, getExistingSession, switchToSession, activeSession, isRunning } = useTerminal();
@@ -256,7 +270,12 @@ export default function PRDDetailPage() {
     const projectRef = getProjectRef();
     if (!projectRef || !prd) return;
 
-    if (!confirm(`Delete PRD "${prd.title}"? This cannot be undone.`)) return;
+    const confirmed = await ask(`Delete PRD "${prd.title}"? This cannot be undone.`, {
+      title: "Delete PRD",
+      kind: "warning",
+    });
+
+    if (!confirmed) return;
 
     try {
       await api.prds.deletePrd({ projectRef, prdRef: prd.id });
@@ -305,11 +324,19 @@ export default function PRDDetailPage() {
 
     // Don't allow deleting the primary document
     if (doc.isPrimary) {
-      alert("Cannot delete the primary document. Set another document as primary first.");
+      await ask("Cannot delete the primary document. Set another document as primary first.", {
+        title: "Cannot Delete",
+        kind: "error",
+      });
       return;
     }
 
-    if (!confirm(`Remove "${doc.fileName}" from this PRD?`)) return;
+    const confirmed = await ask(`Remove "${doc.fileName}" from this PRD?`, {
+      title: "Remove Document",
+      kind: "warning",
+    });
+
+    if (!confirmed) return;
 
     try {
       await api.prds.deletePrdDocument({
@@ -369,6 +396,63 @@ export default function PRDDetailPage() {
         switchToSession(existing.id);
       }
     }
+  };
+
+  // Getting Started banner handlers
+  const handleDraftWithClaude = () => {
+    if (prd) {
+      openTerminalForContext({
+        type: "prd" as const,
+        id: prd.id,
+        title: prd.title,
+        displayKey: prd.displayKey,
+        projectRef: getProjectRef() ?? undefined,
+        workingDirectory: currentProject?.localPath,
+        initialCommand: `claude "/prd draft"`,
+      });
+    }
+  };
+
+  const handleRefineWithClaude = () => {
+    if (prd) {
+      openTerminalForContext({
+        type: "prd" as const,
+        id: prd.id,
+        title: prd.title,
+        displayKey: prd.displayKey,
+        projectRef: getProjectRef() ?? undefined,
+        workingDirectory: currentProject?.localPath,
+        initialCommand: `claude "/prd refine"`,
+      });
+    }
+  };
+
+  const handleCreateEpicsFromBanner = () => {
+    if (prd) {
+      openTerminalForContext({
+        type: "prd" as const,
+        id: prd.id,
+        title: prd.title,
+        displayKey: prd.displayKey,
+        projectRef: getProjectRef() ?? undefined,
+        workingDirectory: currentProject?.localPath,
+        initialCommand: `claude "/epic"`,
+      });
+    }
+  };
+
+  const handleAddDocsFromBanner = () => {
+    setShowAddDocModal(true);
+  };
+
+  const handleDismissGettingStarted = () => {
+    setBannerDismissed(true);
+    // Persist dismissal in localStorage
+    if (prd) {
+      localStorage.setItem(`prd-banner-dismissed-${prd.id}`, "true");
+    }
+    // Clear the navigation state
+    window.history.replaceState({}, document.title);
   };
 
   // Check if terminal has existing session for this PRD
@@ -486,6 +570,23 @@ export default function PRDDetailPage() {
         ]}
         isLoading={loading}
       />
+
+      {/* Getting Started Banner - show if not dismissed AND (from create modal OR no documents) */}
+      {!bannerDismissed &&
+        prd &&
+        (locationState?.showGettingStarted || (prd.documents?.length ?? 0) === 0) && (
+          <div className="px-6 pt-4">
+            <GettingStartedBanner
+              prdId={prd.id}
+              hasDocument={(prd.documents?.length ?? 0) > 0}
+              onDraftWithClaude={handleDraftWithClaude}
+              onRefineWithClaude={handleRefineWithClaude}
+              onCreateEpics={handleCreateEpicsFromBanner}
+              onAddDocs={handleAddDocsFromBanner}
+              onDismiss={handleDismissGettingStarted}
+            />
+          </div>
+        )}
 
       {/* Content */}
       <div className="flex-1 flex overflow-hidden">
