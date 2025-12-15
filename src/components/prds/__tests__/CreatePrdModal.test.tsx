@@ -216,6 +216,8 @@ describe("CreatePrdModal", () => {
       folderPath: ".specflux/prds/test-prd",
       status: "DRAFT",
       documentCount: 0,
+      projectId: "proj_123",
+      createdById: "user_123",
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -251,6 +253,8 @@ describe("CreatePrdModal", () => {
       folderPath: ".specflux/prds/imported-prd",
       status: "DRAFT",
       documentCount: 0,
+      projectId: "proj_123",
+      createdById: "user_123",
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -316,6 +320,8 @@ describe("CreatePrdModal", () => {
       folderPath: ".specflux/prds/test-prd",
       status: "DRAFT",
       documentCount: 0,
+      projectId: "proj_123",
+      createdById: "user_123",
       createdAt: new Date(),
       updatedAt: new Date(),
     });
