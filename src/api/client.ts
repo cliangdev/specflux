@@ -8,6 +8,7 @@
 import {
   Configuration,
   AgentsApi,
+  ApiKeysApi,
   EpicsApi,
   McpServersApi,
   PRDsApi,
@@ -63,6 +64,7 @@ const config = new Configuration({
  */
 export const api = {
   agents: new AgentsApi(config),
+  apiKeys: new ApiKeysApi(config),
   epics: new EpicsApi(config),
   mcpServers: new McpServersApi(config),
   prds: new PRDsApi(config),
@@ -78,6 +80,7 @@ export const api = {
 export {
   Configuration,
   AgentsApi,
+  ApiKeysApi,
   EpicsApi,
   McpServersApi,
   PRDsApi,

@@ -77,6 +77,10 @@ tags:
     description: |
       MCP Server management endpoints.
       MCP servers are Model Context Protocol servers configured in .claude/.mcp.json.
+  - name: ApiKeys
+    description: |
+      API Key management endpoints.
+      API keys provide secure programmatic access to the SpecFlux API without Firebase authentication.
 
 paths:
   # ==================== PROJECTS ====================
@@ -1353,6 +1357,87 @@ paths:
                 $ref: '#/components/schemas/User'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== API KEYS ====================
+  /api/users/me/api-keys:
+    get:
+      operationId: listApiKeys
+      summary: List user's API keys
+      description: |
+        Returns all API keys for the authenticated user.
+        Note: Only metadata is returned - the full key is never shown after creation.
+      tags: [ApiKeys]
+      responses:
+        '200':
+          description: List of API keys
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApiKey'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      operationId: createApiKey
+      summary: Create a new API key
+      description: |
+        Creates a new API key for the authenticated user.
+
+        **IMPORTANT**: The full API key is only returned in this response.
+        It cannot be retrieved again - the user must save it immediately.
+
+        MVP Limitation: Users can only have one active API key at a time.
+        Attempting to create a second key returns 409 Conflict.
+      tags: [ApiKeys]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApiKeyRequest'
+      responses:
+        '201':
+          description: API key created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeyCreated'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/users/me/api-keys/{keyId}:
+    parameters:
+      - name: keyId
+        in: path
+        required: true
+        description: API key public ID (key_xxx)
+        schema:
+          type: string
+
+    delete:
+      operationId: revokeApiKey
+      summary: Revoke an API key
+      description: |
+        Immediately revokes an API key. The key will no longer be valid for authentication.
+        This action cannot be undone.
+      tags: [ApiKeys]
+      responses:
+        '204':
+          description: API key revoked successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: API key does not belong to the authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -2832,6 +2917,97 @@ components:
           nullable: true
           maxLength: 500
           description: New avatar URL (null to remove)
+
+    # ==================== API KEY SCHEMAS ====================
+    ApiKey:
+      type: object
+      description: API key metadata (without the secret key)
+      required: [id, keyPrefix, createdAt]
+      properties:
+        id:
+          type: string
+          description: Unique API key identifier (e.g., key_abc123def456)
+          example: key_abc123def456
+        name:
+          type: string
+          nullable: true
+          description: Optional display name for the key
+          example: Claude Code CLI
+        keyPrefix:
+          type: string
+          description: Masked key prefix for identification (e.g., sfx_a1B2****)
+          example: sfx_a1B2****
+        createdAt:
+          type: string
+          format: date-time
+          description: When the API key was created
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the API key expires (null = never)
+        lastUsedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the API key was last used for authentication
+        isExpired:
+          type: boolean
+          description: Whether the key has passed its expiration date
+        isRevoked:
+          type: boolean
+          description: Whether the key has been revoked
+
+    ApiKeyCreated:
+      type: object
+      description: |
+        API key creation response with the full key.
+        WARNING: The key field is only returned once at creation time.
+      required: [id, key, keyPrefix, createdAt]
+      properties:
+        id:
+          type: string
+          description: Unique API key identifier
+          example: key_abc123def456
+        key:
+          type: string
+          description: |
+            The full API key. ONLY returned at creation time.
+            Must be copied and stored securely - cannot be retrieved again.
+          example: sfx_a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8s9T0
+        name:
+          type: string
+          nullable: true
+          description: Optional display name for the key
+        keyPrefix:
+          type: string
+          description: Key prefix for identification
+          example: sfx_a1B2c3D4e5F6
+        createdAt:
+          type: string
+          format: date-time
+          description: When the API key was created
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the API key expires (null = never)
+
+    CreateApiKeyRequest:
+      type: object
+      description: Request to create a new API key
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          description: Optional display name for the key
+          example: Claude Code CLI
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the key should expire (null = never expires)
+          example: '2025-03-15T00:00:00Z'
 
     # Repository
     RepositoryStatus:
