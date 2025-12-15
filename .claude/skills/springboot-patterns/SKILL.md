@@ -1,15 +1,15 @@
 ---
 name: springboot-patterns
-description: Spring Boot and Java best practices for SpecFlux backend. Use when developing REST APIs, services, repositories, or any Java code. Applies DDD architecture, transaction management, and code style conventions.
+description: Spring Boot and Java best practices. Use when developing REST APIs, services, repositories, or any Java code. Applies DDD architecture, transaction management, and code style conventions.
 ---
 
-# Spring Boot Best Practices for SpecFlux Backend
+# Spring Boot Best Practices
 
 ## Project Structure (Domain-Driven Design)
 
 ```
-src/main/java/com/specflux/
-├── {domain}/                    # One package per domain (project, epic, task, user)
+src/main/java/com/example/
+├── {domain}/                    # One package per domain
 │   ├── domain/                  # Domain layer - entities and repository interfaces
 │   │   ├── {Entity}.java        # JPA entity
 │   │   └── {Entity}Repository.java  # Spring Data JPA repository interface
@@ -33,27 +33,25 @@ Only wrap the actual database operation in a transaction, not the entire method:
 
 ```java
 // Good - minimal transaction scope
-public EpicDto updateEpic(String projectRef, String epicRef, UpdateEpicRequestDto request) {
-    Project project = refResolver.resolveProject(projectRef);
-    Epic epic = refResolver.resolveEpic(project, epicRef);
+public EntityDto updateEntity(String ref, UpdateEntityRequestDto request) {
+    Entity entity = refResolver.resolve(ref);
 
     if (request.getTitle() != null) {
-        epic.setTitle(request.getTitle());
+        entity.setTitle(request.getTitle());
     }
     // ... other field updates
 
-    Epic saved = transactionTemplate.execute(status -> epicRepository.save(epic));
-    return epicMapper.toDto(saved);
+    Entity saved = transactionTemplate.execute(status -> entityRepository.save(entity));
+    return entityMapper.toDto(saved);
 }
 
 // Bad - entire method in transaction
-public EpicDto updateEpic(String projectRef, String epicRef, UpdateEpicRequestDto request) {
+public EntityDto updateEntity(String ref, UpdateEntityRequestDto request) {
     return transactionTemplate.execute(status -> {
-        Project project = refResolver.resolveProject(projectRef);  // Read doesn't need transaction
-        Epic epic = refResolver.resolveEpic(project, epicRef);
+        Entity entity = refResolver.resolve(ref);  // Read doesn't need transaction
         // ... field updates don't need transaction
-        Epic saved = epicRepository.save(epic);  // Only this needs transaction
-        return epicMapper.toDto(saved);
+        Entity saved = entityRepository.save(entity);  // Only this needs transaction
+        return entityMapper.toDto(saved);
     });
 }
 ```
@@ -64,14 +62,13 @@ Prefer `TransactionTemplate` over `@Transactional` annotation for explicit contr
 ```java
 @Service
 @RequiredArgsConstructor
-public class TaskApplicationService {
+public class EntityApplicationService {
     private final TransactionTemplate transactionTemplate;
-    private final TaskRepository taskRepository;
+    private final EntityRepository entityRepository;
 
-    public void deleteTask(String projectRef, String taskRef) {
-        Project project = refResolver.resolveProject(projectRef);
-        Task task = refResolver.resolveTask(project, taskRef);
-        transactionTemplate.executeWithoutResult(status -> taskRepository.delete(task));
+    public void deleteEntity(String ref) {
+        Entity entity = refResolver.resolve(ref);
+        transactionTemplate.executeWithoutResult(status -> entityRepository.delete(entity));
     }
 }
 ```
@@ -81,12 +78,11 @@ Keep full transaction scope when operations must be atomic:
 
 ```java
 // Create needs full transaction for sequence number atomicity
-public TaskDto createTask(String projectRef, CreateTaskRequestDto request) {
+public EntityDto createEntity(CreateEntityRequestDto request) {
     return transactionTemplate.execute(status -> {
-        Project project = refResolver.resolveProject(projectRef);
-        int sequenceNumber = getNextSequenceNumber(project);  // Read
-        Task task = new Task(..., sequenceNumber, ...);       // Must be atomic
-        return taskMapper.toDto(taskRepository.save(task));   // Write
+        int sequenceNumber = getNextSequenceNumber();  // Read
+        Entity entity = new Entity(..., sequenceNumber, ...);  // Must be atomic
+        return entityMapper.toDto(entityRepository.save(entity));  // Write
     });
 }
 ```
@@ -100,19 +96,19 @@ Never write constructors manually for Spring beans:
 // Good
 @Service
 @RequiredArgsConstructor
-public class TaskApplicationService {
-    private final TaskRepository taskRepository;
+public class EntityApplicationService {
+    private final EntityRepository entityRepository;
     private final RefResolver refResolver;
-    private final TaskMapper taskMapper;
+    private final EntityMapper entityMapper;
 }
 
 // Bad
 @Service
-public class TaskApplicationService {
-    private final TaskRepository taskRepository;
+public class EntityApplicationService {
+    private final EntityRepository entityRepository;
 
-    public TaskApplicationService(TaskRepository taskRepository) {
-        this.taskRepository = taskRepository;
+    public EntityApplicationService(EntityRepository entityRepository) {
+        this.entityRepository = entityRepository;
     }
 }
 ```
@@ -121,15 +117,15 @@ public class TaskApplicationService {
 
 ```java
 @Entity
-@Table(name = "tasks")
+@Table(name = "entities")
 @Getter
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)  // JPA requires no-arg constructor
-public class Task {
+public class Entity {
     // fields...
 
     // Required-args constructor for creating new instances
-    public Task(String publicId, Project project, int sequenceNumber, ...) {
+    public Entity(String publicId, int sequenceNumber, ...) {
         // initialization
     }
 }
@@ -140,19 +136,19 @@ public class Task {
 ### DTO Suffix Convention
 All generated model classes have `Dto` suffix to distinguish from domain entities:
 
-- Domain: `Epic`, `Project`, `Task`
-- DTOs: `EpicDto`, `ProjectDto`, `TaskDto`, `CreateTaskRequestDto`, `TaskStatusDto`
+- Domain: `Entity`, `Project`, `Task`
+- DTOs: `EntityDto`, `ProjectDto`, `TaskDto`, `CreateEntityRequestDto`
 
 ### Never Import with Wildcards
 Always use explicit imports:
 
 ```java
 // Good
-import com.specflux.api.generated.model.TaskDto;
-import com.specflux.api.generated.model.CreateTaskRequestDto;
+import com.example.api.generated.model.EntityDto;
+import com.example.api.generated.model.CreateEntityRequestDto;
 
 // Bad
-import com.specflux.api.generated.model.*;
+import com.example.api.generated.model.*;
 ```
 
 ### Controller Implementation
@@ -161,12 +157,12 @@ Controllers implement generated API interfaces:
 ```java
 @RestController
 @RequiredArgsConstructor
-public class TaskController implements TasksApi {
-    private final TaskApplicationService taskApplicationService;
+public class EntityController implements EntitiesApi {
+    private final EntityApplicationService entityApplicationService;
 
     @Override
-    public ResponseEntity<TaskDto> createTask(String projectRef, CreateTaskRequestDto request) {
-        TaskDto created = taskApplicationService.createTask(projectRef, request);
+    public ResponseEntity<EntityDto> createEntity(CreateEntityRequestDto request) {
+        EntityDto created = entityApplicationService.createEntity(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 }
@@ -178,10 +174,10 @@ Mappers convert between domain entities and DTOs:
 
 ```java
 @Component
-public class TaskMapper {
+public class EntityMapper {
 
-    public TaskDto toDto(Task domain) {
-        TaskDto dto = new TaskDto();
+    public EntityDto toDto(Entity domain) {
+        EntityDto dto = new EntityDto();
         dto.setPublicId(domain.getPublicId());
         dto.setTitle(domain.getTitle());
         dto.setStatus(toApiStatus(domain.getStatus()));
@@ -189,19 +185,19 @@ public class TaskMapper {
         return dto;
     }
 
-    public TaskStatus toDomainStatus(TaskStatusDto apiStatus) {
+    public EntityStatus toDomainStatus(EntityStatusDto apiStatus) {
         return switch (apiStatus) {
-            case BACKLOG -> TaskStatus.BACKLOG;
-            case IN_PROGRESS -> TaskStatus.IN_PROGRESS;
-            case DONE -> TaskStatus.DONE;
+            case ACTIVE -> EntityStatus.ACTIVE;
+            case INACTIVE -> EntityStatus.INACTIVE;
+            case ARCHIVED -> EntityStatus.ARCHIVED;
         };
     }
 
-    private TaskStatusDto toApiStatus(TaskStatus domainStatus) {
+    private EntityStatusDto toApiStatus(EntityStatus domainStatus) {
         return switch (domainStatus) {
-            case BACKLOG -> TaskStatusDto.BACKLOG;
-            case IN_PROGRESS -> TaskStatusDto.IN_PROGRESS;
-            case DONE -> TaskStatusDto.DONE;
+            case ACTIVE -> EntityStatusDto.ACTIVE;
+            case INACTIVE -> EntityStatusDto.INACTIVE;
+            case ARCHIVED -> EntityStatusDto.ARCHIVED;
         };
     }
 }
@@ -215,20 +211,20 @@ Use `RefResolver` for looking up entities by publicId or displayKey:
 @Component
 @RequiredArgsConstructor
 public class RefResolver {
-    private final ProjectRepository projectRepository;
+    private final EntityRepository entityRepository;
 
-    public Project resolveProject(String ref) {
-        return projectRepository.findByPublicId(ref)
-            .or(() -> projectRepository.findByProjectKey(ref))
-            .orElseThrow(() -> new EntityNotFoundException("Project", ref));
+    public Entity resolve(String ref) {
+        return entityRepository.findByPublicId(ref)
+            .or(() -> entityRepository.findByKey(ref))
+            .orElseThrow(() -> new EntityNotFoundException("Entity", ref));
     }
 
     // For optional references (can be null or empty string to clear)
-    public Epic resolveEpicOptional(Project project, String ref) {
+    public Entity resolveOptional(String ref) {
         if (ref == null || ref.isBlank()) {
             return null;
         }
-        return resolveEpic(project, ref);
+        return resolve(ref);
     }
 }
 ```
@@ -290,9 +286,9 @@ public class GlobalExceptionHandler {
 ```java
 @AutoConfigureMockMvc
 @Transactional
-class TaskControllerTest extends AbstractIntegrationTest {
+class EntityControllerTest extends AbstractIntegrationTest {
 
-    private static final String SCHEMA_NAME = "task_controller_test";
+    private static final String SCHEMA_NAME = "entity_controller_test";
 
     @DynamicPropertySource
     static void configureSchema(DynamicPropertyRegistry registry) {
@@ -310,15 +306,15 @@ class TaskControllerTest extends AbstractIntegrationTest {
 
     @Test
     @WithMockUser(username = "user")
-    void createTask_shouldReturnCreatedTask() throws Exception {
-        CreateTaskRequestDto request = new CreateTaskRequestDto();
-        request.setTitle("Test Task");
+    void createEntity_shouldReturnCreatedEntity() throws Exception {
+        CreateEntityRequestDto request = new CreateEntityRequestDto();
+        request.setTitle("Test Entity");
 
-        mockMvc.perform(post("/projects/{projectRef}/tasks", project.getPublicId())
+        mockMvc.perform(post("/entities")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.title").value("Test Task"));
+            .andExpect(jsonPath("$.title").value("Test Entity"));
     }
 }
 ```
@@ -338,20 +334,20 @@ Use modern switch expressions:
 
 ```java
 // Good
-private TaskStatusDto toApiStatus(TaskStatus status) {
+private EntityStatusDto toApiStatus(EntityStatus status) {
     return switch (status) {
-        case BACKLOG -> TaskStatusDto.BACKLOG;
-        case IN_PROGRESS -> TaskStatusDto.IN_PROGRESS;
-        case DONE -> TaskStatusDto.DONE;
+        case ACTIVE -> EntityStatusDto.ACTIVE;
+        case INACTIVE -> EntityStatusDto.INACTIVE;
+        case ARCHIVED -> EntityStatusDto.ARCHIVED;
     };
 }
 
 // Bad
-private TaskStatusDto toApiStatus(TaskStatus status) {
+private EntityStatusDto toApiStatus(EntityStatus status) {
     switch (status) {
-        case BACKLOG: return TaskStatusDto.BACKLOG;
-        case IN_PROGRESS: return TaskStatusDto.IN_PROGRESS;
-        case DONE: return TaskStatusDto.DONE;
+        case ACTIVE: return EntityStatusDto.ACTIVE;
+        case INACTIVE: return EntityStatusDto.INACTIVE;
+        case ARCHIVED: return EntityStatusDto.ARCHIVED;
         default: throw new IllegalArgumentException();
     }
 }
