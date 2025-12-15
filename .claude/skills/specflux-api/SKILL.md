@@ -48,15 +48,26 @@ PUT /api/projects/{projectRef}/prds/{prdRef}
 
 ### Create Epic with Tasks
 
+**IMPORTANT**: When creating epics from a PRD, always include `prdRef` to link the epic back to its source PRD. This maintains traceability from requirements to implementation.
+
 ```bash
-# 1. Create epic (linked to PRD)
+# 1. Create epic (linked to PRD) - prdRef and acceptanceCriteria are REQUIRED
 POST /api/projects/{projectRef}/epics
-{"title": "User Authentication", "description": "...", "prdRef": "PROJ-P1"}
+{
+  "title": "User Authentication",
+  "description": "...",
+  "prdRef": "PROJ-P1",           // REQUIRED - links epic to source PRD
+  "releaseRef": "rel_xxx",       // Optional - assigns to a release
+  "acceptanceCriteria": [        // REQUIRED - array of criteria objects
+    {"criteria": "Users can sign up with email/password"},
+    {"criteria": "Users can log in with existing credentials"}
+  ]
+}
 # Returns: {"id": "epic_xxx", "displayKey": "PROJ-E1", "prdId": "prd_xxx", ...}
 
-# 2. Add acceptance criteria
+# 2. Add more acceptance criteria (optional)
 POST /api/projects/{projectRef}/epics/{epicRef}/acceptance-criteria
-{"criteria": "Users can sign up with email/password"}
+{"criteria": "Password reset via email works"}
 
 # 3. Create tasks
 POST /api/projects/{projectRef}/tasks
@@ -71,6 +82,10 @@ POST /api/projects/{projectRef}/tasks/{taskRef}/acceptance-criteria
 POST /api/projects/{projectRef}/tasks/{taskRef}/dependencies
 {"dependsOnTaskRef": "PROJ-41"}
 ```
+
+**Important:** When creating an epic:
+- `prdRef` is required to link the epic to its source PRD (use display key like `PROJ-P1` or internal ID)
+- `acceptanceCriteria` is required - each item must be an object with a `criteria` property (NOT a plain string)
 
 ### Update Progress
 

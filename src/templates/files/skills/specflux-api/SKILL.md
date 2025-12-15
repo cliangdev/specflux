@@ -9,22 +9,19 @@ Create and manage SpecFlux entities via REST API at `http://localhost:8090/api`.
 
 ## Authentication
 
-Include Firebase JWT token in all requests:
-```
-Authorization: Bearer <firebase-id-token>
-```
-
-### Get Test Token (Local Development)
-
-For local development, get a token from the Firebase emulator:
+Use the `SPECFLUX_API_KEY` environment variable for authentication:
 ```bash
-curl -s 'http://localhost:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake-api-key' \
-  -H 'Content-Type: application/json' \
-  -d '{"email": "dev@specflux.local", "password": "devpass123", "returnSecureToken": true}' \
-  | jq -r '.idToken'
+curl -H "Authorization: Bearer $SPECFLUX_API_KEY" http://localhost:8090/api/...
 ```
 
-Use the returned `idToken` as the Bearer token for API calls.
+### Setup
+
+If `SPECFLUX_API_KEY` is not set, add it to your shell profile (`~/.zshrc` or `~/.bashrc`):
+```bash
+export SPECFLUX_API_KEY="sfx_your_api_key_here"
+```
+
+Generate an API key from SpecFlux Settings > API Keys.
 
 ## Core Workflows
 
