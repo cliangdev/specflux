@@ -1,159 +1,323 @@
-# /implement - Implement an Epic
+# /implement - Implement Features
 
-Implement an epic directly, working through acceptance criteria.
+Implement a release, PRD, epic, or task based on the current context.
 
 **Skill**: Use `specflux-api` skill for API reference.
+
+## Context from Environment
+
+The terminal session provides context via environment variables:
+- `SPECFLUX_PROJECT_REF` - Project reference for API calls (e.g., "SPEC")
+- `SPECFLUX_CONTEXT_TYPE` - Current context type: `release`, `prd`, `prd-workshop`, `epic`, or `task`
+- `SPECFLUX_CONTEXT_REF` - Context reference for API calls (e.g., "SPEC-E1", "SPEC-P1", "SPEC-42")
+
+Use these to automatically determine what you're implementing.
 
 ## Usage
 
 ```
-/implement <epic-ref>
+/implement [ref]
 ```
 
-Epic ref can be display key (PROJ-E1), public ID (epic_xxx), or epic title.
+- Without argument: Uses current context from environment
+- With argument: Implements specific ref (epic key, task key, PRD key, or release key)
 
-## Process
+## Phase 1: Understand Context
 
-1. **Fetch Epic Context via API**
+### 1.1 Detect Implementation Scope
+
+Based on `SPECFLUX_CONTEXT_TYPE` or provided ref:
+
+| Context Type | Implementation Scope |
+|--------------|---------------------|
+| `release` | All epics in the release |
+| `prd` / `prd-workshop` | All epics linked to the PRD |
+| `epic` | The epic and its tasks |
+| `task` | Single task only |
+
+### 1.2 Fetch Full Context via API
+
+**For Release:**
+```bash
+GET /api/projects/{projectRef}/releases/{releaseRef}
+GET /api/projects/{projectRef}/epics?releaseRef={releaseRef}
+```
+
+**For PRD:**
+```bash
+GET /api/projects/{projectRef}/prds/{prdRef}
+GET /api/projects/{projectRef}/prds/{prdRef}/documents
+GET /api/projects/{projectRef}/epics?prdRef={prdRef}
+```
+
+**For Epic:**
+```bash
+GET /api/projects/{projectRef}/epics/{epicRef}
+GET /api/projects/{projectRef}/epics/{epicRef}/acceptance-criteria
+GET /api/projects/{projectRef}/tasks?epicRef={epicRef}
+# If epic has prdId, also fetch PRD documents
+GET /api/projects/{projectRef}/prds/{prdRef}/documents
+```
+
+**For Task:**
+```bash
+GET /api/projects/{projectRef}/tasks/{taskRef}
+GET /api/projects/{projectRef}/tasks/{taskRef}/acceptance-criteria
+# Get parent epic context
+GET /api/projects/{projectRef}/epics/{epicRef}
+```
+
+### 1.3 Read All Documents
+
+**IMPORTANT**: Before any implementation, read ALL associated documents:
+
+1. **PRD documents** - Primary requirements document
+2. **Wireframes** - UI structure and layout
+3. **Mockups** - Visual design references
+4. **Design docs** - Technical specifications
+
+```bash
+# Get document list
+GET /api/projects/{projectRef}/prds/{prdRef}/documents
+
+# Read each document file from the local path
+# Documents are stored at: {project.localPath}/{document.filePath}
+```
+
+### 1.4 Understand Current State
+
+Check what's already implemented:
+- Review existing code related to the feature
+- Check task/epic statuses to understand progress
+- Identify completed vs pending acceptance criteria
+
+```bash
+GET /api/projects/{projectRef}/tasks?epicRef={epicRef}
+GET /api/projects/{projectRef}/epics/{epicRef}/acceptance-criteria
+GET /api/projects/{projectRef}/tasks/{taskRef}/acceptance-criteria
+```
+
+## Phase 2: Plan Implementation
+
+### 2.1 Create Implementation Plan
+
+Based on gathered context:
+1. List all tasks in dependency order
+2. Identify critical components needing tests
+3. Map acceptance criteria to implementation steps
+4. Note any blockers or dependencies
+
+### 2.2 Update Status to IN_PROGRESS
+
+```bash
+# For epic
+PUT /api/projects/{projectRef}/epics/{epicRef}
+{"status": "IN_PROGRESS"}
+
+# For PRD (if implementing full PRD)
+PUT /api/projects/{projectRef}/prds/{prdRef}
+{"status": "IN_REVIEW"}
+```
+
+## Phase 3: Implement Tasks
+
+Work through tasks in dependency order. **Each task = one git commit.**
+
+### 3.1 For Each Task
+
+```bash
+# 1. Update task status
+PATCH /api/projects/{projectRef}/tasks/{taskRef}
+{"status": "IN_PROGRESS"}
+```
+
+### 3.2 Implement with Tests
+
+1. **Read task acceptance criteria**
+   ```bash
+   GET /api/projects/{projectRef}/tasks/{taskRef}/acceptance-criteria
    ```
-   GET /api/projects/{projectRef}/epics/{epicRef}
-   GET /api/projects/{projectRef}/epics/{epicRef}/acceptance-criteria
-   GET /api/projects/{projectRef}/tasks?epicRef={epicRef}
-   ```
 
-2. **Get PRD Reference** (if epic is linked to a PRD)
-   - Fetch PRD documents to understand the original requirements
-   - Note any wireframes, specifications, or acceptance criteria in the PRD
-   - **These are the source of truth for verification**
+2. **Implement the feature**
+   - Write clean, well-structured code
+   - Follow project conventions and patterns
+   - Reference PRD/wireframes for requirements
 
-3. **Update Epic Status**
-   ```
-   PUT /api/projects/{projectRef}/epics/{epicRef}
-   {"status": "IN_PROGRESS"}
-   ```
+3. **Add tests for critical components**
+   - Unit tests for business logic
+   - Integration tests for API endpoints
+   - Component tests for UI elements
+   - Test edge cases mentioned in acceptance criteria
 
-4. **If Epic Has Tasks**: Work through tasks in dependency order
-   - Use `/task <taskRef>` for each task
-   - Or implement directly and update task status via API
-   - **CRITICAL**: Each task must pass verification before marking complete (see Step 5)
+4. **Verify acceptance criteria are covered**
+   - Run tests to confirm functionality
+   - Manually verify if needed
+   - Check each criterion is satisfied
 
-5. **If Epic Has No Tasks**: Work through acceptance criteria directly
-   - For each criterion:
-     - Plan the implementation approach
-     - Implement the requirement
-     - Write tests to verify
-     - **Verify criterion is actually met** (see Verification section)
-     - Mark complete via API:
-       ```
-       PUT /api/projects/{projectRef}/epics/{epicRef}/acceptance-criteria/{id}
-       {"isMet": true}
-       ```
+### 3.3 Mark Criteria and Commit
 
-6. **Verify Before Completion (CRITICAL)**
+```bash
+# Mark each criterion as met
+PUT /api/projects/{projectRef}/tasks/{taskRef}/acceptance-criteria/{id}
+{"isMet": true}
 
-   **Do NOT mark epic as COMPLETED until ALL of the following are verified:**
+# Update task status
+PATCH /api/projects/{projectRef}/tasks/{taskRef}
+{"status": "COMPLETED"}
+```
 
-   a. **All acceptance criteria verified**:
-      - Re-read each acceptance criterion
-      - Verify the implementation actually satisfies it (not just "related to it")
-      - For UI criteria: visually confirm the element exists and behaves correctly
-      - For API criteria: confirm endpoint/response matches spec
+**Git commit for the task:**
+```bash
+git add .
+git commit -m "feat(PROJ-42): <task title>
 
-   b. **PRD requirements verified** (if linked to PRD):
-      - Re-read PRD wireframes/specifications
-      - Check every element in wireframe is implemented
-      - Reference PRD line numbers if available
+- <bullet points of what was implemented>
+- <tests added>
 
-   c. **Present verification checklist to user**:
-      ```
-      ## Verification Checklist
+Acceptance Criteria:
+- [x] <criterion 1>
+- [x] <criterion 2>
 
-      ### Epic Acceptance Criteria
-      - [x] AC1: Users can sign up with email → Verified: SignupForm.tsx, tested
-      - [x] AC2: Password min 8 chars → Verified: validation in auth.ts:45
+🤖 Generated with Claude Code
 
-      ### PRD Requirements (lines 45-80)
-      - [x] Registration form with email field → SignupForm.tsx:23
-      - [x] Password strength indicator → PasswordStrength.tsx
-      - [ ] Social login buttons → NOT IMPLEMENTED (out of scope?)
+Co-Authored-By: Claude <noreply@anthropic.com>"
+```
 
-      ### Gaps Found
-      - Social login buttons shown in PRD wireframe but not implemented
+### 3.4 Repeat for All Tasks
 
-      Proceed with marking epic complete? (y/n)
-      ```
+Continue until all tasks in the epic are complete.
 
-   d. **Get user confirmation** before marking complete
+## Phase 4: Verify Epic Completion
 
-7. **On Completion** (only after verification passes)
-   ```
-   PUT /api/projects/{projectRef}/epics/{epicRef}
-   {"status": "COMPLETED"}
-   ```
-   - Suggest creating a PR for review
+### 4.1 Verify ALL Acceptance Criteria
+
+```bash
+# Get epic-level criteria
+GET /api/projects/{projectRef}/epics/{epicRef}/acceptance-criteria
+
+# Get all task criteria
+GET /api/projects/{projectRef}/tasks?epicRef={epicRef}
+# For each task:
+GET /api/projects/{projectRef}/tasks/{taskRef}/acceptance-criteria
+```
+
+**Checklist:**
+- [ ] All task acceptance criteria are met
+- [ ] All epic acceptance criteria are met
+- [ ] Tests pass for all critical components
+- [ ] Code follows project standards
+- [ ] No regressions introduced
+
+### 4.2 Mark Epic Complete
+
+```bash
+# Mark epic acceptance criteria
+PUT /api/projects/{projectRef}/epics/{epicRef}/acceptance-criteria/{id}
+{"isMet": true}
+
+# Update epic status
+PUT /api/projects/{projectRef}/epics/{epicRef}
+{"status": "COMPLETED"}
+```
+
+### 4.3 Update PRD Status (if applicable)
+
+If all epics for a PRD are complete:
+```bash
+PUT /api/projects/{projectRef}/prds/{prdRef}
+{"status": "APPROVED"}
+```
+
+## Phase 5: Finalize
+
+1. **Run full test suite** to ensure no regressions
+2. **Create PR** with summary of all changes
+3. **Update release** status if applicable
 
 ## Recommended Skills
 
-Depending on the epic type, activate relevant skills:
-- **Backend work**: `api-design`, `typescript-patterns`, `database-migrations`
-- **Frontend work**: `ui-patterns`, `typescript-patterns`
+Activate relevant skills based on implementation type:
+- **Backend**: `springboot-patterns`, `api-design`, `database-migrations`
+- **Frontend**: `ui-patterns`, `typescript-patterns`, `tauri-dev`
 - **Full-stack**: All relevant skills
 
 ## Example Session
 
 ```
-> /implement authentication
+> /implement SPEC-E5
 
-Fetching epic "Authentication" from API...
+📋 Fetching context for epic SPEC-E5...
 
-**Epic: Authentication** (PROJ-E1)
+**Epic: User Profile Settings** (SPEC-E5)
 Status: PLANNING
-PRD: User Management PRD (PRD-001)
+PRD: SPEC-P2 (User Management)
 
-**Acceptance Criteria:**
-- [ ] Users can sign up with email/password
-- [ ] Users can log in with credentials
-- [ ] Password reset via email
-- [ ] JWT tokens for session management
+📄 Reading PRD documents...
+- prd.md (primary)
+- profile-wireframe.png
+- settings-mockup.png
 
-**Tasks:**
-- PROJ-42: Database schema for users [BACKLOG]
-- PROJ-43: Signup API endpoint [BACKLOG]
-- PROJ-44: Login API endpoint [BACKLOG]
+📊 Current Progress:
+- Epic criteria: 0/4 met
+- Tasks: 3 total (0 completed)
 
-Fetching PRD documents for verification reference...
-PRD wireframe shows: signup form, login form, password reset flow (lines 45-120)
+**Tasks (dependency order):**
+1. SPEC-55: Profile data model [BACKLOG]
+2. SPEC-56: Profile API endpoints [BACKLOG] (depends on SPEC-55)
+3. SPEC-57: Profile settings UI [BACKLOG] (depends on SPEC-56)
+
+🚀 Starting implementation...
 
 Updating epic status to IN_PROGRESS...
 
-This epic has 3 tasks. I'll work through them in order.
+═══════════════════════════════════════
+📦 Task SPEC-55: Profile data model
+═══════════════════════════════════════
 
-Starting with PROJ-42: Database schema for users...
+Updating task status to IN_PROGRESS...
 
-[Implementation proceeds via /task PROJ-42]
-[Each task verified against its acceptance criteria before marking complete]
+**Acceptance Criteria:**
+- [ ] User profile table with avatar_url, bio, preferences
+- [ ] Migration script with rollback support
+- [ ] Repository with CRUD operations
 
-All tasks implemented. Running verification...
+[Implementation...]
+[Adding tests...]
+[Verifying criteria...]
 
-## Verification Checklist
+✅ All criteria verified. Creating commit...
 
-### Epic Acceptance Criteria
-- [x] AC1: Users can sign up with email/password → SignupForm.tsx + POST /auth/register
-- [x] AC2: Users can log in with credentials → LoginForm.tsx + POST /auth/login
-- [x] AC3: Password reset via email → ResetPassword.tsx + POST /auth/reset
-- [x] AC4: JWT tokens for session management → auth.service.ts:78
+git commit -m "feat(SPEC-55): Profile data model
 
-### PRD Requirements (lines 45-120)
-- [x] Signup form with email/password fields → SignupForm.tsx:15-45
-- [x] Login form with remember me checkbox → LoginForm.tsx:20-50
-- [x] Password reset email flow → ResetPassword.tsx, email.service.ts
-- [x] Error messages for invalid credentials → auth.service.ts:90-110
+- Add user_profiles table migration
+- Create ProfileRepository with CRUD operations
+- Add unit tests for repository
 
-### Gaps Found
-None - all PRD requirements covered.
+Acceptance Criteria:
+- [x] User profile table with avatar_url, bio, preferences
+- [x] Migration script with rollback support
+- [x] Repository with CRUD operations"
 
-All criteria verified. Proceed with marking epic complete? → yes
+Marking criteria as met via API...
+Updating task status to COMPLETED...
+
+═══════════════════════════════════════
+📦 Task SPEC-56: Profile API endpoints
+═══════════════════════════════════════
+
+[...continues for each task...]
+
+═══════════════════════════════════════
+✅ Epic SPEC-E5 Complete!
+═══════════════════════════════════════
+
+**Verification:**
+- [x] All 3 tasks completed
+- [x] All task criteria met (9/9)
+- [x] All epic criteria met (4/4)
+- [x] Tests passing
 
 Updating epic status to COMPLETED...
-Epic complete! Ready for review.
+
+Ready for PR creation!
 ```
