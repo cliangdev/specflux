@@ -2,6 +2,19 @@
 
 Complete endpoint documentation for the SpecFlux REST API.
 
+## Authentication
+
+All requests require the `SPECFLUX_API_KEY` environment variable:
+```bash
+curl -H "Authorization: Bearer $SPECFLUX_API_KEY" http://localhost:8090/api/...
+```
+
+If `SPECFLUX_API_KEY` is not set, add to `~/.zshrc` or `~/.bashrc`:
+```bash
+export SPECFLUX_API_KEY="sfx_your_api_key_here"
+```
+Generate an API key from SpecFlux Settings > API Keys.
+
 ## Table of Contents
 
 - [Projects](#projects)
