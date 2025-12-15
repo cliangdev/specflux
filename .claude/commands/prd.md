@@ -4,146 +4,189 @@ Help the user create or refine a product specification document.
 
 **Skill**: Use `specflux-api` skill for API reference.
 
+## Context from Environment
+
+The terminal session provides context via environment variables:
+- `SPECFLUX_PROJECT_REF` - Project reference for API calls (e.g., "SPEC")
+- `SPECFLUX_CONTEXT_TYPE` - Current context type (e.g., "prd" when on PRD detail page)
+- `SPECFLUX_CONTEXT_ID` - PRD ID if working with existing PRD (e.g., "prd_abc123")
+- `SPECFLUX_CONTEXT_REF` - Display key (e.g., "SPEC-P1")
+- `SPECFLUX_CONTEXT_TITLE` - PRD title
+
+Use these to automatically determine which project and PRD you're working with.
+
+## Arguments
+
+- `/prd` - Interactive mode: check context or ask what to do
+- `/prd draft` - Draft a new PRD (skip existing PRD check)
+- `/prd refine` - Refine the current PRD (requires PRD context)
+
 ## Process
 
-1. **Check for Existing PRDs**
+1. **Check Context First**
+   - If `SPECFLUX_CONTEXT_TYPE` is "prd" and `SPECFLUX_CONTEXT_ID` exists:
+     - You're working with a specific PRD: `$SPECFLUX_CONTEXT_TITLE` (`$SPECFLUX_CONTEXT_REF`)
+     - Fetch PRD details: GET /api/projects/{projectRef}/prds/{prdId}
+     - Read the PRD document from `{folderPath}/prd.md`
+     - If argument is "draft": Help draft/write the PRD content
+     - If argument is "refine": Help improve/expand the existing content
+     - Skip step 2 below
+
+2. **No PRD Context - Check for Existing PRDs** (only if no PRD context)
    - Fetch via API: GET /api/projects/{projectRef}/prds
    - If found: List them and ask "Want to refine an existing PRD or create a new one?"
    - If none: Start fresh with a new PRD
 
-2. **Interview** (ask one question at a time, conversationally):
+3. **Interview** (ask one question at a time, conversationally):
+   - What are you building? (if not already provided)
+   - What problem does it solve? Who has this problem?
+   - What's the simplest version that would be useful?
+   - List 3-5 core features for MVP
+   - Any technical constraints or preferences?
 
-   | Phase | Question |
-   |-------|----------|
-   | **Problem** | "What are you building? What problem does it solve?" |
-   | **Users** | "Who has this problem? Primary and secondary users?" |
-   | **User Stories** | "What should users be able to do? Give me 2-3 user stories (As a X, I want Y, so that Z)" |
-   | **Features** | "List 3-5 core features for MVP" |
-   | **Wireframes** | "Describe the main screen layout - what does the user see first? What are the key UI components?" |
-   | **Interactions** | "Walk me through the primary user flow - what happens step by step when a user does the main action?" |
-   | **Tech** | "Any technical constraints or preferences? (languages, frameworks, integrations)" |
-   | **Scope** | "What's explicitly NOT in MVP?" |
+4. **Generate PRD** using this structure:
 
-3. **Validate Before Generating**
+```markdown
+# {Project Name}
 
-   Before generating the PRD, ensure minimum content:
-   - Problem statement is clear
-   - At least 2 user stories
-   - At least 3 core features
-   - At least 1 wireframe/layout description
-   - At least 1 interaction flow
-   - Tech stack preferences (or confirm defaults)
+## Problem Statement
+{Why does this need to exist? Who has this problem?}
 
-   If missing, ask follow-up questions for that section.
+## Target Users
+- Primary: {who}
+- Secondary: {who}
 
-4. **Generate PRD Files**
+## Core Features (MVP)
+1. {Feature 1} - {brief description}
+2. {Feature 2} - {brief description}
+3. {Feature 3} - {brief description}
 
-   Create three files in the PRD folder:
+## User Flows
+{Describe key user journeys - reference diagrams below}
 
-   ### prd.md (Core - Keep Concise, 1-2 pages)
+## Out of Scope (for now)
+- {Feature that's explicitly not in MVP}
 
+## Technical Constraints
+- {Platform, language, integration requirements}
+
+## Success Metrics
+- {How do we know this is working?}
+```
+
+5. **Generate Visual Artifacts** (based on what's appropriate for the PRD):
+
+   Create supporting documents to clarify the PRD. Choose what's relevant:
+
+   **Architecture Diagram** (`architecture.md`) - for technical products:
    ```markdown
-   # {Project Name}
-
-   ## Problem Statement
-   {Why does this need to exist? Who has this problem?}
-
-   ## Target Users
-   - Primary: {who}
-   - Secondary: {who}
-
-   ## User Stories
-   1. As a {user}, I want to {action}, so that {benefit}
-   2. As a {user}, I want to {action}, so that {benefit}
-   3. As a {user}, I want to {action}, so that {benefit}
-
-   ## Core Features (MVP)
-   ### Feature 1: {Name}
-   - {Capability}
-
-   ### Feature 2: {Name}
-   - {Capability}
-
-   ### Feature 3: {Name}
-   - {Capability}
-
-   ## Tech Stack
-   - Frontend: {framework}
-   - Backend: {framework}
-   - Database: {type}
-
-   ## Out of Scope
-   - {Feature explicitly not in MVP}
-
-   ## Success Metrics
-   - {Measurable outcome}
-
-   ## Supporting Documents
-   - [Wireframes](./wireframes.md)
-   - [Key Interactions](./interactions.md)
-   ```
-
-   ### wireframes.md
-
-   ```markdown
-   # Wireframes
-
-   ## Main Layout
-   +------------------+------------------------+
-   | Sidebar          | Main Content           |
-   | - Nav Item 1     |                        |
-   | - Nav Item 2     | {Page content here}    |
-   +------------------+------------------------+
-
-   ## Screen: {Name}
-   {ASCII layout or detailed description}
-
-   ## Screen: {Name}
-   {ASCII layout or detailed description}
-   ```
-
-   ### interactions.md
-
-   Use mermaid diagrams for user flows:
-
-   ````markdown
-   # Key Interactions
-
-   ## {Primary Flow Name}
+   # Architecture Overview
 
    ```mermaid
-   flowchart TD
-       A[{Start action}] --> B[{Next step}]
-       B --> C{Decision point?}
-       C -->|Yes| D[{Success path}]
-       C -->|No| E[{Error handling}]
+   flowchart TB
+       subgraph Frontend
+           UI[React App]
+       end
+       subgraph Backend
+           API[REST API]
+           DB[(Database)]
+       end
+       UI --> API --> DB
+   ```
+
+   ## Components
+   - **Frontend**: {description}
+   - **Backend**: {description}
+   - **Database**: {description}
+   ```
+
+   **User Flow Diagram** (`user-flows.md`) - for user-facing products:
+   ```markdown
+   # User Flows
+
+   ## {Flow Name} (e.g., "User Registration")
+
+   ```mermaid
+   flowchart LR
+       A[Landing Page] --> B[Sign Up Form]
+       B --> C{Valid?}
+       C -->|Yes| D[Dashboard]
+       C -->|No| E[Show Errors]
        E --> B
    ```
 
-   ## {Secondary Flow Name}
+   ### Steps
+   1. User clicks "Sign Up"
+   2. ...
+   ```
+
+   **Data Model** (`data-model.md`) - for data-driven products:
+   ```markdown
+   # Data Model
 
    ```mermaid
-   flowchart TD
-       A[{Start}] --> B[{Step}]
-       B --> C[{End}]
+   erDiagram
+       USER ||--o{ ORDER : places
+       ORDER ||--|{ LINE_ITEM : contains
+       PRODUCT ||--o{ LINE_ITEM : "ordered in"
    ```
-   ````
 
-5. **Create PRD via API**
+   ## Entities
+   - **User**: {fields and description}
+   - **Order**: {fields and description}
+   ```
+
+   **Wireframes** (`wireframes.md`) - for UI-heavy products:
+   ```markdown
+   # Wireframes
+
+   ## {Screen Name}
+
+   ```
+   +----------------------------------+
+   |  Logo    [Search...]    [Login]  |
+   +----------------------------------+
+   |                                  |
+   |    +--------+  +--------+        |
+   |    | Card 1 |  | Card 2 |        |
+   |    +--------+  +--------+        |
+   |                                  |
+   +----------------------------------+
+   ```
+
+   ### Elements
+   - Header: Logo, search, auth buttons
+   - Content: Card grid layout
+   ```
+
+   **State Machine** (`states.md`) - for workflow/status-driven products:
+   ```markdown
+   # State Machine
+
+   ## {Entity} States (e.g., "Order Status")
+
+   ```mermaid
+   stateDiagram-v2
+       [*] --> Draft
+       Draft --> Pending: Submit
+       Pending --> Approved: Approve
+       Pending --> Rejected: Reject
+       Approved --> [*]
+       Rejected --> Draft: Revise
+   ```
+   ```
+
+6. **Create PRD via API** (skip if PRD already exists from context)
    ```
    POST /api/projects/{projectRef}/prds
    {"title": "{prd-name}", "description": "{brief summary}"}
    ```
    This returns the PRD with auto-generated folderPath (e.g., `.specflux/prds/{slug}`)
 
-6. **Save All Files** to the returned folderPath:
+7. **Save Markdown File** to the folderPath:
    - Save to `{folderPath}/prd.md`
-   - Save to `{folderPath}/wireframes.md`
-   - Save to `{folderPath}/interactions.md`
 
-7. **Register All Documents via API**
-
-   Register the primary PRD document:
+8. **Register Document via API** (skip if document already registered)
    ```
    POST /api/projects/{projectRef}/prds/{prdRef}/documents
    {
@@ -154,83 +197,56 @@ Help the user create or refine a product specification document.
    }
    ```
 
-   Register wireframes:
-   ```
-   POST /api/projects/{projectRef}/prds/{prdRef}/documents
-   {
-     "fileName": "wireframes.md",
-     "filePath": "{folderPath}/wireframes.md",
-     "documentType": "WIREFRAME"
-   }
-   ```
-
-   Register interactions (as design document):
-   ```
-   POST /api/projects/{projectRef}/prds/{prdRef}/documents
-   {
-     "fileName": "interactions.md",
-     "filePath": "{folderPath}/interactions.md",
-     "documentType": "DESIGN"
-   }
-   ```
-
-8. **Suggest Epics**:
+9. **Suggest Epics**:
    "I've identified these potential epics from your PRD:
-   1. {Epic 1} - from user story or feature
-   2. {Epic 2} - from user story or feature
-   3. {Epic 3} - from user story or feature
+   1. {Epic 1}
+   2. {Epic 2}
+   3. {Epic 3}
 
-   Run `/epic {name}` to define any of these in detail."
+   Run `/epic` to define these in detail."
 
 ## Approval Flow
 
 After generating the PRD draft:
-- Show all three files for review
-- Ask user to review
-- Options: "approve", "refine <feedback>", "expand <section>", "restart"
-- On approve: Save files and register via API
-- Update status: PUT /api/projects/{projectRef}/prds/{prdRef} {"status": "APPROVED"}
-- Optionally offer to create GitHub PR for team review
+- Present the PRD content to user
+- Ask: "Would you like me to also create visual diagrams? I can generate:
+  - Architecture diagram
+  - User flow diagrams
+  - Data model (ERD)
+  - Wireframes
+  - State machine diagrams"
+- Options: "approve", "refine <feedback>", "expand <section>", "add diagrams", "restart"
 
-## /prd refine - Analyze and Fill Gaps
-
-For existing or imported PRDs:
-
-1. **Analyze** - Read existing PRD files from folder
-2. **Compare against template** - Check for required sections
-3. **Report gaps**:
+**On approve with diagrams:**
+1. Save the main PRD file
+2. Generate requested diagram files to `{folderPath}/`
+3. Register each as a supporting document:
    ```
-   Found:
-   ✓ Problem Statement
-   ✓ Target Users
-   ✓ Core Features
-   ✗ Wireframes (missing)
-   ✗ Key Interactions (missing)
-   ○ User Stories (only 1, recommend 3+)
+   POST /api/projects/{projectRef}/prds/{prdRef}/documents
+   {"fileName": "architecture.md", "filePath": "{folderPath}/architecture.md", "documentType": "DESIGN"}
+   {"fileName": "user-flows.md", "filePath": "{folderPath}/user-flows.md", "documentType": "DESIGN"}
+   {"fileName": "wireframes.md", "filePath": "{folderPath}/wireframes.md", "documentType": "WIREFRAME"}
+   {"fileName": "data-model.md", "filePath": "{folderPath}/data-model.md", "documentType": "DESIGN"}
    ```
-4. **Guided fill** - Ask questions only for missing/weak sections
-5. **Merge** - Update files with new content
-6. **Review** - Show updated PRD for approval
+4. Update status: PUT /api/projects/{projectRef}/prds/{prdRef} {"status": "IN_REVIEW"}
 
 ## Adding Supporting Documents
 
-If user provides additional wireframes, mockups, or other documents:
-1. Save file to `{folderPath}/{filename}` or `{folderPath}/mockups/{filename}`
+If user provides or requests additional documents:
+1. Save file to `{folderPath}/{filename}`
 2. Register via API:
    ```
    POST /api/projects/{projectRef}/prds/{prdRef}/documents
-   {"fileName": "{filename}", "filePath": "{path}", "documentType": "WIREFRAME|MOCKUP|DESIGN|OTHER"}
+   {"fileName": "{filename}", "filePath": "{path}", "documentType": "{type}"}
    ```
 
 Document types: PRD, WIREFRAME, MOCKUP, DESIGN, OTHER
 
-## Validation Checklist
+## Diagram Guidelines
 
-Before saving, verify:
-- [ ] Problem statement clearly explains the "why"
-- [ ] At least 2 user stories in proper format
-- [ ] At least 3 core features defined
-- [ ] Wireframes describe at least the main screen
-- [ ] At least 1 user flow documented with mermaid
-- [ ] Tech stack specified (or defaults confirmed)
-- [ ] Out of scope section present
+When creating diagrams:
+- **Keep it simple** - Focus on key concepts, not every detail
+- **Use Mermaid** - All diagrams should use Mermaid syntax for rendering
+- **Be consistent** - Use same naming conventions as the PRD
+- **Add explanations** - Each diagram should have text explaining what it shows
+- **Link to PRD** - Reference specific PRD sections the diagram illustrates

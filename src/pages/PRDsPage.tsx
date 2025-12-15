@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProject } from "../contexts/ProjectContext";
-import { useTerminal } from "../contexts/TerminalContext";
 import { usePageContext } from "../hooks/usePageContext";
 import { api, type Prd, PrdStatus } from "../api";
 import PrdImportModal from "../components/ui/PrdImportModal";
-import { ListPageHeader } from "../components/ui/ListPageHeader";
+import { CreatePrdModal } from "../components/prds/CreatePrdModal";
 import { StatusBadge } from "../components/ui/StatusBadge";
 
 const STATUS_OPTIONS = [
@@ -19,11 +18,11 @@ const STATUS_OPTIONS = [
 export default function PRDsPage() {
   const navigate = useNavigate();
   const { currentProject, getProjectRef } = useProject();
-  const { openTerminalForContext } = useTerminal();
   const [prds, setPrds] = useState<Prd[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -218,17 +217,7 @@ export default function PRDsPage() {
           {/* Create button */}
           <button
             className="btn btn-primary"
-            onClick={() => {
-              openTerminalForContext({
-                type: "prd-workshop",
-                id: `new-${Date.now()}`,
-                title: "PRD Workshop",
-                displayKey: "PRD Workshop",
-                projectRef: getProjectRef() ?? undefined,
-                workingDirectory: currentProject?.localPath,
-                initialCommand: "claude",
-              });
-            }}
+            onClick={() => setShowCreateModal(true)}
           >
             <svg
               className="w-4 h-4"
@@ -373,13 +362,28 @@ export default function PRDsPage() {
         </div>
       )}
 
-      {/* Import PRD Modal */}
+      {/* Import PRD Modal (legacy) */}
       {showImportModal && currentProject?.localPath && getProjectRef() && (
         <PrdImportModal
           projectPath={currentProject.localPath}
           projectRef={getProjectRef()!}
           onClose={() => setShowImportModal(false)}
           onImported={loadPrds}
+        />
+      )}
+
+      {/* Create PRD Modal */}
+      {showCreateModal && currentProject?.localPath && getProjectRef() && (
+        <CreatePrdModal
+          projectPath={currentProject.localPath}
+          projectRef={getProjectRef()!}
+          onClose={() => setShowCreateModal(false)}
+          onCreated={(prdId, hasDocument) => {
+            // Navigate to PRD detail page with flag indicating if we should show getting started
+            navigate(`/prds/${encodeURIComponent(prdId)}`, {
+              state: { showGettingStarted: true, hasDocument },
+            });
+          }}
         />
       )}
     </div>

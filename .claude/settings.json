@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [],
+    "deny": []
+  },
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true
+  }
+}
