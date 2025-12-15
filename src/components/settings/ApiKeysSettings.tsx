@@ -298,16 +298,33 @@ export function ApiKeysSettings() {
       </div>
 
       {/* Usage Instructions */}
-      <div className="border border-surface-200 dark:border-surface-700 rounded-lg p-4 bg-surface-50 dark:bg-surface-800/50">
-        <h3 className="text-sm font-medium text-surface-900 dark:text-white mb-2">
-          Using your API Key
-        </h3>
-        <p className="text-xs text-surface-600 dark:text-surface-400 mb-3">
-          Include your API key in the Authorization header:
-        </p>
-        <code className="block px-3 py-2 bg-surface-900 dark:bg-surface-900 text-surface-100 text-xs font-mono rounded-lg overflow-x-auto">
-          Authorization: Bearer sfx_your_api_key_here
-        </code>
+      <div className="border border-surface-200 dark:border-surface-700 rounded-lg p-4 bg-surface-50 dark:bg-surface-800/50 space-y-4">
+        <div>
+          <h3 className="text-sm font-medium text-surface-900 dark:text-white mb-2">
+            Setting up your API Key
+          </h3>
+          <p className="text-xs text-surface-600 dark:text-surface-400 mb-2">
+            Add to your shell profile (<code className="text-accent-600 dark:text-accent-400">~/.bashrc</code>, <code className="text-accent-600 dark:text-accent-400">~/.zshrc</code>, or <code className="text-accent-600 dark:text-accent-400">~/.profile</code>):
+          </p>
+          <code className="block px-3 py-2 bg-surface-900 text-surface-100 text-xs font-mono rounded-lg overflow-x-auto">
+            export SPECFLUX_API_KEY="sfx_your_api_key_here"
+          </code>
+          <p className="text-xs text-surface-500 dark:text-surface-500 mt-2">
+            Then run <code className="text-accent-600 dark:text-accent-400">source ~/.zshrc</code> or restart your terminal.
+          </p>
+        </div>
+
+        <div className="border-t border-surface-200 dark:border-surface-700 pt-4">
+          <h4 className="text-sm font-medium text-surface-900 dark:text-white mb-2">
+            Using in API requests
+          </h4>
+          <p className="text-xs text-surface-600 dark:text-surface-400 mb-2">
+            Include your API key in the Authorization header:
+          </p>
+          <code className="block px-3 py-2 bg-surface-900 text-surface-100 text-xs font-mono rounded-lg overflow-x-auto">
+            Authorization: Bearer $SPECFLUX_API_KEY
+          </code>
+        </div>
       </div>
 
       {/* Create Modal */}
