@@ -77,7 +77,7 @@ export default function EpicsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const saved = localStorage.getItem(VIEW_STORAGE_KEY);
-    return saved === "cards" || saved === "graph" ? saved : "cards";
+    return saved === "cards" || saved === "graph" ? saved : "graph";
   });
 
   // Load initial filters from localStorage

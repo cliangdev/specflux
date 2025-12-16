@@ -15,12 +15,22 @@ vi.mock("../../../contexts/TerminalContext", () => ({
   useTerminal: () => mockTerminalContext,
 }));
 
+// Mock the ProjectContext
+const mockProjectContext = {
+  currentProject: { id: "proj_1", projectKey: "PROJ", name: "Test Project" } as { id: string; projectKey: string; name: string } | null,
+};
+
+vi.mock("../../../contexts", () => ({
+  useProject: () => mockProjectContext,
+}));
+
 describe("ClaudePill", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockTerminalContext.isOpen = false;
     mockTerminalContext.sessions = [];
     mockTerminalContext.activeSessionId = null;
+    mockProjectContext.currentProject = { id: "proj_1", projectKey: "PROJ", name: "Test Project" };
   });
 
   it("renders when panel is closed", () => {
@@ -47,6 +57,7 @@ describe("ClaudePill", () => {
         contextId: "task_1",
         contextTitle: "Fix login bug",
         displayKey: "SPEC-T1",
+        projectRef: "proj_1",
         isRunning: false,
         isConnected: true,
       },
@@ -65,6 +76,7 @@ describe("ClaudePill", () => {
         contextId: "task_1",
         contextTitle: "Fix login bug",
         displayKey: "SPEC-T1",
+        projectRef: "proj_1",
         isRunning: false,
         isConnected: true,
       },
@@ -74,6 +86,7 @@ describe("ClaudePill", () => {
         contextId: "task_2",
         contextTitle: "Add feature",
         displayKey: "SPEC-T2",
+        projectRef: "proj_1",
         isRunning: false,
         isConnected: true,
       },
@@ -92,6 +105,7 @@ describe("ClaudePill", () => {
         contextId: "task_1",
         contextTitle: "Fix login bug",
         displayKey: "SPEC-T1",
+        projectRef: "proj_1",
         isRunning: true,
         isConnected: true,
       },
@@ -110,6 +124,7 @@ describe("ClaudePill", () => {
         contextId: "task_1",
         contextTitle: "Fix login bug",
         displayKey: "SPEC-T1",
+        projectRef: "proj_1",
         isRunning: false,
         isConnected: true,
       },

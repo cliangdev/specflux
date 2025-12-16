@@ -1,16 +1,27 @@
 import { useTerminal } from "../../contexts/TerminalContext";
+import { useProject } from "../../contexts";
 
 /**
  * Floating pill that appears when the Claude panel is closed.
  * Shows context about active sessions and provides quick access to reopen.
  */
 export default function ClaudePill() {
-  const { isOpen, sessions, activeSessionId, openPanel } = useTerminal();
+  const { isOpen, sessions: allSessions, activeSessionId, openPanel } = useTerminal();
+  const { currentProject } = useProject();
 
   // Only show when panel is closed
   if (isOpen) {
     return null;
   }
+
+  // Filter sessions to only show those belonging to the current project
+  const sessions = allSessions.filter((session) => {
+    if (!currentProject) return false;
+    if (!session.projectRef) {
+      return session.contextType === "project" && session.contextId === currentProject.id;
+    }
+    return session.projectRef === currentProject.id || session.projectRef === currentProject.projectKey;
+  });
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   const hasRunningSessions = sessions.some((s) => s.isRunning);

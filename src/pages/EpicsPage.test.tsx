@@ -210,7 +210,10 @@ describe("EpicsPage", () => {
       });
     });
 
-    it("renders epics as cards", async () => {
+    it("renders epics in card view when selected", async () => {
+      // Set view mode to cards (default is now graph)
+      localStorage.setItem("specflux-epics-view", "cards");
+
       vi.mocked(api.projects.listProjects).mockResolvedValue({
         data: [mockProject1],
         pagination: { hasMore: false },

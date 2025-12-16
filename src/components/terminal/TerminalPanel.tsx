@@ -103,7 +103,7 @@ export default function TerminalPanel() {
     panelWidth,
     panelPosition,
     isMaximized,
-    sessions,
+    sessions: allSessions,
     activeSessionId,
     closePanel,
     toggleCollapse,
@@ -117,6 +117,29 @@ export default function TerminalPanel() {
     openTerminalForContext,
     pageContext,
   } = useTerminal();
+
+  // Filter sessions to only show those belonging to the current project
+  const sessions = allSessions.filter((session) => {
+    // If no project is selected, show no sessions
+    if (!currentProject) return false;
+    // If session has no projectRef, check if contextId matches project ID (for project-level sessions)
+    if (!session.projectRef) {
+      return session.contextType === "project" && session.contextId === currentProject.id;
+    }
+    // Match by projectRef (handles both project key and project ID)
+    return session.projectRef === currentProject.id || session.projectRef === currentProject.projectKey;
+  });
+
+  // Auto-switch to a valid session if current active session is not in filtered list
+  useEffect(() => {
+    if (activeSessionId && sessions.length > 0) {
+      const isActiveInFiltered = sessions.some((s) => s.id === activeSessionId);
+      if (!isActiveInFiltered) {
+        // Switch to the first session in the filtered list
+        switchToSession(sessions[0].id);
+      }
+    }
+  }, [activeSessionId, sessions, switchToSession]);
 
   const [duplicateSession, setDuplicateSession] = useState<TerminalSession | null>(null);
   const [isResizing, setIsResizing] = useState(false);
