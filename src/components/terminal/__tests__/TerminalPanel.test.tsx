@@ -221,7 +221,7 @@ describe("TerminalPanel", () => {
     expect(screen.getByText("Terminal for task 123")).toBeInTheDocument();
   });
 
-  it("hides terminal content when collapsed", () => {
+  it("hides terminal content when collapsed but keeps it mounted", () => {
     mockProjectContext.currentProject = { id: "proj_1", projectKey: "PROJ", name: "Test Project" };
     mockTerminalContext.isCollapsed = true;
     mockTerminalContext.sessions = [
@@ -241,7 +241,14 @@ describe("TerminalPanel", () => {
 
     render(<TerminalPanel />);
 
-    expect(screen.queryByTestId("terminal-mock")).not.toBeInTheDocument();
+    // Terminal stays mounted to preserve content (bug fix: terminal content should persist when collapsed)
+    const terminalMock = screen.getByTestId("terminal-mock");
+    expect(terminalMock).toBeInTheDocument();
+    // Content container is hidden via CSS (invisible and h-0 classes)
+    const contentContainer = terminalMock.parentElement?.parentElement;
+    expect(contentContainer).toHaveClass("invisible");
+    expect(contentContainer).toHaveClass("h-0");
+    // Placeholder should not be shown when collapsed
     expect(screen.queryByText("No active session")).not.toBeInTheDocument();
   });
 

@@ -328,7 +328,7 @@ export default function TerminalPanel() {
     <div
       ref={panelRef}
       className={`relative ${getBorderStyles()} border-slate-200 dark:border-slate-700 bg-slate-900 flex flex-col flex-shrink-0 ${
-        isResizing ? "" : "transition-all duration-150"
+        isResizing ? "" : "transition-[width,height] duration-100 ease-out"
       }`}
       style={getPanelStyles()}
       data-testid="terminal-panel"
@@ -482,39 +482,42 @@ export default function TerminalPanel() {
         </div>
       </div>
 
-      {/* Terminal content */}
-      {!isCollapsed && (
-        <div className="flex-1 overflow-hidden relative">
-          {sessions.length > 0 ? (
-            sessions.map((session) => (
-              <div
-                key={session.id}
-                className={`absolute inset-0 ${
-                  session.id === activeSessionId ? "visible" : "invisible"
-                }`}
-                data-testid={`terminal-content-${session.contextId}`}
-              >
-                <Terminal
-                  ref={(ref) => {
-                    if (ref) {
-                      terminalRefs.current.set(session.id, ref);
-                    } else {
-                      terminalRefs.current.delete(session.id);
-                    }
-                  }}
-                  contextType={session.contextType}
-                  contextId={session.contextId}
-                  contextDisplayKey={session.displayKey}
-                  contextTitle={session.contextTitle}
-                  projectRef={session.projectRef}
-                  workingDirectory={session.workingDirectory}
-                  initialCommand={session.initialCommand}
-                  onStatusChange={createStatusChangeHandler(session.id)}
-                  onConnectionChange={createConnectionChangeHandler(session.id)}
-                />
-              </div>
-            ))
-          ) : (
+      {/* Terminal content - always mounted to preserve state, hidden via CSS when collapsed */}
+      <div
+        className={`flex-1 overflow-hidden relative ${isCollapsed ? "invisible h-0" : ""}`}
+        aria-hidden={isCollapsed}
+      >
+        {sessions.length > 0 ? (
+          sessions.map((session) => (
+            <div
+              key={session.id}
+              className={`absolute inset-0 ${
+                session.id === activeSessionId ? "visible" : "invisible"
+              }`}
+              data-testid={`terminal-content-${session.contextId}`}
+            >
+              <Terminal
+                ref={(ref) => {
+                  if (ref) {
+                    terminalRefs.current.set(session.id, ref);
+                  } else {
+                    terminalRefs.current.delete(session.id);
+                  }
+                }}
+                contextType={session.contextType}
+                contextId={session.contextId}
+                contextDisplayKey={session.displayKey}
+                contextTitle={session.contextTitle}
+                projectRef={session.projectRef}
+                workingDirectory={session.workingDirectory}
+                initialCommand={session.initialCommand}
+                onStatusChange={createStatusChangeHandler(session.id)}
+                onConnectionChange={createConnectionChangeHandler(session.id)}
+              />
+            </div>
+          ))
+        ) : (
+          !isCollapsed && (
             <div className="h-full flex items-center justify-center text-slate-500">
               <div className="text-center">
                 <p className="text-sm">No active session</p>
@@ -523,9 +526,9 @@ export default function TerminalPanel() {
                 </p>
               </div>
             </div>
-          )}
-        </div>
-      )}
+          )
+        )}
+      </div>
 
       {/* Duplicate Session Dialog */}
       {duplicateSession && (

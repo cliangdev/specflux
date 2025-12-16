@@ -107,7 +107,7 @@ function MainLayoutContent() {
     <div className="h-screen bg-surface-50 dark:bg-surface-950 text-surface-900 dark:text-surface-100 flex flex-col overflow-hidden">
       <TopBar />
       <div
-        className="flex flex-1 overflow-hidden min-h-0 transition-[margin] duration-150"
+        className="flex flex-1 overflow-hidden min-h-0 transition-[margin] duration-100 ease-out"
         style={getContentStyle()}
       >
         <Sidebar />
@@ -115,12 +115,14 @@ function MainLayoutContent() {
           <Outlet />
         </main>
       </div>
-      {/* Terminal always rendered here - uses fixed positioning to avoid remounting */}
-      {isOpen && (
-        <div style={getTerminalStyle()} className="transition-all duration-150">
-          <TerminalPanel />
-        </div>
-      )}
+      {/* Terminal always mounted to preserve content - hidden via CSS when closed */}
+      <div
+        style={isOpen ? getTerminalStyle() : { position: 'fixed', left: '-9999px', visibility: 'hidden' }}
+        className={isOpen ? "transition-[width,height] duration-100 ease-out" : ""}
+        aria-hidden={!isOpen}
+      >
+        <TerminalPanel />
+      </div>
       <ClaudePill />
     </div>
   );
