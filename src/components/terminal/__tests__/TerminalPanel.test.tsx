@@ -97,7 +97,7 @@ vi.mock("../../../contexts/TerminalContext", () => ({
 
 // Mock the ProjectContext
 const mockProjectContext = {
-  currentProject: null as { id: number; name: string; localPath?: string } | null,
+  currentProject: null as { id: string; projectKey: string; name: string; localPath?: string } | null,
   projects: [],
   loading: false,
   setCurrentProject: vi.fn(),
@@ -176,6 +176,7 @@ describe("TerminalPanel", () => {
   });
 
   it("shows tab bar when sessions exist", () => {
+    mockProjectContext.currentProject = { id: "proj_1", projectKey: "PROJ", name: "Test Project" };
     mockTerminalContext.sessions = [
       {
         id: "task-42",
@@ -184,6 +185,7 @@ describe("TerminalPanel", () => {
         contextTitle: "My Test Task",
         taskId: 42,
         taskTitle: "My Test Task",
+        projectRef: "proj_1",
         isRunning: false,
         isConnected: true,
       },
@@ -196,6 +198,7 @@ describe("TerminalPanel", () => {
   });
 
   it("renders Terminal component for active session", () => {
+    mockProjectContext.currentProject = { id: "proj_1", projectKey: "PROJ", name: "Test Project" };
     mockTerminalContext.sessions = [
       {
         id: "task-123",
@@ -204,6 +207,7 @@ describe("TerminalPanel", () => {
         contextTitle: "Active Task",
         taskId: 123,
         taskTitle: "Active Task",
+        projectRef: "proj_1",
         isRunning: false,
         isConnected: true,
       },
@@ -217,6 +221,7 @@ describe("TerminalPanel", () => {
   });
 
   it("hides terminal content when collapsed", () => {
+    mockProjectContext.currentProject = { id: "proj_1", projectKey: "PROJ", name: "Test Project" };
     mockTerminalContext.isCollapsed = true;
     mockTerminalContext.sessions = [
       {
@@ -226,6 +231,7 @@ describe("TerminalPanel", () => {
         contextTitle: "Task",
         taskId: 1,
         taskTitle: "Task",
+        projectRef: "proj_1",
         isRunning: false,
         isConnected: true,
       },
@@ -259,7 +265,7 @@ describe("TerminalPanel", () => {
 
   describe("New Session Button", () => {
     it("shows new session button when project is selected and page context has id", () => {
-      mockProjectContext.currentProject = { id: 1, name: "Test Project" };
+      mockProjectContext.currentProject = { id: "proj_1", projectKey: "PROJ", name: "Test Project" };
       mockTerminalContext.pageContext = { type: "task-detail", id: "task_123", title: "SPEC-T1" };
 
       render(<TerminalPanel />);
@@ -278,7 +284,7 @@ describe("TerminalPanel", () => {
     });
 
     it("does not show new session button when page context has no id", () => {
-      mockProjectContext.currentProject = { id: 1, name: "Test Project" };
+      mockProjectContext.currentProject = { id: "proj_1", projectKey: "PROJ", name: "Test Project" };
       mockTerminalContext.pageContext = { type: "tasks" }; // list page, no id
 
       render(<TerminalPanel />);
@@ -287,7 +293,7 @@ describe("TerminalPanel", () => {
     });
 
     it("creates session directly when + button is clicked", () => {
-      mockProjectContext.currentProject = { id: 1, name: "Test Project", localPath: "/path/to/project" };
+      mockProjectContext.currentProject = { id: "proj_1", projectKey: "PROJ", name: "Test Project", localPath: "/path/to/project" };
       mockTerminalContext.pageContext = { type: "task-detail", id: "task_123", title: "SPEC-T1" };
 
       render(<TerminalPanel />);
@@ -306,7 +312,7 @@ describe("TerminalPanel", () => {
     });
 
     it("uses id as fallback when title is empty", () => {
-      mockProjectContext.currentProject = { id: 1, name: "Test Project", localPath: "/path/to/project" };
+      mockProjectContext.currentProject = { id: "proj_1", projectKey: "PROJ", name: "Test Project", localPath: "/path/to/project" };
       // pageContext has id but no title
       mockTerminalContext.pageContext = { type: "prd-detail", id: "prd_abc123" };
 
@@ -326,7 +332,7 @@ describe("TerminalPanel", () => {
     });
 
     it("shows duplicate session warning when session already exists", () => {
-      mockProjectContext.currentProject = { id: 1, name: "Test Project", localPath: "/path/to/project" };
+      mockProjectContext.currentProject = { id: "proj_1", projectKey: "PROJ", name: "Test Project", localPath: "/path/to/project" };
       mockTerminalContext.pageContext = { type: "task-detail", id: "task_123", title: "SPEC-T1" };
       mockTerminalContext.sessions = [
         {
@@ -336,6 +342,7 @@ describe("TerminalPanel", () => {
           contextTitle: "SPEC-T1",
           taskId: "task_123",
           taskTitle: "SPEC-T1",
+          projectRef: "proj_1",
           isRunning: false,
           isConnected: true,
         },
@@ -350,7 +357,7 @@ describe("TerminalPanel", () => {
     });
 
     it("switches to existing session when Open Existing is clicked in duplicate dialog", () => {
-      mockProjectContext.currentProject = { id: 1, name: "Test Project", localPath: "/path/to/project" };
+      mockProjectContext.currentProject = { id: "proj_1", projectKey: "PROJ", name: "Test Project", localPath: "/path/to/project" };
       mockTerminalContext.pageContext = { type: "task-detail", id: "task_123", title: "SPEC-T1" };
       mockTerminalContext.sessions = [
         {
@@ -360,6 +367,7 @@ describe("TerminalPanel", () => {
           contextTitle: "SPEC-T1",
           taskId: "task_123",
           taskTitle: "SPEC-T1",
+          projectRef: "proj_1",
           isRunning: false,
           isConnected: true,
         },
