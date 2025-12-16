@@ -4,7 +4,6 @@ export {
   TerminalIcon,
   DocumentIcon,
 } from "./ContextMenu";
-export { default as NotificationBell } from "./NotificationBell";
 export { default as Pagination } from "./Pagination";
 export { default as ProgressBar } from "./ProgressBar";
 export { default as ProjectCreateModal } from "./ProjectCreateModal";

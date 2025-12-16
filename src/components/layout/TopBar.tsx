@@ -1,5 +1,7 @@
-import { NotificationBell, ProjectSelector } from "../ui";
-import { useTheme } from "../../contexts";
+import { useState } from "react";
+import { ProjectSelector } from "../ui";
+import { useTheme, useAuth } from "../../contexts";
+import { UserProfileModal } from "../ui/UserProfileModal";
 
 function SunIcon({ className }: { className?: string }) {
   return (
@@ -39,41 +41,54 @@ function MoonIcon({ className }: { className?: string }) {
 
 export default function TopBar() {
   const { theme, toggleTheme } = useTheme();
+  const { user } = useAuth();
+  const [showProfileModal, setShowProfileModal] = useState(false);
+
+  // Get user initial for avatar
+  const userInitial = user?.displayName?.[0] || user?.email?.[0]?.toUpperCase() || "U";
 
   return (
-    <header className="h-14 bg-white dark:bg-surface-900 border-b border-surface-200 dark:border-surface-800 px-4 flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-accent-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">SF</span>
+    <>
+      <header className="h-14 bg-white dark:bg-surface-900 border-b border-surface-200 dark:border-surface-800 px-4 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-accent-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">SF</span>
+            </div>
+            <span className="text-lg font-semibold text-surface-900 dark:text-white">
+              SpecFlux
+            </span>
           </div>
-          <span className="text-lg font-semibold text-surface-900 dark:text-white">
-            SpecFlux
-          </span>
+          <div className="h-6 w-px bg-surface-200 dark:bg-surface-700" />
+          <ProjectSelector />
         </div>
-        <div className="h-6 w-px bg-surface-200 dark:bg-surface-700" />
-        <ProjectSelector />
-      </div>
 
-      <div className="flex items-center gap-2">
-        <button
-          onClick={toggleTheme}
-          className="w-9 h-9 rounded-lg flex items-center justify-center text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
-          aria-label={
-            theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
-          }
-        >
-          {theme === "dark" ? (
-            <SunIcon className="w-5 h-5" />
-          ) : (
-            <MoonIcon className="w-5 h-5" />
-          )}
-        </button>
-        <NotificationBell count={0} />
-        <button className="w-8 h-8 rounded-full bg-accent-600 flex items-center justify-center text-sm font-medium text-white hover:bg-accent-700 transition-colors">
-          U
-        </button>
-      </div>
-    </header>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleTheme}
+            className="w-9 h-9 rounded-lg flex items-center justify-center text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"
+            aria-label={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
+          >
+            {theme === "dark" ? (
+              <SunIcon className="w-5 h-5" />
+            ) : (
+              <MoonIcon className="w-5 h-5" />
+            )}
+          </button>
+          <button
+            onClick={() => setShowProfileModal(true)}
+            className="w-8 h-8 rounded-full bg-accent-600 flex items-center justify-center text-sm font-medium text-white hover:bg-accent-700 transition-colors"
+          >
+            {userInitial}
+          </button>
+        </div>
+      </header>
+
+      {showProfileModal && (
+        <UserProfileModal onClose={() => setShowProfileModal(false)} />
+      )}
+    </>
   );
 }
