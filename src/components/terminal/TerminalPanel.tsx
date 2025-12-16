@@ -328,12 +328,11 @@ export default function TerminalPanel() {
     <div
       ref={panelRef}
       className={`relative ${getBorderStyles()} border-slate-200 dark:border-slate-700 bg-slate-900 flex flex-col flex-shrink-0 ${
-        isResizing ? "" : "transition-all duration-150"
+        isResizing ? "" : "transition-[width,height] duration-100 ease-out"
       }`}
       style={getPanelStyles()}
       data-testid="terminal-panel"
     >
-      {/* Resize Handle */}
       {!isCollapsed && (
         <div
           className={`${getResizeHandleStyles()} z-20 flex items-center justify-center group`}
@@ -349,10 +348,8 @@ export default function TerminalPanel() {
         </div>
       )}
 
-      {/* Single Header */}
       <div className="bg-slate-800 border-b border-slate-700 flex-shrink-0">
         <div className="h-10 flex items-center justify-between px-1">
-          {/* Left: Branding + New Session + Tabs */}
           <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
             <span className="text-sm font-medium text-slate-300 flex-shrink-0 pl-2">🤖</span>
 
@@ -382,9 +379,7 @@ export default function TerminalPanel() {
             )}
           </div>
 
-          {/* Right: Terminal Controls + Panel Controls */}
           <div className="flex items-center gap-0.5 flex-shrink-0 pr-2">
-            {/* Terminal controls - only show when expanded and has active session */}
             {!isCollapsed && activeSessionId && (
               <>
                 <button
@@ -412,7 +407,6 @@ export default function TerminalPanel() {
               </>
             )}
 
-            {/* Position dropdown */}
             <div className="relative">
               <button
                 onClick={(e) => {
@@ -447,7 +441,6 @@ export default function TerminalPanel() {
               )}
             </div>
 
-            {/* Collapse/Expand */}
             <button
               onClick={toggleCollapse}
               className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
@@ -457,7 +450,6 @@ export default function TerminalPanel() {
               {isCollapsed ? <ChevronUpIcon /> : <MinusIcon />}
             </button>
 
-            {/* Maximize - only when expanded */}
             {!isCollapsed && (
               <button
                 onClick={toggleMaximize}
@@ -469,7 +461,6 @@ export default function TerminalPanel() {
               </button>
             )}
 
-            {/* Close */}
             <button
               onClick={closePanel}
               className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
@@ -482,39 +473,41 @@ export default function TerminalPanel() {
         </div>
       </div>
 
-      {/* Terminal content */}
-      {!isCollapsed && (
-        <div className="flex-1 overflow-hidden relative">
-          {sessions.length > 0 ? (
-            sessions.map((session) => (
-              <div
-                key={session.id}
-                className={`absolute inset-0 ${
-                  session.id === activeSessionId ? "visible" : "invisible"
-                }`}
-                data-testid={`terminal-content-${session.contextId}`}
-              >
-                <Terminal
-                  ref={(ref) => {
-                    if (ref) {
-                      terminalRefs.current.set(session.id, ref);
-                    } else {
-                      terminalRefs.current.delete(session.id);
-                    }
-                  }}
-                  contextType={session.contextType}
-                  contextId={session.contextId}
-                  contextDisplayKey={session.displayKey}
-                  contextTitle={session.contextTitle}
-                  projectRef={session.projectRef}
-                  workingDirectory={session.workingDirectory}
-                  initialCommand={session.initialCommand}
-                  onStatusChange={createStatusChangeHandler(session.id)}
-                  onConnectionChange={createConnectionChangeHandler(session.id)}
-                />
-              </div>
-            ))
-          ) : (
+      <div
+        className={`flex-1 overflow-hidden relative ${isCollapsed ? "invisible h-0" : ""}`}
+        aria-hidden={isCollapsed}
+      >
+        {sessions.length > 0 ? (
+          sessions.map((session) => (
+            <div
+              key={session.id}
+              className={`absolute inset-0 ${
+                session.id === activeSessionId ? "visible" : "invisible"
+              }`}
+              data-testid={`terminal-content-${session.contextId}`}
+            >
+              <Terminal
+                ref={(ref) => {
+                  if (ref) {
+                    terminalRefs.current.set(session.id, ref);
+                  } else {
+                    terminalRefs.current.delete(session.id);
+                  }
+                }}
+                contextType={session.contextType}
+                contextId={session.contextId}
+                contextDisplayKey={session.displayKey}
+                contextTitle={session.contextTitle}
+                projectRef={session.projectRef}
+                workingDirectory={session.workingDirectory}
+                initialCommand={session.initialCommand}
+                onStatusChange={createStatusChangeHandler(session.id)}
+                onConnectionChange={createConnectionChangeHandler(session.id)}
+              />
+            </div>
+          ))
+        ) : (
+          !isCollapsed && (
             <div className="h-full flex items-center justify-center text-slate-500">
               <div className="text-center">
                 <p className="text-sm">No active session</p>
@@ -523,11 +516,10 @@ export default function TerminalPanel() {
                 </p>
               </div>
             </div>
-          )}
-        </div>
-      )}
+          )
+        )}
+      </div>
 
-      {/* Duplicate Session Dialog */}
       {duplicateSession && (
         <DuplicateSessionDialog
           existingSession={duplicateSession}
