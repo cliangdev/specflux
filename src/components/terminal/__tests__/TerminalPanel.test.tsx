@@ -241,14 +241,12 @@ describe("TerminalPanel", () => {
 
     render(<TerminalPanel />);
 
-    // Terminal stays mounted to preserve content (bug fix: terminal content should persist when collapsed)
     const terminalMock = screen.getByTestId("terminal-mock");
     expect(terminalMock).toBeInTheDocument();
-    // Content container is hidden via CSS (invisible and h-0 classes)
+
     const contentContainer = terminalMock.parentElement?.parentElement;
     expect(contentContainer).toHaveClass("invisible");
     expect(contentContainer).toHaveClass("h-0");
-    // Placeholder should not be shown when collapsed
     expect(screen.queryByText("No active session")).not.toBeInTheDocument();
   });
 

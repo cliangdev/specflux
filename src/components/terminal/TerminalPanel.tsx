@@ -333,7 +333,6 @@ export default function TerminalPanel() {
       style={getPanelStyles()}
       data-testid="terminal-panel"
     >
-      {/* Resize Handle */}
       {!isCollapsed && (
         <div
           className={`${getResizeHandleStyles()} z-20 flex items-center justify-center group`}
@@ -349,10 +348,8 @@ export default function TerminalPanel() {
         </div>
       )}
 
-      {/* Single Header */}
       <div className="bg-slate-800 border-b border-slate-700 flex-shrink-0">
         <div className="h-10 flex items-center justify-between px-1">
-          {/* Left: Branding + New Session + Tabs */}
           <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
             <span className="text-sm font-medium text-slate-300 flex-shrink-0 pl-2">🤖</span>
 
@@ -382,9 +379,7 @@ export default function TerminalPanel() {
             )}
           </div>
 
-          {/* Right: Terminal Controls + Panel Controls */}
           <div className="flex items-center gap-0.5 flex-shrink-0 pr-2">
-            {/* Terminal controls - only show when expanded and has active session */}
             {!isCollapsed && activeSessionId && (
               <>
                 <button
@@ -412,7 +407,6 @@ export default function TerminalPanel() {
               </>
             )}
 
-            {/* Position dropdown */}
             <div className="relative">
               <button
                 onClick={(e) => {
@@ -447,7 +441,6 @@ export default function TerminalPanel() {
               )}
             </div>
 
-            {/* Collapse/Expand */}
             <button
               onClick={toggleCollapse}
               className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
@@ -457,7 +450,6 @@ export default function TerminalPanel() {
               {isCollapsed ? <ChevronUpIcon /> : <MinusIcon />}
             </button>
 
-            {/* Maximize - only when expanded */}
             {!isCollapsed && (
               <button
                 onClick={toggleMaximize}
@@ -469,7 +461,6 @@ export default function TerminalPanel() {
               </button>
             )}
 
-            {/* Close */}
             <button
               onClick={closePanel}
               className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
@@ -482,7 +473,6 @@ export default function TerminalPanel() {
         </div>
       </div>
 
-      {/* Terminal content - always mounted to preserve state, hidden via CSS when collapsed */}
       <div
         className={`flex-1 overflow-hidden relative ${isCollapsed ? "invisible h-0" : ""}`}
         aria-hidden={isCollapsed}
@@ -530,7 +520,6 @@ export default function TerminalPanel() {
         )}
       </div>
 
-      {/* Duplicate Session Dialog */}
       {duplicateSession && (
         <DuplicateSessionDialog
           existingSession={duplicateSession}

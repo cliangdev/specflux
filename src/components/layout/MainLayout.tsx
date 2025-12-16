@@ -15,24 +15,19 @@ function MainLayoutContent() {
   const { saveCurrentRoute } = useProject();
   const location = useLocation();
 
-  // Track route changes and save for current project
   useEffect(() => {
     const fullPath = location.pathname + location.search;
     saveCurrentRoute(fullPath);
   }, [location.pathname, location.search, saveCurrentRoute]);
 
-  // Global keyboard shortcuts: Cmd+T to toggle terminal, Cmd+1-9 to switch tabs
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd+T to toggle terminal panel
-      // Note: Cmd+` is reserved by macOS for window switching
       if ((e.metaKey || e.ctrlKey) && e.key === "t") {
         e.preventDefault();
         togglePanel();
         return;
       }
 
-      // Cmd+1-9 to switch terminal tabs
       if ((e.metaKey || e.ctrlKey) && !e.altKey) {
         const num = parseInt(e.key, 10);
         if (num >= 1 && num <= 9) {
@@ -49,7 +44,6 @@ function MainLayoutContent() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [togglePanel, sessions, switchToSession, openPanel]);
 
-  // Calculate content area style to make room for fixed terminal
   const getContentStyle = (): React.CSSProperties => {
     if (!isOpen) return {};
     const collapsedSize = 40;
@@ -65,7 +59,6 @@ function MainLayoutContent() {
     }
   };
 
-  // Calculate terminal fixed position styles
   const getTerminalStyle = (): React.CSSProperties => {
     const collapsedSize = 40;
     const base: React.CSSProperties = {
@@ -102,7 +95,6 @@ function MainLayoutContent() {
     }
   };
 
-  // Single layout structure - terminal always rendered in same JSX position
   return (
     <div className="h-screen bg-surface-50 dark:bg-surface-950 text-surface-900 dark:text-surface-100 flex flex-col overflow-hidden">
       <TopBar />
@@ -115,7 +107,6 @@ function MainLayoutContent() {
           <Outlet />
         </main>
       </div>
-      {/* Terminal always mounted to preserve content - hidden via CSS when closed */}
       <div
         style={isOpen ? getTerminalStyle() : { position: 'fixed', left: '-9999px', visibility: 'hidden' }}
         className={isOpen ? "transition-[width,height] duration-100 ease-out" : ""}
