@@ -68,6 +68,7 @@ const mockTerminalContext = {
     contextTitle: string;
     taskId: number | string;
     taskTitle: string;
+    projectRef?: string;
     isRunning: boolean;
     isConnected: boolean;
   }>,
