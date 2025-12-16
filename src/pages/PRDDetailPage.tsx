@@ -21,6 +21,7 @@ import {
   type AddPrdDocumentRequest,
 } from "../api";
 import { ImportDocumentModal } from "../components/prds/ImportDocumentModal";
+import { generatePrdPrompt } from "../services/promptGenerator";
 
 // Status options for PRDs
 const PRD_STATUS_OPTIONS = [
@@ -360,9 +361,15 @@ export default function PRDDetailPage() {
     }
   };
 
-  // AI Action handlers
   const handleStartWork = () => {
     if (prd) {
+      const initialPrompt = generatePrdPrompt({
+        title: prd.title,
+        displayKey: prd.displayKey || prd.id,
+        status: prd.status,
+        documentCount: prd.documents?.length ?? 0,
+      });
+
       const context = {
         type: "prd" as const,
         id: prd.id,
@@ -371,6 +378,7 @@ export default function PRDDetailPage() {
         projectRef: getProjectRef() ?? undefined,
         workingDirectory: currentProject?.localPath,
         initialCommand: "claude",
+        initialPrompt,
       };
 
       // Check if session already exists - switch to it directly

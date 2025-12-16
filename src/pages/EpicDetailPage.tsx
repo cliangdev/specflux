@@ -17,6 +17,7 @@ import { AcceptanceCriteriaList } from "../components/ui/AcceptanceCriteriaList"
 import { calculatePhase } from "../utils/phaseCalculation";
 import { usePageContext } from "../hooks/usePageContext";
 import { useTerminal } from "../contexts/TerminalContext";
+import { generateEpicPrompt } from "../services/promptGenerator";
 
 // Extended type to support v2 fields
 type EpicWithV2Fields = Omit<Epic, "dependsOn" | "taskStats" | "status"> & {
@@ -510,9 +511,16 @@ export default function EpicDetailPage() {
     }
   };
 
-  // AI Action handlers
   const handleStartWork = () => {
     if (epic) {
+      const initialPrompt = generateEpicPrompt({
+        title: epic.title,
+        displayKey: epic.displayKey || epic.v2Id || epic.id,
+        status: epic.status,
+        taskCount: epic.taskStats?.total ?? 0,
+        prdDisplayKey: epic.prdFilePath,
+      });
+
       const context = {
         type: "epic" as const,
         id: epic.v2Id || epic.id,
@@ -521,6 +529,7 @@ export default function EpicDetailPage() {
         projectRef: getProjectRef() ?? undefined,
         workingDirectory: currentProject?.localPath,
         initialCommand: "claude",
+        initialPrompt,
       };
 
       const existing = getExistingSession(context);

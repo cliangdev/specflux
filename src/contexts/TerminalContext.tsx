@@ -59,6 +59,7 @@ export interface ContextInfo {
   agent?: AgentInfo;
   workingDirectory?: string; // Working directory for the terminal
   initialCommand?: string; // Command to run after terminal starts (e.g., "claude")
+  initialPrompt?: string; // Prompt to send to Claude after it starts
 }
 
 export interface TerminalSession {
@@ -71,6 +72,7 @@ export interface TerminalSession {
   agent?: AgentInfo; // Agent assigned to this session (for task contexts)
   workingDirectory?: string; // Working directory for the terminal
   initialCommand?: string; // Command to run after terminal starts
+  initialPrompt?: string; // Prompt to send to Claude after it starts
   isRunning: boolean;
   isConnected: boolean;
 }
@@ -189,6 +191,7 @@ interface StoredSession {
   agent?: AgentInfo;
   workingDirectory?: string;
   initialCommand?: string;
+  initialPrompt?: string;
 }
 
 interface StoredState {
@@ -262,6 +265,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
         agent: s.agent,
         workingDirectory: s.workingDirectory,
         initialCommand: s.initialCommand,
+        initialPrompt: s.initialPrompt,
         isRunning: false,
         isConnected: false,
       }));
@@ -285,6 +289,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
       agent: s.agent,
       workingDirectory: s.workingDirectory,
       initialCommand: s.initialCommand,
+      initialPrompt: s.initialPrompt,
     }));
 
     const state: StoredState = {
@@ -435,6 +440,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
           agent: context.agent,
           workingDirectory: context.workingDirectory,
           initialCommand: context.initialCommand,
+          initialPrompt: context.initialPrompt,
           isRunning: false,
           isConnected: false,
         },

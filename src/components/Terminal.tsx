@@ -30,6 +30,7 @@ interface TerminalProps {
   projectRef?: string;
   workingDirectory?: string;
   initialCommand?: string;
+  initialPrompt?: string; // Prompt to send to Claude after it starts
   onStatusChange?: (running: boolean) => void;
   onConnectionChange?: (connected: boolean) => void;
 }
@@ -59,6 +60,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
     projectRef,
     workingDirectory,
     initialCommand,
+    initialPrompt,
     onStatusChange,
     onConnectionChange,
   },
@@ -74,6 +76,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
 
   const sessionId = `${contextType}-${contextId}`;
   const initialCommandSentRef = useRef(false);
+  const initialPromptSentRef = useRef(false);
 
   // Refs for context values
   const contextDisplayKeyRef = useRef(contextDisplayKey);
@@ -275,6 +278,16 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
           }, 500);
         }
 
+        if (initialPrompt && !initialPromptSentRef.current) {
+          initialPromptSentRef.current = true;
+          const promptDelay = initialCommand ? 4000 : 1000;
+          setTimeout(async () => {
+            if (!cancelled && runningRef.current) {
+              await writeToTerminal(sessionId, initialPrompt + "\n");
+            }
+          }, promptDelay);
+        }
+
         outputUnlisten = await onTerminalOutput((event) => {
           if (event.sessionId === sessionId) {
             term.write(new Uint8Array(event.data));
@@ -316,7 +329,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
       exitUnlisten?.();
       closeTerminal(sessionId).catch(() => {});
     };
-  }, [sessionId, contextId, workingDirectory, contextType, initialCommand]);
+  }, [sessionId, contextId, workingDirectory, contextType, initialCommand, initialPrompt]);
 
   // Search handlers
   const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {

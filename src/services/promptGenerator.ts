@@ -7,6 +7,12 @@
 
 import type { Project } from "../api/generated/models";
 
+// Import prompt templates
+import prdPromptTemplate from "../templates/prompts/prd-context.md?raw";
+import epicPromptTemplate from "../templates/prompts/epic-context.md?raw";
+import taskPromptTemplate from "../templates/prompts/task-context.md?raw";
+import projectPromptTemplate from "../templates/prompts/project-context.md?raw";
+
 export interface ProjectConfig {
   name: string;
   key?: string;
@@ -206,4 +212,108 @@ export function projectToConfig(project: Project): ProjectConfig {
       database: "PostgreSQL",
     },
   };
+}
+
+// ============================================================================
+// Launch Agent Context Prompts
+// ============================================================================
+
+/**
+ * Context data for PRD prompt generation
+ */
+export interface PrdPromptContext {
+  title: string;
+  displayKey: string;
+  status: string;
+  documentCount: number;
+}
+
+/**
+ * Context data for Epic prompt generation
+ */
+export interface EpicPromptContext {
+  title: string;
+  displayKey: string;
+  status: string;
+  taskCount: number;
+  prdDisplayKey?: string;
+}
+
+/**
+ * Context data for Task prompt generation
+ */
+export interface TaskPromptContext {
+  title: string;
+  displayKey: string;
+  status: string;
+  priority: string;
+  epicDisplayKey?: string;
+}
+
+/**
+ * Context data for Project prompt generation
+ */
+export interface ProjectPromptContext {
+  name: string;
+  projectKey: string;
+}
+
+/**
+ * Fill template variables with actual values
+ */
+function fillTemplate(template: string, variables: Record<string, string | number | undefined>): string {
+  let result = template;
+  for (const [key, value] of Object.entries(variables)) {
+    const placeholder = `{{${key}}}`;
+    result = result.replace(new RegExp(placeholder, "g"), value?.toString() ?? "N/A");
+  }
+  return result;
+}
+
+/**
+ * Generate PRD context prompt for Launch Agent button
+ */
+export function generatePrdPrompt(context: PrdPromptContext): string {
+  return fillTemplate(prdPromptTemplate, {
+    title: context.title,
+    displayKey: context.displayKey,
+    status: context.status,
+    documentCount: context.documentCount,
+  });
+}
+
+/**
+ * Generate Epic context prompt for Launch Agent button
+ */
+export function generateEpicPrompt(context: EpicPromptContext): string {
+  return fillTemplate(epicPromptTemplate, {
+    title: context.title,
+    displayKey: context.displayKey,
+    status: context.status,
+    taskCount: context.taskCount,
+    prdDisplayKey: context.prdDisplayKey,
+  });
+}
+
+/**
+ * Generate Task context prompt for Launch Agent button
+ */
+export function generateTaskPrompt(context: TaskPromptContext): string {
+  return fillTemplate(taskPromptTemplate, {
+    title: context.title,
+    displayKey: context.displayKey,
+    status: context.status,
+    priority: context.priority,
+    epicDisplayKey: context.epicDisplayKey,
+  });
+}
+
+/**
+ * Generate Project context prompt for Launch Agent button
+ */
+export function generateProjectPrompt(context: ProjectPromptContext): string {
+  return fillTemplate(projectPromptTemplate, {
+    name: context.name,
+    projectKey: context.projectKey,
+  });
 }

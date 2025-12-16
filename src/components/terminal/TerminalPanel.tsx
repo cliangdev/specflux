@@ -501,6 +501,7 @@ export default function TerminalPanel() {
                 projectRef={session.projectRef}
                 workingDirectory={session.workingDirectory}
                 initialCommand={session.initialCommand}
+                initialPrompt={session.initialPrompt}
                 onStatusChange={createStatusChangeHandler(session.id)}
                 onConnectionChange={createConnectionChangeHandler(session.id)}
               />

@@ -15,6 +15,7 @@ import { TabNavigation, DetailPageHeader } from "../components/ui";
 import { AIActionButton } from "../components/ui/AIActionButton";
 import { useTerminal } from "../contexts/TerminalContext";
 import { usePageContext } from "../hooks/usePageContext";
+import { generateTaskPrompt } from "../services/promptGenerator";
 
 // Task status options for DetailPageHeader
 const TASK_STATUS_OPTIONS = [
@@ -296,9 +297,16 @@ export default function TaskDetailPage() {
     }
   };
 
-  // Handle opening terminal for this task
   const handleOpenInTerminal = () => {
     if (task) {
+      const initialPrompt = generateTaskPrompt({
+        title: task.title,
+        displayKey: task.displayKey || task.id,
+        status: task.status,
+        priority: task.priority,
+        epicDisplayKey: task.epicDisplayKey,
+      });
+
       const context = {
         type: "task" as const,
         id: task.id,
@@ -307,6 +315,7 @@ export default function TaskDetailPage() {
         projectRef: getProjectRef() ?? undefined,
         workingDirectory: currentProject?.localPath,
         initialCommand: "claude",
+        initialPrompt,
       };
 
       // Check if session already exists - switch to it directly
