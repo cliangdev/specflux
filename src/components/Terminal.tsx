@@ -232,6 +232,9 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
         const exists = await hasTerminalSession(sessionId);
         if (cancelled) return;
 
+        // Track if this is a fresh session (for sending initial command/prompt)
+        const isNewSession = !exists;
+
         if (!exists) {
           await new Promise((resolve) => setTimeout(resolve, 0));
           if (cancelled) return;
@@ -271,16 +274,18 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
 
         await resizeTerminalIpc(sessionId, term.cols, term.rows);
 
-        if (initialCommand && !initialCommandSentRef.current) {
+        // Only send initial command/prompt for newly created sessions
+        if (isNewSession && initialCommand && !initialCommandSentRef.current) {
           initialCommandSentRef.current = true;
           setTimeout(async () => {
             if (!cancelled) await writeToTerminal(sessionId, initialCommand + "\n");
           }, 500);
         }
 
-        if (initialPrompt && !initialPromptSentRef.current) {
+        if (isNewSession && initialPrompt && !initialPromptSentRef.current) {
           initialPromptSentRef.current = true;
-          const promptDelay = initialCommand ? 4000 : 1000;
+          // Wait for Claude to fully start up (8s after command, 2s otherwise)
+          const promptDelay = initialCommand ? 8000 : 2000;
           setTimeout(async () => {
             if (!cancelled && runningRef.current) {
               await writeToTerminal(sessionId, initialPrompt + "\n");
