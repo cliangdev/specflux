@@ -20,12 +20,22 @@ vi.mock("../../terminal/ClaudePill", () => ({
 }));
 
 // Mock terminal context
-const mockTerminalContext = {
+const mockTerminalContext: {
+  isOpen: boolean;
+  isCollapsed: boolean;
+  panelHeight: number;
+  panelWidth: number;
+  panelPosition: "bottom" | "left" | "right";
+  isMaximized: boolean;
+  sessions: unknown[];
+  activeSessionId: string | null;
+  [key: string]: unknown;
+} = {
   isOpen: true,
   isCollapsed: false,
   panelHeight: 320,
   panelWidth: 480,
-  panelPosition: "bottom" as const,
+  panelPosition: "bottom",
   isMaximized: false,
   sessions: [],
   activeSessionId: null,
