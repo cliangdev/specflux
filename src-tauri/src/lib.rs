@@ -3,6 +3,10 @@ mod pty;
 
 use commands::terminal::*;
 use pty::PtyState;
+use tauri::{
+    menu::{Menu, MenuItem, Submenu},
+    Manager,
+};
 use tauri_plugin_opener::OpenerExt;
 
 #[tauri::command]
@@ -20,6 +24,38 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .manage(PtyState::new())
+        .setup(|app| {
+            // Create Navigation menu with Back option
+            let back_item = MenuItem::with_id(app, "back", "Back", true, Some("CmdOrCtrl+["))?;
+            let forward_item =
+                MenuItem::with_id(app, "forward", "Forward", true, Some("CmdOrCtrl+]"))?;
+
+            let navigation_menu = Submenu::with_items(
+                app,
+                "Navigation",
+                true,
+                &[&back_item, &forward_item],
+            )?;
+
+            let menu = Menu::with_items(app, &[&navigation_menu])?;
+            app.set_menu(menu)?;
+
+            // Handle menu events
+            app.on_menu_event(move |app_handle, event| {
+                if event.id() == "back" {
+                    // Emit event to webview to go back
+                    if let Some(window) = app_handle.get_webview_window("main") {
+                        let _ = window.eval("history.back()");
+                    }
+                } else if event.id() == "forward" {
+                    if let Some(window) = app_handle.get_webview_window("main") {
+                        let _ = window.eval("history.forward()");
+                    }
+                }
+            });
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             open_url,
             spawn_terminal,
