@@ -10,6 +10,9 @@ import {
   initializeFirebase,
   signInWithGitHub as firebaseSignInWithGitHub,
   signInWithTestAccount,
+  signUpWithEmail as firebaseSignUpWithEmail,
+  resendVerificationEmail as firebaseResendVerificationEmail,
+  refreshUser as firebaseRefreshUser,
   signOut as firebaseSignOut,
   getIdToken as firebaseGetIdToken,
   onAuthStateChange,
@@ -26,10 +29,18 @@ interface AuthContextValue {
   loading: boolean;
   /** Whether user is signed in */
   isSignedIn: boolean;
+  /** Whether user's email is verified */
+  emailVerified: boolean;
   /** Sign in with email and password */
   signInWithEmail: (email: string, password: string) => Promise<void>;
+  /** Sign up with email and password (sends verification email) */
+  signUpWithEmail: (email: string, password: string) => Promise<void>;
   /** Sign in with GitHub OAuth */
   signInWithGitHub: () => Promise<void>;
+  /** Resend verification email to current user */
+  resendVerificationEmail: () => Promise<void>;
+  /** Refresh user data to check emailVerified status */
+  refreshUser: () => Promise<void>;
   /** Sign out */
   signOut: () => Promise<void>;
   /** Get current ID token for API calls */
@@ -121,6 +132,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
     [],
   );
 
+  const signUpWithEmail = useCallback(
+    async (email: string, password: string) => {
+      setLoading(true);
+      setError(null);
+      try {
+        await firebaseSignUpWithEmail(email, password);
+        // Note: Don't sync to backend yet - wait for email verification
+      } catch (err) {
+        const errorCode = (err as { code?: string }).code;
+        let message = "Sign up failed";
+        if (errorCode === "auth/email-already-in-use") {
+          message = "An account with this email already exists. Sign in?";
+        } else if (errorCode === "auth/weak-password") {
+          message = "Password must be at least 8 characters";
+        } else if (err instanceof Error) {
+          message = err.message;
+        }
+        setError(message);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
   const signInWithGitHub = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -164,12 +201,40 @@ export function AuthProvider({ children }: AuthProviderProps) {
     [],
   );
 
+  const resendVerificationEmail = useCallback(async () => {
+    setError(null);
+    try {
+      await firebaseResendVerificationEmail();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to resend email";
+      setError(message);
+      throw err;
+    }
+  }, []);
+
+  const refreshUser = useCallback(async () => {
+    try {
+      const refreshedUser = await firebaseRefreshUser();
+      if (refreshedUser) {
+        // Force a re-render by setting user again
+        setUser(refreshedUser);
+      }
+    } catch (err) {
+      console.error("Failed to refresh user:", err);
+    }
+  }, []);
+
   const value: AuthContextValue = {
     user,
     loading,
     isSignedIn: user !== null,
+    emailVerified: user?.emailVerified ?? false,
     signInWithEmail,
+    signUpWithEmail,
     signInWithGitHub,
+    resendVerificationEmail,
+    refreshUser,
     signOut,
     getIdToken,
     error,

@@ -10,6 +10,8 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendEmailVerification,
+  reload,
   setPersistence,
   browserLocalPersistence,
   type Auth,
@@ -301,6 +303,46 @@ export function onAuthStateChange(
 ): () => void {
   const authInstance = getFirebaseAuth();
   return onAuthStateChanged(authInstance, callback);
+}
+
+/**
+ * Sign up with email/password and send verification email.
+ */
+export async function signUpWithEmail(
+  email: string,
+  password: string,
+): Promise<User> {
+  const authInstance = getFirebaseAuth();
+  const result = await createUserWithEmailAndPassword(
+    authInstance,
+    email,
+    password,
+  );
+  await sendEmailVerification(result.user);
+  return result.user;
+}
+
+/**
+ * Resend verification email to current user.
+ */
+export async function resendVerificationEmail(): Promise<void> {
+  const authInstance = getFirebaseAuth();
+  if (authInstance.currentUser) {
+    await sendEmailVerification(authInstance.currentUser);
+  }
+}
+
+/**
+ * Refresh user data to get updated emailVerified status.
+ * Returns the refreshed user or null if not signed in.
+ */
+export async function refreshUser(): Promise<User | null> {
+  const authInstance = getFirebaseAuth();
+  if (authInstance.currentUser) {
+    await reload(authInstance.currentUser);
+    return authInstance.currentUser;
+  }
+  return null;
 }
 
 // Export types for convenience
