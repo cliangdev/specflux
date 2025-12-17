@@ -30,7 +30,7 @@ const promptTemplates: PromptTemplate[] = [
     description: "Prompt injected when launching agent from an Epic page",
     usedWhen: "User clicks 'Launch Agent' while viewing an Epic",
     content: epicPrompt,
-    variables: ["title", "displayKey", "status", "taskCount", "prdDisplayKey"],
+    variables: ["title", "displayKey", "status", "taskCount"],
   },
   {
     id: "task",
@@ -38,7 +38,7 @@ const promptTemplates: PromptTemplate[] = [
     description: "Prompt injected when launching agent from a Task page",
     usedWhen: "User clicks 'Launch Agent' while viewing a Task",
     content: taskPrompt,
-    variables: ["title", "displayKey", "status", "priority", "epicDisplayKey"],
+    variables: ["title", "displayKey", "status", "priority"],
   },
   {
     id: "project",

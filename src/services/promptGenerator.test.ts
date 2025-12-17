@@ -16,12 +16,11 @@ describe("promptGenerator", () => {
         documentCount: 3,
       });
 
-      expect(result).toContain('PRD: "User Authentication"');
+      expect(result).toContain('PRD "User Authentication"');
       expect(result).toContain("(SPEC-P1)");
-      expect(result).toContain("Status: DRAFT");
-      expect(result).toContain("Documents: 3");
-      expect(result).toContain("Refine this PRD");
-      expect(result).toContain("Break down into epics");
+      expect(result).toContain("status: DRAFT");
+      expect(result).toContain("3 docs");
+      expect(result).toContain("Refine PRD");
     });
 
     it("handles zero documents", () => {
@@ -32,7 +31,7 @@ describe("promptGenerator", () => {
         documentCount: 0,
       });
 
-      expect(result).toContain("Documents: 0");
+      expect(result).toContain("0 docs");
     });
   });
 
@@ -43,18 +42,16 @@ describe("promptGenerator", () => {
         displayKey: "SPEC-E1",
         status: "IN_PROGRESS",
         taskCount: 5,
-        prdDisplayKey: "SPEC-P1",
       });
 
-      expect(result).toContain('Epic: "Implement Auth Flow"');
+      expect(result).toContain('Epic "Implement Auth Flow"');
       expect(result).toContain("(SPEC-E1)");
-      expect(result).toContain("Status: IN_PROGRESS");
-      expect(result).toContain("Tasks: 5");
-      expect(result).toContain("PRD: SPEC-P1");
-      expect(result).toContain("Implement this epic");
+      expect(result).toContain("status: IN_PROGRESS");
+      expect(result).toContain("5 tasks");
+      expect(result).toContain("Implement epic");
     });
 
-    it("handles missing prdDisplayKey", () => {
+    it("handles zero tasks", () => {
       const result = generateEpicPrompt({
         title: "Standalone Epic",
         displayKey: "SPEC-E2",
@@ -62,7 +59,7 @@ describe("promptGenerator", () => {
         taskCount: 0,
       });
 
-      expect(result).toContain("PRD: N/A");
+      expect(result).toContain("0 tasks");
     });
   });
 
@@ -73,26 +70,13 @@ describe("promptGenerator", () => {
         displayKey: "SPEC-T1",
         status: "READY",
         priority: "HIGH",
-        epicDisplayKey: "SPEC-E1",
       });
 
-      expect(result).toContain('Task: "Add login button"');
+      expect(result).toContain('Task "Add login button"');
       expect(result).toContain("(SPEC-T1)");
-      expect(result).toContain("Status: READY");
-      expect(result).toContain("Priority: HIGH");
-      expect(result).toContain("Epic: SPEC-E1");
-      expect(result).toContain("Implement this task");
-    });
-
-    it("handles missing epicDisplayKey", () => {
-      const result = generateTaskPrompt({
-        title: "Orphan Task",
-        displayKey: "SPEC-T2",
-        status: "BACKLOG",
-        priority: "LOW",
-      });
-
-      expect(result).toContain("Epic: N/A");
+      expect(result).toContain("status: READY");
+      expect(result).toContain("priority: HIGH");
+      expect(result).toContain("Implement task");
     });
   });
 
@@ -103,10 +87,9 @@ describe("promptGenerator", () => {
         projectKey: "SPEC",
       });
 
-      expect(result).toContain('project: "SpecFlux"');
+      expect(result).toContain('project "SpecFlux"');
       expect(result).toContain("(SPEC)");
-      expect(result).toContain("Create a new PRD");
-      expect(result).toContain("View existing PRDs");
+      expect(result).toContain("Create new PRD");
     });
   });
 });

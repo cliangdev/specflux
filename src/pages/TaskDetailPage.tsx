@@ -304,7 +304,6 @@ export default function TaskDetailPage() {
         displayKey: task.displayKey || task.id,
         status: task.status,
         priority: task.priority,
-        epicDisplayKey: task.epicDisplayKey,
       });
 
       const context = {

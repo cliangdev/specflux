@@ -288,7 +288,14 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
           const promptDelay = initialCommand ? 8000 : 2000;
           setTimeout(async () => {
             if (!cancelled && runningRef.current) {
-              await writeToTerminal(sessionId, initialPrompt + "\n");
+              // Send prompt text first, then Enter to submit
+              await writeToTerminal(sessionId, initialPrompt);
+              // Small delay then send Enter to submit the message
+              setTimeout(async () => {
+                if (!cancelled && runningRef.current) {
+                  await writeToTerminal(sessionId, "\r");
+                }
+              }, 100);
             }
           }, promptDelay);
         }

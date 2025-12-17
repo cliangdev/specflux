@@ -518,7 +518,6 @@ export default function EpicDetailPage() {
         displayKey: epic.displayKey || epic.v2Id || epic.id,
         status: epic.status,
         taskCount: epic.taskStats?.total ?? 0,
-        prdDisplayKey: epic.prdFilePath,
       });
 
       const context = {

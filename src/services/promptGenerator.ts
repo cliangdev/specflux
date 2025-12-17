@@ -236,7 +236,6 @@ export interface EpicPromptContext {
   displayKey: string;
   status: string;
   taskCount: number;
-  prdDisplayKey?: string;
 }
 
 /**
@@ -247,7 +246,6 @@ export interface TaskPromptContext {
   displayKey: string;
   status: string;
   priority: string;
-  epicDisplayKey?: string;
 }
 
 /**
@@ -291,7 +289,6 @@ export function generateEpicPrompt(context: EpicPromptContext): string {
     displayKey: context.displayKey,
     status: context.status,
     taskCount: context.taskCount,
-    prdDisplayKey: context.prdDisplayKey,
   });
 }
 
@@ -304,7 +301,6 @@ export function generateTaskPrompt(context: TaskPromptContext): string {
     displayKey: context.displayKey,
     status: context.status,
     priority: context.priority,
-    epicDisplayKey: context.epicDisplayKey,
   });
 }
 
