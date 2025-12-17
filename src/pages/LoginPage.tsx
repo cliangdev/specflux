@@ -1,8 +1,10 @@
 import { useState, FormEvent, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { isUsingEmulator } from "../lib/firebase";
 
 const SAVED_EMAIL_KEY = "specflux-saved-email";
+const PENDING_GITHUB_AUTH_KEY = "specflux-pending-github-auth";
 
 type AuthMode = "signin" | "signup";
 
@@ -56,9 +58,28 @@ export default function LoginPage() {
   // Redirect to board if signed in and verified
   useEffect(() => {
     if (isSignedIn && emailVerified) {
+      // Clear pending auth flag on successful sign-in
+      localStorage.removeItem(PENDING_GITHUB_AUTH_KEY);
       navigate("/board", { replace: true });
     }
   }, [isSignedIn, emailVerified, navigate]);
+
+  // Clear pending auth flag when returning to login page
+  useEffect(() => {
+    localStorage.removeItem(PENDING_GITHUB_AUTH_KEY);
+  }, []);
+
+  // Handle Escape key to cancel GitHub auth flow in emulator mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && githubLoading) {
+        setGithubLoading(false);
+        localStorage.removeItem(PENDING_GITHUB_AUTH_KEY);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [githubLoading]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -100,6 +121,8 @@ export default function LoginPage() {
 
   const handleGitHubSignIn = async () => {
     setGithubLoading(true);
+    // Set flag to track pending auth (for emulator back navigation)
+    localStorage.setItem(PENDING_GITHUB_AUTH_KEY, "true");
     try {
       await signInWithGitHub();
       // Navigation will happen via the useEffect above
@@ -107,6 +130,7 @@ export default function LoginPage() {
       // Error is already set in AuthContext
     } finally {
       setGithubLoading(false);
+      localStorage.removeItem(PENDING_GITHUB_AUTH_KEY);
     }
   };
 
@@ -343,6 +367,11 @@ export default function LoginPage() {
               </>
             )}
           </button>
+          {isUsingEmulator() && (
+            <p className="text-xs text-surface-500 dark:text-surface-500 mt-2 text-center">
+              Using emulator? Press <kbd className="px-1 py-0.5 bg-surface-200 dark:bg-surface-700 rounded text-xs">⌘[</kbd> to go back
+            </p>
+          )}
 
           {/* Divider */}
           <div className="relative my-4">
