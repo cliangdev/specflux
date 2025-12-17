@@ -39,27 +39,39 @@ Use these to automatically determine which project/PRD you're working with. When
 
 2. **Order by dependencies** - Create independent epics FIRST, then dependent ones
 
-3. **Write self-contained epic descriptions** - AI should be able to code from the epic alone:
+3. **Map PRD documents to epics** - Identify which documents are relevant to each epic:
+   - UI epics → wireframes, mockups
+   - Backend epics → data models, API specs
+   - Integration epics → architecture diagrams
+   - All epics → main PRD for context
+
+4. **Write self-contained epic descriptions** - AI should be able to code from the epic alone:
    - Context & user stories
    - Scope (what's IN and OUT)
    - Technical approach & data model
    - API contracts
+   - Reference documents (file paths AI should read during implementation)
    - Edge cases
 
-4. **Add high-level acceptance criteria (3-5)** focused on outcomes:
+5. **Add high-level acceptance criteria (3-5)** focused on outcomes:
    - Good: "Users can complete purchase end-to-end in under 2 minutes"
    - Bad: "API returns 200" (too low-level, belongs in tasks)
 
 ### Phase 3: Create Epics via API
 
-**IMPORTANT**: Always include `prdRef` to link epics back to their source PRD. This maintains traceability from requirements to implementation.
+**Include `prdRef` when creating epics from a PRD** to maintain traceability from requirements to implementation. Standalone epics (not derived from a PRD) can omit this field.
+
+**Include relevant document paths in the epic description** so AI can reference them during implementation. Match documents to epics by type:
+- UI/frontend epics → wireframes, mockups
+- Backend/API epics → data models, API specs
+- All epics → main PRD document
 
 ```
 POST /api/projects/{projectRef}/epics
 {
   "title": "...",
-  "description": "...",
-  "prdRef": "{prdRef}",           // REQUIRED - links epic to source PRD
+  "description": "## Overview\n...\n\n## Reference Documents\n- `.specflux/prds/{name}/wireframes.md` - UI layouts\n- `.specflux/prds/{name}/prd.md` - Full requirements",
+  "prdRef": "{prdRef}",           // Optional - links epic to source PRD
   "releaseRef": "{releaseRef}",   // Optional - assigns to a release
   "acceptanceCriteria": [         // REQUIRED - array of criteria objects
     {"criteria": "..."},
@@ -70,6 +82,27 @@ POST /api/projects/{projectRef}/epics
 # Add dependencies if epic depends on other epics
 POST /api/projects/{projectRef}/epics/{epicRef}/dependencies
 { "dependsOnEpicRef": "..." }
+```
+
+**Epic Description Template**:
+```markdown
+## Overview
+{Context, user stories, what this epic delivers}
+
+## Scope
+IN: {what's included}
+OUT: {what's excluded}
+
+## Technical Approach
+{Data model, API contracts, key implementation details}
+
+## Reference Documents
+- `{filePath}` - {description of what's in the document}
+- `{filePath}` - {description}
+
+## Edge Cases
+- {edge case 1}
+- {edge case 2}
 ```
 
 **Note**: The `prdRef` can be the PRD's displayKey (e.g., "SPEC-P1") or internal ID (e.g., "prd_xxx"). Get it from:
@@ -128,12 +161,18 @@ Scope IN: Email/password, password reset, JWT sessions
 Scope OUT: Social login, 2FA
 Technical: bcrypt (cost 12), JWT (24h), httpOnly cookies
 API: POST /auth/register, /login, /forgot-password, /reset-password
+Reference Documents:
+- `.specflux/prds/ecommerce-mvp/prd.md` - Auth requirements
+- `.specflux/prds/ecommerce-mvp/user-flows.md` - Login/signup flows
 Acceptance Criteria:
 1. Users can self-register and immediately access platform
 2. Users can recover access without support intervention
 3. Auth meets security best practices
 
 **E2: Product Catalog** (independent)
+Reference Documents:
+- `.specflux/prds/ecommerce-mvp/wireframes.md` - Product listing UI
+- `.specflux/prds/ecommerce-mvp/data-model.md` - Product schema
 [...]
 
 **E3: Shopping Cart** (depends: E1, E2)

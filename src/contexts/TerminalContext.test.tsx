@@ -397,6 +397,85 @@ describe("TerminalContext", () => {
     });
   });
 
+  describe("Session with initialPrompt", () => {
+    it("stores initialPrompt in session", () => {
+      const { result } = renderHook(() => useTerminal(), {
+        wrapper: ({ children }) => (
+          <TerminalProvider>{children}</TerminalProvider>
+        ),
+      });
+
+      act(() => {
+        result.current.openTerminalForContext({
+          type: "task",
+          id: "task_123",
+          title: "Test Task",
+          initialPrompt: "Hello Claude, help me with this task",
+        });
+      });
+
+      expect(result.current.activeSession?.initialPrompt).toBe(
+        "Hello Claude, help me with this task"
+      );
+    });
+
+    it("persists initialPrompt to localStorage", () => {
+      render(
+        <TerminalProvider>
+          <TestConsumer />
+        </TerminalProvider>,
+      );
+
+      const { result } = renderHook(() => useTerminal(), {
+        wrapper: ({ children }) => (
+          <TerminalProvider>{children}</TerminalProvider>
+        ),
+      });
+
+      act(() => {
+        result.current.openTerminalForContext({
+          type: "prd",
+          id: "prd_1",
+          title: "Test PRD",
+          initialPrompt: "Work on this PRD",
+        });
+      });
+
+      expect(localStorageMock.setItem).toHaveBeenCalledWith(
+        "specflux-terminal-panel",
+        expect.stringContaining('"initialPrompt":"Work on this PRD"'),
+      );
+    });
+
+    it("restores session with initialPrompt from localStorage", () => {
+      localStorageMock.getItem.mockReturnValue(
+        JSON.stringify({
+          isOpen: true,
+          sessions: [
+            {
+              id: "epic-epic_1",
+              contextType: "epic",
+              contextId: "epic_1",
+              contextTitle: "Test Epic",
+              initialPrompt: "Implement this epic",
+            },
+          ],
+          activeSessionId: "epic-epic_1",
+        }),
+      );
+
+      const { result } = renderHook(() => useTerminal(), {
+        wrapper: ({ children }) => (
+          <TerminalProvider>{children}</TerminalProvider>
+        ),
+      });
+
+      expect(result.current.activeSession?.initialPrompt).toBe(
+        "Implement this epic"
+      );
+    });
+  });
+
   describe("Panel Position", () => {
     it("defaults to bottom position", () => {
       render(

@@ -9,9 +9,9 @@ This project is managed by SpecFlux. Use the SpecFlux API to create and track ep
 | Command | Description |
 |---------|-------------|
 | `/prd` | Create or refine product PRD (saved to `.specflux/prds/`) |
-| `/epic <name>` | Define epic and create in SpecFlux via API |
-| `/implement <epic>` | Implement epic, working through tasks |
-| `/task <id>` | Work on a specific task |
+| `/epic` | Break down PRD into epics and tasks via API |
+| `/implement` | Implement epic, working through tasks |
+| `/task` | Work on a specific task |
 
 ## Required Skill
 

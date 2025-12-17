@@ -1,0 +1,1 @@
+I'm viewing Task "{{title}}" ({{displayKey}}), status: {{status}}, priority: {{priority}}. Ask what I'd like to do: 1) Implement (/task {{displayKey}}) 2) View details 3) Update status 4) Other. When I choose option 1, run the /task command with this task's displayKey.

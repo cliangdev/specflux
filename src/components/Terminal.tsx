@@ -30,6 +30,7 @@ interface TerminalProps {
   projectRef?: string;
   workingDirectory?: string;
   initialCommand?: string;
+  initialPrompt?: string; // Prompt to send to Claude after it starts
   onStatusChange?: (running: boolean) => void;
   onConnectionChange?: (connected: boolean) => void;
 }
@@ -59,6 +60,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
     projectRef,
     workingDirectory,
     initialCommand,
+    initialPrompt,
     onStatusChange,
     onConnectionChange,
   },
@@ -74,6 +76,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
 
   const sessionId = `${contextType}-${contextId}`;
   const initialCommandSentRef = useRef(false);
+  const initialPromptSentRef = useRef(false);
 
   // Refs for context values
   const contextDisplayKeyRef = useRef(contextDisplayKey);
@@ -229,6 +232,9 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
         const exists = await hasTerminalSession(sessionId);
         if (cancelled) return;
 
+        // Track if this is a fresh session (for sending initial command/prompt)
+        const isNewSession = !exists;
+
         if (!exists) {
           await new Promise((resolve) => setTimeout(resolve, 0));
           if (cancelled) return;
@@ -268,11 +274,30 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
 
         await resizeTerminalIpc(sessionId, term.cols, term.rows);
 
-        if (initialCommand && !initialCommandSentRef.current) {
+        // Only send initial command/prompt for newly created sessions
+        if (isNewSession && initialCommand && !initialCommandSentRef.current) {
           initialCommandSentRef.current = true;
           setTimeout(async () => {
             if (!cancelled) await writeToTerminal(sessionId, initialCommand + "\n");
           }, 500);
+        }
+
+        if (isNewSession && initialPrompt && !initialPromptSentRef.current) {
+          initialPromptSentRef.current = true;
+          // Wait for Claude to fully start up (8s after command, 2s otherwise)
+          const promptDelay = initialCommand ? 8000 : 2000;
+          setTimeout(async () => {
+            if (!cancelled && runningRef.current) {
+              // Send prompt text first, then Enter to submit
+              await writeToTerminal(sessionId, initialPrompt);
+              // Small delay then send Enter to submit the message
+              setTimeout(async () => {
+                if (!cancelled && runningRef.current) {
+                  await writeToTerminal(sessionId, "\r");
+                }
+              }, 100);
+            }
+          }, promptDelay);
         }
 
         outputUnlisten = await onTerminalOutput((event) => {
@@ -316,7 +341,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
       exitUnlisten?.();
       closeTerminal(sessionId).catch(() => {});
     };
-  }, [sessionId, contextId, workingDirectory, contextType, initialCommand]);
+  }, [sessionId, contextId, workingDirectory, contextType, initialCommand, initialPrompt]);
 
   // Search handlers
   const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {

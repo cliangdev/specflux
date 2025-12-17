@@ -1,0 +1,1 @@
+I'm viewing Epic "{{title}}" ({{displayKey}}), status: {{status}}, {{taskCount}} tasks. Ask what I'd like to do: 1) Implement (/implement) 2) Add tasks (/task) 3) View progress 4) Other. When I choose, run the corresponding slash command.
