@@ -249,8 +249,11 @@ export async function getIdToken(forceRefresh = false): Promise<string | null> {
   const authInstance = getFirebaseAuth();
 
   // Wait for auth state to be restored from persistence
-  // This ensures we don't return null just because Firebase hasn't loaded yet
-  const user = (await waitForAuthState()) ?? authInstance.currentUser;
+  await waitForAuthState();
+
+  // Always use currentUser from auth instance - not the cached promise result
+  // This ensures we get the token for the CURRENT user, not a stale user
+  const user = authInstance.currentUser;
 
   console.log(
     "[Firebase] getIdToken called, currentUser:",
@@ -301,6 +304,22 @@ export function onAuthStateChange(
 ): () => void {
   const authInstance = getFirebaseAuth();
   return onAuthStateChanged(authInstance, callback);
+}
+
+/**
+ * Sign up with email/password.
+ */
+export async function signUpWithEmail(
+  email: string,
+  password: string,
+): Promise<User> {
+  const authInstance = getFirebaseAuth();
+  const result = await createUserWithEmailAndPassword(
+    authInstance,
+    email,
+    password,
+  );
+  return result.user;
 }
 
 // Export types for convenience

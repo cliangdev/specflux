@@ -11,6 +11,7 @@ import { api, type Project } from "../api";
 import { useAuth } from "./AuthContext";
 
 const SELECTED_PROJECT_KEY = "specflux_selected_project_id";
+const LAST_USER_KEY = "specflux_last_user_id";
 const PROJECT_ROUTES_KEY = "specflux_project_routes";
 const DEFAULT_ROUTE = "/board";
 
@@ -55,7 +56,7 @@ function saveProjectRoutes(routes: Record<string, string>): void {
 }
 
 export function ProjectProvider({ children }: ProjectProviderProps) {
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, user } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,6 +72,29 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
       ? localStorage.getItem(SELECTED_PROJECT_KEY)
       : null
   );
+
+  // Clear state when user changes (different user signed in)
+  useEffect(() => {
+    const currentUserId = user?.uid;
+    const lastUserId = localStorage.getItem(LAST_USER_KEY);
+
+    if (currentUserId && currentUserId !== lastUserId) {
+      // Different user - clear cached data
+      console.log("[ProjectContext] User changed, clearing cached data");
+      setProjects([]);
+      setCurrentProject(null);
+      localStorage.removeItem(SELECTED_PROJECT_KEY);
+      localStorage.removeItem(PROJECT_ROUTES_KEY);
+      savedProjectId.current = null;
+      localStorage.setItem(LAST_USER_KEY, currentUserId);
+    } else if (!currentUserId && lastUserId) {
+      // Signed out - clear cached data
+      console.log("[ProjectContext] Signed out, clearing cached data");
+      setProjects([]);
+      setCurrentProject(null);
+      localStorage.removeItem(LAST_USER_KEY);
+    }
+  }, [user?.uid]);
 
   const fetchProjects = useCallback(async () => {
     try {

@@ -10,6 +10,7 @@ import {
   initializeFirebase,
   signInWithGitHub as firebaseSignInWithGitHub,
   signInWithTestAccount,
+  signUpWithEmail as firebaseSignUpWithEmail,
   signOut as firebaseSignOut,
   getIdToken as firebaseGetIdToken,
   onAuthStateChange,
@@ -28,6 +29,8 @@ interface AuthContextValue {
   isSignedIn: boolean;
   /** Sign in with email and password */
   signInWithEmail: (email: string, password: string) => Promise<void>;
+  /** Sign up with email and password */
+  signUpWithEmail: (email: string, password: string) => Promise<void>;
   /** Sign in with GitHub OAuth */
   signInWithGitHub: () => Promise<void>;
   /** Sign out */
@@ -121,6 +124,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
     [],
   );
 
+  const signUpWithEmail = useCallback(
+    async (email: string, password: string) => {
+      setLoading(true);
+      setError(null);
+      try {
+        await firebaseSignUpWithEmail(email, password);
+        // Sync user to backend (creates user if not exists)
+        try {
+          await api.users.getCurrentUser();
+          console.log("User synced to backend");
+        } catch (syncErr) {
+          console.warn("Failed to sync user to backend:", syncErr);
+        }
+      } catch (err) {
+        const errorCode = (err as { code?: string }).code;
+        let message = "Sign up failed";
+        if (errorCode === "auth/email-already-in-use") {
+          message = "An account with this email already exists";
+        } else if (errorCode === "auth/weak-password") {
+          message = "Password must be at least 8 characters";
+        } else if (err instanceof Error) {
+          message = err.message;
+        }
+        setError(message);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
   const signInWithGitHub = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -169,6 +204,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     loading,
     isSignedIn: user !== null,
     signInWithEmail,
+    signUpWithEmail,
     signInWithGitHub,
     signOut,
     getIdToken,
