@@ -71,6 +71,7 @@ import Terminal from "../Terminal";
 import {
   spawnTerminal,
   hasTerminalSession,
+  writeToTerminal,
 } from "../../services/tauriTerminal";
 
 describe("Terminal", () => {
@@ -174,5 +175,93 @@ describe("Terminal", () => {
         }),
       );
     });
+  });
+
+  it("sends initial command for new sessions", async () => {
+    vi.useFakeTimers();
+
+    render(
+      <Terminal
+        contextType="task"
+        contextId="task_1"
+        initialCommand="claude"
+      />,
+    );
+
+    // Wait for spawn
+    await vi.waitFor(() => {
+      expect(spawnTerminal).toHaveBeenCalled();
+    });
+
+    // Advance timer for initial command delay (500ms)
+    await vi.advanceTimersByTimeAsync(600);
+
+    expect(writeToTerminal).toHaveBeenCalledWith("task-task_1", "claude\n");
+
+    vi.useRealTimers();
+  });
+
+  it("sends initial prompt after initial command for new sessions", async () => {
+    vi.useFakeTimers();
+
+    render(
+      <Terminal
+        contextType="prd"
+        contextId="prd_1"
+        initialCommand="claude"
+        initialPrompt="Help me with this PRD"
+      />,
+    );
+
+    // Wait for spawn
+    await vi.waitFor(() => {
+      expect(spawnTerminal).toHaveBeenCalled();
+    });
+
+    // Advance timer for initial command delay (500ms)
+    await vi.advanceTimersByTimeAsync(600);
+    expect(writeToTerminal).toHaveBeenCalledWith("prd-prd_1", "claude\n");
+
+    // Advance timer for prompt delay (8000ms total from start)
+    await vi.advanceTimersByTimeAsync(8000);
+
+    // Should send prompt text
+    expect(writeToTerminal).toHaveBeenCalledWith("prd-prd_1", "Help me with this PRD");
+
+    // Advance for Enter key (100ms after prompt)
+    await vi.advanceTimersByTimeAsync(200);
+    expect(writeToTerminal).toHaveBeenCalledWith("prd-prd_1", "\r");
+
+    vi.useRealTimers();
+  });
+
+  it("does not send initial command/prompt for existing sessions", async () => {
+    vi.useFakeTimers();
+    vi.mocked(hasTerminalSession).mockResolvedValue(true);
+
+    render(
+      <Terminal
+        contextType="task"
+        contextId="task_existing"
+        initialCommand="claude"
+        initialPrompt="Help me"
+      />,
+    );
+
+    // Wait for session check
+    await vi.waitFor(() => {
+      expect(hasTerminalSession).toHaveBeenCalledWith("task-task_existing");
+    });
+
+    // Should not spawn new terminal
+    expect(spawnTerminal).not.toHaveBeenCalled();
+
+    // Advance all timers
+    await vi.advanceTimersByTimeAsync(10000);
+
+    // Should not send any commands/prompts for existing sessions
+    expect(writeToTerminal).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
   });
 });
