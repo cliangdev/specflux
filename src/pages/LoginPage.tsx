@@ -27,18 +27,8 @@ function GitHubIcon({ className }: { className?: string }) {
 }
 
 export default function LoginPage() {
-  const {
-    signInWithEmail,
-    signUpWithEmail,
-    signInWithGitHub,
-    resendVerificationEmail,
-    refreshUser,
-    loading,
-    error,
-    isSignedIn,
-    emailVerified,
-    user,
-  } = useAuth();
+  const { signInWithEmail, signUpWithEmail, signInWithGitHub, loading, error, isSignedIn } =
+    useAuth();
   const navigate = useNavigate();
 
   const [authMode, setAuthMode] = useState<AuthMode>("signin");
@@ -49,20 +39,16 @@ export default function LoginPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [githubLoading, setGithubLoading] = useState(false);
-  const [verificationPending, setVerificationPending] = useState(false);
-  const [verificationEmail, setVerificationEmail] = useState("");
-  const [resendSuccess, setResendSuccess] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
-  const [checkingVerification, setCheckingVerification] = useState(false);
 
-  // Redirect to board if signed in and verified
+  // Redirect to board if signed in
   useEffect(() => {
-    if (isSignedIn && emailVerified) {
+    if (isSignedIn) {
       // Clear pending auth flag on successful sign-in
       localStorage.removeItem(PENDING_GITHUB_AUTH_KEY);
       navigate("/board", { replace: true });
     }
-  }, [isSignedIn, emailVerified, navigate]);
+  }, [isSignedIn, navigate]);
 
   // Clear pending auth flag when returning to login page
   useEffect(() => {
@@ -106,8 +92,7 @@ export default function LoginPage() {
 
       if (authMode === "signup") {
         await signUpWithEmail(email, password);
-        setVerificationEmail(email);
-        setVerificationPending(true);
+        // Navigation will happen via the useEffect above
       } else {
         await signInWithEmail(email, password);
         // Navigation will happen via the useEffect above
@@ -134,160 +119,8 @@ export default function LoginPage() {
     }
   };
 
-  const handleResendEmail = async () => {
-    setResendSuccess(false);
-    try {
-      await resendVerificationEmail();
-      setResendSuccess(true);
-      setTimeout(() => setResendSuccess(false), 3000);
-    } catch {
-      // Error handled by context
-    }
-  };
-
-  const handleCheckVerification = async () => {
-    setCheckingVerification(true);
-    setLocalError(null);
-    try {
-      await refreshUser();
-      // After refresh, if emailVerified is still false, show message
-      // We need a small delay to let the state update
-      setTimeout(() => {
-        if (!user?.emailVerified) {
-          setLocalError("Email not verified yet. Please check your inbox.");
-        }
-        setCheckingVerification(false);
-      }, 500);
-    } catch {
-      setCheckingVerification(false);
-    }
-  };
-
-  const handleUseDifferentEmail = () => {
-    setVerificationPending(false);
-    setEmail("");
-    setPassword("");
-    setConfirmPassword("");
-  };
-
   const isLoading = loading || submitting;
   const displayError = localError || error;
-
-  // Verification pending screen
-  if (verificationPending || (isSignedIn && !emailVerified)) {
-    const displayEmail = verificationEmail || user?.email || "";
-
-    return (
-      <div className="h-screen flex items-center justify-center bg-surface-50 dark:bg-surface-950">
-        <div className="w-80">
-          {/* Logo/Brand */}
-          <div className="text-center mb-6">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-accent-600 mb-3">
-              <svg
-                className="w-7 h-7 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                />
-              </svg>
-            </div>
-            <h1 className="text-xl font-semibold text-surface-900 dark:text-surface-100">
-              SpecFlux
-            </h1>
-          </div>
-
-          {/* Verification Card */}
-          <div className="card p-6 text-center">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-accent-100 dark:bg-accent-900/30 mb-4">
-              <svg
-                className="w-7 h-7 text-accent-600 dark:text-accent-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                />
-              </svg>
-            </div>
-
-            <h2 className="text-lg font-semibold text-surface-900 dark:text-surface-100 mb-2">
-              Check your email
-            </h2>
-
-            <p className="text-sm text-surface-600 dark:text-surface-400 mb-1">
-              We sent a verification link to:
-            </p>
-            <p className="text-sm font-medium text-surface-900 dark:text-surface-100 mb-4">
-              {displayEmail}
-            </p>
-
-            <p className="text-sm text-surface-500 dark:text-surface-500 mb-6">
-              Click the link in the email to verify your account.
-            </p>
-
-            {displayError && (
-              <div className="p-2.5 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded-md mb-4">
-                {displayError}
-              </div>
-            )}
-
-            {resendSuccess && (
-              <div className="p-2.5 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 rounded-md mb-4">
-                Verification email sent!
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={handleCheckVerification}
-              disabled={checkingVerification}
-              className="btn btn-primary w-full text-sm py-2.5 mb-4"
-            >
-              {checkingVerification ? (
-                <>
-                  <span className="inline-block w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Checking...
-                </>
-              ) : (
-                "I've Verified My Email"
-              )}
-            </button>
-
-            <p className="text-xs text-surface-500 dark:text-surface-500 mb-2">
-              Didn't receive it?
-            </p>
-            <div className="flex items-center justify-center gap-3 text-xs">
-              <button
-                type="button"
-                onClick={handleResendEmail}
-                className="text-accent-600 dark:text-accent-400 hover:underline"
-              >
-                Resend email
-              </button>
-              <span className="text-surface-300 dark:text-surface-600">·</span>
-              <button
-                type="button"
-                onClick={handleUseDifferentEmail}
-                className="text-accent-600 dark:text-accent-400 hover:underline"
-              >
-                Use different email
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="h-screen flex items-center justify-center bg-surface-50 dark:bg-surface-950">

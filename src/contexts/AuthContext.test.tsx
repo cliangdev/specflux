@@ -9,8 +9,6 @@ vi.mock("../lib/firebase", () => ({
   signInWithGitHub: vi.fn(),
   signInWithTestAccount: vi.fn(),
   signUpWithEmail: vi.fn(),
-  resendVerificationEmail: vi.fn(),
-  refreshUser: vi.fn(),
   signOut: vi.fn(),
   getIdToken: vi.fn(),
   onAuthStateChange: vi.fn(() => vi.fn()),
@@ -29,29 +27,15 @@ vi.mock("../api", () => ({
 
 import {
   signUpWithEmail as firebaseSignUpWithEmail,
-  resendVerificationEmail as firebaseResendVerificationEmail,
-  refreshUser as firebaseRefreshUser,
   waitForAuthState,
 } from "../lib/firebase";
 
 function TestConsumer() {
-  const {
-    user,
-    loading,
-    isSignedIn,
-    emailVerified,
-    error,
-    signUpWithEmail,
-    resendVerificationEmail,
-    refreshUser,
-  } = useAuth();
+  const { user, loading, isSignedIn, error, signUpWithEmail } = useAuth();
   return (
     <div>
       <span data-testid="loading">{loading ? "loading" : "loaded"}</span>
       <span data-testid="signed-in">{isSignedIn ? "yes" : "no"}</span>
-      <span data-testid="email-verified">
-        {emailVerified ? "verified" : "unverified"}
-      </span>
       <span data-testid="error">{error || "no-error"}</span>
       <span data-testid="user-email">{user?.email || "no-email"}</span>
       <button
@@ -63,19 +47,6 @@ function TestConsumer() {
         }
       >
         Sign Up
-      </button>
-      <button
-        data-testid="resend-btn"
-        onClick={() =>
-          resendVerificationEmail().catch(() => {
-            // Error is handled by context, ignore here
-          })
-        }
-      >
-        Resend
-      </button>
-      <button data-testid="refresh-btn" onClick={() => refreshUser()}>
-        Refresh
       </button>
     </div>
   );
@@ -113,16 +84,12 @@ describe("AuthContext", () => {
       });
 
       expect(screen.getByTestId("signed-in")).toHaveTextContent("no");
-      expect(screen.getByTestId("email-verified")).toHaveTextContent(
-        "unverified"
-      );
     });
 
     it("shows signed in when user exists", async () => {
       const mockUser = {
         uid: "test-uid",
         email: "test@example.com",
-        emailVerified: true,
       };
       vi.mocked(waitForAuthState).mockResolvedValue(mockUser as never);
 
@@ -136,32 +103,8 @@ describe("AuthContext", () => {
         expect(screen.getByTestId("signed-in")).toHaveTextContent("yes");
       });
 
-      expect(screen.getByTestId("email-verified")).toHaveTextContent("verified");
       expect(screen.getByTestId("user-email")).toHaveTextContent(
         "test@example.com"
-      );
-    });
-
-    it("shows unverified when emailVerified is false", async () => {
-      const mockUser = {
-        uid: "test-uid",
-        email: "test@example.com",
-        emailVerified: false,
-      };
-      vi.mocked(waitForAuthState).mockResolvedValue(mockUser as never);
-
-      render(
-        <AuthProvider>
-          <TestConsumer />
-        </AuthProvider>
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("signed-in")).toHaveTextContent("yes");
-      });
-
-      expect(screen.getByTestId("email-verified")).toHaveTextContent(
-        "unverified"
       );
     });
   });
@@ -171,7 +114,6 @@ describe("AuthContext", () => {
       vi.mocked(firebaseSignUpWithEmail).mockResolvedValue({
         uid: "new-uid",
         email: "test@example.com",
-        emailVerified: false,
       } as never);
 
       render(
@@ -242,50 +184,6 @@ describe("AuthContext", () => {
           "Password must be at least 8 characters"
         );
       });
-    });
-  });
-
-  describe("resendVerificationEmail", () => {
-    it("calls firebase resendVerificationEmail", async () => {
-      vi.mocked(firebaseResendVerificationEmail).mockResolvedValue(undefined);
-
-      render(
-        <AuthProvider>
-          <TestConsumer />
-        </AuthProvider>
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("loading")).toHaveTextContent("loaded");
-      });
-
-      await act(async () => {
-        screen.getByTestId("resend-btn").click();
-      });
-
-      expect(firebaseResendVerificationEmail).toHaveBeenCalled();
-    });
-  });
-
-  describe("refreshUser", () => {
-    it("calls firebase refreshUser", async () => {
-      vi.mocked(firebaseRefreshUser).mockResolvedValue(null);
-
-      render(
-        <AuthProvider>
-          <TestConsumer />
-        </AuthProvider>
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("loading")).toHaveTextContent("loaded");
-      });
-
-      await act(async () => {
-        screen.getByTestId("refresh-btn").click();
-      });
-
-      expect(firebaseRefreshUser).toHaveBeenCalled();
     });
   });
 
