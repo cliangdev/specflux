@@ -73,11 +73,12 @@ POST /api/projects/{projectRef}/epics
   "description": "## Overview\n...\n\n## Reference Documents\n- `.specflux/prds/{name}/wireframes.md` - UI layouts\n- `.specflux/prds/{name}/prd.md` - Full requirements",
   "prdRef": "{prdRef}",           // Optional - links epic to source PRD
   "releaseRef": "{releaseRef}",   // Optional - assigns to a release
-  "acceptanceCriteria": [         // REQUIRED - array of criteria objects
-    {"criteria": "..."},
-    {"criteria": "..."}
+  "acceptanceCriteria": [         // REQUIRED - MUST be objects with "criteria" key
+    {"criteria": "First acceptance criterion"},
+    {"criteria": "Second acceptance criterion"}
   ]
 }
+// IMPORTANT: acceptanceCriteria format is [{"criteria": "..."}, ...] NOT ["...", ...]
 
 # Add dependencies if epic depends on other epics
 POST /api/projects/{projectRef}/epics/{epicRef}/dependencies

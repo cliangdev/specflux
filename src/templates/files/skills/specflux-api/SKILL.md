@@ -83,9 +83,11 @@ POST /api/projects/{projectRef}/tasks/{taskRef}/dependencies
 {"dependsOnTaskRef": "PROJ-41"}
 ```
 
-**Important:** When creating an epic:
+**CRITICAL FORMAT REQUIREMENTS:**
+- `acceptanceCriteria` MUST be an array of objects: `[{"criteria": "..."}, {"criteria": "..."}]`
+- **WRONG**: `["string1", "string2"]` - This will cause a 400 error
+- **CORRECT**: `[{"criteria": "string1"}, {"criteria": "string2"}]`
 - `prdRef` is required to link the epic to its source PRD (use display key like `PROJ-P1` or internal ID)
-- `acceptanceCriteria` is required - each item must be an object with a `criteria` property (NOT a plain string)
 
 ### Update Progress
 
