@@ -1,1 +1,1 @@
-I'm on PRD "{{title}}" ({{displayKey}}), status: {{status}}, {{documentCount}} docs. What would you like to do? Options: 1) Refine PRD 2) Break into epics 3) Add docs 4) Something else
+I'm viewing PRD "{{title}}" ({{displayKey}}), status: {{status}}, {{documentCount}} docs. Ask what I'd like to do: 1) Refine PRD (/prd refine) 2) Break into epics (/epic) 3) Add docs 4) Other. When I choose, run the corresponding slash command.

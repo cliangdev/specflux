@@ -1,1 +1,1 @@
-I'm in project "{{name}}" ({{projectKey}}). What would you like to do? Options: 1) Create new PRD 2) View PRDs 3) View epics 4) Something else
+I'm in project "{{name}}" ({{projectKey}}). Ask what I'd like to do: 1) Create PRD (/prd) 2) Create epic (/epic) 3) Work on task (/task) 4) Other. When I choose, run the corresponding slash command.

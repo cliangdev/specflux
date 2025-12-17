@@ -8,7 +8,7 @@ import {
 
 describe("promptGenerator", () => {
   describe("generatePrdPrompt", () => {
-    it("generates prompt with all fields filled", () => {
+    it("generates prompt with all fields and slash commands", () => {
       const result = generatePrdPrompt({
         title: "User Authentication",
         displayKey: "SPEC-P1",
@@ -20,7 +20,9 @@ describe("promptGenerator", () => {
       expect(result).toContain("(SPEC-P1)");
       expect(result).toContain("status: DRAFT");
       expect(result).toContain("3 docs");
-      expect(result).toContain("Refine PRD");
+      expect(result).toContain("/prd refine");
+      expect(result).toContain("/epic");
+      expect(result).toContain("run the corresponding slash command");
     });
 
     it("handles zero documents", () => {
@@ -36,7 +38,7 @@ describe("promptGenerator", () => {
   });
 
   describe("generateEpicPrompt", () => {
-    it("generates prompt with all fields filled", () => {
+    it("generates prompt with all fields and slash commands", () => {
       const result = generateEpicPrompt({
         title: "Implement Auth Flow",
         displayKey: "SPEC-E1",
@@ -48,7 +50,9 @@ describe("promptGenerator", () => {
       expect(result).toContain("(SPEC-E1)");
       expect(result).toContain("status: IN_PROGRESS");
       expect(result).toContain("5 tasks");
-      expect(result).toContain("Implement epic");
+      expect(result).toContain("/implement");
+      expect(result).toContain("/task");
+      expect(result).toContain("run the corresponding slash command");
     });
 
     it("handles zero tasks", () => {
@@ -64,7 +68,7 @@ describe("promptGenerator", () => {
   });
 
   describe("generateTaskPrompt", () => {
-    it("generates prompt with all fields filled", () => {
+    it("generates prompt with all fields and slash commands", () => {
       const result = generateTaskPrompt({
         title: "Add login button",
         displayKey: "SPEC-T1",
@@ -76,12 +80,12 @@ describe("promptGenerator", () => {
       expect(result).toContain("(SPEC-T1)");
       expect(result).toContain("status: READY");
       expect(result).toContain("priority: HIGH");
-      expect(result).toContain("Implement task");
+      expect(result).toContain("/task SPEC-T1");
     });
   });
 
   describe("generateProjectPrompt", () => {
-    it("generates prompt with project info", () => {
+    it("generates prompt with project info and slash commands", () => {
       const result = generateProjectPrompt({
         name: "SpecFlux",
         projectKey: "SPEC",
@@ -89,7 +93,10 @@ describe("promptGenerator", () => {
 
       expect(result).toContain('project "SpecFlux"');
       expect(result).toContain("(SPEC)");
-      expect(result).toContain("Create new PRD");
+      expect(result).toContain("/prd");
+      expect(result).toContain("/epic");
+      expect(result).toContain("/task");
+      expect(result).toContain("run the corresponding slash command");
     });
   });
 });
