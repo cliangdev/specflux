@@ -118,7 +118,7 @@ describe("MainLayout", () => {
       expect(screen.getByTestId("terminal-panel")).toBeInTheDocument();
     });
 
-    it("hides terminal container off-screen when closed", () => {
+    it("hides terminal container when closed", () => {
       mockTerminalContext.isOpen = false;
 
       renderWithRouter(<MainLayout />);
@@ -126,9 +126,8 @@ describe("MainLayout", () => {
       const terminalPanel = screen.getByTestId("terminal-panel");
       const container = terminalPanel.parentElement;
 
-      // Container should be positioned off-screen
-      expect(container).toHaveStyle({ left: "-9999px" });
-      expect(container).toHaveStyle({ visibility: "hidden" });
+      // Container should be hidden with display: none
+      expect(container).toHaveStyle({ display: "none" });
       expect(container).toHaveAttribute("aria-hidden", "true");
     });
 

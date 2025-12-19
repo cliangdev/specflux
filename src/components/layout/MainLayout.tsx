@@ -108,7 +108,7 @@ function MainLayoutContent() {
         </main>
       </div>
       <div
-        style={isOpen ? getTerminalStyle() : { position: 'fixed', left: '-9999px', visibility: 'hidden' }}
+        style={isOpen ? getTerminalStyle() : { display: 'none' }}
         className={isOpen ? "transition-[width,height] duration-100 ease-out" : ""}
         aria-hidden={!isOpen}
       >

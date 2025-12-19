@@ -4,6 +4,7 @@ import {
   useState,
   useCallback,
   useEffect,
+  useRef,
   type ReactNode,
 } from "react";
 
@@ -477,28 +478,45 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
     setActiveSessionId(sessionId);
   }, []);
 
+  // Debounced status updates to reduce re-renders during high output
+  const pendingStatusUpdates = useRef<Map<string, { isRunning?: boolean; isConnected?: boolean }>>(new Map());
+  const statusUpdateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushStatusUpdates = useCallback(() => {
+    if (pendingStatusUpdates.current.size === 0) return;
+
+    const updates = new Map(pendingStatusUpdates.current);
+    pendingStatusUpdates.current.clear();
+
+    setSessions((prev) =>
+      prev.map((s) => {
+        const update = updates.get(s.id);
+        if (!update) return s;
+        return {
+          ...s,
+          ...(update.isRunning !== undefined && { isRunning: update.isRunning }),
+          ...(update.isConnected !== undefined && { isConnected: update.isConnected }),
+        };
+      }),
+    );
+  }, []);
+
   const updateSessionStatus = useCallback(
     (
       sessionId: string,
       status: { isRunning?: boolean; isConnected?: boolean },
     ) => {
-      setSessions((prev) =>
-        prev.map((s) =>
-          s.id === sessionId
-            ? {
-                ...s,
-                ...(status.isRunning !== undefined && {
-                  isRunning: status.isRunning,
-                }),
-                ...(status.isConnected !== undefined && {
-                  isConnected: status.isConnected,
-                }),
-              }
-            : s,
-        ),
-      );
+      // Batch status updates - merge with pending updates for this session
+      const existing = pendingStatusUpdates.current.get(sessionId) || {};
+      pendingStatusUpdates.current.set(sessionId, { ...existing, ...status });
+
+      // Debounce: flush updates after 100ms of no new updates
+      if (statusUpdateTimer.current) {
+        clearTimeout(statusUpdateTimer.current);
+      }
+      statusUpdateTimer.current = setTimeout(flushStatusUpdates, 100);
     },
-    [],
+    [flushStatusUpdates],
   );
 
   // Derive active session

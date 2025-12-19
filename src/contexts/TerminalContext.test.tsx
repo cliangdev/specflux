@@ -1,4 +1,4 @@
-import { render, screen, act } from "@testing-library/react";
+import { render, screen, act, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { TerminalProvider, useTerminal } from "./TerminalContext";
@@ -233,7 +233,7 @@ describe("TerminalContext", () => {
       expect(screen.getByTestId("active-task")).toHaveTextContent("Test Task");
     });
 
-    it("tracks running state", () => {
+    it("tracks running state", async () => {
       render(
         <TerminalProvider>
           <TestConsumer />
@@ -251,7 +251,10 @@ describe("TerminalContext", () => {
         screen.getByTestId("set-running").click();
       });
 
-      expect(screen.getByTestId("is-running")).toHaveTextContent("running");
+      // Status updates are debounced, so wait for the update to be applied
+      await waitFor(() => {
+        expect(screen.getByTestId("is-running")).toHaveTextContent("running");
+      });
     });
 
     it("persists state to localStorage", () => {
