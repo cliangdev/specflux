@@ -7,6 +7,7 @@ import DocumentViewer from "../components/ui/DocumentViewer";
 import { DetailPageHeader } from "../components/ui/DetailPageHeader";
 import { AIActionButton } from "../components/ui/AIActionButton";
 import { EpicsSection } from "../components/prd/EpicsSection";
+import { EpicCreateModal } from "../components/epics";
 import { GettingStartedBanner } from "../components/prds/GettingStartedBanner";
 import { useProject } from "../contexts/ProjectContext";
 import { usePageContext } from "../hooks/usePageContext";
@@ -155,6 +156,7 @@ export default function PRDDetailPage() {
   const [contentLoading, setContentLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAddDocModal, setShowAddDocModal] = useState(false);
+  const [showCreateEpicModal, setShowCreateEpicModal] = useState(false);
 
   const loadPrd = useCallback(async () => {
     const projectRef = getProjectRef();
@@ -671,7 +673,7 @@ export default function PRDDetailPage() {
           <div className="p-4 border-t border-surface-200 dark:border-surface-700">
             <EpicsSection
               epics={epics}
-              onAddEpic={() => navigate(`/epics/new?prdRef=${prd.id}`)}
+              onAddEpic={() => setShowCreateEpicModal(true)}
               loading={epicsLoading}
             />
           </div>
@@ -744,6 +746,18 @@ export default function PRDDetailPage() {
         prdFolderPath={prd.folderPath}
         projectPath={currentProject.localPath}
       />
+
+      {/* Create Epic Modal */}
+      {showCreateEpicModal && (
+        <EpicCreateModal
+          projectId={getProjectRef() || ""}
+          onClose={() => setShowCreateEpicModal(false)}
+          onCreated={() => {
+            setShowCreateEpicModal(false);
+            loadEpics();
+          }}
+        />
+      )}
     </div>
   );
 }

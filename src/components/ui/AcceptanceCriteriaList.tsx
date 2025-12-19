@@ -4,7 +4,8 @@ import { api } from "../../api";
 
 interface AcceptanceCriteriaListProps {
   entityType: "task" | "epic";
-  entityId: string;
+  projectRef: string;
+  entityRef: string;
   criteria: AcceptanceCriteria[];
   onUpdate?: () => void;
   readonly?: boolean;
@@ -12,7 +13,8 @@ interface AcceptanceCriteriaListProps {
 
 export function AcceptanceCriteriaList({
   entityType,
-  entityId,
+  projectRef,
+  entityRef,
   criteria,
   onUpdate,
   readonly = false,
@@ -29,15 +31,15 @@ export function AcceptanceCriteriaList({
       try {
         if (entityType === "task") {
           await api.tasks.updateTaskAcceptanceCriteria({
-            projectRef: entityId, // TODO: Need to pass projectRef and taskRef separately
-            taskRef: entityId,
+            projectRef,
+            taskRef: entityRef,
             criteriaId: criterion.id,
             updateAcceptanceCriteriaRequest: { isMet: !criterion.isMet },
           });
         } else {
           await api.epics.updateEpicAcceptanceCriteria({
-            projectRef: entityId, // TODO: Need to pass projectRef and epicRef separately
-            epicRef: entityId,
+            projectRef,
+            epicRef: entityRef,
             criteriaId: criterion.id,
             updateAcceptanceCriteriaRequest: { isMet: !criterion.isMet },
           });
@@ -49,7 +51,7 @@ export function AcceptanceCriteriaList({
         setUpdating(null);
       }
     },
-    [entityType, entityId, onUpdate, readonly],
+    [entityType, projectRef, entityRef, onUpdate, readonly],
   );
 
   const handleAdd = useCallback(async () => {
@@ -58,16 +60,16 @@ export function AcceptanceCriteriaList({
     try {
       if (entityType === "task") {
         await api.tasks.createTaskAcceptanceCriteria({
-          projectRef: entityId, // TODO: Need to pass projectRef and taskRef separately
-          taskRef: entityId,
+          projectRef,
+          taskRef: entityRef,
           createAcceptanceCriteriaRequest: {
             criteria: newCriterionText.trim(),
           },
         });
       } else {
         await api.epics.createEpicAcceptanceCriteria({
-          projectRef: entityId, // TODO: Need to pass projectRef and epicRef separately
-          epicRef: entityId,
+          projectRef,
+          epicRef: entityRef,
           createAcceptanceCriteriaRequest: {
             criteria: newCriterionText.trim(),
           },
@@ -80,7 +82,7 @@ export function AcceptanceCriteriaList({
     } finally {
       setIsAdding(false);
     }
-  }, [entityType, entityId, newCriterionText, onUpdate, readonly]);
+  }, [entityType, projectRef, entityRef, newCriterionText, onUpdate, readonly]);
 
   const handleDelete = useCallback(
     async (criterionId: number) => {
@@ -89,14 +91,14 @@ export function AcceptanceCriteriaList({
       try {
         if (entityType === "task") {
           await api.tasks.deleteTaskAcceptanceCriteria({
-            projectRef: entityId, // TODO: Need to pass projectRef and taskRef separately
-            taskRef: entityId,
+            projectRef,
+            taskRef: entityRef,
             criteriaId: criterionId,
           });
         } else {
           await api.epics.deleteEpicAcceptanceCriteria({
-            projectRef: entityId, // TODO: Need to pass projectRef and epicRef separately
-            epicRef: entityId,
+            projectRef,
+            epicRef: entityRef,
             criteriaId: criterionId,
           });
         }
@@ -107,7 +109,7 @@ export function AcceptanceCriteriaList({
         setDeleting(null);
       }
     },
-    [entityType, entityId, onUpdate, readonly],
+    [entityType, projectRef, entityRef, onUpdate, readonly],
   );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

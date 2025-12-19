@@ -92,6 +92,10 @@ vi.mock("../contexts", () => ({
     currentProject: { id: "proj_123", name: "Test Project" },
     getProjectRef: mockGetProjectRef,
   }),
+  useTheme: () => ({
+    theme: "light",
+    setTheme: vi.fn(),
+  }),
 }));
 
 const mockNavigate = vi.fn();
@@ -290,16 +294,13 @@ describe("TaskDetailPage", () => {
       });
     });
 
-    it("refreshes task after epic update", async () => {
+    it("updates epic with optimistic update", async () => {
       renderPage();
 
       // Wait for initial load
       await waitFor(() => {
         expect(api.tasks.getTask).toHaveBeenCalled();
       });
-
-      // Clear the call count
-      vi.mocked(api.tasks.getTask).mockClear();
 
       // Wait for page to load
       await waitFor(() => {
@@ -316,9 +317,15 @@ describe("TaskDetailPage", () => {
 
       fireEvent.click(screen.getByText("Epic 2"));
 
-      // Should refresh task after update
+      // Should call updateTask API with the new epic (Epic 2 has id epic_789)
       await waitFor(() => {
-        expect(api.tasks.getTask).toHaveBeenCalled();
+        expect(api.tasks.updateTask).toHaveBeenCalledWith(
+          expect.objectContaining({
+            updateTaskRequest: expect.objectContaining({
+              epicRef: "epic_789",
+            }),
+          }),
+        );
       });
     });
   });

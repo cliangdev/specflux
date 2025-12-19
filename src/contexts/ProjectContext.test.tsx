@@ -13,11 +13,15 @@ vi.mock("../api", () => ({
   },
 }));
 
+// Create a mutable auth state for testing
+const mockAuthState = {
+  isSignedIn: true,
+  user: { uid: "user_123", email: "user1@example.com" } as { uid: string; email: string } | null,
+};
+
 // Mock AuthContext - ProjectContext now depends on useAuth
 vi.mock("./AuthContext", () => ({
-  useAuth: () => ({
-    isSignedIn: true,
-  }),
+  useAuth: () => mockAuthState,
 }));
 
 import { api } from "../api";
@@ -59,6 +63,9 @@ describe("ProjectContext", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    // Reset mock auth state to default
+    mockAuthState.isSignedIn = true;
+    mockAuthState.user = { uid: "user_123", email: "user1@example.com" };
   });
 
   describe("ProjectProvider", () => {
@@ -225,7 +232,8 @@ describe("ProjectContext", () => {
         data: mockProjects,
       });
 
-      // Set up saved routes in localStorage
+      // Set up saved routes in localStorage (must also set last_user_id to prevent clear)
+      localStorage.setItem("specflux_last_user_id", "user_123");
       localStorage.setItem(
         "specflux_project_routes",
         JSON.stringify({ proj_def456: "/prds/PRD-1" })
@@ -305,7 +313,8 @@ describe("ProjectContext", () => {
         data: mockProjects,
       });
 
-      // Pre-set the saved project ID
+      // Pre-set the saved project ID (must also set last_user_id to prevent clear)
+      localStorage.setItem("specflux_last_user_id", "user_123");
       localStorage.setItem("specflux_selected_project_id", "proj_def456");
 
       const { result } = renderHook(() => useProject(), {
@@ -320,6 +329,122 @@ describe("ProjectContext", () => {
 
       // Should restore Project Beta instead of auto-selecting first
       expect(result.current.currentProject?.name).toBe("Project Beta");
+    });
+  });
+
+  describe("user change handling", () => {
+    it("clears projects when a different user signs in", async () => {
+      vi.mocked(api.projects.listProjects).mockResolvedValue({
+        data: mockProjects,
+      });
+
+      // Set up initial user
+      mockAuthState.isSignedIn = true;
+      mockAuthState.user = { uid: "user_123", email: "user1@example.com" };
+      localStorage.setItem("specflux_last_user_id", "user_123");
+
+      const { result, rerender } = renderHook(() => useProject(), {
+        wrapper: ({ children }) => (
+          <ProjectProvider>{children}</ProjectProvider>
+        ),
+      });
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      expect(result.current.projects.length).toBe(2);
+      expect(result.current.currentProject?.name).toBe("Project Alpha");
+
+      // Simulate different user signing in
+      mockAuthState.user = { uid: "user_456", email: "user2@example.com" };
+
+      // Reset mock to return empty projects for new user
+      vi.mocked(api.projects.listProjects).mockResolvedValue({
+        data: [],
+      });
+
+      // Re-render to trigger effect
+      rerender();
+
+      await waitFor(() => {
+        expect(result.current.projects.length).toBe(0);
+      });
+
+      expect(result.current.currentProject).toBeNull();
+      // Verify localStorage was cleared
+      expect(localStorage.getItem("specflux_selected_project_id")).toBeNull();
+    });
+
+    it("clears projects when user signs out", async () => {
+      vi.mocked(api.projects.listProjects).mockResolvedValue({
+        data: mockProjects,
+      });
+
+      // Set up initial user
+      mockAuthState.isSignedIn = true;
+      mockAuthState.user = { uid: "user_123", email: "user1@example.com" };
+      localStorage.setItem("specflux_last_user_id", "user_123");
+
+      const { result, rerender } = renderHook(() => useProject(), {
+        wrapper: ({ children }) => (
+          <ProjectProvider>{children}</ProjectProvider>
+        ),
+      });
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      expect(result.current.projects.length).toBe(2);
+
+      // Simulate sign out
+      mockAuthState.isSignedIn = false;
+      mockAuthState.user = null;
+
+      rerender();
+
+      await waitFor(() => {
+        expect(result.current.projects.length).toBe(0);
+      });
+
+      expect(result.current.currentProject).toBeNull();
+      // Verify last_user_id was cleared on sign out
+      expect(localStorage.getItem("specflux_last_user_id")).toBeNull();
+    });
+
+    it("clears saved project routes when user changes", async () => {
+      vi.mocked(api.projects.listProjects).mockResolvedValue({
+        data: mockProjects,
+      });
+
+      // Set up initial user with saved routes
+      mockAuthState.isSignedIn = true;
+      mockAuthState.user = { uid: "user_123", email: "user1@example.com" };
+      localStorage.setItem("specflux_last_user_id", "user_123");
+      localStorage.setItem(
+        "specflux_project_routes",
+        JSON.stringify({ proj_abc123: "/tasks/TASK-1" })
+      );
+
+      const { rerender } = renderHook(() => useProject(), {
+        wrapper: ({ children }) => (
+          <ProjectProvider>{children}</ProjectProvider>
+        ),
+      });
+
+      // Simulate different user signing in
+      mockAuthState.user = { uid: "user_456", email: "user2@example.com" };
+      vi.mocked(api.projects.listProjects).mockResolvedValue({
+        data: [],
+      });
+
+      rerender();
+
+      await waitFor(() => {
+        // Project routes should be cleared when user changes
+        expect(localStorage.getItem("specflux_project_routes")).toBeNull();
+      });
     });
   });
 });

@@ -22,6 +22,9 @@ vi.mock("../api", () => ({
     releases: {
       listReleases: vi.fn(),
     },
+    prds: {
+      listPrds: vi.fn(),
+    },
     tasks: {
       createTask: vi.fn(),
     },
@@ -41,6 +44,10 @@ vi.mock("../contexts", () => ({
   useProject: () => ({
     getProjectRef: mockGetProjectRef,
     currentProject: { id: "proj_test123", name: "Test Project" },
+  }),
+  useTheme: () => ({
+    theme: "light",
+    setTheme: vi.fn(),
   }),
 }));
 
@@ -178,6 +185,7 @@ describe("EpicDetailPage", () => {
       data: [],
     } as any);
     vi.mocked(api.releases.listReleases).mockResolvedValue({ data: [] } as any);
+    vi.mocked(api.prds.listPrds).mockResolvedValue({ data: [] } as any);
     vi.mocked(api.epics.updateEpic).mockResolvedValue(mockEpic as any);
   });
 
