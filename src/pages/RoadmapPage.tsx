@@ -282,10 +282,12 @@ function ReleaseHeader({
     const trimmed = descriptionValue.trim();
     if (trimmed !== (release.description ?? "")) {
       try {
+        // JSON Merge Patch: null = clear, value = set, absent = don't change
+        // Cast needed because TypeScript types don't include null for nullable fields
         await api.releases.updateRelease({
           projectRef: release.projectId,
           releaseRef: release.id,
-          updateReleaseRequest: { description: trimmed || undefined },
+          updateReleaseRequest: { description: (trimmed || null) as string | undefined },
         });
         onUpdate();
       } catch (err) {
@@ -297,17 +299,19 @@ function ReleaseHeader({
   };
 
   const handleDateSave = async () => {
-    const newDate = dateValue ? new Date(dateValue) : undefined;
+    // JSON Merge Patch: null = clear, value = set, absent = don't change
+    const newDate = dateValue ? new Date(dateValue) : null;
     const currentDate = release.targetDate
       ? new Date(release.targetDate).toISOString().split("T")[0]
       : "";
 
     if (dateValue !== currentDate) {
       try {
+        // Cast needed because TypeScript types don't include null for nullable fields
         await api.releases.updateRelease({
           projectRef: release.projectId,
           releaseRef: release.id,
-          updateReleaseRequest: { targetDate: newDate },
+          updateReleaseRequest: { targetDate: newDate as Date | undefined },
         });
         onUpdate();
       } catch (err) {

@@ -119,12 +119,14 @@ export default function EpicEditModal({
       setSubmitting(true);
       setError(null);
 
+      // JSON Merge Patch: null = clear, value = set, absent = don't change
+      // Cast needed because TypeScript types don't include null for nullable fields
       const request: UpdateEpicRequest = {
         title: title.trim(),
-        description: description.trim() || undefined,
-        prdFilePath: prdFilePath.trim() || undefined,
+        description: (description.trim() || null) as string | undefined,
+        prdFilePath: (prdFilePath.trim() || null) as string | undefined,
         status: status as UpdateEpicRequest["status"],
-        releaseRef: releaseId || undefined,
+        releaseRef: releaseId as string | undefined,
       };
 
       await api.epics.updateEpic({

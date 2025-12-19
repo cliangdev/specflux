@@ -1,12 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useParams, useNavigate, useSearchParams, Link } from "react-router-dom";
 import { open } from "@tauri-apps/plugin-shell";
 import {
   api,
   type Task as V2Task,
   type TaskStatus,
   type TaskDependency,
-  type AcceptanceCriteria as AcceptanceCriterion,
+  type AcceptanceCriteria,
 } from "../api";
 import { useProject } from "../contexts";
 import EpicSelector from "../components/tasks/EpicSelector";
@@ -27,29 +27,24 @@ const TASK_STATUS_OPTIONS = [
   { value: "COMPLETED", label: "Completed" },
 ];
 
-// Priority badge configuration
-const PRIORITY_CONFIG: Record<string, { label: string; classes: string }> = {
-  low: {
-    label: "Low",
-    classes: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
-  },
-  medium: {
-    label: "Medium",
-    classes: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-  },
-  high: {
-    label: "High",
-    classes: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
-  },
-  critical: {
-    label: "Critical",
-    classes: "bg-red-200 text-red-800 dark:bg-red-900/50 dark:text-red-200",
-  },
-};
+// Keyboard handler for inline editing
+function handleKeyDown(
+  e: React.KeyboardEvent,
+  onSave: () => void,
+  onCancel: () => void,
+) {
+  if (e.key === "Escape") {
+    onCancel();
+  }
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+    onSave();
+  }
+}
 
 export default function TaskDetailPage() {
   const { taskId } = useParams<{ taskId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { currentProject, getProjectRef } = useProject();
   const {
     openTerminalForContext,
@@ -59,19 +54,25 @@ export default function TaskDetailPage() {
     isRunning: terminalIsRunning,
   } = useTerminal();
 
+  // Back navigation - use "from" param if available, otherwise default to /tasks
+  const backTo = searchParams.get("from") || "/tasks";
+
   const [task, setTask] = useState<V2Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dependencies, setDependencies] = useState<TaskDependency[]>([]);
-  const [criteria, setCriteria] = useState<AcceptanceCriterion[]>([]);
-  const [criteriaLoading, setCriteriaLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
 
-  // Inline description editing state
+  // Description editing state
   const [editingDescription, setEditingDescription] = useState(false);
-  const [editDescription, setEditDescription] = useState("");
+  const [descriptionValue, setDescriptionValue] = useState("");
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
 
-  // Set page context for terminal suggested commands
+  // Acceptance criteria state
+  const [criteria, setCriteria] = useState<AcceptanceCriteria[]>([]);
+  const [criteriaLoading, setCriteriaLoading] = useState(true);
+
+  // Set page context for terminal suggested commands - use displayKey for terminal header
   usePageContext(
     task
       ? { type: "task-detail", id: task.id, title: task.displayKey || task.title }
@@ -81,7 +82,7 @@ export default function TaskDetailPage() {
   // Check if terminal is showing this task
   const isTerminalShowingThisTask = activeSession?.contextId === taskId;
 
-  // Check if a session exists for this task
+  // Check if a session exists for this task (for button text)
   const hasExistingSession = task
     ? !!getExistingSession({
         type: "task" as const,
@@ -141,12 +142,9 @@ export default function TaskDetailPage() {
   // Fetch acceptance criteria
   const fetchCriteria = useCallback(async () => {
     if (!taskId) return;
+
     const projectRef = getProjectRef();
-    if (!projectRef) {
-      setCriteria([]);
-      setCriteriaLoading(false);
-      return;
-    }
+    if (!projectRef) return;
 
     try {
       setCriteriaLoading(true);
@@ -154,7 +152,7 @@ export default function TaskDetailPage() {
         projectRef,
         taskRef: taskId,
       });
-      setCriteria((response.data ?? []) as unknown as AcceptanceCriterion[]);
+      setCriteria(response.data ?? []);
     } catch (err) {
       console.error("Failed to fetch criteria:", err);
       setCriteria([]);
@@ -163,7 +161,36 @@ export default function TaskDetailPage() {
     }
   }, [taskId, getProjectRef]);
 
-  // Update task's epic assignment
+  // Handle description save
+  const handleDescriptionSave = async () => {
+    if (!task) return;
+
+    const trimmed = descriptionValue.trim();
+    const oldDescription = task.description || "";
+
+    setEditingDescription(false);
+
+    if (trimmed !== oldDescription) {
+      const projectRef = getProjectRef();
+      if (!projectRef) return;
+
+      try {
+        // JSON Merge Patch: null = clear, value = set, absent = don't change
+        // Cast needed because TypeScript types don't include null for nullable fields
+        await api.tasks.updateTask({
+          projectRef,
+          taskRef: task.id,
+          updateTaskRequest: { description: (trimmed || null) as string | undefined },
+        });
+        fetchTask();
+      } catch (err) {
+        console.error("Failed to update description:", err);
+        setDescriptionValue(oldDescription);
+      }
+    }
+  };
+
+  // Update task's epic assignment (optimistic update)
   const handleEpicChange = async (newEpicRef: number | string | null) => {
     if (!task) return;
 
@@ -173,27 +200,25 @@ export default function TaskDetailPage() {
       return;
     }
 
-    // Optimistically update local state
-    const previousEpicId = task.epicId;
-    const newEpicId = newEpicRef === null ? undefined : typeof newEpicRef === "string" ? newEpicRef : undefined;
-    setTask({ ...task, epicId: newEpicId });
+    const oldEpicId = task.epicId;
+    // JSON Merge Patch: null = clear, value = set, absent = don't change
+    const newEpicId = typeof newEpicRef === "string" ? newEpicRef : null;
+
+    // Optimistic update
+    setTask({ ...task, epicId: newEpicId ?? undefined });
 
     try {
+      // Cast needed because TypeScript types don't include null for nullable fields
       await api.tasks.updateTask({
         projectRef,
         taskRef: task.id,
         updateTaskRequest: {
-          epicRef:
-            newEpicRef === null
-              ? ""
-              : typeof newEpicRef === "string"
-                ? newEpicRef
-                : undefined,
+          epicRef: newEpicId as string | undefined,
         },
       });
     } catch (err) {
       // Revert on error
-      setTask({ ...task, epicId: previousEpicId });
+      setTask({ ...task, epicId: oldEpicId });
       const message =
         err instanceof Error ? err.message : "Failed to update epic";
       setError(message);
@@ -250,48 +275,6 @@ export default function TaskDetailPage() {
         err instanceof Error ? err.message : "Failed to update title";
       setError(message);
       console.error("Failed to update title:", err);
-    }
-  };
-
-  // Save description
-  const handleDescriptionSave = async () => {
-    if (!task) return;
-    const trimmed = editDescription.trim();
-    const oldDescription = task.description ?? "";
-
-    // Always exit editing mode
-    setEditingDescription(false);
-
-    if (trimmed !== oldDescription) {
-      // Optimistically update local state
-      setTask({ ...task, description: trimmed || undefined });
-
-      const projectRef = getProjectRef();
-      if (!projectRef) return;
-
-      try {
-        await api.tasks.updateTask({
-          projectRef,
-          taskRef: task.id,
-          updateTaskRequest: { description: trimmed || "" },
-        });
-      } catch (err) {
-        // Revert on error
-        setTask({ ...task, description: oldDescription || undefined });
-        console.error("Failed to update description:", err);
-        setError(err instanceof Error ? err.message : "Failed to update description");
-      }
-    }
-  };
-
-  const handleDescriptionKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      setEditDescription(task?.description ?? "");
-      setEditingDescription(false);
-    }
-    // Ctrl/Cmd + Enter to save
-    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-      handleDescriptionSave();
     }
   };
 
@@ -364,6 +347,7 @@ export default function TaskDetailPage() {
         initialPrompt,
       };
 
+      // Check if session already exists - switch to it directly
       const existing = getExistingSession(context);
       if (existing) {
         switchToSession(existing.id);
@@ -378,6 +362,24 @@ export default function TaskDetailPage() {
     fetchDependencies();
     fetchCriteria();
   }, [fetchTask, fetchDependencies, fetchCriteria]);
+
+  // Sync description value with task
+  useEffect(() => {
+    if (task) {
+      setDescriptionValue(task.description || "");
+    }
+  }, [task?.description]);
+
+  // Focus textarea when editing starts
+  useEffect(() => {
+    if (editingDescription && descriptionRef.current) {
+      descriptionRef.current.focus();
+      descriptionRef.current.setSelectionRange(
+        descriptionRef.current.value.length,
+        descriptionRef.current.value.length,
+      );
+    }
+  }, [editingDescription]);
 
   if (loading) {
     return (
@@ -432,13 +434,11 @@ export default function TaskDetailPage() {
     );
   }
 
-  const priorityConfig = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
-
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
       {/* Header */}
       <DetailPageHeader
-        backTo="/tasks"
+        backTo={backTo}
         entityKey={task.displayKey || `T-${task.id}`}
         title={task.title}
         onTitleChange={handleTitleChange}
@@ -446,12 +446,15 @@ export default function TaskDetailPage() {
         statusOptions={TASK_STATUS_OPTIONS}
         onStatusChange={handleStatusChange}
         selectors={
-          <EpicSelector
-            projectId={0}
-            projectRef={getProjectRef() ?? undefined}
-            selectedEpicId={task.epicId}
-            onChange={handleEpicChange}
-          />
+          <div className="flex items-center gap-1.5">
+            <span className="text-surface-500 dark:text-surface-400">Epic:</span>
+            <EpicSelector
+              projectId={0}
+              projectRef={getProjectRef() ?? undefined}
+              selectedEpicId={task.epicId}
+              onChange={handleEpicChange}
+            />
+          </div>
         }
         badges={[
           { label: "Priority", value: task.priority },
@@ -471,6 +474,25 @@ export default function TaskDetailPage() {
           />
         }
         actions={[
+          ...(task.githubPrUrl
+            ? [
+                {
+                  label: "View PR",
+                  icon: (
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                      <path
+                        fillRule="evenodd"
+                        d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  ),
+                  onClick: () => {
+                    if (task.githubPrUrl) open(task.githubPrUrl);
+                  },
+                },
+              ]
+            : []),
           {
             label: deleting ? "Deleting..." : "Delete Task",
             icon: (
@@ -492,211 +514,139 @@ export default function TaskDetailPage() {
         </div>
       )}
 
-      {/* Content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar */}
-        <div className="w-64 flex-shrink-0 border-r border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 overflow-y-auto scrollbar-hidden">
-          {/* Summary Section */}
-          <div className="p-4 border-b border-surface-200 dark:border-surface-700">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-400 dark:text-surface-500 mb-3">
-              Summary
-            </h2>
-            <div className="space-y-3">
-              {/* Priority */}
-              <div>
-                <div className="text-xs text-surface-500 dark:text-surface-400 mb-1">Priority</div>
-                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${priorityConfig.classes}`}>
-                  {priorityConfig.label}
-                </span>
-              </div>
-
-              {/* Epic Link */}
-              {task.epicId && (
-                <div>
-                  <div className="text-xs text-surface-500 dark:text-surface-400 mb-1">Epic</div>
-                  <Link
-                    to={`/epics/${task.epicId}`}
-                    className="text-sm text-accent-600 dark:text-accent-400 hover:underline"
-                  >
-                    {task.epicDisplayKey || task.epicId}
-                  </Link>
-                </div>
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden p-6">
+        {/* Description - Takes most space */}
+        <div className="flex-1 min-h-0 mb-4">
+          <div className="h-full flex flex-col">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-surface-900 dark:text-white">
+                Description
+              </h3>
+              {!editingDescription && (
+                <button
+                  onClick={() => setEditingDescription(true)}
+                  className="p-1 text-surface-400 hover:text-surface-600 dark:hover:text-surface-300 transition-colors"
+                  title="Edit description"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </button>
               )}
-
-              {/* Estimate */}
-              {task.estimatedDuration && (
-                <div>
-                  <div className="text-xs text-surface-500 dark:text-surface-400 mb-1">Estimate</div>
-                  <div className="text-sm text-surface-900 dark:text-white">{task.estimatedDuration}h</div>
-                </div>
-              )}
-
-              {/* Actual Duration */}
-              {task.actualDuration && (
-                <div>
-                  <div className="text-xs text-surface-500 dark:text-surface-400 mb-1">Actual</div>
-                  <div className="text-sm text-surface-900 dark:text-white">{task.actualDuration}h</div>
-                </div>
-              )}
-
-              {/* Requires Approval */}
-              <div>
-                <div className="text-xs text-surface-500 dark:text-surface-400 mb-1">Approval</div>
-                <div className="text-sm text-surface-900 dark:text-white">
-                  {task.requiresApproval ? "Required" : "Not required"}
-                </div>
-              </div>
             </div>
-          </div>
-
-          {/* Acceptance Criteria Section */}
-          <div className="p-4 border-b border-surface-200 dark:border-surface-700">
-            <div className="border border-surface-200 dark:border-surface-700 rounded-lg overflow-hidden">
-              {/* Header */}
-              <div className="px-3 py-2.5 bg-surface-100 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">
-                  Acceptance Criteria
-                </h3>
+            {editingDescription ? (
+              <div className="flex-1 border border-surface-200 dark:border-surface-700 rounded-md bg-white dark:bg-surface-800 flex flex-col">
+                <textarea
+                  ref={descriptionRef}
+                  value={descriptionValue}
+                  onChange={(e) => setDescriptionValue(e.target.value)}
+                  onKeyDown={(e) =>
+                    handleKeyDown(e, handleDescriptionSave, () => {
+                      setDescriptionValue(task.description ?? "");
+                      setEditingDescription(false);
+                    })
+                  }
+                  placeholder="Add a description..."
+                  className="flex-1 w-full p-3 text-sm text-surface-700 dark:text-surface-300 bg-transparent border-none outline-none resize-none focus:ring-2 focus:ring-accent-500 focus:ring-inset rounded-t-md"
+                />
+                <div className="flex items-center gap-2 px-3 py-2 border-t border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 rounded-b-md">
+                  <button
+                    onClick={handleDescriptionSave}
+                    className="btn btn-primary text-xs py-1 px-2"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDescriptionValue(task.description ?? "");
+                      setEditingDescription(false);
+                    }}
+                    className="btn btn-secondary text-xs py-1 px-2"
+                  >
+                    Cancel
+                  </button>
+                  <span className="text-xs text-surface-400 dark:text-surface-500">
+                    Esc to cancel, Ctrl+Enter to save
+                  </span>
+                </div>
               </div>
-              {/* Content */}
-              <div className="p-3">
-                {criteriaLoading ? (
-                  <div className="text-sm text-surface-400 dark:text-surface-500">Loading...</div>
-                ) : (
-                  <AcceptanceCriteriaList
-                    entityType="task"
-                    projectRef={getProjectRef() ?? ""}
-                    entityRef={task.id}
-                    criteria={criteria}
-                    onUpdate={fetchCriteria}
+            ) : (
+              <div className="flex-1 overflow-y-auto p-3 border border-surface-200 dark:border-surface-700 rounded-md bg-white dark:bg-surface-800">
+                {task.description ? (
+                  <MarkdownRenderer
+                    source={task.description}
+                    className="text-sm text-surface-600 dark:text-surface-300 leading-relaxed prose prose-sm dark:prose-invert max-w-none"
                   />
+                ) : (
+                  <p className="text-sm text-surface-400 dark:text-surface-500 italic">
+                    No description
+                  </p>
                 )}
               </div>
-            </div>
-          </div>
-
-          {/* Dependencies Section */}
-          <div className="p-4 border-b border-surface-200 dark:border-surface-700">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-400 dark:text-surface-500 mb-3">
-              Dependencies
-            </h2>
-            {dependencies.length === 0 ? (
-              <p className="text-sm text-surface-500 dark:text-surface-400">
-                No dependencies
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {dependencies.map((dep) => (
-                  <div
-                    key={dep.dependsOnTaskId}
-                    className="flex items-center justify-between px-2 py-1.5 rounded text-sm bg-surface-100 dark:bg-surface-800"
-                  >
-                    <Link
-                      to={`/tasks/${dep.dependsOnTaskId}`}
-                      className="text-surface-700 dark:text-surface-300 hover:text-accent-600 dark:hover:text-accent-400"
-                    >
-                      {dep.dependsOnDisplayKey || dep.dependsOnTaskId}
-                    </Link>
-                    <button
-                      onClick={() => handleRemoveDependency(dep.dependsOnTaskId)}
-                      className="text-surface-400 hover:text-red-500 dark:hover:text-red-400"
-                      title="Remove dependency"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* PR Link Section */}
-          <div className="p-4">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-400 dark:text-surface-500 mb-3">
-              Pull Request
-            </h2>
-            {task.githubPrUrl ? (
-              <button
-                onClick={() => {
-                  if (task.githubPrUrl) open(task.githubPrUrl);
-                }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 transition-colors"
-              >
-                <svg className="w-4 h-4 text-surface-500" fill="currentColor" viewBox="0 0 24 24">
-                  <path
-                    fillRule="evenodd"
-                    d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                View Pull Request
-              </button>
-            ) : (
-              <p className="text-sm text-surface-500 dark:text-surface-400">
-                No PR linked
-              </p>
             )}
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Fixed Header */}
-          <div className="flex items-center justify-between px-8 pt-8 pb-4 flex-shrink-0">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-400 dark:text-surface-500">
-              Description
-            </h2>
-            {editingDescription ? (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleDescriptionSave}
-                  className="text-xs text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 font-medium"
-                >
-                  Save
-                </button>
-                <span className="text-surface-300 dark:text-surface-600">|</span>
-                <button
-                  onClick={() => {
-                    setEditDescription(task.description ?? "");
-                    setEditingDescription(false);
-                  }}
-                  className="text-xs text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-300 font-medium"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => {
-                  setEditDescription(task.description ?? "");
-                  setEditingDescription(true);
-                }}
-                className="text-xs text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 font-medium"
-              >
-                Edit
-              </button>
-            )}
+        {/* Bottom sections - Compact grid */}
+        <div className="grid grid-cols-2 gap-4">
+          {/* Acceptance Criteria */}
+          <div>
+            <h3 className="text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wide mb-1">
+              Acceptance Criteria
+            </h3>
+            <div className="p-2 border border-surface-200 dark:border-surface-700 rounded-md bg-white dark:bg-surface-800 max-h-32 overflow-y-auto">
+              {criteriaLoading ? (
+                <div className="text-xs text-surface-400">Loading...</div>
+              ) : (
+                <AcceptanceCriteriaList
+                  entityType="task"
+                  projectRef={getProjectRef() || ""}
+                  entityRef={task.id}
+                  criteria={criteria}
+                  onUpdate={fetchCriteria}
+                />
+              )}
+            </div>
           </div>
-          {/* Content */}
-          <div className={`flex-1 px-8 pb-8 ${editingDescription ? 'overflow-hidden' : 'overflow-auto'}`}>
-            {editingDescription ? (
-              <textarea
-                value={editDescription}
-                onChange={(e) => setEditDescription(e.target.value)}
-                onKeyDown={handleDescriptionKeyDown}
-                placeholder="Enter description (supports Markdown)..."
-                className="w-full h-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg bg-white dark:bg-surface-800 text-surface-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent-500 resize-none"
-                autoFocus
-              />
-            ) : task.description ? (
-              <MarkdownRenderer source={task.description} />
-            ) : (
-              <p className="text-surface-400 dark:text-surface-500 italic">
-                No description yet. Click Edit to add one.
-              </p>
-            )}
+
+          {/* Dependencies */}
+          <div>
+            <h3 className="text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wide mb-1">
+              Dependencies
+            </h3>
+            <div className="p-2 border border-surface-200 dark:border-surface-700 rounded-md bg-white dark:bg-surface-800 max-h-32 overflow-y-auto">
+              {dependencies.length === 0 ? (
+                <p className="text-xs text-surface-400 dark:text-surface-500 italic">
+                  No dependencies
+                </p>
+              ) : (
+                <div className="space-y-1">
+                  {dependencies.map((dep) => (
+                    <div
+                      key={`${dep.taskId}-${dep.dependsOnTaskId}`}
+                      className="flex items-center justify-between text-xs"
+                    >
+                      <Link
+                        to={`/tasks/${dep.dependsOnTaskId}`}
+                        className="text-surface-700 dark:text-surface-300 hover:text-accent-600 dark:hover:text-accent-400"
+                      >
+                        {dep.dependsOnDisplayKey}
+                      </Link>
+                      <button
+                        onClick={() => handleRemoveDependency(dep.dependsOnTaskId)}
+                        className="p-0.5 text-surface-400 hover:text-red-500 dark:hover:text-red-400"
+                        title="Remove"
+                      >
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
