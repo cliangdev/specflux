@@ -171,11 +171,17 @@ export default function TaskDetailPage() {
     }
 
     try {
+      // Empty-string-clears convention: "" = clear, value = set, absent = don't change
       await api.tasks.updateTask({
         projectRef,
         taskRef: task.id,
         updateTaskRequest: {
-          epicRef: typeof newEpicRef === "string" ? newEpicRef : undefined,
+          epicRef:
+            newEpicRef === null
+              ? ""
+              : typeof newEpicRef === "string"
+                ? newEpicRef
+                : undefined,
         },
       });
       fetchTask();

@@ -64,10 +64,11 @@ export default function TaskEditModal({
       setSubmitting(true);
       setError(null);
 
+      // Empty-string-clears convention: "" = clear, value = set, absent = don't change
       const request: UpdateTaskRequest = {
         title: title.trim(),
-        description: description.trim() || undefined,
-        epicRef: epicId,
+        description: description.trim() || "",
+        epicRef: epicId || (task.epicId ? "" : undefined),
         status: status as UpdateTaskRequest["status"],
       };
 

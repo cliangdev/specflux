@@ -435,9 +435,25 @@ export default function EpicDetailPage() {
   const handleReleaseChange = async (releaseId: string | null) => {
     if (!epic) return;
 
-    // Release assignment not yet implemented for v2
-    console.log("Release assignment not yet implemented for v2");
-    return;
+    const projectRef = getProjectRef();
+    if (!projectRef || !epic.v2Id) return;
+
+    try {
+      // Empty-string-clears convention: "" = clear, value = set, absent = don't change
+      await api.epics.updateEpic({
+        projectRef,
+        epicRef: epic.v2Id,
+        updateEpicRequest: {
+          releaseRef: releaseId === null ? "" : releaseId,
+        },
+      });
+      fetchEpicData();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to update release";
+      setError(message);
+      console.error("Failed to update release:", err);
+    }
   };
 
   // Handle description save
@@ -448,10 +464,11 @@ export default function EpicDetailPage() {
       try {
         const projectRef = getProjectRef();
         if (!projectRef || !epic.v2Id) return;
+        // Empty-string-clears convention: "" = clear, value = set
         await api.epics.updateEpic({
           projectRef,
           epicRef: epic.v2Id,
-          updateEpicRequest: { description: trimmed || undefined },
+          updateEpicRequest: { description: trimmed || "" },
         });
         fetchEpicData();
       } catch (err) {
