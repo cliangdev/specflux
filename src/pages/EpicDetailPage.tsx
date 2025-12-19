@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   api,
   getApiErrorMessage,
   type Epic,
   type Task,
-  type Release,
   type AcceptanceCriteria as AcceptanceCriterion,
   EpicStatus,
 } from "../api";
@@ -13,11 +12,10 @@ import { useProject } from "../contexts";
 import { ProgressBar, TaskCreateModal } from "../components/ui";
 import { DetailPageHeader } from "../components/ui/DetailPageHeader";
 import { AIActionButton } from "../components/ui/AIActionButton";
-import PrdSelector from "../components/epics/PrdSelector";
-import ReleaseSelector from "../components/epics/ReleaseSelector";
 import { AcceptanceCriteriaList } from "../components/ui/AcceptanceCriteriaList";
 import MarkdownRenderer from "../components/ui/MarkdownRenderer";
-import { calculatePhase } from "../utils/phaseCalculation";
+import PrdSelector from "../components/epics/PrdSelector";
+import ReleaseSelector from "../components/epics/ReleaseSelector";
 import { usePageContext } from "../hooks/usePageContext";
 import { useTerminal } from "../contexts/TerminalContext";
 import { generateEpicPrompt } from "../services/promptGenerator";
@@ -26,7 +24,7 @@ import { generateEpicPrompt } from "../services/promptGenerator";
 type EpicWithV2Fields = Omit<Epic, "dependsOn" | "taskStats" | "status"> & {
   v2Id?: string;
   displayKey?: string;
-  status: string; // Allow UPPER_CASE status from v2 API
+  status: string;
   taskStats?: {
     total?: number;
     done?: number;
@@ -37,9 +35,41 @@ type EpicWithV2Fields = Omit<Epic, "dependsOn" | "taskStats" | "status"> & {
   phase?: number;
   dependsOn?: (number | string)[];
   createdById?: string;
-  prdId?: string;
   prdFilePath?: string;
   epicFilePath?: string;
+  prdId?: string;
+};
+
+// Task status badge configuration
+const TASK_STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
+  BACKLOG: {
+    label: "Backlog",
+    classes: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+  },
+  READY: {
+    label: "Ready",
+    classes: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+  },
+  IN_PROGRESS: {
+    label: "In Progress",
+    classes: "bg-accent-100 text-accent-700 dark:bg-accent-900/30 dark:text-accent-300",
+  },
+  IN_REVIEW: {
+    label: "In Review",
+    classes: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+  },
+  BLOCKED: {
+    label: "Blocked",
+    classes: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+  },
+  COMPLETED: {
+    label: "Completed",
+    classes: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
+  },
+  CANCELLED: {
+    label: "Cancelled",
+    classes: "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
+  },
 };
 
 // Epic status options for DetailPageHeader
@@ -54,77 +84,30 @@ export default function EpicDetailPage() {
   const navigate = useNavigate();
   const { currentProject, getProjectRef } = useProject();
   const { openTerminalForContext, getExistingSession, switchToSession, activeSession, isRunning } = useTerminal();
+
   const [epic, setEpic] = useState<EpicWithV2Fields | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [criteria, setCriteria] = useState<AcceptanceCriterion[]>([]);
-  const [releases, setReleases] = useState<Release[]>([]);
+  const [allEpics, setAllEpics] = useState<EpicWithV2Fields[]>([]);
   const [loading, setLoading] = useState(true);
   const [criteriaLoading, setCriteriaLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
-  const [allEpics, setAllEpics] = useState<EpicWithV2Fields[]>([]);
   const [deleting, setDeleting] = useState(false);
 
-  // Set page context for terminal suggested commands
+  // Inline description editing state
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [editDescription, setEditDescription] = useState("");
+
+  // Set page context for terminal
   usePageContext(
     epic
       ? { type: "epic-detail", id: epic.v2Id || epic.id, title: epic.displayKey || epic.title }
-      : null,
+      : null
   );
-
-  // Inline editing state
-  const [editingDescription, setEditingDescription] = useState(false);
-  const [descriptionValue, setDescriptionValue] = useState("");
-  const [editingPrd, setEditingPrd] = useState(false);
-  const [prdValue, setPrdValue] = useState("");
-  const [showDependencyPicker, setShowDependencyPicker] = useState(false);
-  const [dependencySearch, setDependencySearch] = useState("");
-
-  // Refs
-  const descriptionRef = useRef<HTMLTextAreaElement>(null);
-  const prdRef = useRef<HTMLInputElement>(null);
-  const dependencyPickerRef = useRef<HTMLDivElement>(null);
-
-  // Sync editing values when epic changes
-  useEffect(() => {
-    if (epic) {
-      setDescriptionValue(epic.description ?? "");
-      setPrdValue(epic.prdFilePath ?? "");
-    }
-  }, [epic]);
-
-  // Focus inputs when editing starts
-  useEffect(() => {
-    if (editingDescription && descriptionRef.current) {
-      descriptionRef.current.focus();
-    }
-  }, [editingDescription]);
-
-  useEffect(() => {
-    if (editingPrd && prdRef.current) {
-      prdRef.current.focus();
-      prdRef.current.select();
-    }
-  }, [editingPrd]);
-
-  // Close dependency picker when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        dependencyPickerRef.current &&
-        !dependencyPickerRef.current.contains(event.target as Node)
-      ) {
-        setShowDependencyPicker(false);
-        setDependencySearch("");
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const fetchEpicData = useCallback(async () => {
     if (!id) return;
-
     const projectRef = getProjectRef();
     if (!projectRef) {
       setError("No project selected");
@@ -136,14 +119,15 @@ export default function EpicDetailPage() {
       setLoading(true);
       setError(null);
 
-      // Fetch epic from v2 API
-      const epicResponse = await api.epics.getEpic({
-        projectRef,
-        epicRef: id,
-      });
-
-      // Convert v2 epic to internal format
+      // Fetch epic
+      const epicResponse = await api.epics.getEpic({ projectRef, epicRef: id });
       const v2Epic = epicResponse;
+      const statusMap: Record<string, "planning" | "active" | "completed"> = {
+        PLANNING: "planning",
+        IN_PROGRESS: "active",
+        COMPLETED: "completed",
+      };
+
       const epicData: EpicWithV2Fields = {
         id: v2Epic.id,
         v2Id: v2Epic.id,
@@ -151,7 +135,7 @@ export default function EpicDetailPage() {
         projectId: v2Epic.projectId,
         title: v2Epic.title,
         description: v2Epic.description,
-        status: v2Epic.status, // Keep UPPER_CASE status from v2 API
+        status: statusMap[v2Epic.status] || "planning",
         targetDate: v2Epic.targetDate,
         createdById: v2Epic.createdById,
         createdAt: new Date(v2Epic.createdAt),
@@ -161,26 +145,16 @@ export default function EpicDetailPage() {
         prdFilePath: v2Epic.prdFilePath,
         epicFilePath: v2Epic.epicFilePath,
         dependsOn: v2Epic.dependsOn ?? [],
-        taskStats: v2Epic.taskStats ?? {
-          total: 0,
-          done: 0,
-          inProgress: 0,
-          backlog: 0,
-        },
+        taskStats: v2Epic.taskStats ?? { total: 0, done: 0, inProgress: 0, backlog: 0 },
         progressPercentage: v2Epic.progressPercentage ?? 0,
         phase: v2Epic.phase ?? 1,
       };
       setEpic(epicData);
 
-      // Fetch tasks from v2 API
+      // Fetch tasks
       try {
-        const tasksResponse = await api.epics.listEpicTasks({
-          projectRef,
-          epicRef: id,
-          limit: 100, // Fetch up to 100 tasks
-        });
+        const tasksResponse = await api.epics.listEpicTasks({ projectRef, epicRef: id, limit: 100 });
         const v2Tasks = tasksResponse.data ?? [];
-        // Convert v2 tasks to a compatible format for display
         const convertedTasks = v2Tasks.map((t) => ({
           id: 0,
           v2Id: t.id,
@@ -190,7 +164,7 @@ export default function EpicDetailPage() {
           epicDisplayKey: t.epicDisplayKey ?? null,
           title: t.title,
           description: t.description ?? null,
-          status: t.status, // Keep UPPER_CASE status from v2 API
+          status: t.status,
           priority: t.priority,
           requiresApproval: t.requiresApproval,
           estimatedDuration: t.estimatedDuration ?? null,
@@ -218,7 +192,7 @@ export default function EpicDetailPage() {
         projectId: e.projectId,
         title: e.title,
         description: e.description,
-        status: e.status, // Keep UPPER_CASE status from v2 API
+        status: e.status,
         targetDate: e.targetDate,
         createdById: e.createdById,
         createdAt: new Date(e.createdAt),
@@ -227,30 +201,8 @@ export default function EpicDetailPage() {
         phase: e.phase,
       }));
       setAllEpics(convertedEpics);
-
-      // Fetch releases from v2 API
-      const releasesResponse = await api.releases.listReleases({
-        projectRef,
-      });
-      const v2Releases = releasesResponse.data ?? [];
-      const convertedReleases: Release[] = v2Releases.map((r) => ({
-        id: 0,
-        v2Id: r.id,
-        name: r.name,
-        description: r.description ?? null,
-        status: r.status.toLowerCase() as
-          | "planned"
-          | "in_progress"
-          | "released",
-        targetDate: r.targetDate ?? null,
-        projectId: 0,
-        createdAt: r.createdAt,
-        updatedAt: r.updatedAt,
-      })) as unknown as Release[];
-      setReleases(convertedReleases);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to load epic";
+      const message = err instanceof Error ? err.message : "Failed to load epic";
       setError(message);
       console.error("Failed to fetch epic:", err);
     } finally {
@@ -260,20 +212,15 @@ export default function EpicDetailPage() {
 
   const fetchCriteria = useCallback(async () => {
     if (!id) return;
-
     try {
       setCriteriaLoading(true);
-
       const projectRef = getProjectRef();
       if (!projectRef) {
         setCriteria([]);
         setCriteriaLoading(false);
         return;
       }
-      const response = await api.epics.listEpicAcceptanceCriteria({
-        projectRef,
-        epicRef: id,
-      });
+      const response = await api.epics.listEpicAcceptanceCriteria({ projectRef, epicRef: id });
       const v2Criteria = response.data ?? [];
       const convertedCriteria: AcceptanceCriterion[] = v2Criteria.map((c) => ({
         id: c.id,
@@ -295,85 +242,47 @@ export default function EpicDetailPage() {
     fetchCriteria();
   }, [fetchEpicData, fetchCriteria]);
 
-  // Helper to get epic ref (v2Id for v2, id for fallback)
   const getEpicRef = (e: EpicWithV2Fields): string | number => e.v2Id || e.id;
 
-  // Calculate phase from dependencies
-  const phase = useMemo(() => {
-    if (!epic) return 1;
-    // For v2, use the phase from the epic data
-    return epic.phase ?? 1;
-  }, [epic]);
+  const phase = useMemo(() => epic?.phase ?? 1, [epic]);
 
-  // Available epics for dependency selection (exclude current epic and detect circular)
-  const availableEpics = useMemo(() => {
-    if (!epic) return [];
-    const currentRef = getEpicRef(epic);
-    return allEpics.filter((e) => getEpicRef(e) !== currentRef);
-  }, [allEpics, epic]);
-
-  // Filter available epics by search
-  const filteredAvailableEpics = useMemo(() => {
-    if (!dependencySearch) return availableEpics;
-    const query = dependencySearch.toLowerCase();
-    return availableEpics.filter(
-      (e) =>
-        e.title.toLowerCase().includes(query) ||
-        e.displayKey?.toLowerCase().includes(query) ||
-        e.v2Id?.toLowerCase().includes(query) ||
-        e.id.toString().includes(query),
-    );
-  }, [availableEpics, dependencySearch]);
-
-  // Get dependency epic objects
+  // Dependencies
   const dependencyEpics = useMemo(() => {
     if (!epic?.dependsOn || epic.dependsOn.length === 0) return [];
-    // For v2, dependsOn contains v2Ids (strings)
     const depsSet = new Set(epic.dependsOn);
     return allEpics.filter((e) => e.v2Id && depsSet.has(e.v2Id));
   }, [epic, allEpics]);
 
-  // Map status to v2 status enum
+  // Map status to v2 enum
   const mapStatusToV2 = (status: string): EpicStatus => {
     switch (status) {
-      case "PLANNING":
-        return EpicStatus.Planning;
-      case "IN_PROGRESS":
-        return EpicStatus.InProgress;
-      case "COMPLETED":
-        return EpicStatus.Completed;
-      default:
-        return EpicStatus.Planning;
+      case "PLANNING": return EpicStatus.Planning;
+      case "IN_PROGRESS": return EpicStatus.InProgress;
+      case "COMPLETED": return EpicStatus.Completed;
+      default: return EpicStatus.Planning;
     }
   };
 
-  // Handle status change
+  // Handlers
   const handleStatusChange = async (newStatus: string) => {
     if (!epic) return;
-
     try {
       const projectRef = getProjectRef();
       if (!projectRef || !epic.v2Id) return;
       await api.epics.updateEpic({
         projectRef,
         epicRef: epic.v2Id,
-        updateEpicRequest: {
-          status: mapStatusToV2(newStatus),
-        },
+        updateEpicRequest: { status: mapStatusToV2(newStatus) },
       });
       fetchEpicData();
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to update status";
-      setError(message);
       console.error("Failed to update status:", err);
+      setError(err instanceof Error ? err.message : "Failed to update status");
     }
   };
 
-  // Handle title change
   const handleTitleChange = async (newTitle: string) => {
     if (!epic) return;
-
     try {
       const projectRef = getProjectRef();
       if (!projectRef || !epic.v2Id) return;
@@ -384,139 +293,104 @@ export default function EpicDetailPage() {
       });
       fetchEpicData();
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to update title";
-      setError(message);
       console.error("Failed to update title:", err);
+      setError(err instanceof Error ? err.message : "Failed to update title");
     }
   };
 
-  // Handle release change (optimistic update)
-  const handleReleaseChange = async (newReleaseId: string | null) => {
+  const handleReleaseChange = async (releaseId: string | null) => {
     if (!epic) return;
+    const projectRef = getProjectRef();
+    if (!projectRef || !epic.v2Id) return;
 
-    const oldReleaseId = epic.releaseId;
-
-    // Optimistic update
-    setEpic({ ...epic, releaseId: newReleaseId ?? undefined });
+    // Optimistically update local state
+    const previousReleaseId = epic.releaseId;
+    setEpic({ ...epic, releaseId: releaseId ?? undefined });
 
     try {
-      const projectRef = getProjectRef();
-      if (!projectRef || !epic.v2Id) return;
-      // JSON Merge Patch: null = clear, value = set, absent = don't change
-      // Cast needed because TypeScript types don't include null for nullable fields
       await api.epics.updateEpic({
         projectRef,
         epicRef: epic.v2Id,
-        updateEpicRequest: {
-          releaseRef: newReleaseId as string | undefined,
-        },
+        updateEpicRequest: { releaseRef: releaseId === null ? "" : releaseId },
       });
     } catch (err) {
       // Revert on error
-      setEpic({ ...epic, releaseId: oldReleaseId });
-      const message =
-        err instanceof Error ? err.message : "Failed to update release";
-      setError(message);
+      setEpic({ ...epic, releaseId: previousReleaseId });
       console.error("Failed to update release:", err);
+      setError(err instanceof Error ? err.message : "Failed to update release");
     }
   };
 
-  // Handle PRD change (optimistic update)
-  const handlePrdChange = async (newPrdId: string | null) => {
+  const handlePrdChange = async (prdId: string | null) => {
     if (!epic) return;
+    const projectRef = getProjectRef();
+    if (!projectRef || !epic.v2Id) return;
 
-    const oldPrdId = epic.prdId;
-
-    // Optimistic update
-    setEpic({ ...epic, prdId: newPrdId ?? undefined });
+    // Optimistically update local state
+    const previousPrdId = epic.prdId;
+    setEpic({ ...epic, prdId: prdId ?? undefined });
 
     try {
-      const projectRef = getProjectRef();
-      if (!projectRef || !epic.v2Id) return;
-      // JSON Merge Patch: null = clear, value = set, absent = don't change
-      // Cast needed because TypeScript types don't include null for nullable fields
       await api.epics.updateEpic({
         projectRef,
         epicRef: epic.v2Id,
-        updateEpicRequest: {
-          prdRef: newPrdId as string | undefined,
-        },
+        updateEpicRequest: { prdRef: prdId === null ? "" : prdId },
       });
     } catch (err) {
       // Revert on error
-      setEpic({ ...epic, prdId: oldPrdId });
-      const message =
-        err instanceof Error ? err.message : "Failed to update PRD";
-      setError(message);
+      setEpic({ ...epic, prdId: previousPrdId });
       console.error("Failed to update PRD:", err);
+      setError(err instanceof Error ? err.message : "Failed to update PRD");
     }
   };
 
-  // Handle description save
   const handleDescriptionSave = async () => {
     if (!epic) return;
-    const trimmed = descriptionValue.trim();
-    if (trimmed !== (epic.description ?? "")) {
+    const trimmed = editDescription.trim();
+    const oldDescription = epic.description ?? "";
+
+    // Always exit editing mode
+    setEditingDescription(false);
+
+    if (trimmed !== oldDescription) {
+      // Optimistically update local state
+      setEpic({ ...epic, description: trimmed || undefined });
+
       try {
         const projectRef = getProjectRef();
         if (!projectRef || !epic.v2Id) return;
-        // JSON Merge Patch: null = clear, value = set, absent = don't change
-        // Cast needed because TypeScript types don't include null for nullable fields
         await api.epics.updateEpic({
           projectRef,
           epicRef: epic.v2Id,
-          updateEpicRequest: { description: (trimmed || null) as string | undefined },
+          updateEpicRequest: { description: trimmed || "" },
         });
-        fetchEpicData();
       } catch (err) {
+        // Revert on error
+        setEpic({ ...epic, description: oldDescription || undefined });
         console.error("Failed to update description:", err);
-        setDescriptionValue(epic.description ?? "");
+        setError(err instanceof Error ? err.message : "Failed to update description");
       }
     }
-    setEditingDescription(false);
   };
 
-  // Handle PRD path save
-  const handlePrdSave = async () => {
-    if (!epic) return;
-
-    // PRD path not yet implemented for v2
-    console.log("PRD path not yet implemented for v2");
-    setEditingPrd(false);
-    return;
+  const handleDescriptionKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      setEditDescription(epic?.description ?? "");
+      setEditingDescription(false);
+    }
+    // Ctrl/Cmd + Enter to save
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      handleDescriptionSave();
+    }
   };
 
-  // Handle add dependency (uses v2Id)
-  const handleAddDependency = async (depEpicRef: number | string) => {
-    if (!epic) return;
-
-    // Dependencies not yet implemented for v2
-    console.log("Dependencies not yet implemented for v2");
-    return;
-  };
-
-  // Handle remove dependency (uses v2Id)
-  const handleRemoveDependency = async (depEpicRef: number | string) => {
-    if (!epic) return;
-
-    // Dependencies not yet implemented for v2
-    console.log("Dependencies not yet implemented for v2");
-    return;
-  };
-
-  // Handle epic deletion
   const handleDelete = async () => {
     if (!epic) return;
-
     try {
       setDeleting(true);
       const projectRef = getProjectRef();
       if (!projectRef || !epic.v2Id) return;
-      await api.epics.deleteEpic({
-        projectRef,
-        epicRef: epic.v2Id,
-      });
+      await api.epics.deleteEpic({ projectRef, epicRef: epic.v2Id });
       navigate("/epics");
     } catch (err) {
       const message = await getApiErrorMessage(err, "Failed to delete epic");
@@ -534,7 +408,6 @@ export default function EpicDetailPage() {
         status: epic.status,
         taskCount: epic.taskStats?.total ?? 0,
       });
-
       const context = {
         type: "epic" as const,
         id: epic.v2Id || epic.id,
@@ -545,7 +418,6 @@ export default function EpicDetailPage() {
         initialCommand: "claude",
         initialPrompt,
       };
-
       const existing = getExistingSession(context);
       if (existing) {
         switchToSession(existing.id);
@@ -570,7 +442,6 @@ export default function EpicDetailPage() {
     }
   };
 
-  // Check if terminal has existing session for this epic
   const hasExistingSession = epic
     ? !!getExistingSession({
         type: "epic" as const,
@@ -579,72 +450,37 @@ export default function EpicDetailPage() {
       })
     : false;
 
-  // Check if terminal is showing this epic
   const isTerminalShowingThisEpic = activeSession?.contextId === (epic?.v2Id || epic?.id);
 
-  // Keyboard handlers
-  const handleKeyDown = (
-    e: React.KeyboardEvent,
-    saveHandler: () => void,
-    cancelHandler: () => void,
-  ) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      saveHandler();
-    } else if (e.key === "Escape") {
-      cancelHandler();
-    }
-  };
-
+  // Loading state
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <svg
-          className="animate-spin w-8 h-8 text-accent-500"
-          viewBox="0 0 24 24"
-        >
-          <circle
-            className="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="4"
-            fill="none"
-          />
-          <path
-            className="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-          />
+        <svg className="animate-spin w-8 h-8 text-accent-500" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
         </svg>
       </div>
     );
   }
 
+  // Error state
   if (error) {
     return (
       <div className="text-center py-12">
-        <div className="text-red-500 dark:text-red-400 text-lg">
-          Error loading epic
-        </div>
+        <div className="text-red-500 dark:text-red-400 text-lg">Error loading epic</div>
         <p className="text-surface-500 mt-2">{error}</p>
-        <button onClick={fetchEpicData} className="mt-4 btn btn-primary">
-          Try Again
-        </button>
+        <button onClick={fetchEpicData} className="mt-4 btn btn-primary">Try Again</button>
       </div>
     );
   }
 
+  // Not found state
   if (!epic) {
     return (
       <div className="text-center py-12">
-        <div className="text-surface-500 dark:text-surface-400 text-lg">
-          Epic not found
-        </div>
-        <Link to="/epics" className="mt-4 btn btn-primary inline-block">
-          Back
-        </Link>
+        <div className="text-surface-500 dark:text-surface-400 text-lg">Epic not found</div>
+        <Link to="/epics" className="mt-4 btn btn-primary inline-block">Back</Link>
       </div>
     );
   }
@@ -652,14 +488,8 @@ export default function EpicDetailPage() {
   const taskStats = epic.taskStats || { total: 0, done: 0, inProgress: 0 };
   const totalTasks = taskStats.total ?? 0;
   const doneTasks = taskStats.done ?? 0;
-  // Use progressPercentage if available, otherwise calculate from taskStats
-  const progressPercent =
-    epic.progressPercentage ??
-    (totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0);
-  const remaining =
-    (taskStats.total ?? 0) -
-    (taskStats.done ?? 0) -
-    (taskStats.inProgress ?? 0);
+  const progressPercent = epic.progressPercentage ?? (totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0);
+  const remaining = (taskStats.total ?? 0) - (taskStats.done ?? 0) - (taskStats.inProgress ?? 0);
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
@@ -668,34 +498,25 @@ export default function EpicDetailPage() {
         backTo="/epics"
         entityKey={epic.displayKey}
         title={epic.title}
-        status={epic.status}
+        status={epic.status.toUpperCase()}
         statusOptions={EPIC_STATUS_OPTIONS}
         onStatusChange={handleStatusChange}
         onTitleChange={handleTitleChange}
         selectors={
           <>
-            <div className="flex items-center gap-1.5">
-              <span className="text-surface-500 dark:text-surface-400">PRD:</span>
-              <PrdSelector
-                projectRef={getProjectRef() ?? undefined}
-                selectedPrdId={epic.prdId}
-                onChange={handlePrdChange}
-              />
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-surface-500 dark:text-surface-400">Release:</span>
-              <ReleaseSelector
-                projectRef={getProjectRef() ?? undefined}
-                selectedReleaseId={epic.releaseId}
-                onChange={handleReleaseChange}
-              />
-            </div>
+            <PrdSelector
+              projectRef={getProjectRef() ?? undefined}
+              selectedPrdId={epic.prdId}
+              onChange={handlePrdChange}
+            />
+            <ReleaseSelector
+              projectRef={getProjectRef() ?? undefined}
+              selectedReleaseId={epic.releaseId}
+              onChange={handleReleaseChange}
+            />
           </>
         }
-        badges={[
-          { label: "Phase", value: `P${phase}` },
-          { label: "Tasks", value: `${taskStats.total ?? 0}` },
-        ]}
+        badges={[{ label: "Phase", value: `P${phase}` }]}
         createdAt={epic.createdAt}
         updatedAt={epic.updatedAt}
         primaryAction={
@@ -724,358 +545,211 @@ export default function EpicDetailPage() {
         isLoading={loading}
       />
 
-      {/* Content with sidebar */}
+      {/* Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Tasks Sidebar */}
-        <div className="w-64 flex-shrink-0 border-r border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 overflow-y-auto scrollbar-hidden">
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-400 dark:text-surface-500">
-                Tasks
-              </h2>
-              <button
-                onClick={() => setShowCreateTaskModal(true)}
-                className="text-xs text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 font-medium"
-              >
-                + Add
-              </button>
-            </div>
-            {tasks.length === 0 ? (
-              <p className="text-sm text-surface-500 dark:text-surface-400">
-                No tasks yet
-              </p>
-            ) : (
-              <ul className="space-y-1">
-                {tasks.map((task) => {
-                  const taskWithV2 = task as Task & {
-                    v2Id?: string;
-                    publicId?: string;
-                    displayKey?: string;
-                  };
-                  const taskRef = taskWithV2.v2Id || taskWithV2.publicId || task.id;
-                  const displayId =
-                    taskWithV2.displayKey ||
-                    taskWithV2.v2Id ||
-                    taskWithV2.publicId ||
-                    `#${task.id}`;
-                  return (
-                    <li key={taskRef}>
-                      <button
-                        onClick={() => navigate(`/tasks/${taskRef}?from=/epics/${id}`)}
-                        className="w-full text-left px-3 py-2 rounded-lg text-sm transition-colors text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-surface-400 dark:text-surface-500 font-mono">
-                            {displayId}
-                          </span>
-                          <span
-                            className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                              task.status === "COMPLETED"
-                                ? "bg-emerald-500"
-                                : task.status === "IN_PROGRESS"
-                                  ? "bg-accent-500"
-                                  : task.status === "BLOCKED"
-                                    ? "bg-red-500"
-                                    : "bg-surface-300 dark:bg-surface-600"
-                            }`}
-                          />
-                        </div>
-                        <div className="truncate mt-0.5 text-surface-900 dark:text-white">
-                          {task.title}
-                        </div>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden p-6">
-          {/* Progress Summary - Compact */}
-          <div className="flex items-center gap-6 mb-4 pb-4 border-b border-surface-200 dark:border-surface-700">
-            <div className="flex-1">
-              <ProgressBar percent={progressPercent} size="md" showLabel />
-            </div>
-            <div className="flex items-center gap-4 text-sm">
-              <div className="flex items-center gap-1.5">
-                <span className="text-emerald-600 dark:text-emerald-400 font-medium">{taskStats.done ?? 0}</span>
-                <span className="text-surface-400 dark:text-surface-500">done</span>
+        {/* Left Sidebar - Summary, Acceptance Criteria, Tasks */}
+        <div className="w-80 flex-shrink-0 border-r border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 overflow-y-auto scrollbar-hidden">
+          {/* Summary Section */}
+          <div className="p-4 border-b border-surface-200 dark:border-surface-700">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-400 dark:text-surface-500 mb-3">
+              Summary
+            </h2>
+            <div className="space-y-3">
+              <div>
+                <div className="text-xs text-surface-500 dark:text-surface-400 mb-1">Progress</div>
+                <ProgressBar percent={progressPercent} size="sm" showLabel />
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-accent-600 dark:text-accent-400 font-medium">{taskStats.inProgress ?? 0}</span>
-                <span className="text-surface-400 dark:text-surface-500">in progress</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-surface-600 dark:text-surface-300 font-medium">{remaining}</span>
-                <span className="text-surface-400 dark:text-surface-500">remaining</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Description - Takes most space */}
-          <div className="flex-1 min-h-0 mb-4">
-            <div className="h-full flex flex-col">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-medium text-surface-900 dark:text-white">
-                  Description
-                </h3>
-                {!editingDescription && (
-                  <button
-                    onClick={() => setEditingDescription(true)}
-                    className="p-1 text-surface-400 hover:text-surface-600 dark:hover:text-surface-300 transition-colors"
-                    title="Edit description"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-              {editingDescription ? (
-                <div className="flex-1 border border-surface-200 dark:border-surface-700 rounded-md bg-white dark:bg-surface-800 flex flex-col">
-                  <textarea
-                    ref={descriptionRef}
-                    value={descriptionValue}
-                    onChange={(e) => setDescriptionValue(e.target.value)}
-                    onKeyDown={(e) =>
-                      handleKeyDown(e, handleDescriptionSave, () => {
-                        setDescriptionValue(epic.description ?? "");
-                        setEditingDescription(false);
-                      })
-                    }
-                    placeholder="Add a description..."
-                    className="flex-1 w-full p-3 text-sm text-surface-700 dark:text-surface-300 bg-transparent border-none outline-none resize-none focus:ring-2 focus:ring-accent-500 focus:ring-inset rounded-t-md"
-                  />
-                  <div className="flex items-center gap-2 px-3 py-2 border-t border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 rounded-b-md">
-                    <button
-                      onClick={handleDescriptionSave}
-                      className="btn btn-primary text-xs py-1 px-2"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={() => {
-                        setDescriptionValue(epic.description ?? "");
-                        setEditingDescription(false);
-                      }}
-                      className="btn btn-secondary text-xs py-1 px-2"
-                    >
-                      Cancel
-                    </button>
-                    <span className="text-xs text-surface-400 dark:text-surface-500">
-                      Esc to cancel, Ctrl+Enter to save
-                    </span>
-                  </div>
+              <div className="grid grid-cols-2 gap-3 text-center">
+                <div>
+                  <div className="text-lg font-semibold text-surface-900 dark:text-white">{taskStats.done ?? 0}</div>
+                  <div className="text-xs text-surface-500 dark:text-surface-400">Done</div>
                 </div>
-              ) : (
-                <div className="flex-1 overflow-y-auto p-3 border border-surface-200 dark:border-surface-700 rounded-md bg-white dark:bg-surface-800">
-                  {epic.description ? (
-                    <MarkdownRenderer
-                      source={epic.description}
-                      className="text-sm text-surface-600 dark:text-surface-300 leading-relaxed prose prose-sm dark:prose-invert max-w-none"
-                    />
-                  ) : (
-                    <p className="text-sm text-surface-400 dark:text-surface-500 italic">
-                      No description
-                    </p>
-                  )}
+                <div>
+                  <div className="text-lg font-semibold text-accent-600 dark:text-accent-400">{taskStats.inProgress ?? 0}</div>
+                  <div className="text-xs text-surface-500 dark:text-surface-400">In Progress</div>
                 </div>
-              )}
+                <div>
+                  <div className="text-lg font-semibold text-surface-600 dark:text-surface-300">{remaining}</div>
+                  <div className="text-xs text-surface-500 dark:text-surface-400">Remaining</div>
+                </div>
+                <div>
+                  <div className="text-lg font-semibold text-surface-900 dark:text-white">{taskStats.total ?? 0}</div>
+                  <div className="text-xs text-surface-500 dark:text-surface-400">Total</div>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Bottom sections - Compact grid */}
-          <div className="grid grid-cols-3 gap-4">
-            {/* PRD File Path */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <h3 className="text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wide">
-                  PRD Path
+          {/* Acceptance Criteria Section */}
+          <div className="p-4 border-b border-surface-200 dark:border-surface-700">
+            <div className="border border-surface-200 dark:border-surface-700 rounded-lg overflow-hidden">
+              {/* Header */}
+              <div className="px-3 py-2.5 bg-surface-100 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">
+                  Acceptance Criteria
                 </h3>
-                {!editingPrd && (
-                  <button
-                    onClick={() => setEditingPrd(true)}
-                    className="p-0.5 text-surface-400 hover:text-surface-600 dark:hover:text-surface-300 transition-colors"
-                    title="Edit PRD path"
-                  >
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                  </button>
-                )}
               </div>
-              <div className="p-2 border border-surface-200 dark:border-surface-700 rounded-md bg-white dark:bg-surface-800 text-sm">
-                {editingPrd ? (
-                  <div className="flex items-center gap-1">
-                    <input
-                      ref={prdRef}
-                      type="text"
-                      value={prdValue}
-                      onChange={(e) => setPrdValue(e.target.value)}
-                      onBlur={handlePrdSave}
-                      onKeyDown={(e) =>
-                        handleKeyDown(e, handlePrdSave, () => {
-                          setPrdValue(epic.prdFilePath ?? "");
-                          setEditingPrd(false);
-                        })
-                      }
-                      placeholder="prds/feature.md"
-                      className="flex-1 text-sm text-surface-700 dark:text-surface-300 bg-transparent outline-none"
-                    />
-                  </div>
-                ) : epic.prdFilePath ? (
-                  <code className="text-xs font-mono text-surface-600 dark:text-surface-300 truncate block">
-                    {epic.prdFilePath}
-                  </code>
-                ) : (
-                  <span className="text-xs text-surface-400 dark:text-surface-500 italic">
-                    Not set
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Acceptance Criteria */}
-            <div>
-              <h3 className="text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wide mb-1">
-                Acceptance Criteria
-              </h3>
-              <div className="p-2 border border-surface-200 dark:border-surface-700 rounded-md bg-white dark:bg-surface-800 max-h-32 overflow-y-auto">
+              {/* Content */}
+              <div className="p-3">
                 {criteriaLoading ? (
-                  <div className="text-xs text-surface-400">Loading...</div>
+                  <div className="text-sm text-surface-400 dark:text-surface-500">Loading...</div>
                 ) : (
                   <AcceptanceCriteriaList
                     entityType="epic"
-                    projectRef={getProjectRef() || ""}
-                    entityRef={id || ""}
+                    projectRef={getProjectRef() ?? ""}
+                    entityRef={epic.v2Id || String(epic.id)}
                     criteria={criteria}
                     onUpdate={fetchCriteria}
                   />
                 )}
               </div>
             </div>
+          </div>
 
-            {/* Dependencies */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <h3 className="text-xs font-medium text-surface-500 dark:text-surface-400 uppercase tracking-wide">
-                  Dependencies
+          {/* Tasks Section */}
+          <div className="p-4">
+            <div className="border border-surface-200 dark:border-surface-700 rounded-lg overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center justify-between px-3 py-2.5 bg-surface-100 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">
+                  Tasks ({tasks.length})
                 </h3>
-                <div className="relative" ref={dependencyPickerRef}>
-                  <button
-                    onClick={() => setShowDependencyPicker(!showDependencyPicker)}
-                    className="p-0.5 text-surface-400 hover:text-surface-600 dark:hover:text-surface-300 transition-colors"
-                    title="Add dependency"
-                  >
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                    </svg>
-                  </button>
+                <button
+                  onClick={() => setShowCreateTaskModal(true)}
+                  className="text-xs font-medium text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300"
+                >
+                  + Add
+                </button>
+              </div>
 
-                  {/* Dependency Picker Dropdown */}
-                  {showDependencyPicker && (
-                    <div className="absolute right-0 z-50 mt-1 w-80 bg-white dark:bg-surface-800 rounded-lg shadow-lg border border-surface-200 dark:border-surface-700 overflow-hidden">
-                      <div className="p-2 border-b border-surface-200 dark:border-surface-700">
-                        <input
-                          type="text"
-                          value={dependencySearch}
-                          onChange={(e) => setDependencySearch(e.target.value)}
-                          placeholder="Search epics..."
-                          className="input w-full text-sm"
-                          autoFocus
-                        />
-                      </div>
-                      <div className="max-h-60 overflow-y-auto">
-                        {filteredAvailableEpics.length === 0 ? (
-                          <div className="p-4 text-sm text-surface-500 dark:text-surface-400 text-center">
-                            No epics found
-                          </div>
-                        ) : (
-                          filteredAvailableEpics.map((e) => {
-                            const epicRef = getEpicRef(e);
-                            const isSelected = epic.dependsOn?.includes(e.v2Id as string);
-                            const epicPhase = e.phase ?? 1;
-                            const displayId = e.displayKey || e.v2Id || `#${e.id}`;
-                            return (
-                              <button
-                                key={epicRef}
-                                onClick={() =>
-                                  isSelected
-                                    ? handleRemoveDependency(epicRef)
-                                    : handleAddDependency(epicRef)
-                                }
-                                className={`w-full flex items-center gap-3 px-3 py-2 text-sm text-left hover:bg-surface-100 dark:hover:bg-surface-700 ${
-                                  isSelected ? "bg-accent-50 dark:bg-accent-900/20" : ""
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  readOnly
-                                  className="rounded border-surface-300 dark:border-surface-600 text-accent-600 focus:ring-accent-500"
-                                />
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs text-surface-500 dark:text-surface-400">
-                                      {displayId}
-                                    </span>
-                                    <span className="text-surface-900 dark:text-white truncate">
-                                      {e.title}
-                                    </span>
-                                  </div>
-                                </div>
-                                <span className="text-xs px-1.5 py-0.5 rounded bg-surface-100 dark:bg-surface-700 text-surface-600 dark:text-surface-400">
-                                  P{epicPhase}
-                                </span>
-                              </button>
-                            );
-                          })
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="p-2 border border-surface-200 dark:border-surface-700 rounded-md bg-white dark:bg-surface-800 max-h-32 overflow-y-auto">
-                {dependencyEpics.length === 0 ? (
-                  <p className="text-xs text-surface-400 dark:text-surface-500 italic">
-                    No dependencies (Phase 1)
+              {/* Content */}
+              {tasks.length === 0 ? (
+                <div className="px-3 py-4 text-center">
+                  <p className="text-sm text-surface-500 dark:text-surface-400">
+                    No tasks yet
                   </p>
-                ) : (
-                  <div className="flex flex-wrap gap-1">
-                    {dependencyEpics.map((depEpic) => {
-                      const depRef = getEpicRef(depEpic);
-                      const displayId = depEpic.displayKey || depEpic.v2Id || `#${depEpic.id}`;
-                      return (
-                        <div
-                          key={depRef}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-surface-100 dark:bg-surface-700 rounded text-xs"
-                        >
-                          <Link
-                            to={`/epics/${depRef}`}
-                            className="text-surface-700 dark:text-surface-300 hover:text-accent-600 dark:hover:text-accent-400"
-                          >
+                </div>
+              ) : (
+                <div className="divide-y divide-surface-200 dark:divide-surface-700">
+                  {tasks.map((task) => {
+                    const taskStatusConfig = TASK_STATUS_CONFIG[task.status] || TASK_STATUS_CONFIG.BACKLOG;
+                    const taskWithV2 = task as Task & { v2Id?: string; publicId?: string; displayKey?: string };
+                    const taskRef = taskWithV2.v2Id || taskWithV2.publicId || task.id;
+                    const displayId = taskWithV2.displayKey || taskWithV2.v2Id || taskWithV2.publicId || `#${task.id}`;
+                    return (
+                      <Link
+                        key={taskRef}
+                        to={`/tasks/${taskRef}`}
+                        className="block px-3 py-2.5 hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors"
+                      >
+                        <div className="flex items-center justify-between gap-1 min-w-0">
+                          <span className="text-xs font-mono text-surface-400 dark:text-surface-500 flex-shrink-0">
                             {displayId}
-                          </Link>
-                          <button
-                            onClick={() => handleRemoveDependency(depRef)}
-                            className="text-surface-400 hover:text-red-500 dark:hover:text-red-400"
-                            title="Remove"
-                          >
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
+                          </span>
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${taskStatusConfig.classes}`}>
+                            {taskStatusConfig.label}
+                          </span>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+                        <div className="text-sm text-surface-700 dark:text-surface-300 truncate mt-1">
+                          {task.title}
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Fixed Header */}
+          <div className="flex items-center justify-between px-8 pt-8 pb-4 flex-shrink-0">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-400 dark:text-surface-500">
+              Description
+            </h2>
+            {editingDescription ? (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleDescriptionSave}
+                  className="text-xs text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 font-medium"
+                >
+                  Save
+                </button>
+                <span className="text-surface-300 dark:text-surface-600">|</span>
+                <button
+                  onClick={() => {
+                    setEditDescription(epic.description ?? "");
+                    setEditingDescription(false);
+                  }}
+                  className="text-xs text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-300 font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setEditDescription(epic.description ?? "");
+                  setEditingDescription(true);
+                }}
+                className="text-xs text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 font-medium"
+              >
+                Edit
+              </button>
+            )}
+          </div>
+          {/* Content */}
+          <div className={`flex-1 px-8 pb-8 ${editingDescription ? 'overflow-hidden' : 'overflow-auto'}`}>
+            {editingDescription ? (
+              <textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                onKeyDown={handleDescriptionKeyDown}
+                placeholder="Enter description (supports Markdown)..."
+                className="w-full h-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg bg-white dark:bg-surface-800 text-surface-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent-500 resize-none"
+                autoFocus
+              />
+            ) : epic.description ? (
+              <MarkdownRenderer source={epic.description} />
+            ) : (
+              <p className="text-surface-400 dark:text-surface-500 italic">
+                No description yet. Click Edit to add one.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Right Sidebar - Dependencies */}
+        <div className="w-64 flex-shrink-0 border-l border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 overflow-y-auto scrollbar-hidden">
+          {/* Dependencies Section */}
+          <div className="p-4">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-400 dark:text-surface-500 mb-3">
+              Dependencies
+            </h2>
+            {dependencyEpics.length === 0 ? (
+              <p className="text-sm text-surface-500 dark:text-surface-400">
+                No dependencies (Phase 1)
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {dependencyEpics.map((depEpic) => {
+                  const depRef = getEpicRef(depEpic);
+                  const displayId = depEpic.displayKey || depEpic.v2Id || `#${depEpic.id}`;
+                  return (
+                    <Link
+                      key={depRef}
+                      to={`/epics/${depRef}`}
+                      className="block px-2 py-1.5 rounded text-sm bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
+                    >
+                      <span className="text-xs text-surface-500 dark:text-surface-400 mr-2">{displayId}</span>
+                      <span className="text-surface-700 dark:text-surface-300">{depEpic.title}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>
