@@ -59,6 +59,9 @@ export interface DetailPageHeaderProps {
   statusOptions: StatusOption[];
   onStatusChange?: (status: string) => void;
 
+  // Custom selectors (e.g., Epic selector for Task, PRD selector for Epic)
+  selectors?: React.ReactNode;
+
   // Context badges (optional)
   badges?: Badge[];
 
@@ -108,6 +111,7 @@ export function DetailPageHeader({
   status,
   statusOptions,
   onStatusChange,
+  selectors,
   badges,
   createdAt,
   updatedAt,
@@ -234,7 +238,7 @@ export function DetailPageHeader({
         )}
       </div>
 
-      {/* Row 3: Status + Badges + Metadata + Actions */}
+      {/* Row 2: Status + Selectors + Badges + Metadata + Actions */}
       <div className="flex items-center gap-3 text-sm">
         {/* Status dropdown */}
         <StatusBadge
@@ -243,6 +247,9 @@ export function DetailPageHeader({
           onChange={onStatusChange}
           options={statusOptions}
         />
+
+        {/* Custom selectors (e.g., Epic selector for Task, PRD/Release selectors for Epic) */}
+        {selectors}
 
         {/* Context badges */}
         {badges &&

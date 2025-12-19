@@ -8,6 +8,7 @@ import { CreatePrdModal } from "../components/prds/CreatePrdModal";
 import { StatusBadge } from "../components/ui/StatusBadge";
 
 const STATUS_OPTIONS = [
+  { value: "", label: "All Statuses" },
   { value: PrdStatus.Draft, label: "Draft" },
   { value: PrdStatus.InReview, label: "In Review" },
   { value: PrdStatus.Approved, label: "Approved" },

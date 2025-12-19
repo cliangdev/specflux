@@ -294,10 +294,11 @@ describe("TaskEditModal", () => {
     fireEvent.click(screen.getByRole("button", { name: /Save Changes/i }));
 
     await waitFor(() => {
+      // Empty-string-clears convention: "" = clear the field
       expect(api.tasks.updateTask).toHaveBeenCalledWith(
         expect.objectContaining({
           updateTaskRequest: expect.objectContaining({
-            epicRef: undefined,
+            epicRef: "",
           }),
         }),
       );

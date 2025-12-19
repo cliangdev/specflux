@@ -1,18 +1,19 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { open } from "@tauri-apps/plugin-shell";
 import {
   api,
   type Task as V2Task,
   type TaskStatus,
   type TaskDependency,
+  type AcceptanceCriteria as AcceptanceCriterion,
 } from "../api";
 import { useProject } from "../contexts";
-import { TaskOverviewTab, TaskContextTab } from "../components/tasks";
 import EpicSelector from "../components/tasks/EpicSelector";
-import AgentSelector from "../components/tasks/AgentSelector";
-import { TabNavigation, DetailPageHeader } from "../components/ui";
+import { DetailPageHeader } from "../components/ui";
 import { AIActionButton } from "../components/ui/AIActionButton";
+import { AcceptanceCriteriaList } from "../components/ui/AcceptanceCriteriaList";
+import MarkdownRenderer from "../components/ui/MarkdownRenderer";
 import { useTerminal } from "../contexts/TerminalContext";
 import { usePageContext } from "../hooks/usePageContext";
 import { generateTaskPrompt } from "../services/promptGenerator";
@@ -26,52 +27,29 @@ const TASK_STATUS_OPTIONS = [
   { value: "COMPLETED", label: "Completed" },
 ];
 
-// Tab definitions
-const TABS = [
-  {
-    id: "overview",
-    label: "Overview",
-    icon: (
-      <svg
-        className="w-4 h-4"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-        />
-      </svg>
-    ),
+// Priority badge configuration
+const PRIORITY_CONFIG: Record<string, { label: string; classes: string }> = {
+  low: {
+    label: "Low",
+    classes: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
   },
-  {
-    id: "context",
-    label: "Context",
-    icon: (
-      <svg
-        className="w-4 h-4"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
-        />
-      </svg>
-    ),
+  medium: {
+    label: "Medium",
+    classes: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
   },
-];
+  high: {
+    label: "High",
+    classes: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+  },
+  critical: {
+    label: "Critical",
+    classes: "bg-red-200 text-red-800 dark:bg-red-900/50 dark:text-red-200",
+  },
+};
 
 export default function TaskDetailPage() {
   const { taskId } = useParams<{ taskId: string }>();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const { currentProject, getProjectRef } = useProject();
   const {
     openTerminalForContext,
@@ -81,19 +59,19 @@ export default function TaskDetailPage() {
     isRunning: terminalIsRunning,
   } = useTerminal();
 
-  // Tab state from URL
-  const activeTab = searchParams.get("tab") || "overview";
-  const setActiveTab = (tab: string) => {
-    setSearchParams({ tab }, { replace: true });
-  };
-
   const [task, setTask] = useState<V2Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dependencies, setDependencies] = useState<TaskDependency[]>([]);
+  const [criteria, setCriteria] = useState<AcceptanceCriterion[]>([]);
+  const [criteriaLoading, setCriteriaLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
 
-  // Set page context for terminal suggested commands - use displayKey for terminal header
+  // Inline description editing state
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [editDescription, setEditDescription] = useState("");
+
+  // Set page context for terminal suggested commands
   usePageContext(
     task
       ? { type: "task-detail", id: task.id, title: task.displayKey || task.title }
@@ -103,7 +81,7 @@ export default function TaskDetailPage() {
   // Check if terminal is showing this task
   const isTerminalShowingThisTask = activeSession?.contextId === taskId;
 
-  // Check if a session exists for this task (for button text)
+  // Check if a session exists for this task
   const hasExistingSession = task
     ? !!getExistingSession({
         type: "task" as const,
@@ -160,6 +138,31 @@ export default function TaskDetailPage() {
     }
   }, [taskId, getProjectRef]);
 
+  // Fetch acceptance criteria
+  const fetchCriteria = useCallback(async () => {
+    if (!taskId) return;
+    const projectRef = getProjectRef();
+    if (!projectRef) {
+      setCriteria([]);
+      setCriteriaLoading(false);
+      return;
+    }
+
+    try {
+      setCriteriaLoading(true);
+      const response = await api.tasks.listTaskAcceptanceCriteria({
+        projectRef,
+        taskRef: taskId,
+      });
+      setCriteria((response.data ?? []) as unknown as AcceptanceCriterion[]);
+    } catch (err) {
+      console.error("Failed to fetch criteria:", err);
+      setCriteria([]);
+    } finally {
+      setCriteriaLoading(false);
+    }
+  }, [taskId, getProjectRef]);
+
   // Update task's epic assignment
   const handleEpicChange = async (newEpicRef: number | string | null) => {
     if (!task) return;
@@ -170,16 +173,27 @@ export default function TaskDetailPage() {
       return;
     }
 
+    // Optimistically update local state
+    const previousEpicId = task.epicId;
+    const newEpicId = newEpicRef === null ? undefined : typeof newEpicRef === "string" ? newEpicRef : undefined;
+    setTask({ ...task, epicId: newEpicId });
+
     try {
       await api.tasks.updateTask({
         projectRef,
         taskRef: task.id,
         updateTaskRequest: {
-          epicRef: typeof newEpicRef === "string" ? newEpicRef : undefined,
+          epicRef:
+            newEpicRef === null
+              ? ""
+              : typeof newEpicRef === "string"
+                ? newEpicRef
+                : undefined,
         },
       });
-      fetchTask();
     } catch (err) {
+      // Revert on error
+      setTask({ ...task, epicId: previousEpicId });
       const message =
         err instanceof Error ? err.message : "Failed to update epic";
       setError(message);
@@ -239,13 +253,46 @@ export default function TaskDetailPage() {
     }
   };
 
-  // Update task's assigned user
-  const handleAgentChange = async (
-    agentId: string | null,
-    agent: { id: string; name: string } | null,
-  ) => {
-    // Agent assignment not yet implemented in v2
-    console.log("Agent assignment not yet implemented in v2", agentId, agent);
+  // Save description
+  const handleDescriptionSave = async () => {
+    if (!task) return;
+    const trimmed = editDescription.trim();
+    const oldDescription = task.description ?? "";
+
+    // Always exit editing mode
+    setEditingDescription(false);
+
+    if (trimmed !== oldDescription) {
+      // Optimistically update local state
+      setTask({ ...task, description: trimmed || undefined });
+
+      const projectRef = getProjectRef();
+      if (!projectRef) return;
+
+      try {
+        await api.tasks.updateTask({
+          projectRef,
+          taskRef: task.id,
+          updateTaskRequest: { description: trimmed || "" },
+        });
+      } catch (err) {
+        // Revert on error
+        setTask({ ...task, description: oldDescription || undefined });
+        console.error("Failed to update description:", err);
+        setError(err instanceof Error ? err.message : "Failed to update description");
+      }
+    }
+  };
+
+  const handleDescriptionKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      setEditDescription(task?.description ?? "");
+      setEditingDescription(false);
+    }
+    // Ctrl/Cmd + Enter to save
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      handleDescriptionSave();
+    }
   };
 
   // Remove dependency
@@ -317,7 +364,6 @@ export default function TaskDetailPage() {
         initialPrompt,
       };
 
-      // Check if session already exists - switch to it directly
       const existing = getExistingSession(context);
       if (existing) {
         switchToSession(existing.id);
@@ -330,7 +376,8 @@ export default function TaskDetailPage() {
   useEffect(() => {
     fetchTask();
     fetchDependencies();
-  }, [fetchTask, fetchDependencies]);
+    fetchCriteria();
+  }, [fetchTask, fetchDependencies, fetchCriteria]);
 
   if (loading) {
     return (
@@ -385,34 +432,11 @@ export default function TaskDetailPage() {
     );
   }
 
-  // Convert v2 task to format expected by components
-  // Note: Components still use hybrid type that extends v1 Task, so we cast status
-  const taskForComponents = {
-    id: 0, // Not used in v2
-    v2Id: task.id,
-    displayKey: task.displayKey,
-    projectId: 0, // Not used in v2
-    epicId: task.epicId ?? null,
-    epicDisplayKey: task.epicDisplayKey,
-    title: task.title,
-    description: task.description ?? null,
-    status: task.status as string, // Cast to string for component compatibility
-    priority: task.priority,
-    requiresApproval: task.requiresApproval,
-    progressPercentage: 0,
-    estimatedDuration: task.estimatedDuration ?? null,
-    actualDuration: task.actualDuration ?? null,
-    githubPrUrl: task.githubPrUrl ?? null,
-    assignedAgentId: null,
-    createdByUserId: 0,
-    executorType: "agent" as const,
-    createdAt: new Date(task.createdAt),
-    updatedAt: new Date(task.updatedAt),
-  } as any; // TODO: Update child components to use v2 types directly
+  const priorityConfig = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header - consistent with PRD/Epic */}
+    <div className="flex-1 flex flex-col h-full overflow-hidden">
+      {/* Header */}
       <DetailPageHeader
         backTo="/tasks"
         entityKey={task.displayKey || `T-${task.id}`}
@@ -421,6 +445,14 @@ export default function TaskDetailPage() {
         status={task.status}
         statusOptions={TASK_STATUS_OPTIONS}
         onStatusChange={handleStatusChange}
+        selectors={
+          <EpicSelector
+            projectId={0}
+            projectRef={getProjectRef() ?? undefined}
+            selectedEpicId={task.epicId}
+            onChange={handleEpicChange}
+          />
+        }
         badges={[
           { label: "Priority", value: task.priority },
           ...(task.estimatedDuration ? [{ label: "Estimate", value: `${task.estimatedDuration}h` }] : []),
@@ -453,34 +485,6 @@ export default function TaskDetailPage() {
         isLoading={loading}
       />
 
-      {/* Task-specific controls row */}
-      <div className="px-6 py-3 border-b border-surface-200 dark:border-surface-700 flex items-center gap-4">
-        {/* Epic Selector */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-sm text-surface-500 dark:text-surface-400">Epic:</span>
-          <EpicSelector
-            projectId={Number(taskForComponents.projectId)}
-            projectRef={getProjectRef() ?? undefined}
-            selectedEpicId={task.epicId}
-            onChange={handleEpicChange}
-          />
-        </div>
-
-        {/* Separator */}
-        <div className="h-5 w-px bg-surface-200 dark:bg-surface-700" />
-
-        {/* Agent Selector */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-sm text-surface-500 dark:text-surface-400">Agent:</span>
-          <AgentSelector
-            projectId={taskForComponents.projectId}
-            selectedAgentId={taskForComponents.assignedAgentId}
-            onChange={handleAgentChange}
-            variant="inline"
-          />
-        </div>
-      </div>
-
       {/* Error banner */}
       {error && (
         <div className="mx-6 mt-4 px-4 py-3 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-lg text-red-600 dark:text-red-300 text-sm flex-shrink-0">
@@ -488,52 +492,137 @@ export default function TaskDetailPage() {
         </div>
       )}
 
-      {/* Content - Main area with sidebar */}
-      <div className="flex flex-1 min-h-0 overflow-hidden m-6 rounded-lg border border-surface-200 dark:border-surface-800 bg-white dark:bg-surface-900">
-        {/* Main Content - Tabbed Task Details */}
-        <div className="flex-1 flex flex-col min-w-0">
-          {/* Tab Navigation */}
-          <TabNavigation
-            tabs={TABS}
-            activeTab={activeTab}
-            onChange={setActiveTab}
-          />
+      {/* Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Sidebar */}
+        <div className="w-64 flex-shrink-0 border-r border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 overflow-y-auto scrollbar-hidden">
+          {/* Summary Section */}
+          <div className="p-4 border-b border-surface-200 dark:border-surface-700">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-400 dark:text-surface-500 mb-3">
+              Summary
+            </h2>
+            <div className="space-y-3">
+              {/* Priority */}
+              <div>
+                <div className="text-xs text-surface-500 dark:text-surface-400 mb-1">Priority</div>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${priorityConfig.classes}`}>
+                  {priorityConfig.label}
+                </span>
+              </div>
 
-          {/* Tab Content */}
-          <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
-            {activeTab === "overview" && (
-              <TaskOverviewTab
-                task={taskForComponents}
-                projectRef={getProjectRef() ?? undefined}
-                onTaskUpdate={fetchTask}
-              />
-            )}
+              {/* Epic Link */}
+              {task.epicId && (
+                <div>
+                  <div className="text-xs text-surface-500 dark:text-surface-400 mb-1">Epic</div>
+                  <Link
+                    to={`/epics/${task.epicId}`}
+                    className="text-sm text-accent-600 dark:text-accent-400 hover:underline"
+                  >
+                    {task.epicDisplayKey || task.epicId}
+                  </Link>
+                </div>
+              )}
 
-            {activeTab === "context" && (
-              <TaskContextTab
-                task={taskForComponents}
-                dependencies={dependencies}
-                epic={null}
-                onAddDependency={() => {
-                  // TODO: Implement add dependency modal for v2
-                  console.log("Add dependency not yet implemented");
-                }}
-                onRemoveDependency={handleRemoveDependency}
-              />
+              {/* Estimate */}
+              {task.estimatedDuration && (
+                <div>
+                  <div className="text-xs text-surface-500 dark:text-surface-400 mb-1">Estimate</div>
+                  <div className="text-sm text-surface-900 dark:text-white">{task.estimatedDuration}h</div>
+                </div>
+              )}
+
+              {/* Actual Duration */}
+              {task.actualDuration && (
+                <div>
+                  <div className="text-xs text-surface-500 dark:text-surface-400 mb-1">Actual</div>
+                  <div className="text-sm text-surface-900 dark:text-white">{task.actualDuration}h</div>
+                </div>
+              )}
+
+              {/* Requires Approval */}
+              <div>
+                <div className="text-xs text-surface-500 dark:text-surface-400 mb-1">Approval</div>
+                <div className="text-sm text-surface-900 dark:text-white">
+                  {task.requiresApproval ? "Required" : "Not required"}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Acceptance Criteria Section */}
+          <div className="p-4 border-b border-surface-200 dark:border-surface-700">
+            <div className="border border-surface-200 dark:border-surface-700 rounded-lg overflow-hidden">
+              {/* Header */}
+              <div className="px-3 py-2.5 bg-surface-100 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">
+                  Acceptance Criteria
+                </h3>
+              </div>
+              {/* Content */}
+              <div className="p-3">
+                {criteriaLoading ? (
+                  <div className="text-sm text-surface-400 dark:text-surface-500">Loading...</div>
+                ) : (
+                  <AcceptanceCriteriaList
+                    entityType="task"
+                    projectRef={getProjectRef() ?? ""}
+                    entityRef={task.id}
+                    criteria={criteria}
+                    onUpdate={fetchCriteria}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Dependencies Section */}
+          <div className="p-4 border-b border-surface-200 dark:border-surface-700">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-400 dark:text-surface-500 mb-3">
+              Dependencies
+            </h2>
+            {dependencies.length === 0 ? (
+              <p className="text-sm text-surface-500 dark:text-surface-400">
+                No dependencies
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {dependencies.map((dep) => (
+                  <div
+                    key={dep.dependsOnTaskId}
+                    className="flex items-center justify-between px-2 py-1.5 rounded text-sm bg-surface-100 dark:bg-surface-800"
+                  >
+                    <Link
+                      to={`/tasks/${dep.dependsOnTaskId}`}
+                      className="text-surface-700 dark:text-surface-300 hover:text-accent-600 dark:hover:text-accent-400"
+                    >
+                      {dep.dependsOnDisplayKey || dep.dependsOnTaskId}
+                    </Link>
+                    <button
+                      onClick={() => handleRemoveDependency(dep.dependsOnTaskId)}
+                      className="text-surface-400 hover:text-red-500 dark:hover:text-red-400"
+                      title="Remove dependency"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
-        </div>
 
-        {/* Right Sidebar - Info Card */}
-        <div className="w-64 flex-shrink-0 border-l border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/50 overflow-y-auto">
-          <div className="p-4 space-y-4">
-            {/* PR Link */}
-            {task.githubPrUrl && (
+          {/* PR Link Section */}
+          <div className="p-4">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-400 dark:text-surface-500 mb-3">
+              Pull Request
+            </h2>
+            {task.githubPrUrl ? (
               <button
                 onClick={() => {
                   if (task.githubPrUrl) open(task.githubPrUrl);
                 }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-800 text-surface-700 dark:text-surface-300 hover:bg-surface-50 dark:hover:bg-surface-700 transition-colors"
               >
                 <svg className="w-4 h-4 text-surface-500" fill="currentColor" viewBox="0 0 24 24">
                   <path
@@ -544,11 +633,73 @@ export default function TaskDetailPage() {
                 </svg>
                 View Pull Request
               </button>
+            ) : (
+              <p className="text-sm text-surface-500 dark:text-surface-400">
+                No PR linked
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Fixed Header */}
+          <div className="flex items-center justify-between px-8 pt-8 pb-4 flex-shrink-0">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-400 dark:text-surface-500">
+              Description
+            </h2>
+            {editingDescription ? (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleDescriptionSave}
+                  className="text-xs text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 font-medium"
+                >
+                  Save
+                </button>
+                <span className="text-surface-300 dark:text-surface-600">|</span>
+                <button
+                  onClick={() => {
+                    setEditDescription(task.description ?? "");
+                    setEditingDescription(false);
+                  }}
+                  className="text-xs text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-300 font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setEditDescription(task.description ?? "");
+                  setEditingDescription(true);
+                }}
+                className="text-xs text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 font-medium"
+              >
+                Edit
+              </button>
+            )}
+          </div>
+          {/* Content */}
+          <div className={`flex-1 px-8 pb-8 ${editingDescription ? 'overflow-hidden' : 'overflow-auto'}`}>
+            {editingDescription ? (
+              <textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                onKeyDown={handleDescriptionKeyDown}
+                placeholder="Enter description (supports Markdown)..."
+                className="w-full h-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg bg-white dark:bg-surface-800 text-surface-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent-500 resize-none"
+                autoFocus
+              />
+            ) : task.description ? (
+              <MarkdownRenderer source={task.description} />
+            ) : (
+              <p className="text-surface-400 dark:text-surface-500 italic">
+                No description yet. Click Edit to add one.
+              </p>
             )}
           </div>
         </div>
       </div>
-
     </div>
   );
 }

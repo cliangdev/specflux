@@ -92,6 +92,10 @@ vi.mock("../contexts", () => ({
     currentProject: { id: "proj_123", name: "Test Project" },
     getProjectRef: mockGetProjectRef,
   }),
+  useTheme: () => ({
+    theme: "light",
+    setTheme: vi.fn(),
+  }),
 }));
 
 const mockNavigate = vi.fn();
@@ -290,16 +294,13 @@ describe("TaskDetailPage", () => {
       });
     });
 
-    it("refreshes task after epic update", async () => {
+    it("updates epic with optimistic update", async () => {
       renderPage();
 
       // Wait for initial load
       await waitFor(() => {
         expect(api.tasks.getTask).toHaveBeenCalled();
       });
-
-      // Clear the call count
-      vi.mocked(api.tasks.getTask).mockClear();
 
       // Wait for page to load
       await waitFor(() => {
@@ -316,9 +317,128 @@ describe("TaskDetailPage", () => {
 
       fireEvent.click(screen.getByText("Epic 2"));
 
-      // Should refresh task after update
+      // Should call updateTask API with the new epic (Epic 2 has id epic_789)
       await waitFor(() => {
-        expect(api.tasks.getTask).toHaveBeenCalled();
+        expect(api.tasks.updateTask).toHaveBeenCalledWith(
+          expect.objectContaining({
+            updateTaskRequest: expect.objectContaining({
+              epicRef: "epic_789",
+            }),
+          }),
+        );
+      });
+    });
+  });
+
+  describe("Inline Description Editing", () => {
+    it("shows Edit button in view mode", async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText("Test Task")).toBeInTheDocument();
+      });
+
+      expect(screen.getByText("Edit")).toBeInTheDocument();
+    });
+
+    it("switches to edit mode when Edit is clicked", async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText("Test Task")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText("Edit"));
+
+      // Should show Save and Cancel buttons
+      await waitFor(() => {
+        expect(screen.getByText("Save")).toBeInTheDocument();
+        expect(screen.getByText("Cancel")).toBeInTheDocument();
+      });
+
+      // Should show textarea with description
+      const textarea = screen.getByPlaceholderText("Enter description (supports Markdown)...");
+      expect(textarea).toBeInTheDocument();
+      expect(textarea).toHaveValue("Test description");
+    });
+
+    it("cancels editing and reverts changes when Cancel is clicked", async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText("Test Task")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText("Edit"));
+
+      await waitFor(() => {
+        expect(screen.getByText("Cancel")).toBeInTheDocument();
+      });
+
+      // Modify the textarea
+      const textarea = screen.getByPlaceholderText("Enter description (supports Markdown)...");
+      fireEvent.change(textarea, { target: { value: "Modified description" } });
+
+      // Click Cancel
+      fireEvent.click(screen.getByText("Cancel"));
+
+      // Should exit edit mode and show original description
+      await waitFor(() => {
+        expect(screen.getByText("Edit")).toBeInTheDocument();
+        expect(screen.getByText("Test description")).toBeInTheDocument();
+      });
+    });
+
+    it("saves description when Save is clicked", async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText("Test Task")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText("Edit"));
+
+      await waitFor(() => {
+        expect(screen.getByText("Save")).toBeInTheDocument();
+      });
+
+      // Modify the textarea
+      const textarea = screen.getByPlaceholderText("Enter description (supports Markdown)...");
+      fireEvent.change(textarea, { target: { value: "Updated description" } });
+
+      // Click Save
+      fireEvent.click(screen.getByText("Save"));
+
+      await waitFor(() => {
+        expect(api.tasks.updateTask).toHaveBeenCalledWith(
+          expect.objectContaining({
+            updateTaskRequest: expect.objectContaining({
+              description: "Updated description",
+            }),
+          }),
+        );
+      });
+    });
+
+    it("cancels editing when Escape key is pressed", async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText("Test Task")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText("Edit"));
+
+      await waitFor(() => {
+        expect(screen.getByText("Cancel")).toBeInTheDocument();
+      });
+
+      const textarea = screen.getByPlaceholderText("Enter description (supports Markdown)...");
+      fireEvent.keyDown(textarea, { key: "Escape" });
+
+      // Should exit edit mode
+      await waitFor(() => {
+        expect(screen.getByText("Edit")).toBeInTheDocument();
       });
     });
   });
