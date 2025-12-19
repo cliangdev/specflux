@@ -223,24 +223,37 @@ export function AcceptanceCriteriaList({
 
       {/* Add new criterion */}
       {!readonly && (
-        <div className="flex items-center gap-2 pt-2">
-          <input
-            type="text"
-            value={newCriterionText}
-            onChange={(e) => setNewCriterionText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Add acceptance criterion..."
-            className="flex-1 text-sm px-3 py-1.5 border border-surface-300 dark:border-surface-600 rounded bg-white dark:bg-surface-800 text-surface-900 dark:text-white placeholder-surface-400 dark:placeholder-surface-500 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent"
-            disabled={isAdding}
-          />
-          <button
-            type="button"
-            onClick={handleAdd}
-            disabled={!newCriterionText.trim() || isAdding}
-            className="px-3 py-1.5 text-sm font-medium text-white bg-accent-600 hover:bg-accent-700 disabled:bg-surface-300 disabled:dark:bg-surface-600 rounded transition-colors"
-          >
-            {isAdding ? "Adding..." : "Add"}
-          </button>
+        <div className="pt-2">
+          <div className="flex items-center gap-1.5">
+            <input
+              type="text"
+              value={newCriterionText}
+              onChange={(e) => setNewCriterionText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Add criterion..."
+              className="flex-1 min-w-0 text-sm px-2.5 py-1.5 border border-surface-300 dark:border-surface-600 rounded bg-white dark:bg-surface-800 text-surface-900 dark:text-white placeholder-surface-400 dark:placeholder-surface-500 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent"
+              disabled={isAdding}
+            />
+            <button
+              type="button"
+              onClick={handleAdd}
+              disabled={!newCriterionText.trim() || isAdding}
+              className="flex-shrink-0 p-1.5 text-white bg-accent-600 hover:bg-accent-700 disabled:bg-surface-300 disabled:dark:bg-surface-600 rounded transition-colors"
+              title="Add criterion"
+            >
+              {isAdding ? (
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+              )}
+            </button>
+          </div>
+          <p className="text-xs text-surface-400 dark:text-surface-500 mt-1">Press Enter to add</p>
         </div>
       )}
     </div>

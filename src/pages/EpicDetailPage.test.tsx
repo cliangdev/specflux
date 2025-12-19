@@ -347,11 +347,11 @@ describe("EpicDetailPage", () => {
   });
 
   describe("Add Task", () => {
-    it("shows Add Task button", async () => {
+    it("shows Add button in tasks section", async () => {
       renderWithRouter();
 
       await waitFor(() => {
-        expect(screen.getByText("Add Task")).toBeInTheDocument();
+        expect(screen.getByText("+ Add")).toBeInTheDocument();
       });
     });
   });
@@ -367,6 +367,119 @@ describe("EpicDetailPage", () => {
       // Progress should be shown (50% from mockEpic)
       await waitFor(() => {
         expect(screen.getByText(/50%/)).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("Inline Description Editing", () => {
+    it("shows Edit button in view mode", async () => {
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByText("Test Epic")).toBeInTheDocument();
+      });
+
+      expect(screen.getByText("Edit")).toBeInTheDocument();
+    });
+
+    it("switches to edit mode when Edit is clicked", async () => {
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByText("Test Epic")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText("Edit"));
+
+      // Should show Save and Cancel buttons
+      await waitFor(() => {
+        expect(screen.getByText("Save")).toBeInTheDocument();
+        expect(screen.getByText("Cancel")).toBeInTheDocument();
+      });
+
+      // Should show textarea with description
+      const textarea = screen.getByPlaceholderText("Enter description (supports Markdown)...");
+      expect(textarea).toBeInTheDocument();
+      expect(textarea).toHaveValue("Test epic description");
+    });
+
+    it("cancels editing and reverts changes when Cancel is clicked", async () => {
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByText("Test Epic")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText("Edit"));
+
+      await waitFor(() => {
+        expect(screen.getByText("Cancel")).toBeInTheDocument();
+      });
+
+      // Modify the textarea
+      const textarea = screen.getByPlaceholderText("Enter description (supports Markdown)...");
+      fireEvent.change(textarea, { target: { value: "Modified description" } });
+
+      // Click Cancel
+      fireEvent.click(screen.getByText("Cancel"));
+
+      // Should exit edit mode and show original description
+      await waitFor(() => {
+        expect(screen.getByText("Edit")).toBeInTheDocument();
+        expect(screen.getByText("Test epic description")).toBeInTheDocument();
+      });
+    });
+
+    it("saves description when Save is clicked", async () => {
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByText("Test Epic")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText("Edit"));
+
+      await waitFor(() => {
+        expect(screen.getByText("Save")).toBeInTheDocument();
+      });
+
+      // Modify the textarea
+      const textarea = screen.getByPlaceholderText("Enter description (supports Markdown)...");
+      fireEvent.change(textarea, { target: { value: "Updated description" } });
+
+      // Click Save
+      fireEvent.click(screen.getByText("Save"));
+
+      await waitFor(() => {
+        expect(api.epics.updateEpic).toHaveBeenCalledWith(
+          expect.objectContaining({
+            updateEpicRequest: expect.objectContaining({
+              description: "Updated description",
+            }),
+          }),
+        );
+      });
+    });
+
+    it("cancels editing when Escape key is pressed", async () => {
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByText("Test Epic")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText("Edit"));
+
+      await waitFor(() => {
+        expect(screen.getByText("Cancel")).toBeInTheDocument();
+      });
+
+      const textarea = screen.getByPlaceholderText("Enter description (supports Markdown)...");
+      fireEvent.keyDown(textarea, { key: "Escape" });
+
+      // Should exit edit mode
+      await waitFor(() => {
+        expect(screen.getByText("Edit")).toBeInTheDocument();
       });
     });
   });

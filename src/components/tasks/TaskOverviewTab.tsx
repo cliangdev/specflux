@@ -200,7 +200,8 @@ export default function TaskOverviewTab({
         ) : (
           <AcceptanceCriteriaList
             entityType="task"
-            entityId={task.id}
+            projectRef={projectRef ?? ""}
+            entityRef={task.v2Id ?? String(task.id)}
             criteria={criteria}
             onUpdate={handleCriteriaUpdate}
           />
