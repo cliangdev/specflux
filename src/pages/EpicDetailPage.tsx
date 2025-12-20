@@ -11,6 +11,7 @@ import {
 import { useProject } from "../contexts";
 import { ProgressBar, TaskCreateModal } from "../components/ui";
 import { DetailPageHeader } from "../components/ui/DetailPageHeader";
+import { StatusBadge } from "../components/ui/StatusBadge";
 import { AIActionButton } from "../components/ui/AIActionButton";
 import { AcceptanceCriteriaList } from "../components/ui/AcceptanceCriteriaList";
 import MarkdownRenderer from "../components/ui/MarkdownRenderer";
@@ -76,6 +77,16 @@ const TASK_STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
 const EPIC_STATUS_OPTIONS = [
   { value: "PLANNING", label: "Planning" },
   { value: "IN_PROGRESS", label: "In Progress" },
+  { value: "COMPLETED", label: "Completed" },
+];
+
+// Task status options for inline dropdown
+const TASK_STATUS_OPTIONS = [
+  { value: "BACKLOG", label: "Backlog" },
+  { value: "READY", label: "Ready" },
+  { value: "IN_PROGRESS", label: "In Progress" },
+  { value: "IN_REVIEW", label: "In Review" },
+  { value: "BLOCKED", label: "Blocked" },
   { value: "COMPLETED", label: "Completed" },
 ];
 
@@ -442,6 +453,33 @@ export default function EpicDetailPage() {
     }
   };
 
+  const handleTaskStatusChange = async (taskId: string, newStatus: string) => {
+    const projectRef = getProjectRef();
+    if (!projectRef) return;
+
+    const originalTask = tasks.find((t) => t.id === taskId);
+    if (!originalTask) return;
+
+    // Optimistic update - cast to Task to preserve type
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus as Task["status"] } : t))
+    );
+
+    try {
+      await api.tasks.updateTask({
+        projectRef,
+        taskRef: taskId,
+        updateTaskRequest: { status: newStatus as "BACKLOG" | "READY" | "IN_PROGRESS" | "IN_REVIEW" | "BLOCKED" | "COMPLETED" },
+      });
+    } catch (err) {
+      console.error("Failed to update task status:", err);
+      // Revert on error
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, status: originalTask.status } : t))
+      );
+    }
+  };
+
   const hasExistingSession = epic
     ? !!getExistingSession({
         type: "epic" as const,
@@ -632,7 +670,6 @@ export default function EpicDetailPage() {
               ) : (
                 <div className="divide-y divide-surface-200 dark:divide-surface-700">
                   {tasks.map((task) => {
-                    const taskStatusConfig = TASK_STATUS_CONFIG[task.status] || TASK_STATUS_CONFIG.BACKLOG;
                     const taskWithV2 = task as Task & { v2Id?: string; publicId?: string; displayKey?: string };
                     const taskRef = taskWithV2.v2Id || taskWithV2.publicId || task.id;
                     const displayId = taskWithV2.displayKey || taskWithV2.v2Id || taskWithV2.publicId || `#${task.id}`;
@@ -647,9 +684,16 @@ export default function EpicDetailPage() {
                           <span className="text-xs font-mono text-surface-400 dark:text-surface-500 flex-shrink-0">
                             {displayId}
                           </span>
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${taskStatusConfig.classes}`}>
-                            {taskStatusConfig.label}
-                          </span>
+                          {/* Stop propagation to prevent navigation when clicking status */}
+                          <div onClick={(e) => e.preventDefault()} className="flex-shrink-0">
+                            <StatusBadge
+                              status={task.status}
+                              size="sm"
+                              variant="dropdown"
+                              onChange={(newStatus) => handleTaskStatusChange(task.id, newStatus)}
+                              options={TASK_STATUS_OPTIONS}
+                            />
+                          </div>
                         </div>
                         <div className="text-sm text-surface-700 dark:text-surface-300 truncate mt-1">
                           {task.title}
