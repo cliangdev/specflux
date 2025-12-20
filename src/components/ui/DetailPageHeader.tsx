@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { StatusBadge, StatusOption } from "./StatusBadge";
 
 // Inline SVG icons
@@ -47,7 +47,7 @@ export interface Action {
 export interface DetailPageHeaderProps {
   // Navigation
   backLabel?: string; // Optional, defaults to "Back"
-  backTo: string;
+  backTo?: string; // Fallback route if no history
 
   // Entity info
   entityKey: string;
@@ -119,11 +119,21 @@ export function DetailPageHeader({
   actions,
   isLoading = false,
 }: DetailPageHeaderProps) {
+  const navigate = useNavigate();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(title);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const actionsMenuRef = useRef<HTMLDivElement>(null);
+
+  const handleBack = () => {
+    // Use browser history if available, otherwise fallback to backTo route
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else if (backTo) {
+      navigate(backTo);
+    }
+  };
 
   // Update edited title when prop changes
   useEffect(() => {
@@ -191,13 +201,13 @@ export function DetailPageHeader({
       {/* Row 1: Back + Key + Title + Actions (compact) */}
       <div className="flex items-center gap-3">
         {/* Back button */}
-        <Link
-          to={backTo}
+        <button
+          onClick={handleBack}
           className="flex items-center gap-1 text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200 transition-colors flex-shrink-0"
         >
           <ChevronLeftIcon className="w-5 h-5" />
           {backLabel}
-        </Link>
+        </button>
 
         {/* Separator */}
         <div className="h-6 w-px bg-surface-200 dark:bg-surface-700 flex-shrink-0" />

@@ -234,10 +234,10 @@ describe("TaskDetailPage", () => {
       expect(screen.getByText("Test Task")).toBeInTheDocument();
     });
 
-    // DetailPageHeader uses a Link component for back navigation
-    const backLink = screen.getByText("Back");
-    expect(backLink).toBeInTheDocument();
-    expect(backLink.closest("a")).toHaveAttribute("href", "/tasks");
+    // DetailPageHeader uses a button for back navigation (browser history)
+    const backButton = screen.getByText("Back");
+    expect(backButton).toBeInTheDocument();
+    expect(backButton.tagName).toBe("BUTTON");
   });
 
   describe("Epic editing", () => {
