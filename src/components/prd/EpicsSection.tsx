@@ -87,6 +87,7 @@ function EpicRow({ epic }: { epic: Epic }) {
     <Link
       to={`/epics/${encodeURIComponent(epic.id)}`}
       className="block px-3 py-2.5 hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors"
+      title={epic.title}
     >
       {/* Epic key and status */}
       <div className="flex items-center justify-between gap-2 mb-1">
@@ -94,6 +95,11 @@ function EpicRow({ epic }: { epic: Epic }) {
           {epic.displayKey}
         </span>
         <StatusBadge status={epic.status} size="sm" />
+      </div>
+
+      {/* Title */}
+      <div className="text-sm text-surface-700 dark:text-surface-300 truncate mb-1">
+        {epic.title}
       </div>
 
       {/* Task count */}

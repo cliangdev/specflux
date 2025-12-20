@@ -641,6 +641,7 @@ export default function EpicDetailPage() {
                         key={taskRef}
                         to={`/tasks/${taskRef}`}
                         className="block px-3 py-2.5 hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors"
+                        title={task.title}
                       >
                         <div className="flex items-center justify-between gap-1 min-w-0">
                           <span className="text-xs font-mono text-surface-400 dark:text-surface-500 flex-shrink-0">

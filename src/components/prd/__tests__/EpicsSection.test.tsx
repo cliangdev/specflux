@@ -110,6 +110,19 @@ describe("EpicsSection", () => {
       expect(links[0]).toHaveAttribute("href", "/epics/epic-1");
       expect(links[1]).toHaveAttribute("href", "/epics/epic-2");
     });
+
+    it("displays epic titles", () => {
+      renderWithRouter(<EpicsSection epics={mockEpics} />);
+      expect(screen.getByText("User Authentication")).toBeInTheDocument();
+      expect(screen.getByText("Dashboard Design")).toBeInTheDocument();
+    });
+
+    it("shows title tooltip on hover", () => {
+      renderWithRouter(<EpicsSection epics={mockEpics} />);
+      const links = screen.getAllByRole("link");
+      expect(links[0]).toHaveAttribute("title", "User Authentication");
+      expect(links[1]).toHaveAttribute("title", "Dashboard Design");
+    });
   });
 
   describe("add button", () => {
