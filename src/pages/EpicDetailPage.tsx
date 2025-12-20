@@ -41,38 +41,6 @@ type EpicWithV2Fields = Omit<Epic, "dependsOn" | "taskStats" | "status"> & {
   prdId?: string;
 };
 
-// Task status badge configuration
-const TASK_STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
-  BACKLOG: {
-    label: "Backlog",
-    classes: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
-  },
-  READY: {
-    label: "Ready",
-    classes: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
-  },
-  IN_PROGRESS: {
-    label: "In Progress",
-    classes: "bg-accent-100 text-accent-700 dark:bg-accent-900/30 dark:text-accent-300",
-  },
-  IN_REVIEW: {
-    label: "In Review",
-    classes: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-  },
-  BLOCKED: {
-    label: "Blocked",
-    classes: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
-  },
-  COMPLETED: {
-    label: "Completed",
-    classes: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-  },
-  CANCELLED: {
-    label: "Cancelled",
-    classes: "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
-  },
-};
-
 // Epic status options for DetailPageHeader
 const EPIC_STATUS_OPTIONS = [
   { value: "PLANNING", label: "Planning" },
