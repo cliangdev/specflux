@@ -1,9 +1,25 @@
-import { useCallback, useState, useRef, useEffect } from "react";
+import { useCallback, useState, useRef, useEffect, memo } from "react";
 import { useTerminal, type TerminalSession, type PanelPosition } from "../../contexts/TerminalContext";
 import { useProject } from "../../contexts";
 import Terminal, { type TerminalRef } from "../Terminal";
 import TerminalTabBar from "./TerminalTabBar";
 import DuplicateSessionDialog from "./DuplicateSessionDialog";
+import { TerminalErrorBoundary } from "./TerminalErrorBoundary";
+
+// Memoized Terminal component to prevent unnecessary re-renders during high output
+const MemoizedTerminal = memo(Terminal, (prev, next) => {
+  // Only re-render if critical props change (not callbacks which are stable via useCallback)
+  return (
+    prev.contextId === next.contextId &&
+    prev.contextType === next.contextType &&
+    prev.contextDisplayKey === next.contextDisplayKey &&
+    prev.contextTitle === next.contextTitle &&
+    prev.projectRef === next.projectRef &&
+    prev.workingDirectory === next.workingDirectory &&
+    prev.initialCommand === next.initialCommand &&
+    prev.initialPrompt === next.initialPrompt
+  );
+});
 
 // Position indicator icons
 const PositionIcon = ({ position }: { position: PanelPosition }) => {
@@ -486,25 +502,33 @@ export default function TerminalPanel() {
               }`}
               data-testid={`terminal-content-${session.contextId}`}
             >
-              <Terminal
-                ref={(ref) => {
-                  if (ref) {
-                    terminalRefs.current.set(session.id, ref);
-                  } else {
-                    terminalRefs.current.delete(session.id);
-                  }
+              <TerminalErrorBoundary
+                sessionId={session.id}
+                onReset={() => {
+                  // Force re-render by removing and re-adding the ref
+                  terminalRefs.current.delete(session.id);
                 }}
-                contextType={session.contextType}
-                contextId={session.contextId}
-                contextDisplayKey={session.displayKey}
-                contextTitle={session.contextTitle}
-                projectRef={session.projectRef}
-                workingDirectory={session.workingDirectory}
-                initialCommand={session.initialCommand}
-                initialPrompt={session.initialPrompt}
-                onStatusChange={createStatusChangeHandler(session.id)}
-                onConnectionChange={createConnectionChangeHandler(session.id)}
-              />
+              >
+                <MemoizedTerminal
+                  ref={(ref) => {
+                    if (ref) {
+                      terminalRefs.current.set(session.id, ref);
+                    } else {
+                      terminalRefs.current.delete(session.id);
+                    }
+                  }}
+                  contextType={session.contextType}
+                  contextId={session.contextId}
+                  contextDisplayKey={session.displayKey}
+                  contextTitle={session.contextTitle}
+                  projectRef={session.projectRef}
+                  workingDirectory={session.workingDirectory}
+                  initialCommand={session.initialCommand}
+                  initialPrompt={session.initialPrompt}
+                  onStatusChange={createStatusChangeHandler(session.id)}
+                  onConnectionChange={createConnectionChangeHandler(session.id)}
+                />
+              </TerminalErrorBoundary>
             </div>
           ))
         ) : (

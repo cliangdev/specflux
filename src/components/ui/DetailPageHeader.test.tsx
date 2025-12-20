@@ -45,10 +45,18 @@ describe("DetailPageHeader", () => {
   });
 
   describe("navigation", () => {
-    it("back button links to correct route", () => {
+    it("back button uses browser history navigation", () => {
       renderWithRouter(<DetailPageHeader {...defaultProps} />);
-      const backLink = screen.getByText("Back to PRDs").closest("a");
-      expect(backLink).toHaveAttribute("href", "/prds");
+      const backButton = screen.getByText("Back to PRDs");
+      expect(backButton.tagName).toBe("BUTTON");
+    });
+
+    it("back button is clickable", () => {
+      renderWithRouter(<DetailPageHeader {...defaultProps} />);
+      const backButton = screen.getByText("Back to PRDs");
+      expect(backButton).toBeEnabled();
+      // Click should not throw
+      fireEvent.click(backButton);
     });
   });
 

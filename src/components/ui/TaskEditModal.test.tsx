@@ -294,11 +294,11 @@ describe("TaskEditModal", () => {
     fireEvent.click(screen.getByRole("button", { name: /Save Changes/i }));
 
     await waitFor(() => {
-      // Empty-string-clears convention: "" = clear the field
+      // JSON Merge Patch: null = clear the field (not undefined)
       expect(api.tasks.updateTask).toHaveBeenCalledWith(
         expect.objectContaining({
           updateTaskRequest: expect.objectContaining({
-            epicRef: "",
+            epicRef: null,
           }),
         }),
       );

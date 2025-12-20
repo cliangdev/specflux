@@ -130,7 +130,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
       cursorInactiveStyle: "none",
       fontSize: 14,
       fontFamily: 'JetBrains Mono, Menlo, Monaco, "Courier New", monospace',
-      scrollback: 10000,
+      scrollback: 5000,  // Reduced from 10000 to reduce memory pressure
       allowTransparency: false,
       allowProposedApi: true,
       theme: {
@@ -168,16 +168,24 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
     term.open(terminalRef.current);
     fitAddon.fit();
 
-    // Try WebGL renderer
+    // Try WebGL renderer for better performance
     let webglAddon: WebglAddon | null = null;
     try {
       webglAddon = new WebglAddon();
       webglAddon.onContextLoss(() => {
-        webglAddon?.dispose();
+        console.warn('[Terminal] WebGL context lost, falling back to canvas renderer');
+        try {
+          webglAddon?.dispose();
+        } catch {
+          // Ignore disposal errors
+        }
+        webglAddon = null;
+        // Terminal automatically continues with canvas renderer
       });
       term.loadAddon(webglAddon);
-    } catch {
-      // Canvas fallback
+    } catch (e) {
+      console.warn('[Terminal] WebGL not available, using canvas renderer:', e);
+      webglAddon = null;
     }
 
     xtermRef.current = term;

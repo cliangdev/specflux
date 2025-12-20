@@ -64,11 +64,12 @@ export default function TaskEditModal({
       setSubmitting(true);
       setError(null);
 
-      // Empty-string-clears convention: "" = clear, value = set, absent = don't change
+      // JSON Merge Patch: null = clear, value = set, absent = don't change
+      // Cast needed because TypeScript types don't include null for nullable fields
       const request: UpdateTaskRequest = {
         title: title.trim(),
-        description: description.trim() || "",
-        epicRef: epicId || (task.epicId ? "" : undefined),
+        description: (description.trim() || null) as string | undefined,
+        epicRef: (epicId ?? null) as string | undefined,
         status: status as UpdateTaskRequest["status"],
       };
 
