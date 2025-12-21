@@ -673,6 +673,44 @@ export default function EpicDetailPage() {
               )}
             </div>
           </div>
+
+          {/* Dependencies Section */}
+          <div className="p-4">
+            <div className="border border-surface-200 dark:border-surface-700 rounded-lg overflow-hidden">
+              <div className="px-3 py-2.5 bg-surface-100 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">
+                  Dependencies ({dependencyEpics.length})
+                </h3>
+              </div>
+              {dependencyEpics.length === 0 ? (
+                <div className="px-3 py-4 text-center">
+                  <p className="text-sm text-surface-500 dark:text-surface-400">
+                    No dependencies (Phase 1)
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-surface-200 dark:divide-surface-700">
+                  {dependencyEpics.map((depEpic) => {
+                    const depRef = getEpicRef(depEpic);
+                    const displayId = depEpic.displayKey || depEpic.v2Id || `#${depEpic.id}`;
+                    return (
+                      <Link
+                        key={depRef}
+                        to={`/epics/${depRef}`}
+                        className="block px-3 py-2.5 hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors"
+                        title={depEpic.title}
+                      >
+                        <span className="text-xs font-mono text-surface-400 dark:text-surface-500">{displayId}</span>
+                        <div className="text-sm text-surface-700 dark:text-surface-300 truncate mt-1">
+                          {depEpic.title}
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Main Content */}
@@ -734,37 +772,6 @@ export default function EpicDetailPage() {
           </div>
         </div>
 
-        {/* Right Sidebar - Dependencies */}
-        <div className="w-64 flex-shrink-0 border-l border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 overflow-y-auto scrollbar-hidden">
-          {/* Dependencies Section */}
-          <div className="p-4">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-400 dark:text-surface-500 mb-3">
-              Dependencies
-            </h2>
-            {dependencyEpics.length === 0 ? (
-              <p className="text-sm text-surface-500 dark:text-surface-400">
-                No dependencies (Phase 1)
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {dependencyEpics.map((depEpic) => {
-                  const depRef = getEpicRef(depEpic);
-                  const displayId = depEpic.displayKey || depEpic.v2Id || `#${depEpic.id}`;
-                  return (
-                    <Link
-                      key={depRef}
-                      to={`/epics/${depRef}`}
-                      className="block px-2 py-1.5 rounded text-sm bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-                    >
-                      <span className="text-xs text-surface-500 dark:text-surface-400 mr-2">{displayId}</span>
-                      <span className="text-surface-700 dark:text-surface-300">{depEpic.title}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* Create Task Modal */}
