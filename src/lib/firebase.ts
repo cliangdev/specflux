@@ -15,15 +15,15 @@ import {
   type Auth,
   type User,
 } from "firebase/auth";
+import { getEnvironmentConfig } from "./environment";
 
-// Firebase configuration from environment variables
-// Falls back to demo values for local development with emulator
+// Firebase configuration from environment config
+// Supports runtime environment switching in development
+const envConfig = getEnvironmentConfig();
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "fake-api-key",
-  authDomain:
-    import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ||
-    "demo-specflux.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "demo-specflux",
+  apiKey: envConfig.firebaseConfig.apiKey,
+  authDomain: envConfig.firebaseConfig.authDomain,
+  projectId: envConfig.firebaseConfig.projectId,
 };
 
 let app: FirebaseApp | null = null;
@@ -46,9 +46,9 @@ export function initializeFirebase(): Auth {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
 
-  // Connect to Firebase Emulator in development
-  // Use emulator if VITE_FIREBASE_AUTH_EMULATOR_URL is set
-  const emulatorUrl = import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_URL;
+  // Connect to Firebase Emulator if configured for current environment
+  // Staging environment never uses emulator
+  const emulatorUrl = envConfig.firebaseEmulatorUrl;
   if (emulatorUrl && !emulatorConnected) {
     connectAuthEmulator(auth, emulatorUrl, { disableWarnings: true });
     emulatorConnected = true;
@@ -141,7 +141,7 @@ export async function handleRedirectResult(): Promise<User | null> {
  * Check if using Firebase Emulator.
  */
 export function isUsingEmulator(): boolean {
-  return !!import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_URL;
+  return envConfig.firebaseEmulatorUrl !== null;
 }
 
 /**

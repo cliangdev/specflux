@@ -19,9 +19,11 @@ src/api/generated/
 *.sqlite
 *.sqlite3
 
-# Environment
+# Environment files with secrets (keep .env.example and .env.staging.example)
 .env
 .env.local
+.env.staging
+.env.production
 .env.*.local
 
 # IDE
