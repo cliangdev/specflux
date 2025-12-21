@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ProjectSelector } from "../ui";
+import { ProjectSelector, EnvironmentIndicator } from "../ui";
 import { useTheme, useAuth } from "../../contexts";
 import { UserProfileModal } from "../ui/UserProfileModal";
 
@@ -63,7 +63,9 @@ export default function TopBar() {
           <ProjectSelector />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <EnvironmentIndicator />
+          <div className="h-6 w-px bg-surface-200 dark:bg-surface-700" />
           <button
             onClick={toggleTheme}
             className="w-9 h-9 rounded-lg flex items-center justify-center text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors"

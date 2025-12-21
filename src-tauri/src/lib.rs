@@ -5,7 +5,7 @@ use commands::terminal::*;
 use pty::PtyState;
 use tauri::{
     menu::{Menu, MenuItem, Submenu},
-    Manager,
+    Emitter, Manager,
 };
 use tauri_plugin_opener::OpenerExt;
 
@@ -23,6 +23,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_deep_link::init())
         .manage(PtyState::new())
         .setup(|app| {
             // Create Navigation menu with Back option

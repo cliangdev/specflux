@@ -35,6 +35,7 @@
     "fs:allow-write-text-file",
     "fs:allow-stat",
     "fs:allow-exists",
-    "fs:allow-mkdir"
+    "fs:allow-mkdir",
+    "deep-link:default"
   ]
 }

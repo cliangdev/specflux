@@ -3,7 +3,6 @@ import {
   getAuth,
   connectAuthEmulator,
   signInWithPopup,
-  signInWithRedirect,
   getRedirectResult,
   signOut as firebaseSignOut,
   GithubAuthProvider,
@@ -15,15 +14,13 @@ import {
   type Auth,
   type User,
 } from "firebase/auth";
+import { getEnvironmentConfig } from "./environment";
 
-// Firebase configuration from environment variables
-// Falls back to demo values for local development with emulator
+const envConfig = getEnvironmentConfig();
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "fake-api-key",
-  authDomain:
-    import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ||
-    "demo-specflux.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "demo-specflux",
+  apiKey: envConfig.firebaseConfig.apiKey,
+  authDomain: envConfig.firebaseConfig.authDomain,
+  projectId: envConfig.firebaseConfig.projectId,
 };
 
 let app: FirebaseApp | null = null;
@@ -46,26 +43,15 @@ export function initializeFirebase(): Auth {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
 
-  // Connect to Firebase Emulator in development
-  // Use emulator if VITE_FIREBASE_AUTH_EMULATOR_URL is set
-  const emulatorUrl = import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_URL;
+  const emulatorUrl = envConfig.firebaseEmulatorUrl;
   if (emulatorUrl && !emulatorConnected) {
     connectAuthEmulator(auth, emulatorUrl, { disableWarnings: true });
     emulatorConnected = true;
-    console.log(`Firebase Auth connected to emulator at ${emulatorUrl}`);
   }
 
-  // Set persistence to localStorage - auth state survives page reloads
-  // Firebase will automatically use refresh tokens to get new ID tokens
   authInitPromise = setPersistence(auth, browserLocalPersistence)
-    .then(() => {
-      console.log("[Firebase] Persistence set to browserLocalPersistence");
-      return auth!;
-    })
-    .catch((error) => {
-      console.error("[Firebase] Error setting persistence:", error);
-      return auth!;
-    });
+    .then(() => auth!)
+    .catch(() => auth!);
 
   return auth;
 }
@@ -89,35 +75,49 @@ export function getFirebaseAuth(): Auth {
 }
 
 /**
+ * Check if running in Tauri desktop app.
+ */
+function isTauri(): boolean {
+  return "__TAURI__" in window;
+}
+
+/**
  * Sign in with GitHub OAuth.
- * Tries popup first, falls back to redirect if popup is blocked.
+ * Note: OAuth doesn't work in Tauri desktop app - use email/password instead.
  */
 export async function signInWithGitHub(): Promise<User> {
+  if (isTauri()) {
+    throw new Error(
+      "OAuth sign-in is not available in the desktop app. Please use email/password login.",
+    );
+  }
+
   const authInstance = getFirebaseAuth();
   const provider = new GithubAuthProvider();
 
-  // Request additional scopes if needed
   provider.addScope("read:user");
   provider.addScope("user:email");
 
   try {
-    // Try popup first (faster UX)
     const result = await signInWithPopup(authInstance, provider);
     return result.user;
   } catch (error: unknown) {
-    // If popup blocked, fall back to redirect
-    if (
-      error instanceof Error &&
-      (error.message.includes("popup-blocked") ||
-        error.message.includes("popup_blocked") ||
-        (error as { code?: string }).code === "auth/popup-blocked")
-    ) {
-      console.log("Popup blocked, using redirect flow...");
-      await signInWithRedirect(authInstance, provider);
-      // This won't return - page will redirect
-      // Result is handled in initializeFirebase via getRedirectResult
-      throw new Error("Redirecting to sign-in...");
+    const errorCode = (error as { code?: string }).code;
+
+    if (errorCode === "auth/popup-blocked") {
+      throw new Error(
+        "Popup was blocked. Please allow popups for this site and try again.",
+      );
     }
+    if (errorCode === "auth/popup-closed-by-user") {
+      throw new Error("Sign-in cancelled.");
+    }
+    if (errorCode === "auth/unauthorized-domain") {
+      throw new Error(
+        "This domain is not authorized for OAuth. Add localhost to Firebase authorized domains.",
+      );
+    }
+
     throw error;
   }
 }
@@ -141,7 +141,7 @@ export async function handleRedirectResult(): Promise<User | null> {
  * Check if using Firebase Emulator.
  */
 export function isUsingEmulator(): boolean {
-  return !!import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_URL;
+  return envConfig.firebaseEmulatorUrl !== null;
 }
 
 /**
@@ -156,38 +156,23 @@ export async function signInWithTestAccount(
   const authInstance = getFirebaseAuth();
 
   try {
-    // Try to sign in
-    const result = await signInWithEmailAndPassword(
-      authInstance,
-      email,
-      password,
-    );
+    const result = await signInWithEmailAndPassword(authInstance, email, password);
     return result.user;
   } catch (error: unknown) {
     const errorCode = (error as { code?: string }).code;
 
-    // If user doesn't exist and we should create them
     if (
       createIfNotExists &&
-      (errorCode === "auth/user-not-found" ||
-        errorCode === "auth/invalid-credential")
+      (errorCode === "auth/user-not-found" || errorCode === "auth/invalid-credential")
     ) {
-      const result = await createUserWithEmailAndPassword(
-        authInstance,
-        email,
-        password,
-      );
+      const result = await createUserWithEmailAndPassword(authInstance, email, password);
       return result.user;
     }
 
-    // Re-throw with clearer messages
     if (errorCode === "auth/wrong-password") {
       throw new Error("Incorrect password");
     }
-    if (
-      errorCode === "auth/user-not-found" ||
-      errorCode === "auth/invalid-credential"
-    ) {
+    if (errorCode === "auth/user-not-found" || errorCode === "auth/invalid-credential") {
       throw new Error("Account not found");
     }
 
@@ -209,30 +194,23 @@ let authStateResolver: ((user: User | null) => void) | null = null;
 
 /**
  * Wait for Firebase to restore auth state from persistence.
- * This ensures we don't make API calls before auth is ready.
  */
 export function waitForAuthState(): Promise<User | null> {
   if (authStatePromise) {
     return authStatePromise;
   }
 
-  // Create a promise that resolves on first auth state change
   authStatePromise = new Promise((resolve) => {
     authStateResolver = resolve;
   });
 
-  // Set up one-time listener for initial auth state
   const authInstance = getFirebaseAuth();
   const unsubscribe = onAuthStateChanged(authInstance, (user) => {
-    console.log(
-      "[Firebase] Initial auth state resolved:",
-      user ? user.email : "null",
-    );
     if (authStateResolver) {
       authStateResolver(user);
       authStateResolver = null;
     }
-    unsubscribe(); // Only need the first state change
+    unsubscribe();
   });
 
   return authStatePromise;
@@ -240,47 +218,20 @@ export function waitForAuthState(): Promise<User | null> {
 
 /**
  * Get the current user's ID token.
- * Waits for auth state to be restored first, then uses refresh token automatically.
  * Returns null if not signed in.
- *
- * @param forceRefresh - Force refresh the token even if not expired
  */
 export async function getIdToken(forceRefresh = false): Promise<string | null> {
   const authInstance = getFirebaseAuth();
-
-  // Wait for auth state to be restored from persistence
   await waitForAuthState();
 
-  // Always use currentUser from auth instance - not the cached promise result
-  // This ensures we get the token for the CURRENT user, not a stale user
   const user = authInstance.currentUser;
-
-  console.log(
-    "[Firebase] getIdToken called, currentUser:",
-    user
-      ? {
-          uid: user.uid,
-          email: user.email,
-          emailVerified: user.emailVerified,
-        }
-      : null,
-  );
-
   if (!user) {
-    console.log("[Firebase] No current user, returning null token");
     return null;
   }
 
   try {
-    // Firebase automatically uses refresh token to get new ID token if expired
-    const token = await user.getIdToken(forceRefresh);
-    console.log(
-      "[Firebase] Got token:",
-      token ? `${token.substring(0, 30)}...` : "null",
-    );
-    return token;
-  } catch (err) {
-    console.error("[Firebase] Error getting ID token:", err);
+    return await user.getIdToken(forceRefresh);
+  } catch {
     return null;
   }
 }

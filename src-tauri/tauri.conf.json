@@ -38,6 +38,12 @@
   "plugins": {
     "fs": {
       "requireLiteralLeadingDot": false
+    },
+    "deep-link": {
+      "mobile": [],
+      "desktop": {
+        "schemes": ["specflux"]
+      }
     }
   }
 }

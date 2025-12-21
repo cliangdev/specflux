@@ -17,3 +17,4 @@ export { default as MarkdownRenderer } from "./MarkdownRenderer";
 export { default as DocumentViewer } from "./DocumentViewer";
 export { DetailPageHeader } from "./DetailPageHeader";
 export type { DetailPageHeaderProps } from "./DetailPageHeader";
+export { EnvironmentIndicator } from "./EnvironmentIndicator";

@@ -20,6 +20,7 @@ import {
   UsersApi,
 } from "./generated";
 import { getIdToken } from "../lib/firebase";
+import { getApiBaseUrl } from "../lib/environment";
 
 /**
  * Get current Firebase ID token for Authorization header.
@@ -40,9 +41,10 @@ async function getAuthToken(): Promise<string> {
 /**
  * Shared configuration for all API clients.
  * The accessToken callback is invoked per-request, ensuring fresh tokens.
+ * Base path is determined by environment config (supports runtime switching).
  */
 const config = new Configuration({
-  basePath: import.meta.env.VITE_API_BASE_URL || "http://localhost:8090",
+  basePath: getApiBaseUrl(),
   accessToken: getAuthToken,
 });
 
