@@ -3,7 +3,6 @@ import {
   getAuth,
   connectAuthEmulator,
   signInWithPopup,
-  signInWithRedirect,
   getRedirectResult,
   signOut as firebaseSignOut,
   GithubAuthProvider,
@@ -89,35 +88,51 @@ export function getFirebaseAuth(): Auth {
 }
 
 /**
+ * Check if running in Tauri desktop app.
+ */
+function isTauri(): boolean {
+  return "__TAURI__" in window;
+}
+
+/**
  * Sign in with GitHub OAuth.
- * Tries popup first, falls back to redirect if popup is blocked.
+ * Note: OAuth doesn't work in Tauri desktop app - use email/password instead.
  */
 export async function signInWithGitHub(): Promise<User> {
+  // OAuth (GitHub, Google, etc.) doesn't work in Tauri's webview
+  // because popups are blocked and redirects can't return to tauri:// URLs
+  if (isTauri()) {
+    throw new Error(
+      "OAuth sign-in is not available in the desktop app. Please use email/password login.",
+    );
+  }
+
   const authInstance = getFirebaseAuth();
   const provider = new GithubAuthProvider();
 
-  // Request additional scopes if needed
   provider.addScope("read:user");
   provider.addScope("user:email");
 
   try {
-    // Try popup first (faster UX)
     const result = await signInWithPopup(authInstance, provider);
     return result.user;
   } catch (error: unknown) {
-    // If popup blocked, fall back to redirect
-    if (
-      error instanceof Error &&
-      (error.message.includes("popup-blocked") ||
-        error.message.includes("popup_blocked") ||
-        (error as { code?: string }).code === "auth/popup-blocked")
-    ) {
-      console.log("Popup blocked, using redirect flow...");
-      await signInWithRedirect(authInstance, provider);
-      // This won't return - page will redirect
-      // Result is handled in initializeFirebase via getRedirectResult
-      throw new Error("Redirecting to sign-in...");
+    const errorCode = (error as { code?: string }).code;
+
+    if (errorCode === "auth/popup-blocked") {
+      throw new Error(
+        "Popup was blocked. Please allow popups for this site and try again.",
+      );
     }
+    if (errorCode === "auth/popup-closed-by-user") {
+      throw new Error("Sign-in cancelled.");
+    }
+    if (errorCode === "auth/unauthorized-domain") {
+      throw new Error(
+        "This domain is not authorized for OAuth. Add localhost to Firebase authorized domains.",
+      );
+    }
+
     throw error;
   }
 }
