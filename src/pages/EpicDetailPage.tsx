@@ -11,6 +11,7 @@ import {
 import { useProject } from "../contexts";
 import { ProgressBar, TaskCreateModal } from "../components/ui";
 import { DetailPageHeader } from "../components/ui/DetailPageHeader";
+import { StatusBadge } from "../components/ui/StatusBadge";
 import { AIActionButton } from "../components/ui/AIActionButton";
 import { AcceptanceCriteriaList } from "../components/ui/AcceptanceCriteriaList";
 import MarkdownRenderer from "../components/ui/MarkdownRenderer";
@@ -40,42 +41,20 @@ type EpicWithV2Fields = Omit<Epic, "dependsOn" | "taskStats" | "status"> & {
   prdId?: string;
 };
 
-// Task status badge configuration
-const TASK_STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
-  BACKLOG: {
-    label: "Backlog",
-    classes: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
-  },
-  READY: {
-    label: "Ready",
-    classes: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
-  },
-  IN_PROGRESS: {
-    label: "In Progress",
-    classes: "bg-accent-100 text-accent-700 dark:bg-accent-900/30 dark:text-accent-300",
-  },
-  IN_REVIEW: {
-    label: "In Review",
-    classes: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-  },
-  BLOCKED: {
-    label: "Blocked",
-    classes: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
-  },
-  COMPLETED: {
-    label: "Completed",
-    classes: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-  },
-  CANCELLED: {
-    label: "Cancelled",
-    classes: "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
-  },
-};
-
 // Epic status options for DetailPageHeader
 const EPIC_STATUS_OPTIONS = [
   { value: "PLANNING", label: "Planning" },
   { value: "IN_PROGRESS", label: "In Progress" },
+  { value: "COMPLETED", label: "Completed" },
+];
+
+// Task status options for inline dropdown
+const TASK_STATUS_OPTIONS = [
+  { value: "BACKLOG", label: "Backlog" },
+  { value: "READY", label: "Ready" },
+  { value: "IN_PROGRESS", label: "In Progress" },
+  { value: "IN_REVIEW", label: "In Review" },
+  { value: "BLOCKED", label: "Blocked" },
   { value: "COMPLETED", label: "Completed" },
 ];
 
@@ -442,6 +421,33 @@ export default function EpicDetailPage() {
     }
   };
 
+  const handleTaskStatusChange = async (taskId: string, newStatus: string) => {
+    const projectRef = getProjectRef();
+    if (!projectRef) return;
+
+    const originalTask = tasks.find((t) => t.id === taskId);
+    if (!originalTask) return;
+
+    // Optimistic update - cast to Task to preserve type
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus as Task["status"] } : t))
+    );
+
+    try {
+      await api.tasks.updateTask({
+        projectRef,
+        taskRef: taskId,
+        updateTaskRequest: { status: newStatus as "BACKLOG" | "READY" | "IN_PROGRESS" | "IN_REVIEW" | "BLOCKED" | "COMPLETED" },
+      });
+    } catch (err) {
+      console.error("Failed to update task status:", err);
+      // Revert on error
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, status: originalTask.status } : t))
+      );
+    }
+  };
+
   const hasExistingSession = epic
     ? !!getExistingSession({
         type: "epic" as const,
@@ -531,6 +537,18 @@ export default function EpicDetailPage() {
           />
         }
         actions={[
+          {
+            label: "Refresh",
+            icon: (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            ),
+            onClick: async () => {
+              await fetchEpicData();
+              await fetchCriteria();
+            },
+          },
           {
             label: deleting ? "Deleting..." : "Delete Epic",
             icon: (
@@ -632,7 +650,6 @@ export default function EpicDetailPage() {
               ) : (
                 <div className="divide-y divide-surface-200 dark:divide-surface-700">
                   {tasks.map((task) => {
-                    const taskStatusConfig = TASK_STATUS_CONFIG[task.status] || TASK_STATUS_CONFIG.BACKLOG;
                     const taskWithV2 = task as Task & { v2Id?: string; publicId?: string; displayKey?: string };
                     const taskRef = taskWithV2.v2Id || taskWithV2.publicId || task.id;
                     const displayId = taskWithV2.displayKey || taskWithV2.v2Id || taskWithV2.publicId || `#${task.id}`;
@@ -641,17 +658,63 @@ export default function EpicDetailPage() {
                         key={taskRef}
                         to={`/tasks/${taskRef}`}
                         className="block px-3 py-2.5 hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors"
+                        title={task.title}
                       >
                         <div className="flex items-center justify-between gap-1 min-w-0">
                           <span className="text-xs font-mono text-surface-400 dark:text-surface-500 flex-shrink-0">
                             {displayId}
                           </span>
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${taskStatusConfig.classes}`}>
-                            {taskStatusConfig.label}
-                          </span>
+                          {/* Stop propagation to prevent navigation when clicking status */}
+                          <div onClick={(e) => e.preventDefault()} className="flex-shrink-0">
+                            <StatusBadge
+                              status={task.status}
+                              size="sm"
+                              variant="dropdown"
+                              onChange={(newStatus) => handleTaskStatusChange(task.id, newStatus)}
+                              options={TASK_STATUS_OPTIONS}
+                            />
+                          </div>
                         </div>
                         <div className="text-sm text-surface-700 dark:text-surface-300 truncate mt-1">
                           {task.title}
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Dependencies Section */}
+          <div className="p-4">
+            <div className="border border-surface-200 dark:border-surface-700 rounded-lg overflow-hidden">
+              <div className="px-3 py-2.5 bg-surface-100 dark:bg-surface-800 border-b border-surface-200 dark:border-surface-700">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">
+                  Dependencies ({dependencyEpics.length})
+                </h3>
+              </div>
+              {dependencyEpics.length === 0 ? (
+                <div className="px-3 py-4 text-center">
+                  <p className="text-sm text-surface-500 dark:text-surface-400">
+                    No dependencies (Phase 1)
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-surface-200 dark:divide-surface-700">
+                  {dependencyEpics.map((depEpic) => {
+                    const depRef = getEpicRef(depEpic);
+                    const displayId = depEpic.displayKey || depEpic.v2Id || `#${depEpic.id}`;
+                    return (
+                      <Link
+                        key={depRef}
+                        to={`/epics/${depRef}`}
+                        className="block px-3 py-2.5 hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors"
+                        title={depEpic.title}
+                      >
+                        <span className="text-xs font-mono text-surface-400 dark:text-surface-500">{displayId}</span>
+                        <div className="text-sm text-surface-700 dark:text-surface-300 truncate mt-1">
+                          {depEpic.title}
                         </div>
                       </Link>
                     );
@@ -721,37 +784,6 @@ export default function EpicDetailPage() {
           </div>
         </div>
 
-        {/* Right Sidebar - Dependencies */}
-        <div className="w-64 flex-shrink-0 border-l border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 overflow-y-auto scrollbar-hidden">
-          {/* Dependencies Section */}
-          <div className="p-4">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-400 dark:text-surface-500 mb-3">
-              Dependencies
-            </h2>
-            {dependencyEpics.length === 0 ? (
-              <p className="text-sm text-surface-500 dark:text-surface-400">
-                No dependencies (Phase 1)
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {dependencyEpics.map((depEpic) => {
-                  const depRef = getEpicRef(depEpic);
-                  const displayId = depEpic.displayKey || depEpic.v2Id || `#${depEpic.id}`;
-                  return (
-                    <Link
-                      key={depRef}
-                      to={`/epics/${depRef}`}
-                      className="block px-2 py-1.5 rounded text-sm bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-                    >
-                      <span className="text-xs text-surface-500 dark:text-surface-400 mr-2">{displayId}</span>
-                      <span className="text-surface-700 dark:text-surface-300">{depEpic.title}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* Create Task Modal */}

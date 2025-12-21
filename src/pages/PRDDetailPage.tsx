@@ -249,6 +249,11 @@ export default function PRDDetailPage() {
     navigate("/prds");
   };
 
+  const handleRefresh = async () => {
+    await loadPrd();
+    // loadEpics is triggered by useEffect when prd changes
+  };
+
   const handleDocSelect = (doc: PrdDocument) => {
     setSelectedDoc(doc);
   };
@@ -465,6 +470,33 @@ export default function PRDDetailPage() {
     window.history.replaceState({}, document.title);
   };
 
+  const handleEpicStatusChange = async (epicId: string, newStatus: string) => {
+    const projectRef = getProjectRef();
+    if (!projectRef) return;
+
+    const originalEpic = epics.find((e) => e.id === epicId);
+    if (!originalEpic) return;
+
+    // Optimistic update - cast to Epic to preserve type
+    setEpics((prev) =>
+      prev.map((e) => (e.id === epicId ? { ...e, status: newStatus as Epic["status"] } : e))
+    );
+
+    try {
+      await api.epics.updateEpic({
+        projectRef,
+        epicRef: epicId,
+        updateEpicRequest: { status: newStatus as "PLANNING" | "IN_PROGRESS" | "COMPLETED" },
+      });
+    } catch (err) {
+      console.error("Failed to update epic status:", err);
+      // Revert on error
+      setEpics((prev) =>
+        prev.map((e) => (e.id === epicId ? { ...e, status: originalEpic.status } : e))
+      );
+    }
+  };
+
   // Check if terminal has existing session for this PRD
   const hasExistingSession = prd
     ? !!getExistingSession({
@@ -567,6 +599,15 @@ export default function PRDDetailPage() {
           />
         }
         actions={[
+          {
+            label: "Refresh",
+            icon: (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            ),
+            onClick: handleRefresh,
+          },
           {
             label: "Delete PRD",
             icon: (
@@ -674,6 +715,7 @@ export default function PRDDetailPage() {
             <EpicsSection
               epics={epics}
               onAddEpic={() => setShowCreateEpicModal(true)}
+              onEpicStatusChange={handleEpicStatusChange}
               loading={epicsLoading}
             />
           </div>

@@ -110,6 +110,36 @@ describe("EpicsSection", () => {
       expect(links[0]).toHaveAttribute("href", "/epics/epic-1");
       expect(links[1]).toHaveAttribute("href", "/epics/epic-2");
     });
+
+    it("displays epic titles", () => {
+      renderWithRouter(<EpicsSection epics={mockEpics} />);
+      expect(screen.getByText("User Authentication")).toBeInTheDocument();
+      expect(screen.getByText("Dashboard Design")).toBeInTheDocument();
+    });
+
+    it("shows title tooltip on hover", () => {
+      renderWithRouter(<EpicsSection epics={mockEpics} />);
+      const links = screen.getAllByRole("link");
+      expect(links[0]).toHaveAttribute("title", "User Authentication");
+      expect(links[1]).toHaveAttribute("title", "Dashboard Design");
+    });
+
+    it("shows status dropdown when onEpicStatusChange is provided", () => {
+      const handleStatusChange = vi.fn();
+      renderWithRouter(
+        <EpicsSection epics={mockEpics} onEpicStatusChange={handleStatusChange} />
+      );
+      // Status badges should be buttons (dropdown variant)
+      const statusButtons = screen.getAllByRole("button");
+      expect(statusButtons.length).toBeGreaterThan(0);
+    });
+
+    it("shows static status badge when onEpicStatusChange is not provided", () => {
+      renderWithRouter(<EpicsSection epics={mockEpics} />);
+      // Should show status text but not as dropdown buttons
+      expect(screen.getByText("In Progress")).toBeInTheDocument();
+      expect(screen.getByText("Completed")).toBeInTheDocument();
+    });
   });
 
   describe("add button", () => {

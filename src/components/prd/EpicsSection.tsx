@@ -1,14 +1,21 @@
 import { Link } from "react-router-dom";
-import { StatusBadge } from "../ui/StatusBadge";
+import { StatusBadge, type StatusOption } from "../ui/StatusBadge";
 import type { Epic } from "../../api";
+
+const EPIC_STATUS_OPTIONS: StatusOption[] = [
+  { value: "PLANNING", label: "Planning" },
+  { value: "IN_PROGRESS", label: "In Progress" },
+  { value: "COMPLETED", label: "Completed" },
+];
 
 interface EpicsSectionProps {
   epics: Epic[];
   onAddEpic?: () => void;
+  onEpicStatusChange?: (epicId: string, status: string) => void;
   loading?: boolean;
 }
 
-export function EpicsSection({ epics, onAddEpic, loading }: EpicsSectionProps) {
+export function EpicsSection({ epics, onAddEpic, onEpicStatusChange, loading }: EpicsSectionProps) {
   if (loading) {
     return (
       <div className="border border-surface-200 dark:border-surface-700 rounded-lg p-4">
@@ -67,7 +74,11 @@ export function EpicsSection({ epics, onAddEpic, loading }: EpicsSectionProps) {
       ) : (
         <div className="divide-y divide-surface-200 dark:divide-surface-700">
           {epics.map((epic) => (
-            <EpicRow key={epic.id} epic={epic} />
+            <EpicRow
+              key={epic.id}
+              epic={epic}
+              onStatusChange={onEpicStatusChange ? (status) => onEpicStatusChange(epic.id, status) : undefined}
+            />
           ))}
         </div>
       )}
@@ -75,7 +86,12 @@ export function EpicsSection({ epics, onAddEpic, loading }: EpicsSectionProps) {
   );
 }
 
-function EpicRow({ epic }: { epic: Epic }) {
+interface EpicRowProps {
+  epic: Epic;
+  onStatusChange?: (status: string) => void;
+}
+
+function EpicRow({ epic, onStatusChange }: EpicRowProps) {
   const taskStats = epic.taskStats;
   // Use progressPercentage if available, otherwise calculate from taskStats
   const progress = epic.progressPercentage ??
@@ -87,13 +103,28 @@ function EpicRow({ epic }: { epic: Epic }) {
     <Link
       to={`/epics/${encodeURIComponent(epic.id)}`}
       className="block px-3 py-2.5 hover:bg-surface-50 dark:hover:bg-surface-800/50 transition-colors"
+      title={epic.title}
     >
       {/* Epic key and status */}
       <div className="flex items-center justify-between gap-2 mb-1">
         <span className="text-xs font-mono text-surface-400 dark:text-surface-500">
           {epic.displayKey}
         </span>
-        <StatusBadge status={epic.status} size="sm" />
+        {/* Stop propagation to prevent navigation when clicking status */}
+        <div onClick={(e) => e.preventDefault()}>
+          <StatusBadge
+            status={epic.status}
+            size="sm"
+            variant={onStatusChange ? "dropdown" : "default"}
+            onChange={onStatusChange}
+            options={EPIC_STATUS_OPTIONS}
+          />
+        </div>
+      </div>
+
+      {/* Title */}
+      <div className="text-sm text-surface-700 dark:text-surface-300 truncate mb-1">
+        {epic.title}
       </div>
 
       {/* Task count */}
