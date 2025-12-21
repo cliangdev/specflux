@@ -75,7 +75,6 @@ export function EnvironmentIndicator() {
   const currentEnv = getCurrentEnvironment();
   const hasOverride = hasEnvironmentOverride();
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -90,28 +89,22 @@ export function EnvironmentIndicator() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Only show in development mode
   if (!isDevMode) {
     return null;
   }
 
   const handleSelect = (env: Environment) => {
     if (env === currentEnv && !hasOverride) {
-      // Already on this environment with no override, nothing to do
       setIsOpen(false);
       return;
     }
 
-    // If selecting the default environment and there's an override, clear it
-    // Otherwise set the new override
-    const defaultEnv =
-      import.meta.env.MODE === "staging" ? "staging" : "local";
+    const defaultEnv = import.meta.env.MODE === "staging" ? "staging" : "local";
     if (env === defaultEnv && hasOverride) {
       clearEnvironmentOverride();
     } else {
       setEnvironmentOverride(env);
     }
-    // Note: page will reload, so no need to close dropdown
   };
 
   const envColor =

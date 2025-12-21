@@ -38,19 +38,15 @@ export function isDevelopmentMode(): boolean {
  * Get the current environment from localStorage override or Vite mode.
  */
 export function getCurrentEnvironment(): Environment {
-  // Check localStorage override first
   const override = localStorage.getItem(LOCAL_STORAGE_KEY);
   if (override === "local" || override === "staging") {
     return override;
   }
 
-  // Check explicit VITE_ENV_NAME
-  const envName = import.meta.env.VITE_ENV_NAME;
-  if (envName === "staging") {
+  if (import.meta.env.VITE_ENV_NAME === "staging") {
     return "staging";
   }
 
-  // Check Vite mode
   if (import.meta.env.MODE === "staging") {
     return "staging";
   }
@@ -64,7 +60,6 @@ export function getCurrentEnvironment(): Environment {
  */
 export function setEnvironmentOverride(env: Environment | null): void {
   if (!isDevelopmentMode()) {
-    console.warn("Environment switching is only available in development mode");
     return;
   }
 
@@ -74,7 +69,6 @@ export function setEnvironmentOverride(env: Environment | null): void {
     localStorage.setItem(LOCAL_STORAGE_KEY, env);
   }
 
-  // Reload to apply the new configuration
   window.location.reload();
 }
 
@@ -122,11 +116,10 @@ export function getEnvironmentConfig(): EnvironmentConfig {
           import.meta.env.VITE_FIREBASE_PROJECT_ID ||
           "",
       },
-      firebaseEmulatorUrl: null, // Never use emulator for staging
+      firebaseEmulatorUrl: null,
     };
   }
 
-  // Local environment
   return {
     name: "local",
     displayName: "Local",
