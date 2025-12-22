@@ -20,6 +20,11 @@ import {
   type SessionScope,
 } from "../services/promptGenerator";
 import { getApiBaseUrl } from "../lib/environment";
+import {
+  getClaudeSessionId,
+  buildContextKey,
+} from "../services/claudeSessionStore";
+import { pollForClaudeSession } from "../services/claudeSessionDetector";
 
 type ContextType = "task" | "epic" | "project" | "prd" | "prd-workshop" | "release";
 
@@ -287,8 +292,30 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
         // Only send initial command/prompt for newly created sessions
         if (isNewSession && initialCommand && !initialCommandSentRef.current) {
           initialCommandSentRef.current = true;
+
+          // Check for existing Claude session to resume
+          let commandToSend = initialCommand;
+          const contextKey = buildContextKey(contextType, contextId);
+
+          if (workingDirectory && initialCommand === "claude") {
+            try {
+              const existingClaudeSession = await getClaudeSessionId(workingDirectory, contextKey);
+              if (existingClaudeSession) {
+                commandToSend = `claude --resume ${existingClaudeSession}`;
+                console.log(`Resuming Claude session: ${existingClaudeSession}`);
+              }
+            } catch (error) {
+              console.warn("Failed to check for Claude session:", error);
+            }
+          }
+
           setTimeout(async () => {
-            if (!cancelled) await writeToTerminal(sessionId, initialCommand + "\n");
+            if (!cancelled) await writeToTerminal(sessionId, commandToSend + "\n");
+
+            // Start polling for Claude session (to save for future resume)
+            if (workingDirectory && initialCommand === "claude") {
+              pollForClaudeSession(workingDirectory, contextKey);
+            }
           }, 500);
         }
 
