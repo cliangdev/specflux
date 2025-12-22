@@ -292,6 +292,9 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
 
         await resizeTerminalIpc(sessionId, term.cols, term.rows);
 
+        // Track if we're resuming a Claude session (skip initial prompt if so)
+        let isResumingSession = false;
+
         // Only send initial command/prompt for newly created sessions
         if (isNewSession && initialCommand && !initialCommandSentRef.current) {
           initialCommandSentRef.current = true;
@@ -300,7 +303,6 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
           let commandToSend = initialCommand;
           const contextKey = buildContextKey(contextType, contextId);
 
-          let isResumingSession = false;
           let existingSessionSnapshot: Set<string> = new Set();
 
           if (workingDirectory && initialCommand === "claude") {
@@ -337,7 +339,8 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
           }, 500);
         }
 
-        if (isNewSession && initialPrompt && !initialPromptSentRef.current) {
+        // Only send initial prompt for new sessions (not when resuming Claude)
+        if (isNewSession && initialPrompt && !initialPromptSentRef.current && !isResumingSession) {
           initialPromptSentRef.current = true;
           // Wait for Claude to fully start up (8s after command, 2s otherwise)
           const promptDelay = initialCommand ? 8000 : 2000;
