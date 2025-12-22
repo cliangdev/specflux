@@ -24,7 +24,10 @@ import {
   getClaudeSessionId,
   buildContextKey,
 } from "../services/claudeSessionStore";
-import { pollForClaudeSession } from "../services/claudeSessionDetector";
+import {
+  pollForClaudeSession,
+  snapshotExistingSessions,
+} from "../services/claudeSessionDetector";
 
 type ContextType = "task" | "epic" | "project" | "prd" | "prd-workshop" | "release";
 
@@ -298,8 +301,13 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
           const contextKey = buildContextKey(contextType, contextId);
 
           let isResumingSession = false;
+          let existingSessionSnapshot: Set<string> = new Set();
+
           if (workingDirectory && initialCommand === "claude") {
             try {
+              // Take snapshot of existing sessions BEFORE launching Claude
+              existingSessionSnapshot = await snapshotExistingSessions(workingDirectory);
+
               const existingClaudeSession = await getClaudeSessionId(workingDirectory, contextKey);
               if (existingClaudeSession) {
                 commandToSend = `claude --resume ${existingClaudeSession}`;
@@ -321,9 +329,10 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
               }, 1500); // Wait for picker to load
             }
 
-            // Start polling for Claude session (to save for future resume)
-            if (workingDirectory && initialCommand === "claude") {
-              pollForClaudeSession(workingDirectory, contextKey);
+            // Start polling for NEW Claude session (to save for future resume)
+            // Pass the snapshot so we only detect truly new sessions
+            if (workingDirectory && initialCommand === "claude" && !isResumingSession) {
+              pollForClaudeSession(workingDirectory, contextKey, existingSessionSnapshot);
             }
           }, 500);
         }

@@ -128,16 +128,29 @@ export async function detectClaudeSessionId(
 }
 
 /**
+ * Take a snapshot of existing session IDs.
+ * Call this BEFORE launching Claude to know which sessions already exist.
+ */
+export async function snapshotExistingSessions(
+  workingDirectory: string
+): Promise<Set<string>> {
+  const files = await listSessionFiles(workingDirectory);
+  return new Set(files.map((f) => f.sessionId));
+}
+
+/**
  * Poll for a new Claude session after launching Claude.
  * This runs in the background and saves the session ID when detected.
  *
  * @param workingDirectory - The project's working directory
  * @param contextKey - The context key for storing the session
+ * @param existingSessionIds - Set of session IDs that existed before launching (from snapshotExistingSessions)
  * @param onSessionDetected - Optional callback when session is detected
  */
 export async function pollForClaudeSession(
   workingDirectory: string,
   contextKey: string,
+  existingSessionIds: Set<string>,
   onSessionDetected?: (sessionId: string) => void
 ): Promise<void> {
   const startTime = new Date();
@@ -150,9 +163,18 @@ export async function pollForClaudeSession(
     }
 
     try {
-      const session = await findSessionModifiedAfter(workingDirectory, startTime);
-      if (session) {
-        console.log(`Detected Claude session: ${session.sessionId}`);
+      const currentFiles = await listSessionFiles(workingDirectory);
+      // Find NEW session IDs that didn't exist before
+      const newSessions = currentFiles.filter(
+        (f) => !existingSessionIds.has(f.sessionId)
+      );
+
+      if (newSessions.length > 0) {
+        // Pick the most recently modified new session
+        const session = newSessions.reduce((most, file) =>
+          file.modifiedAt > most.modifiedAt ? file : most
+        );
+        console.log(`Detected new Claude session: ${session.sessionId}`);
         await saveClaudeSessionId(workingDirectory, contextKey, session.sessionId);
         onSessionDetected?.(session.sessionId);
         return;
