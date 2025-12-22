@@ -4,8 +4,8 @@ mod pty;
 use commands::terminal::*;
 use pty::PtyState;
 use tauri::{
-    menu::{Menu, MenuItem, Submenu},
-    Emitter, Manager,
+    menu::{Menu, MenuItem, PredefinedMenuItem, Submenu},
+    Manager,
 };
 use tauri_plugin_opener::OpenerExt;
 
@@ -26,6 +26,23 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .manage(PtyState::new())
         .setup(|app| {
+            // Create Edit menu with standard shortcuts (Cmd on Mac, Ctrl on Windows/Linux)
+            let undo = PredefinedMenuItem::undo(app, Some("Undo"))?;
+            let redo = PredefinedMenuItem::redo(app, Some("Redo"))?;
+            let cut = PredefinedMenuItem::cut(app, Some("Cut"))?;
+            let copy = PredefinedMenuItem::copy(app, Some("Copy"))?;
+            let paste = PredefinedMenuItem::paste(app, Some("Paste"))?;
+            let select_all = PredefinedMenuItem::select_all(app, Some("Select All"))?;
+            let separator1 = PredefinedMenuItem::separator(app)?;
+            let separator2 = PredefinedMenuItem::separator(app)?;
+
+            let edit_menu = Submenu::with_items(
+                app,
+                "Edit",
+                true,
+                &[&undo, &redo, &separator1, &cut, &copy, &paste, &separator2, &select_all],
+            )?;
+
             // Create Navigation menu with Back option
             let back_item = MenuItem::with_id(app, "back", "Back", true, Some("CmdOrCtrl+["))?;
             let forward_item =
@@ -38,7 +55,7 @@ pub fn run() {
                 &[&back_item, &forward_item],
             )?;
 
-            let menu = Menu::with_items(app, &[&navigation_menu])?;
+            let menu = Menu::with_items(app, &[&edit_menu, &navigation_menu])?;
             app.set_menu(menu)?;
 
             // Handle menu events
