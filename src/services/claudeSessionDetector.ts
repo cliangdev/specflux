@@ -13,6 +13,10 @@ const CLAUDE_PROJECTS_DIR = ".claude/projects";
 const POLL_INTERVAL_MS = 500;
 const POLL_TIMEOUT_MS = 60000;
 
+// UUID v4 format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+// This filters out agent-*.jsonl files which are subagent sessions
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * Encode a project path the way Claude does it.
  * Claude replaces all "/" with "-" in the path.
@@ -49,6 +53,7 @@ interface SessionFile {
 
 /**
  * List all session files in the project's Claude directory.
+ * Only includes main session files (UUID format), excludes agent-*.jsonl subagent files.
  */
 async function listSessionFiles(projectPath: string): Promise<SessionFile[]> {
   try {
@@ -59,6 +64,10 @@ async function listSessionFiles(projectPath: string): Promise<SessionFile[]> {
     for (const entry of entries) {
       if (entry.name && entry.name.endsWith(".jsonl") && entry.isFile) {
         const sessionId = entry.name.replace(".jsonl", "");
+        // Only include UUID-formatted session IDs (exclude agent-* subagent files)
+        if (!UUID_REGEX.test(sessionId)) {
+          continue;
+        }
         const filePath = await join(sessionsDir, entry.name);
         try {
           const fileStat = await stat(filePath);
