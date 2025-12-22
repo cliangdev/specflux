@@ -19,6 +19,7 @@ import {
   generateContextHeader,
   type SessionScope,
 } from "../services/promptGenerator";
+import { getApiBaseUrl } from "../lib/environment";
 
 type ContextType = "task" | "epic" | "project" | "prd" | "prd-workshop" | "release";
 
@@ -248,6 +249,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
           if (cancelled) return;
 
           const env: Record<string, string> = {};
+          env.SPECFLUX_API_URL = getApiBaseUrl();
           if (projectRefRef.current) env.SPECFLUX_PROJECT_REF = projectRefRef.current;
           if (contextId) {
             env.SPECFLUX_CONTEXT_TYPE = contextType;
