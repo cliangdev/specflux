@@ -297,11 +297,13 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
           let commandToSend = initialCommand;
           const contextKey = buildContextKey(contextType, contextId);
 
+          let isResumingSession = false;
           if (workingDirectory && initialCommand === "claude") {
             try {
               const existingClaudeSession = await getClaudeSessionId(workingDirectory, contextKey);
               if (existingClaudeSession) {
                 commandToSend = `claude --resume ${existingClaudeSession}`;
+                isResumingSession = true;
                 console.log(`Resuming Claude session: ${existingClaudeSession}`);
               }
             } catch (error) {
@@ -311,6 +313,13 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
 
           setTimeout(async () => {
             if (!cancelled) await writeToTerminal(sessionId, commandToSend + "\n");
+
+            // If resuming, send Enter after a delay to confirm the picker
+            if (isResumingSession) {
+              setTimeout(async () => {
+                if (!cancelled) await writeToTerminal(sessionId, "\r");
+              }, 1500); // Wait for picker to load
+            }
 
             // Start polling for Claude session (to save for future resume)
             if (workingDirectory && initialCommand === "claude") {
