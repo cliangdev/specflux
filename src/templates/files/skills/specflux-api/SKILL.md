@@ -23,8 +23,7 @@ This is auto-injected when running inside SpecFlux app. If missing, either:
 1. Restart the terminal from SpecFlux, or
 2. Add to `~/.zshrc`:
    ```bash
-   export SPECFLUX_API_URL="http://localhost:8090"                                    # Local
-   # export SPECFLUX_API_URL="https://specflux-backend-400514527718.us-west1.run.app" # Staging
+   export SPECFLUX_API_URL="http://localhost:8090"  # Local development
    ```
 
 ### If SPECFLUX_API_KEY is NOT SET:
