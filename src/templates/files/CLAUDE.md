@@ -28,7 +28,7 @@ Use the `specflux-api` skill when working with epics, tasks, or acceptance crite
 
 ## API Reference
 
-SpecFlux API at `http://localhost:8090/api`:
+SpecFlux API at `$SPECFLUX_API_URL/api` (set in your shell profile):
 - Epics: `/api/projects/{projectRef}/epics`
 - Tasks: `/api/projects/{projectRef}/tasks`
 - Acceptance criteria: `.../epics/{epicRef}/acceptance-criteria` or `.../tasks/{taskRef}/acceptance-criteria`

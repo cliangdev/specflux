@@ -5,23 +5,44 @@ description: SpecFlux REST API for creating and managing projects, PRDs, epics, 
 
 # SpecFlux API
 
-Create and manage SpecFlux entities via REST API at `http://localhost:8090/api`.
+Create and manage SpecFlux entities via REST API.
 
-## Authentication
+## Prerequisites Check (REQUIRED)
 
-Use the `SPECFLUX_API_KEY` environment variable for authentication:
+**Before making any API calls, check that required environment variables are set.**
+
+Run this check first:
 ```bash
-curl -H "Authorization: Bearer $SPECFLUX_API_KEY" http://localhost:8090/api/...
+echo "SPECFLUX_API_URL: ${SPECFLUX_API_URL:-NOT SET}"
+echo "SPECFLUX_API_KEY: ${SPECFLUX_API_KEY:+SET (hidden)}"
 ```
 
-### Setup
+### If SPECFLUX_API_URL is NOT SET:
 
-If `SPECFLUX_API_KEY` is not set, add it to your shell profile (`~/.zshrc` or `~/.bashrc`):
+This is auto-injected when running inside SpecFlux app. If missing, either:
+1. Restart the terminal from SpecFlux, or
+2. Add to `~/.zshrc`:
+   ```bash
+   export SPECFLUX_API_URL="http://localhost:8090"                                    # Local
+   # export SPECFLUX_API_URL="https://specflux-backend-400514527718.us-west1.run.app" # Staging
+   ```
+
+### If SPECFLUX_API_KEY is NOT SET:
+
+This requires manual setup. Add to `~/.zshrc`:
 ```bash
 export SPECFLUX_API_KEY="sfx_your_api_key_here"
 ```
+Generate an API key from **SpecFlux Settings > API Keys**, then run `source ~/.zshrc`.
 
-Generate an API key from SpecFlux Settings > API Keys.
+**Do not proceed with API calls until both variables are set.**
+
+## Making API Calls
+
+Use `$SPECFLUX_API_URL` in all curl commands:
+```bash
+curl -H "Authorization: Bearer $SPECFLUX_API_KEY" "$SPECFLUX_API_URL/api/projects"
+```
 
 ## Core Workflows
 
@@ -48,15 +69,26 @@ PUT /api/projects/{projectRef}/prds/{prdRef}
 
 ### Create Epic with Tasks
 
+**IMPORTANT**: When creating epics from a PRD, always include `prdRef` to link the epic back to its source PRD. This maintains traceability from requirements to implementation.
+
 ```bash
-# 1. Create epic (linked to PRD)
+# 1. Create epic (linked to PRD) - prdRef and acceptanceCriteria are REQUIRED
 POST /api/projects/{projectRef}/epics
-{"title": "User Authentication", "description": "...", "prdRef": "PROJ-P1"}
+{
+  "title": "User Authentication",
+  "description": "...",
+  "prdRef": "PROJ-P1",           // REQUIRED - links epic to source PRD
+  "releaseRef": "rel_xxx",       // Optional - assigns to a release
+  "acceptanceCriteria": [        // REQUIRED - array of criteria objects
+    {"criteria": "Users can sign up with email/password"},
+    {"criteria": "Users can log in with existing credentials"}
+  ]
+}
 # Returns: {"id": "epic_xxx", "displayKey": "PROJ-E1", "prdId": "prd_xxx", ...}
 
-# 2. Add acceptance criteria
+# 2. Add more acceptance criteria (optional)
 POST /api/projects/{projectRef}/epics/{epicRef}/acceptance-criteria
-{"criteria": "Users can sign up with email/password"}
+{"criteria": "Password reset via email works"}
 
 # 3. Create tasks
 POST /api/projects/{projectRef}/tasks
@@ -71,6 +103,12 @@ POST /api/projects/{projectRef}/tasks/{taskRef}/acceptance-criteria
 POST /api/projects/{projectRef}/tasks/{taskRef}/dependencies
 {"dependsOnTaskRef": "PROJ-41"}
 ```
+
+**CRITICAL FORMAT REQUIREMENTS:**
+- `acceptanceCriteria` MUST be an array of objects: `[{"criteria": "..."}, {"criteria": "..."}]`
+- **WRONG**: `["string1", "string2"]` - This will cause a 400 error
+- **CORRECT**: `[{"criteria": "string1"}, {"criteria": "string2"}]`
+- `prdRef` is required to link the epic to its source PRD (use display key like `PROJ-P1` or internal ID)
 
 ### Update Progress
 

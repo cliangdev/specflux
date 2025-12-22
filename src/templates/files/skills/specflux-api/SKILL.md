@@ -5,23 +5,44 @@ description: SpecFlux REST API for creating and managing projects, PRDs, epics, 
 
 # SpecFlux API
 
-Create and manage SpecFlux entities via REST API at `http://localhost:8090/api`.
+Create and manage SpecFlux entities via REST API.
 
-## Authentication
+## Prerequisites Check (REQUIRED)
 
-Use the `SPECFLUX_API_KEY` environment variable for authentication:
+**Before making any API calls, check that required environment variables are set.**
+
+Run this check first:
 ```bash
-curl -H "Authorization: Bearer $SPECFLUX_API_KEY" http://localhost:8090/api/...
+echo "SPECFLUX_API_URL: ${SPECFLUX_API_URL:-NOT SET}"
+echo "SPECFLUX_API_KEY: ${SPECFLUX_API_KEY:+SET (hidden)}"
 ```
 
-### Setup
+### If SPECFLUX_API_URL is NOT SET:
 
-If `SPECFLUX_API_KEY` is not set, add it to your shell profile (`~/.zshrc` or `~/.bashrc`):
+This is auto-injected when running inside SpecFlux app. If missing, either:
+1. Restart the terminal from SpecFlux, or
+2. Add to `~/.zshrc`:
+   ```bash
+   export SPECFLUX_API_URL="http://localhost:8090"                                    # Local
+   # export SPECFLUX_API_URL="https://specflux-backend-400514527718.us-west1.run.app" # Staging
+   ```
+
+### If SPECFLUX_API_KEY is NOT SET:
+
+This requires manual setup. Add to `~/.zshrc`:
 ```bash
 export SPECFLUX_API_KEY="sfx_your_api_key_here"
 ```
+Generate an API key from **SpecFlux Settings > API Keys**, then run `source ~/.zshrc`.
 
-Generate an API key from SpecFlux Settings > API Keys.
+**Do not proceed with API calls until both variables are set.**
+
+## Making API Calls
+
+Use `$SPECFLUX_API_URL` in all curl commands:
+```bash
+curl -H "Authorization: Bearer $SPECFLUX_API_KEY" "$SPECFLUX_API_URL/api/projects"
+```
 
 ## Core Workflows
 

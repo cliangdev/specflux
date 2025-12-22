@@ -67,6 +67,11 @@ vi.mock("../../services/tauriTerminal", () => ({
   onTerminalExit: vi.fn().mockResolvedValue(() => {}),
 }));
 
+// Mock environment module
+vi.mock("../../lib/environment", () => ({
+  getApiBaseUrl: vi.fn().mockReturnValue("http://localhost:8090"),
+}));
+
 import Terminal from "../Terminal";
 import {
   spawnTerminal,
@@ -101,6 +106,7 @@ describe("Terminal", () => {
     // Wait for async spawn
     await vi.waitFor(() => {
       expect(spawnTerminal).toHaveBeenCalledWith("task-task_42", undefined, {
+        SPECFLUX_API_URL: "http://localhost:8090",
         SPECFLUX_CONTEXT_TYPE: "task",
         SPECFLUX_CONTEXT_ID: "task_42",
       });
@@ -121,6 +127,7 @@ describe("Terminal", () => {
         "project-proj_abc123",
         "/home/user/project",
         {
+          SPECFLUX_API_URL: "http://localhost:8090",
           SPECFLUX_CONTEXT_TYPE: "project",
           SPECFLUX_CONTEXT_ID: "proj_abc123",
         },
@@ -146,6 +153,7 @@ describe("Terminal", () => {
 
     await vi.waitFor(() => {
       expect(spawnTerminal).toHaveBeenCalledWith("prd-workshop-prd_1", undefined, {
+        SPECFLUX_API_URL: "http://localhost:8090",
         SPECFLUX_CONTEXT_TYPE: "prd-workshop",
         SPECFLUX_CONTEXT_ID: "prd_1",
       });
