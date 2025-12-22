@@ -104,25 +104,6 @@ async function findMostRecentSession(projectPath: string): Promise<SessionFile |
 }
 
 /**
- * Find a session file modified after a given timestamp.
- */
-async function findSessionModifiedAfter(
-  projectPath: string,
-  afterTimestamp: Date
-): Promise<SessionFile | null> {
-  const files = await listSessionFiles(projectPath);
-
-  // Find files modified after the timestamp
-  const newFiles = files.filter((f) => f.modifiedAt > afterTimestamp);
-  if (newFiles.length === 0) return null;
-
-  // Return the most recent one
-  return newFiles.reduce((most, file) =>
-    file.modifiedAt > most.modifiedAt ? file : most
-  );
-}
-
-/**
  * Detect the current Claude session ID for a project.
  * Returns the most recently modified session.
  *
