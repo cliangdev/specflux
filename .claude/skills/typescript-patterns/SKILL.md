@@ -1,11 +1,11 @@
 ---
 name: typescript-patterns
-description: TypeScript best practices for SpecFlux. Use when writing TypeScript code for backend services, API handlers, or shared utilities. Applies async/await patterns, typed errors, and strict type safety.
+description: TypeScript best practices. Use when writing TypeScript code for backend services, API handlers, or shared utilities. Applies async/await patterns, typed errors, and strict type safety.
 ---
 
-# TypeScript Best Practices for SpecFlux
+# TypeScript Best Practices
 
-## Patterns We Use
+## Patterns
 
 ### Async/Await Pattern
 Always use async/await, never callbacks or .then():
@@ -27,17 +27,17 @@ function createTask(data: CreateTaskRequest): Promise<Task> {
 Always use typed errors:
 
 ```typescript
-class TaskNotFoundError extends Error {
-  constructor(taskId: number) {
-    super(`Task ${taskId} not found`);
-    this.name = 'TaskNotFoundError';
+class EntityNotFoundError extends Error {
+  constructor(entityType: string, id: string | number) {
+    super(`${entityType} ${id} not found`);
+    this.name = 'EntityNotFoundError';
   }
 }
 
 // Usage
 async function getTask(id: number): Promise<Task> {
   const task = await db.query.tasks.findFirst({ where: eq(tasks.id, id) });
-  if (!task) throw new TaskNotFoundError(id);
+  if (!task) throw new EntityNotFoundError('Task', id);
   return task;
 }
 ```
@@ -50,7 +50,7 @@ Use strict TypeScript, never 'any':
 interface CreateTaskRequest {
   title: string;
   description?: string;
-  epic_id?: number;
+  epicId?: number;
 }
 
 // Bad
@@ -79,6 +79,80 @@ app.get('/tasks/:id', async (req, res) => {
 });
 ```
 
+### Discriminated Unions
+Use discriminated unions for type-safe state handling:
+
+```typescript
+type RequestState<T> =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'success'; data: T }
+  | { status: 'error'; error: string };
+
+// Usage
+function handleState<T>(state: RequestState<T>) {
+  switch (state.status) {
+    case 'idle':
+      return 'Not started';
+    case 'loading':
+      return 'Loading...';
+    case 'success':
+      return state.data; // TypeScript knows data exists
+    case 'error':
+      return state.error; // TypeScript knows error exists
+  }
+}
+```
+
+### Utility Types
+Use built-in utility types effectively:
+
+```typescript
+// Partial - all properties optional
+type UpdateTaskRequest = Partial<CreateTaskRequest>;
+
+// Pick - select specific properties
+type TaskSummary = Pick<Task, 'id' | 'title' | 'status'>;
+
+// Omit - exclude specific properties
+type CreateTaskInput = Omit<Task, 'id' | 'createdAt' | 'updatedAt'>;
+
+// Required - all properties required
+type RequiredConfig = Required<OptionalConfig>;
+
+// Record - typed object with specific keys
+type StatusCounts = Record<TaskStatus, number>;
+```
+
+### Generics
+Use generics for reusable, type-safe functions:
+
+```typescript
+// Generic repository pattern
+interface Repository<T, ID> {
+  findById(id: ID): Promise<T | null>;
+  findAll(): Promise<T[]>;
+  save(entity: T): Promise<T>;
+  delete(id: ID): Promise<void>;
+}
+
+// Generic API handler
+async function handleRequest<T>(
+  fn: () => Promise<T>,
+  res: Response
+): Promise<void> {
+  try {
+    const data = await fn();
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+```
+
 ## File Organization
 
 ```
@@ -88,4 +162,31 @@ src/
 ├── routes/         # API endpoints
 ├── db/             # Database schema & migrations
 └── utils/          # Helper functions
+```
+
+## Import Best Practices
+
+```typescript
+// Good - explicit imports
+import { Task, TaskStatus } from './types';
+import { createTask, updateTask } from './services/taskService';
+
+// Bad - wildcard imports
+import * as types from './types';
+import * as taskService from './services/taskService';
+```
+
+## Null Handling
+
+```typescript
+// Use nullish coalescing
+const name = user.name ?? 'Anonymous';
+
+// Use optional chaining
+const city = user.address?.city;
+
+// Type guards for narrowing
+function isTask(obj: unknown): obj is Task {
+  return typeof obj === 'object' && obj !== null && 'id' in obj && 'title' in obj;
+}
 ```

@@ -22,7 +22,17 @@ Use these to automatically determine what you're implementing.
 - Without argument: Uses current context from environment
 - With argument: Implements specific ref (epic key, task key, PRD key, or release key)
 
-## Phase 1: Understand Context
+## Phase 1: Understand Context (Skip if Already Known)
+
+**IMPORTANT**: Skip this phase if you already have context from the current session. For example:
+- You just finished `/prd` and `/epic` in the same conversation
+- You already read the PRD documents earlier
+- The user explicitly says to proceed with implementation
+
+Only run Phase 1 if:
+- Starting a fresh session with `/implement`
+- Context is unclear or incomplete
+- Working on a different epic/task than previously discussed
 
 ### 1.1 Detect Implementation Scope
 
@@ -107,7 +117,7 @@ Based on gathered context:
 3. Map acceptance criteria to implementation steps
 4. Note any blockers or dependencies
 
-### 2.2 Update Status to IN_PROGRESS
+### 2.2 Update Epic Status to IN_PROGRESS
 
 ```bash
 # For epic
@@ -123,45 +133,49 @@ PUT /api/projects/{projectRef}/prds/{prdRef}
 
 Work through tasks in dependency order. **Each task = one git commit.**
 
-### 3.1 For Each Task
+### 3.1 Start Task - Update Status to IN_PROGRESS
+
+**IMMEDIATELY** when starting work on a task:
 
 ```bash
-# 1. Update task status
 PATCH /api/projects/{projectRef}/tasks/{taskRef}
 {"status": "IN_PROGRESS"}
 ```
 
-### 3.2 Implement with Tests
+This signals to the user (and the Kanban board) that work has begun.
 
-1. **Read task acceptance criteria**
-   ```bash
-   GET /api/projects/{projectRef}/tasks/{taskRef}/acceptance-criteria
-   ```
+### 3.2 Read Task Acceptance Criteria
 
-2. **Implement the feature**
+```bash
+GET /api/projects/{projectRef}/tasks/{taskRef}/acceptance-criteria
+```
+
+### 3.3 Implement with Tests
+
+1. **Implement the feature**
    - Write clean, well-structured code
    - Follow project conventions and patterns
    - Reference PRD/wireframes for requirements
 
-3. **Add tests for critical components**
+2. **Add tests for critical components**
    - Unit tests for business logic
    - Integration tests for API endpoints
    - Component tests for UI elements
    - Test edge cases mentioned in acceptance criteria
 
-4. **Verify acceptance criteria are covered**
+3. **Verify acceptance criteria are covered**
    - Run tests to confirm functionality
    - Manually verify if needed
    - Check each criterion is satisfied
 
-### 3.3 Mark Criteria and Commit
+### 3.4 Complete Task - Mark Criteria and Commit
 
 ```bash
 # Mark each criterion as met
 PUT /api/projects/{projectRef}/tasks/{taskRef}/acceptance-criteria/{id}
 {"isMet": true}
 
-# Update task status
+# Update task status to COMPLETED
 PATCH /api/projects/{projectRef}/tasks/{taskRef}
 {"status": "COMPLETED"}
 ```
@@ -183,7 +197,19 @@ Acceptance Criteria:
 Co-Authored-By: Claude <noreply@anthropic.com>"
 ```
 
-### 3.4 Repeat for All Tasks
+### 3.5 Handle Blocked Tasks
+
+If a task cannot be completed:
+
+```bash
+# Mark as blocked with reason
+PATCH /api/projects/{projectRef}/tasks/{taskRef}
+{"status": "BLOCKED"}
+```
+
+Inform the user of the blocker and move to the next task if possible.
+
+### 3.6 Repeat for All Tasks
 
 Continue until all tasks in the epic are complete.
 
@@ -241,32 +267,24 @@ Activate relevant skills based on implementation type:
 - **Frontend**: `ui-patterns`, `typescript-patterns`, `tauri-dev`
 - **Full-stack**: All relevant skills
 
+## Quick Reference: Task Status Flow
+
+```
+BACKLOG → IN_PROGRESS → COMPLETED
+              ↓
+           BLOCKED (if stuck)
+```
+
+**Always update status via API** so the Kanban board reflects real-time progress.
+
 ## Example Session
 
 ```
 > /implement SPEC-E5
 
-📋 Fetching context for epic SPEC-E5...
+[Context already known from /prd and /epic - skipping Phase 1]
 
-**Epic: User Profile Settings** (SPEC-E5)
-Status: PLANNING
-PRD: SPEC-P2 (User Management)
-
-📄 Reading PRD documents...
-- prd.md (primary)
-- profile-wireframe.png
-- settings-mockup.png
-
-📊 Current Progress:
-- Epic criteria: 0/4 met
-- Tasks: 3 total (0 completed)
-
-**Tasks (dependency order):**
-1. SPEC-55: Profile data model [BACKLOG]
-2. SPEC-56: Profile API endpoints [BACKLOG] (depends on SPEC-55)
-3. SPEC-57: Profile settings UI [BACKLOG] (depends on SPEC-56)
-
-🚀 Starting implementation...
+🚀 Starting implementation of Epic SPEC-E5...
 
 Updating epic status to IN_PROGRESS...
 
@@ -274,7 +292,7 @@ Updating epic status to IN_PROGRESS...
 📦 Task SPEC-55: Profile data model
 ═══════════════════════════════════════
 
-Updating task status to IN_PROGRESS...
+→ Updating task status to IN_PROGRESS...
 
 **Acceptance Criteria:**
 - [ ] User profile table with avatar_url, bio, preferences
@@ -298,12 +316,14 @@ Acceptance Criteria:
 - [x] Migration script with rollback support
 - [x] Repository with CRUD operations"
 
-Marking criteria as met via API...
-Updating task status to COMPLETED...
+→ Marking criteria as met via API...
+→ Updating task status to COMPLETED...
 
 ═══════════════════════════════════════
 📦 Task SPEC-56: Profile API endpoints
 ═══════════════════════════════════════
+
+→ Updating task status to IN_PROGRESS...
 
 [...continues for each task...]
 
@@ -317,7 +337,7 @@ Updating task status to COMPLETED...
 - [x] All epic criteria met (4/4)
 - [x] Tests passing
 
-Updating epic status to COMPLETED...
+→ Updating epic status to COMPLETED...
 
 Ready for PR creation!
 ```
