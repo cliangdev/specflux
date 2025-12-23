@@ -4,8 +4,6 @@
 
 [![License: Elastic License 2.0](https://img.shields.io/badge/License-Elastic%202.0-blue.svg)](LICENSE)
 
-![SpecFlux Demo](docs/assets/specflux_demo.gif)
-
 ## The Problem
 
 The industry promotes "vibe coding" as one-shot prompts that produce pretty but barely functional software. **This is far from real software engineering.**
@@ -21,6 +19,8 @@ Real software is carefully designed, planned, and iterated. AI is making this pr
 ## The Solution
 
 SpecFlux transforms vibe coding into **vibe engineering** — keeping the speed and creativity of AI-assisted development while adding the structure that produces maintainable software.
+
+![SpecFlux Demo](docs/assets/specflux_demo.gif)
 
 ## Development Philosophy
 
