@@ -9,11 +9,11 @@
 
 ## The Problem
 
-The AI coding revolution has a dirty secret: **there's no repeatable process for building quality software with AI.**
+The industry promotes "vibe coding" as one-shot prompts that produce pretty but barely functional software. **This is far from real software engineering.**
 
-One-shot prompts produce unpredictable, unmaintainable code. "Vibe coding" — rapidly building features without structure — creates technical debt faster than you can ship. When something breaks, you regenerate everything and hope for the best.
+Real software is carefully designed, planned, and iterated. AI is making this process faster than ever — but only if you have the right structure in place.
 
-**What's missing is engineering discipline:**
+**What's missing:**
 - Specifications that persist across sessions
 - Acceptance criteria that define "done"
 - Incremental tasks that build on each other
