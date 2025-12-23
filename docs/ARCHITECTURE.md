@@ -27,6 +27,7 @@ flowchart LR
     end
 
     PRD --> Design --> Execute
+    Execute -.->|iterate| PRD
 ```
 
 Each phase uses the same building blocks:
