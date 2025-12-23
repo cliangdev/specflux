@@ -35,10 +35,10 @@ flowchart TB
     Ship -.->|iterate| Plan
 
     AI["🤖 AI<br/>accelerates"] --> Cycle
-    Cycle --> Human["👤 Human<br/>approves"]
+    Cycle --> Human["👤 Human<br/>reviews & approves"]
 ```
 
-**AI accelerates. Humans approve.** Each phase flows into the next. AI drafts, suggests, and implements — humans make the decisions that matter.
+**AI accelerates. Humans review & approve.** Each phase flows into the next. AI drafts, suggests, and implements — humans make the decisions that matter.
 
 ## Features
 
