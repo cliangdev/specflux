@@ -29,9 +29,9 @@ flowchart LR
     PRD --> Design --> Execute
     Execute -.->|iterate| PRD
 
-    style PRD fill:#e0f2fe,stroke:#0284c7
-    style Design fill:#fef3c7,stroke:#d97706
-    style Execute fill:#d1fae5,stroke:#059669
+    style PRD fill:#e0f2fe,stroke:#0369a1,color:#0369a1
+    style Design fill:#fef3c7,stroke:#b45309,color:#b45309
+    style Execute fill:#d1fae5,stroke:#047857,color:#047857
 ```
 
 Each phase uses the same building blocks:
@@ -70,9 +70,9 @@ flowchart TB
     Skill -->|"env vars + skill"| Terminal
     Terminal -->|API calls| SpecFlux
 
-    style SpecFlux fill:#ede9fe,stroke:#7c3aed
-    style Injection fill:#fef3c7,stroke:#d97706
-    style Agent fill:#d1fae5,stroke:#059669
+    style SpecFlux fill:#ede9fe,stroke:#5b21b6,color:#5b21b6
+    style Injection fill:#fef3c7,stroke:#b45309,color:#b45309
+    style Agent fill:#d1fae5,stroke:#047857,color:#047857
 ```
 
 **What gets injected:**
@@ -123,10 +123,10 @@ flowchart TB
     React <--> Firebase
     API <--> Firebase
 
-    style Desktop fill:#ede9fe,stroke:#7c3aed
-    style Backend fill:#e0f2fe,stroke:#0284c7
-    style External fill:#fef3c7,stroke:#d97706
-    style Local fill:#f3f4f6,stroke:#6b7280
+    style Desktop fill:#ede9fe,stroke:#5b21b6,color:#5b21b6
+    style Backend fill:#e0f2fe,stroke:#0369a1,color:#0369a1
+    style External fill:#fef3c7,stroke:#b45309,color:#b45309
+    style Local fill:#f3f4f6,stroke:#374151,color:#374151
 ```
 
 ## Component Overview

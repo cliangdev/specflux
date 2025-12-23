@@ -36,9 +36,9 @@ flowchart TB
     AI["🤖 AI<br/>accelerates"] --> Cycle
     Cycle --> Human["👤 Human<br/>reviews & approves"]
 
-    style Cycle fill:#ede9fe,stroke:#7c3aed
-    style AI fill:#d1fae5,stroke:#059669
-    style Human fill:#e0f2fe,stroke:#0284c7
+    style Cycle fill:#ede9fe,stroke:#5b21b6,color:#5b21b6
+    style AI fill:#d1fae5,stroke:#047857,color:#047857
+    style Human fill:#e0f2fe,stroke:#0369a1,color:#0369a1
 ```
 
 **AI accelerates. Humans review & approve.** Each phase flows into the next. AI handles the grunt work — drafting specs, writing boilerplate, running tests — so you can focus on what matters: vision, architecture, and the decisions that shape your product.
