@@ -101,7 +101,7 @@ export function getEnvironmentConfig(): EnvironmentConfig {
       apiBaseUrl:
         import.meta.env.VITE_STAGING_API_BASE_URL ||
         import.meta.env.VITE_API_BASE_URL ||
-        "https://specflux-backend-400514527718.us-west1.run.app",
+        "", // Set via VITE_STAGING_API_BASE_URL environment variable
       firebaseConfig: {
         apiKey:
           import.meta.env.VITE_STAGING_FIREBASE_API_KEY ||

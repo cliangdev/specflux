@@ -1132,7 +1132,7 @@ Based on best practices from [Claude Code documentation](https://www.anthropic.c
 │  │                                                                          ││
 │  │  Allowed Paths:                                                          ││
 │  │  ┌─────────────────────────────────────────────────────────────────┐   ││
-│  │  │ /Users/cliang/workspace/specflux                                │   ││
+│  │  │ /home/user/projects/specflux                                    │   ││
 │  │  └─────────────────────────────────────────────────────────────────┘   ││
 │  │                                                                          ││
 │  │                                       [Test Connection]  [Edit]  [⋮]    ││

@@ -11,7 +11,7 @@ SpecFlux is a desktop application (Tauri + React) that orchestrates Claude Code 
 This is a **monorepo for the frontend/desktop app only**. The backend is a separate repository.
 
 - **This repo (specflux):** Tauri desktop app with React frontend
-- **Backend repo:** `/Users/cliang/workspace/specflux-backend` - Spring Boot 4 + Java 25 + PostgreSQL
+- **Backend repo:** [specflux-backend](https://github.com/specflux/specflux-backend) - Spring Boot 4 + Java 25 + PostgreSQL
 
 ## Tech Stack
 
@@ -97,8 +97,9 @@ npm run generate:client  # Regenerate API client from OpenAPI
 ./run.sh                 # Run desktop app
 ./run.sh web             # Run web dev server only
 
-# Backend (separate repo: /Users/cliang/workspace/specflux-backend)
-cd /Users/cliang/workspace/specflux-backend
+# Backend (separate repo - clone from GitHub)
+# git clone https://github.com/specflux/specflux-backend.git
+cd specflux-backend
 ./mvnw spring-boot:run   # Start backend (port 8090)
 ./mvnw test              # Run tests
 ```
@@ -204,12 +205,12 @@ This generates code in `src/api/generated/` from `openapi/api.yaml`.
 ## Running the Full Stack
 
 ```bash
-# Terminal 1: Start backend
-cd /Users/cliang/workspace/specflux-backend
+# Terminal 1: Start backend (clone if needed)
+cd specflux-backend
 ./mvnw spring-boot:run
 
 # Terminal 2: Start frontend
-cd /Users/cliang/workspace/specflux
+cd specflux
 ./run.sh
 ```
 

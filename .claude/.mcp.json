@@ -9,7 +9,7 @@
     },
     "filesystem": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/cliang/workspace/specflux"]
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "${PWD}"]
     },
     "playwright": {
       "command": "npx",
