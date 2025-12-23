@@ -23,6 +23,61 @@ Real software is carefully designed, planned, and iterated. AI is making this pr
 
 SpecFlux transforms vibe coding into **vibe engineering** — keeping the speed and creativity of AI-assisted development while adding the structure that produces maintainable software.
 
+## Development Philosophy
+
+Software development is a cycle, and each phase is itself a cycle of refinement. SpecFlux puts AI at every stage — not to replace engineering discipline, but to accelerate it.
+
+```mermaid
+flowchart LR
+    subgraph Plan ["📋 Planning"]
+        P1[Define Problem] --> P2[Draft PRD]
+        P2 --> P3[Refine with AI]
+        P3 --> P4[Human Review]
+        P4 -.->|iterate| P2
+    end
+
+    subgraph Design ["🎨 Design"]
+        D1[Architecture] --> D2[UI/UX Mockups]
+        D2 --> D3[API Contracts]
+        D3 --> D4[Human Review]
+        D4 -.->|iterate| D1
+    end
+
+    subgraph Break ["📝 Task Breakdown"]
+        B1[Create Epics] --> B2[Define Tasks]
+        B2 --> B3[Set Dependencies]
+        B3 --> B4[AI + Human Review]
+        B4 -.->|iterate| B1
+    end
+
+    subgraph Impl ["⚡ Implementation"]
+        I1[AI Implements Task] --> I2[Run Tests]
+        I2 --> I3[Human Review]
+        I3 -.->|iterate| I1
+        I3 --> I4[Merge]
+    end
+
+    subgraph Release ["🚀 Release"]
+        R1[Integration Tests] --> R2[Staging Deploy]
+        R2 --> R3[Production Deploy]
+        R3 -.->|feedback| Plan
+    end
+
+    Plan --> Design --> Break --> Impl --> Release
+```
+
+**How AI fits in:**
+
+| Phase | AI Role | Human Role |
+|-------|---------|------------|
+| **Planning** | Interview to extract requirements, draft PRD | Approve scope and priorities |
+| **Design** | Suggest patterns, generate schemas | Make architectural decisions |
+| **Breakdown** | Create epics/tasks from PRD, identify dependencies | Validate estimates and order |
+| **Implementation** | Write code with full context, run tests | Review PRs, approve merges |
+| **Release** | Automate deployments, monitor errors | Final go/no-go decision |
+
+Each cycle produces artifacts that feed the next. AI accelerates every loop while humans hold the quality gates.
+
 ## Features
 
 - **Structured Specs** — PRDs, epics, and tasks with acceptance criteria. AI agents always know the full context.
