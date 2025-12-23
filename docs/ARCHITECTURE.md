@@ -119,6 +119,7 @@ flowchart TB
     Rust <--> API
     API <--> DB
     Rust <--> GitHub
+    Claude <--> GitHub
     React <--> Firebase
     API <--> Firebase
 
