@@ -44,13 +44,13 @@ flowchart TB
 
 - **Structured Specs** — PRDs, epics, and tasks with acceptance criteria. AI agents always know the full context.
 
-- **Visual Kanban Board** — Track AI-driven work across statuses. Drag-and-drop workflow with real-time updates.
+- **Context-Aware Agents** — Launch Claude Code with automatic context injection. Agents receive PRD, epic, task, and acceptance criteria.
 
 - **Dependency Management** — Define task dependencies with visual graphs. AI agents understand what's built and what's blocked.
 
-- **Context-Aware Agents** — Launch Claude Code with automatic context injection. Agents receive PRD, epic, task, and acceptance criteria.
-
 - **Multi-Repo Orchestration** — Manage backend, frontend, and infrastructure repos in one project. Cross-repo task coordination.
+
+- **Visual Kanban Board** — Track AI-driven work across statuses. Drag-and-drop workflow with real-time updates.
 
 - **Human-in-the-Loop** — Approve changes before they land. Review checkpoints keep you in control.
 
@@ -125,6 +125,10 @@ npm run dev
 # Run full desktop app
 npm run tauri:dev
 ```
+
+### Backend
+
+This frontend connects to [specflux-backend](https://github.com/specflux/specflux-backend) for API services. See the backend repo for setup instructions.
 
 ### Build from Source
 
