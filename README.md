@@ -53,6 +53,17 @@ flowchart TB
 
 - **Human-in-the-Loop** — Approve changes before they land. Review checkpoints keep you in control.
 
+## How It Works
+
+1. **Define** — Create a PRD through an AI-guided interview (`/prd`)
+2. **Break down** — AI generates epics and tasks with dependencies (`/epic`)
+3. **Implement** — AI agents work through tasks with full context (`/implement`)
+4. **Review** — You approve changes at every gate
+
+SpecFlux injects context (PRD, epic, task, acceptance criteria) into Claude Code via skills, so agents always know what they're building and why.
+
+For technical details, see [Architecture](docs/ARCHITECTURE.md).
+
 ## Quick Start
 
 ### Download
