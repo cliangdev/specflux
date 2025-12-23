@@ -4,32 +4,40 @@ Technical overview for contributors and curious developers.
 
 ## AI-Assisted Development
 
-Modern AI coding assistants like Claude Code work best with structure:
+A typical AI development workflow using Claude Code:
 
 ```mermaid
 flowchart LR
-    subgraph Context ["Context Layer"]
-        CLAUDE[CLAUDE.md] --> Skills[Skills]
-        Skills --> Commands[Commands]
+    subgraph PRD ["📋 PRD Phase"]
+        P1[CLAUDE.md]
+        P2[Skills]
+        P3[Commands]
     end
 
-    subgraph AI ["AI Agent"]
-        Agent[Claude Code]
+    subgraph Design ["🎨 Design Phase"]
+        D1[CLAUDE.md]
+        D2[Skills]
+        D3[Commands]
     end
 
-    Context -->|guides| Agent
-    Agent -->|executes| Code[Code Changes]
+    subgraph Execute ["⚡ Execute Phase"]
+        E1[CLAUDE.md]
+        E2[Skills]
+        E3[Commands]
+    end
+
+    PRD --> Design --> Execute
 ```
 
-**Key concepts:**
+Each phase uses the same building blocks:
 
-| Concept | Purpose |
-|---------|---------|
-| **CLAUDE.md** | Project-level instructions, conventions, patterns |
-| **Skills** | Reusable knowledge (API patterns, coding standards) |
-| **Commands** | Workflows triggered by `/command` (e.g., `/prd`, `/epic`) |
+| Concept | Purpose | Example |
+|---------|---------|---------|
+| **CLAUDE.md** | Project instructions, conventions | Code style, architecture decisions |
+| **Skills** | Reusable domain knowledge | API patterns, UI guidelines |
+| **Commands** | Workflows triggered by `/command` | `/prd`, `/design`, `/implement` |
 
-Without structure, AI generates code in isolation. With structure, AI understands *how* your project works.
+This structure gives AI the context it needs to make consistent decisions across your codebase.
 
 ## How SpecFlux Adds Context
 
