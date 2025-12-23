@@ -4,8 +4,7 @@
 
 [![License: Elastic License 2.0](https://img.shields.io/badge/License-Elastic%202.0-blue.svg)](LICENSE)
 
-<!-- Hero GIF placeholder - will be replaced with actual demo -->
-<!-- ![SpecFlux Demo](docs/assets/demo.gif) -->
+![SpecFlux Demo](docs/assets/specflux_demo.gif)
 
 ## The Problem
 
