@@ -38,7 +38,7 @@ flowchart TB
     Cycle --> Human["👤 Human<br/>reviews & approves"]
 ```
 
-**AI accelerates. Humans review & approve.** Each phase flows into the next. AI drafts, suggests, and implements — humans make the decisions that matter.
+**AI accelerates. Humans review & approve.** Each phase flows into the next. AI handles the grunt work — drafting specs, writing boilerplate, running tests — so you can focus on what matters: vision, architecture, and the decisions that shape your product.
 
 ## Features
 
