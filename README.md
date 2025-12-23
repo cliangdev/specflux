@@ -26,23 +26,19 @@ SpecFlux transforms vibe coding into **vibe engineering** — keeping the speed 
 ## Development Philosophy
 
 ```mermaid
-flowchart LR
-    Plan["📋 Plan"] --> Design["🎨 Design"] --> Tasks["📝 Tasks"] --> Build["⚡ Build"] --> Ship["🚀 Ship"]
-    Ship -.->|learn & iterate| Plan
+flowchart TB
+    subgraph Cycle ["Development Cycle"]
+        direction LR
+        Plan["📋 Plan"] --> Design["🎨 Design"] --> Tasks["📝 Tasks"] --> Build["⚡ Build"] --> Ship["🚀 Ship"]
+    end
 
-    AI["🤖 AI"] -.->|accelerates| Plan
-    AI -.->|accelerates| Design
-    AI -.->|accelerates| Tasks
-    AI -.->|accelerates| Build
+    Ship -.->|iterate| Plan
 
-    Human["👤 Human"] -.->|approves| Plan
-    Human -.->|approves| Design
-    Human -.->|approves| Tasks
-    Human -.->|approves| Build
-    Human -.->|approves| Ship
+    AI["🤖 AI<br/>accelerates"] --> Cycle
+    Cycle --> Human["👤 Human<br/>approves"]
 ```
 
-**AI accelerates. Humans approve.** Each phase flows into the next, and each phase is its own cycle of refinement. AI drafts, suggests, and implements — but humans make the decisions that matter.
+**AI accelerates. Humans approve.** Each phase flows into the next. AI drafts, suggests, and implements — humans make the decisions that matter.
 
 ## Features
 
