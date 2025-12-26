@@ -33,7 +33,27 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "category": "DeveloperTool",
+    "shortDescription": "AI-powered project orchestration for multi-repo development",
+    "longDescription": "SpecFlux transforms vibe coding into vibe engineering. Orchestrate Claude Code AI agents across multiple repositories with structured specs, visual Kanban boards, and human-in-the-loop approval workflows.",
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    },
+    "windows": {
+      "wix": {
+        "language": "en-US"
+      }
+    },
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": true
+      },
+      "deb": {
+        "depends": ["libwebkit2gtk-4.1-0", "libssl3", "libgtk-3-0"],
+        "section": "devel"
+      }
+    }
   },
   "plugins": {
     "fs": {
