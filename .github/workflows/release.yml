@@ -134,14 +134,19 @@ jobs:
         with:
           args: ${{ matrix.args }}
 
-      # Artifact upload disabled to avoid storage quota issues
-      # - name: Upload build artifacts (Test only)
-      #   if: github.event_name == 'workflow_dispatch'
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: build-${{ matrix.name }}
-      #     path: |
-      #       src-tauri/target/${{ matrix.target }}/release/bundle/
+      - name: Authenticate to GCP
+        if: github.event_name == 'workflow_dispatch'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Upload build artifacts to GCS
+        if: github.event_name == 'workflow_dispatch'
+        uses: google-github-actions/upload-cloud-storage@v2
+        with:
+          path: src-tauri/target/${{ matrix.target }}/release/bundle
+          destination: specflux-artifacts/builds/${{ github.run_id }}/${{ matrix.name }}
+          parent: false
 
   publish-release:
     name: Publish Release
