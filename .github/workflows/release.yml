@@ -134,13 +134,14 @@ jobs:
         with:
           args: ${{ matrix.args }}
 
-      - name: Upload build artifacts (Test only)
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-${{ matrix.name }}
-          path: |
-            src-tauri/target/${{ matrix.target }}/release/bundle/
+      # Artifact upload disabled to avoid storage quota issues
+      # - name: Upload build artifacts (Test only)
+      #   if: github.event_name == 'workflow_dispatch'
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: build-${{ matrix.name }}
+      #     path: |
+      #       src-tauri/target/${{ matrix.target }}/release/bundle/
 
   publish-release:
     name: Publish Release
