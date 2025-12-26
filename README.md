@@ -85,20 +85,50 @@ Pre-built binaries available on [GitHub Releases](https://github.com/specflux/sp
 
 ### Installation
 
-**macOS:**
-1. Download the `.dmg` file for your architecture
+<details>
+<summary><strong>macOS</strong></summary>
+
+1. Download the `.dmg` file for your architecture (arm64 for M1/M2/M3, x64 for Intel)
 2. Open the DMG and drag SpecFlux to Applications
-3. First launch: Right-click → Open → "Open Anyway"
+3. **First launch security bypass:**
+   - Right-click the app → "Open" → Click "Open" in the dialog
+   - Or run in Terminal: `xattr -cr /Applications/SpecFlux.app`
 
-**Windows:**
-1. Download the `.msi` installer
+> macOS shows "unidentified developer" warnings for unsigned apps. This is normal — we'll add code signing in a future release.
+
+</details>
+
+<details>
+<summary><strong>Windows</strong></summary>
+
+1. Download the `.msi` or `.exe` installer
 2. Run the installer
-3. If SmartScreen appears: "More info" → "Run anyway"
+3. **If Windows SmartScreen appears:**
+   - Click "More info"
+   - Click "Run anyway"
 
-**Linux:**
-1. Download the `.AppImage` file
-2. Make executable: `chmod +x specflux-*.AppImage`
-3. Run: `./specflux-*.AppImage`
+> SmartScreen warnings appear for unsigned apps. This is expected for new software without a reputation.
+
+</details>
+
+<details>
+<summary><strong>Linux</strong></summary>
+
+**AppImage (recommended):**
+```bash
+# Download the AppImage
+chmod +x SpecFlux_*.AppImage
+./SpecFlux_*.AppImage
+```
+
+**Debian/Ubuntu (.deb):**
+```bash
+sudo dpkg -i specflux_*.deb
+```
+
+> If you get library errors, install dependencies: `sudo apt install libwebkit2gtk-4.1-0 libssl3`
+
+</details>
 
 ### First Project
 
