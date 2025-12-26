@@ -4,6 +4,14 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  # Allow manual trigger for testing builds
+  workflow_dispatch:
+    inputs:
+      test_build:
+        description: 'Test build only (no release)'
+        required: true
+        default: true
+        type: boolean
 
 permissions:
   contents: write
@@ -15,6 +23,8 @@ jobs:
   create-release:
     name: Create Release
     runs-on: ubuntu-latest
+    # Skip release creation for test builds
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     outputs:
       release_id: ${{ steps.create-release.outputs.result }}
     steps:
@@ -41,35 +51,38 @@ jobs:
             return data.id
 
   build-tauri:
-    name: Build (${{ matrix.platform }})
-    needs: create-release
+    name: Build (${{ matrix.name }})
+    # For tag push, wait for release creation. For manual trigger, run immediately.
+    needs: [create-release]
+    if: always() && (needs.create-release.result == 'success' || needs.create-release.result == 'skipped')
     strategy:
       fail-fast: false
       matrix:
         include:
-          # macOS Apple Silicon (arm64)
+          # macOS Apple Silicon (arm64) - Testing first
           - platform: macos-latest
             target: aarch64-apple-darwin
             args: --target aarch64-apple-darwin
             name: macOS-arm64
 
-          # macOS Intel (x64)
-          - platform: macos-latest
-            target: x86_64-apple-darwin
-            args: --target x86_64-apple-darwin
-            name: macOS-x64
+          # TODO: Enable after arm64 build is verified
+          # # macOS Intel (x64)
+          # - platform: macos-latest
+          #   target: x86_64-apple-darwin
+          #   args: --target x86_64-apple-darwin
+          #   name: macOS-x64
 
-          # Windows x64
-          - platform: windows-latest
-            target: x86_64-pc-windows-msvc
-            args: --target x86_64-pc-windows-msvc
-            name: Windows-x64
+          # # Windows x64
+          # - platform: windows-latest
+          #   target: x86_64-pc-windows-msvc
+          #   args: --target x86_64-pc-windows-msvc
+          #   name: Windows-x64
 
-          # Linux x64
-          - platform: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
-            args: --target x86_64-unknown-linux-gnu
-            name: Linux-x64
+          # # Linux x64
+          # - platform: ubuntu-22.04
+          #   target: x86_64-unknown-linux-gnu
+          #   args: --target x86_64-unknown-linux-gnu
+          #   name: Linux-x64
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -104,7 +117,8 @@ jobs:
       - name: Generate API Client
         run: npm run generate:client
 
-      - name: Build Tauri app
+      - name: Build Tauri app (Release)
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -112,9 +126,27 @@ jobs:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
 
+      - name: Build Tauri app (Test)
+        if: github.event_name == 'workflow_dispatch'
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: ${{ matrix.args }}
+
+      - name: Upload build artifacts (Test only)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.name }}
+          path: |
+            src-tauri/target/${{ matrix.target }}/release/bundle/
+
   publish-release:
     name: Publish Release
     needs: [create-release, build-tauri]
+    # Only publish for tag pushes, not test builds
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - name: Publish Release
