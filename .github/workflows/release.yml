@@ -140,13 +140,30 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Upload build artifacts to GCS
+      - name: Set up Cloud SDK
         if: github.event_name == 'workflow_dispatch'
-        uses: google-github-actions/upload-cloud-storage@v2
-        with:
-          path: src-tauri/target/${{ matrix.target }}/release/bundle
-          destination: specflux-artifacts/builds/${{ github.run_id }}/${{ matrix.name }}
-          parent: false
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Upload build artifacts to Artifact Registry
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          # Find and upload build artifacts
+          for file in src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.dmg \
+                      src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg \
+                      src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*.exe \
+                      src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi \
+                      src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage \
+                      src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb; do
+            if [ -f "$file" ]; then
+              echo "Uploading $file..."
+              gcloud artifacts generic upload \
+                --location=us-west1 \
+                --repository=specflux-releases \
+                --package=specflux-desktop \
+                --version=${{ github.run_id }} \
+                --source="$file"
+            fi
+          done
 
   publish-release:
     name: Publish Release
