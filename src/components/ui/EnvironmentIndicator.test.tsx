@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { EnvironmentIndicator } from "./EnvironmentIndicator";
 
@@ -15,10 +15,10 @@ import * as environment from "../../lib/environment";
 describe("EnvironmentIndicator", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
+    // Reset default mock implementations for each test
+    vi.mocked(environment.isDevelopmentMode).mockReturnValue(true);
+    vi.mocked(environment.getCurrentEnvironment).mockReturnValue("local");
+    vi.mocked(environment.hasEnvironmentOverride).mockReturnValue(false);
   });
 
   describe("visibility", () => {
