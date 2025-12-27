@@ -8,52 +8,52 @@ global.ResizeObserver = vi.fn().mockImplementation(() => ({
   disconnect: vi.fn(),
 }));
 
-// Mock xterm and addons
+// Mock xterm and addons - use class syntax for vitest 4.x compatibility
 vi.mock("@xterm/xterm", () => ({
-  Terminal: vi.fn().mockImplementation(() => ({
-    loadAddon: vi.fn(),
-    open: vi.fn(),
-    write: vi.fn(),
-    writeln: vi.fn(),
-    clear: vi.fn(),
-    onData: vi.fn(() => ({ dispose: vi.fn() })),
-    onScroll: vi.fn(() => ({ dispose: vi.fn() })),
-    scrollToLine: vi.fn(),
-    dispose: vi.fn(),
-    focus: vi.fn(),
-    cols: 80,
-    rows: 24,
-    buffer: {
+  Terminal: class MockTerminal {
+    loadAddon = vi.fn();
+    open = vi.fn();
+    write = vi.fn();
+    writeln = vi.fn();
+    clear = vi.fn();
+    onData = vi.fn(() => ({ dispose: vi.fn() }));
+    onScroll = vi.fn(() => ({ dispose: vi.fn() }));
+    scrollToLine = vi.fn();
+    dispose = vi.fn();
+    focus = vi.fn();
+    cols = 80;
+    rows = 24;
+    buffer = {
       active: {
         baseY: 0,
         viewportY: 0,
       },
-    },
-  })),
+    };
+  },
 }));
 
 vi.mock("@xterm/addon-fit", () => ({
-  FitAddon: vi.fn().mockImplementation(() => ({
-    fit: vi.fn(),
-  })),
+  FitAddon: class MockFitAddon {
+    fit = vi.fn();
+  },
 }));
 
 vi.mock("@xterm/addon-web-links", () => ({
-  WebLinksAddon: vi.fn().mockImplementation(() => ({})),
+  WebLinksAddon: class MockWebLinksAddon {},
 }));
 
 vi.mock("@xterm/addon-webgl", () => ({
-  WebglAddon: vi.fn().mockImplementation(() => ({
-    onContextLoss: vi.fn(),
-    dispose: vi.fn(),
-  })),
+  WebglAddon: class MockWebglAddon {
+    onContextLoss = vi.fn();
+    dispose = vi.fn();
+  },
 }));
 
 vi.mock("@xterm/addon-search", () => ({
-  SearchAddon: vi.fn().mockImplementation(() => ({
-    findNext: vi.fn(),
-    findPrevious: vi.fn(),
-  })),
+  SearchAddon: class MockSearchAddon {
+    findNext = vi.fn();
+    findPrevious = vi.fn();
+  },
 }));
 
 // Mock Tauri terminal service
