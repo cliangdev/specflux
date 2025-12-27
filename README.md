@@ -71,15 +71,9 @@ For technical details, see [Architecture](docs/ARCHITECTURE.md).
 ## Quick Start
 
 ### Download
+> **Coming Soon**: Windows, Linux, and macOS
 
 Pre-built binaries available on [GitHub Releases](https://github.com/specflux/specflux/releases):
-
-| Platform | Download |
-|----------|----------|
-| macOS (Apple Silicon) | `specflux-x.x.x-macos-arm64.dmg` |
-| macOS (Intel) | `specflux-x.x.x-macos-x64.dmg` |
-| Windows | `specflux-x.x.x-windows-x64.msi` |
-| Linux | `specflux-x.x.x-linux-x64.AppImage` |
 
 > **Note:** Apps are currently unsigned. See [Installation](#installation) for bypass instructions.
 
