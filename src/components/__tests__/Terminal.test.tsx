@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock ResizeObserver
 global.ResizeObserver = vi.fn().mockImplementation(() => ({
@@ -82,11 +82,10 @@ import {
 describe("Terminal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset default mock implementations for each test
     vi.mocked(hasTerminalSession).mockResolvedValue(false);
-  });
-
-  afterEach(() => {
-    vi.clearAllMocks();
+    vi.mocked(spawnTerminal).mockResolvedValue(undefined);
+    vi.mocked(writeToTerminal).mockResolvedValue(undefined);
   });
 
   it("renders terminal container", () => {
