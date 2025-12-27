@@ -1,12 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock ResizeObserver
-global.ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+// Mock ResizeObserver - use class syntax for vitest 4.x compatibility
+global.ResizeObserver = class MockResizeObserver {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+} as unknown as typeof ResizeObserver;
 
 // Mock xterm and addons - use class syntax for vitest 4.x compatibility
 vi.mock("@xterm/xterm", () => ({
