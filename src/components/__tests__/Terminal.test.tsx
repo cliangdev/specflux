@@ -1,59 +1,57 @@
 import { render, screen } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock ResizeObserver
-global.ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+global.ResizeObserver = class MockResizeObserver {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+} as unknown as typeof ResizeObserver;
 
-// Mock xterm and addons
 vi.mock("@xterm/xterm", () => ({
-  Terminal: vi.fn().mockImplementation(() => ({
-    loadAddon: vi.fn(),
-    open: vi.fn(),
-    write: vi.fn(),
-    writeln: vi.fn(),
-    clear: vi.fn(),
-    onData: vi.fn(() => ({ dispose: vi.fn() })),
-    onScroll: vi.fn(() => ({ dispose: vi.fn() })),
-    scrollToLine: vi.fn(),
-    dispose: vi.fn(),
-    focus: vi.fn(),
-    cols: 80,
-    rows: 24,
-    buffer: {
+  Terminal: class MockTerminal {
+    loadAddon = vi.fn();
+    open = vi.fn();
+    write = vi.fn();
+    writeln = vi.fn();
+    clear = vi.fn();
+    onData = vi.fn(() => ({ dispose: vi.fn() }));
+    onScroll = vi.fn(() => ({ dispose: vi.fn() }));
+    scrollToLine = vi.fn();
+    dispose = vi.fn();
+    focus = vi.fn();
+    cols = 80;
+    rows = 24;
+    buffer = {
       active: {
         baseY: 0,
         viewportY: 0,
       },
-    },
-  })),
+    };
+  },
 }));
 
 vi.mock("@xterm/addon-fit", () => ({
-  FitAddon: vi.fn().mockImplementation(() => ({
-    fit: vi.fn(),
-  })),
+  FitAddon: class MockFitAddon {
+    fit = vi.fn();
+  },
 }));
 
 vi.mock("@xterm/addon-web-links", () => ({
-  WebLinksAddon: vi.fn().mockImplementation(() => ({})),
+  WebLinksAddon: class MockWebLinksAddon {},
 }));
 
 vi.mock("@xterm/addon-webgl", () => ({
-  WebglAddon: vi.fn().mockImplementation(() => ({
-    onContextLoss: vi.fn(),
-    dispose: vi.fn(),
-  })),
+  WebglAddon: class MockWebglAddon {
+    onContextLoss = vi.fn();
+    dispose = vi.fn();
+  },
 }));
 
 vi.mock("@xterm/addon-search", () => ({
-  SearchAddon: vi.fn().mockImplementation(() => ({
-    findNext: vi.fn(),
-    findPrevious: vi.fn(),
-  })),
+  SearchAddon: class MockSearchAddon {
+    findNext = vi.fn();
+    findPrevious = vi.fn();
+  },
 }));
 
 // Mock Tauri terminal service
@@ -83,10 +81,8 @@ describe("Terminal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(hasTerminalSession).mockResolvedValue(false);
-  });
-
-  afterEach(() => {
-    vi.clearAllMocks();
+    vi.mocked(spawnTerminal).mockResolvedValue(undefined);
+    vi.mocked(writeToTerminal).mockResolvedValue(undefined);
   });
 
   it("renders terminal container", () => {
