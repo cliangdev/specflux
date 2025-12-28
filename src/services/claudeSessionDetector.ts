@@ -118,6 +118,21 @@ export async function detectClaudeSessionId(
 }
 
 /**
+ * Check if a specific session ID exists in Claude's storage.
+ *
+ * @param workingDirectory - The project's working directory
+ * @param sessionId - The session ID to check
+ * @returns True if the session file exists, false otherwise
+ */
+export async function sessionExists(
+  workingDirectory: string,
+  sessionId: string
+): Promise<boolean> {
+  const files = await listSessionFiles(workingDirectory);
+  return files.some((f) => f.sessionId === sessionId);
+}
+
+/**
  * Take a snapshot of existing session IDs.
  * Call this BEFORE launching Claude to know which sessions already exist.
  */
@@ -130,21 +145,24 @@ export async function snapshotExistingSessions(
 
 /**
  * Poll for a new Claude session after launching Claude.
- * This runs in the background and saves the session ID when detected.
+ * Runs in the background and saves the session ID when detected.
  *
  * @param workingDirectory - The project's working directory
  * @param contextKey - The context key for storing the session
- * @param existingSessionIds - Set of session IDs that existed before launching (from snapshotExistingSessions)
+ * @param existingSessionIds - Session IDs that existed before launching
+ * @param commandSentAt - When the claude command was sent (prevents race conditions)
  * @param onSessionDetected - Optional callback when session is detected
  */
 export async function pollForClaudeSession(
   workingDirectory: string,
   contextKey: string,
   existingSessionIds: Set<string>,
+  commandSentAt?: Date,
   onSessionDetected?: (sessionId: string) => void
 ): Promise<void> {
   const startTime = new Date();
   const endTime = new Date(startTime.getTime() + POLL_TIMEOUT_MS);
+  const minSessionTime = commandSentAt || new Date(startTime.getTime() - 1000);
 
   const poll = async (): Promise<void> => {
     if (new Date() > endTime) {
@@ -154,17 +172,15 @@ export async function pollForClaudeSession(
 
     try {
       const currentFiles = await listSessionFiles(workingDirectory);
-      // Find NEW session IDs that didn't exist before
       const newSessions = currentFiles.filter(
-        (f) => !existingSessionIds.has(f.sessionId)
+        (f) => !existingSessionIds.has(f.sessionId) && f.modifiedAt >= minSessionTime
       );
 
       if (newSessions.length > 0) {
-        // Pick the most recently modified new session
         const session = newSessions.reduce((most, file) =>
           file.modifiedAt > most.modifiedAt ? file : most
         );
-        console.log(`Detected new Claude session: ${session.sessionId}`);
+        console.log(`Detected new Claude session: ${session.sessionId} for context ${contextKey}`);
         await saveClaudeSessionId(workingDirectory, contextKey, session.sessionId);
         onSessionDetected?.(session.sessionId);
         return;
@@ -173,10 +189,8 @@ export async function pollForClaudeSession(
       console.warn("Error polling for Claude session:", error);
     }
 
-    // Continue polling
     setTimeout(poll, POLL_INTERVAL_MS);
   };
 
-  // Start polling (don't await - runs in background)
   setTimeout(poll, POLL_INTERVAL_MS);
 }

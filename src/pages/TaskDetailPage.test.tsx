@@ -85,6 +85,11 @@ vi.mock("../hooks/usePageContext", () => ({
   usePageContext: vi.fn(),
 }));
 
+// Mock useHasClaudeSession hook
+vi.mock("../hooks/useHasClaudeSession", () => ({
+  useHasClaudeSession: vi.fn(() => false),
+}));
+
 // Mock ProjectContext - use stable function reference
 const mockGetProjectRef = vi.fn(() => "PROJ-1");
 vi.mock("../contexts", () => ({
