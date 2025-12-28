@@ -16,6 +16,7 @@ import { AcceptanceCriteriaList } from "../components/ui/AcceptanceCriteriaList"
 import MarkdownRenderer from "../components/ui/MarkdownRenderer";
 import { useTerminal } from "../contexts/TerminalContext";
 import { usePageContext } from "../hooks/usePageContext";
+import { useHasClaudeSession } from "../hooks/useHasClaudeSession";
 import { generateTaskPrompt } from "../services/promptGenerator";
 
 // Task status options for DetailPageHeader
@@ -55,6 +56,7 @@ export default function TaskDetailPage() {
     openTerminalForContext,
     getExistingSession,
     switchToSession,
+    closeSession,
     activeSession,
     isRunning: terminalIsRunning,
   } = useTerminal();
@@ -81,14 +83,20 @@ export default function TaskDetailPage() {
   // Check if terminal is showing this task
   const isTerminalShowingThisTask = activeSession?.contextId === taskId;
 
-  // Check if a session exists for this task
-  const hasExistingSession = task
+  // Check if a Claude session exists (even if terminal tab is closed)
+  const hasClaudeSession = useHasClaudeSession("task", task?.id);
+
+  // Check if a terminal tab exists for this task
+  const hasTerminalTab = task
     ? !!getExistingSession({
         type: "task" as const,
         id: task.id,
         title: task.title,
       })
     : false;
+
+  // Show "Resume Agent" if either terminal tab or Claude session exists
+  const hasExistingSession = hasTerminalTab || hasClaudeSession;
 
   const fetchTask = useCallback(async () => {
     if (!taskId) return;
@@ -344,33 +352,53 @@ export default function TaskDetailPage() {
     }
   };
 
+  // Build context for terminal session
+  const buildTerminalContext = useCallback(() => {
+    if (!task) return null;
+    const initialPrompt = generateTaskPrompt({
+      title: task.title,
+      displayKey: task.displayKey || task.id,
+      status: task.status,
+      priority: task.priority,
+    });
+
+    return {
+      type: "task" as const,
+      id: task.id,
+      title: task.title,
+      displayKey: task.displayKey,
+      projectRef: getProjectRef() ?? undefined,
+      workingDirectory: currentProject?.localPath,
+      initialCommand: "claude",
+      initialPrompt,
+    };
+  }, [task, getProjectRef, currentProject?.localPath]);
+
+  // Resume existing session or create new one
   const handleOpenInTerminal = () => {
-    if (task) {
-      const initialPrompt = generateTaskPrompt({
-        title: task.title,
-        displayKey: task.displayKey || task.id,
-        status: task.status,
-        priority: task.priority,
-      });
+    const context = buildTerminalContext();
+    if (!context) return;
 
-      const context = {
-        type: "task" as const,
-        id: task.id,
-        title: task.title,
-        displayKey: task.displayKey,
-        projectRef: getProjectRef() ?? undefined,
-        workingDirectory: currentProject?.localPath,
-        initialCommand: "claude",
-        initialPrompt,
-      };
-
-      const existing = getExistingSession(context);
-      if (existing) {
-        switchToSession(existing.id);
-      } else {
-        openTerminalForContext(context);
-      }
+    const existing = getExistingSession(context);
+    if (existing) {
+      switchToSession(existing.id);
+    } else {
+      openTerminalForContext(context);
     }
+  };
+
+  // Force launch a new agent (close existing session first)
+  const handleLaunchNewAgent = () => {
+    const context = buildTerminalContext();
+    if (!context) return;
+
+    // Close existing session if any
+    const existing = getExistingSession(context);
+    if (existing) {
+      closeSession(existing.id);
+    }
+    // Open fresh terminal with forceNew flag to skip Claude session resume
+    openTerminalForContext({ ...context, forceNew: true });
   };
 
   useEffect(() => {
@@ -466,7 +494,7 @@ export default function TaskDetailPage() {
             entityTitle={task.title}
             hasExistingSession={hasExistingSession}
             isTerminalActive={isTerminalShowingThisTask && terminalIsRunning}
-            onStartWork={handleOpenInTerminal}
+            onStartWork={handleLaunchNewAgent}
             onContinueWork={hasExistingSession ? handleOpenInTerminal : undefined}
           />
         }

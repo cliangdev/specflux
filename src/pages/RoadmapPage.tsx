@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useProject } from "../contexts";
 import { useTerminal } from "../contexts/TerminalContext";
+import { useHasClaudeSession } from "../hooks/useHasClaudeSession";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import type { Release, ReleaseStatus } from "../api/generated/models";
@@ -165,7 +166,8 @@ interface ReleaseHeaderProps {
   epicCount?: number;
   completedEpicCount?: number;
   onUpdate: () => void;
-  onOpenInTerminal?: () => void;
+  onLaunchNewAgent?: () => void;
+  onResumeAgent?: () => void;
   hasExistingSession?: boolean;
   isTerminalActive?: boolean;
 }
@@ -182,7 +184,8 @@ function ReleaseHeader({
   epicCount = 0,
   completedEpicCount = 0,
   onUpdate,
-  onOpenInTerminal,
+  onLaunchNewAgent,
+  onResumeAgent,
   hasExistingSession,
   isTerminalActive,
 }: ReleaseHeaderProps) {
@@ -544,15 +547,15 @@ function ReleaseHeader({
         </div>
 
         {/* Start/Continue Work button */}
-        {onOpenInTerminal && (
+        {onLaunchNewAgent && (
           <AIActionButton
             entityType="release"
             entityId={release.id}
             entityTitle={release.name}
             hasExistingSession={hasExistingSession}
             isTerminalActive={isTerminalActive}
-            onStartWork={onOpenInTerminal}
-            onContinueWork={hasExistingSession ? onOpenInTerminal : undefined}
+            onStartWork={onLaunchNewAgent}
+            onContinueWork={hasExistingSession ? onResumeAgent : undefined}
             size="sm"
           />
         )}
@@ -567,11 +570,18 @@ export default function RoadmapPage() {
     openTerminalForContext,
     getExistingSession,
     switchToSession,
+    closeSession,
     activeSession,
     isRunning: terminalIsRunning,
   } = useTerminal();
   const [searchParams, setSearchParams] = useSearchParams();
   const [releases, setReleases] = useState<Release[]>([]);
+  const [roadmapData, setRoadmapData] = useState<ReleaseWithEpics | null>(null);
+  const [selectedEpic, setSelectedEpic] = useState<Epic | null>(null);
+
+  // Check for Claude sessions (even if terminal tab is closed)
+  const hasClaudeSessionForRelease = useHasClaudeSession("release", roadmapData?.release?.id);
+  const hasClaudeSessionForEpic = useHasClaudeSession("epic", selectedEpic?.id);
 
   // Load initial filters from localStorage
   const [initialFilters] = useState(loadFilters);
@@ -586,11 +596,9 @@ export default function RoadmapPage() {
     return null;
   });
 
-  const [roadmapData, setRoadmapData] = useState<ReleaseWithEpics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingEpic, setEditingEpic] = useState<Epic | null>(null);
-  const [selectedEpic, setSelectedEpic] = useState<Epic | null>(null);
   const [showCreateRelease, setShowCreateRelease] = useState(false);
   const [showCreateEpic, setShowCreateEpic] = useState(false);
   const [createEpicReleaseId, setCreateEpicReleaseId] = useState<string | null>(
@@ -757,20 +765,38 @@ export default function RoadmapPage() {
     fetchRoadmap();
   };
 
-  // Handle opening terminal for a release
-  const handleOpenReleaseInTerminal = useCallback(
-    (release: Release) => {
-      const context = {
-        type: "release" as const,
-        id: release.id,
-        title: release.name,
-        displayKey: release.displayKey,
-        projectRef: getProjectRef() ?? undefined,
-        workingDirectory: currentProject?.localPath,
-        initialCommand: "claude",
-      };
+  // Build release terminal context
+  const buildReleaseContext = useCallback(
+    (release: Release) => ({
+      type: "release" as const,
+      id: release.id,
+      title: release.name,
+      displayKey: release.displayKey,
+      projectRef: getProjectRef() ?? undefined,
+      workingDirectory: currentProject?.localPath,
+      initialCommand: "claude",
+    }),
+    [getProjectRef, currentProject?.localPath]
+  );
 
-      // Check if session already exists
+  // Force launch a new agent for release (close existing session first)
+  const handleLaunchNewReleaseAgent = useCallback(
+    (release: Release) => {
+      const context = buildReleaseContext(release);
+      const existing = getExistingSession(context);
+      if (existing) {
+        closeSession(existing.id);
+      }
+      // Open fresh terminal with forceNew flag to skip Claude session resume
+      openTerminalForContext({ ...context, forceNew: true });
+    },
+    [buildReleaseContext, getExistingSession, closeSession, openTerminalForContext]
+  );
+
+  // Resume existing release session or create new one
+  const handleResumeReleaseAgent = useCallback(
+    (release: Release) => {
+      const context = buildReleaseContext(release);
       const existing = getExistingSession(context);
       if (existing) {
         switchToSession(existing.id);
@@ -778,10 +804,9 @@ export default function RoadmapPage() {
         openTerminalForContext(context);
       }
     },
-    [getProjectRef, currentProject?.localPath, getExistingSession, switchToSession, openTerminalForContext]
+    [buildReleaseContext, getExistingSession, switchToSession, openTerminalForContext]
   );
 
-  // Check if a release has an existing terminal session
   const getReleaseSessionInfo = useCallback(
     (release: Release) => {
       const context = {
@@ -789,29 +814,51 @@ export default function RoadmapPage() {
         id: release.id,
         title: release.name,
       };
-      const existing = getExistingSession(context);
+      const hasTerminalTab = !!getExistingSession(context);
       const isActive = activeSession?.id === `release-${release.id}`;
+      const hasSession = release.id === roadmapData?.release?.id
+        ? (hasTerminalTab || hasClaudeSessionForRelease)
+        : hasTerminalTab;
       return {
-        hasExistingSession: !!existing,
+        hasExistingSession: hasSession,
         isTerminalActive: isActive && terminalIsRunning,
       };
     },
-    [getExistingSession, activeSession?.id, terminalIsRunning]
+    [getExistingSession, activeSession?.id, terminalIsRunning, roadmapData?.release?.id, hasClaudeSessionForRelease]
   );
 
-  // Handle opening terminal for an epic
-  const handleOpenEpicInTerminal = useCallback(
-    (epic: Epic) => {
-      const context = {
-        type: "epic" as const,
-        id: epic.id,
-        title: epic.title,
-        displayKey: epic.displayKey,
-        projectRef: getProjectRef() ?? undefined,
-        workingDirectory: currentProject?.localPath,
-        initialCommand: "claude",
-      };
+  // Build epic terminal context
+  const buildEpicContext = useCallback(
+    (epic: Epic) => ({
+      type: "epic" as const,
+      id: epic.id,
+      title: epic.title,
+      displayKey: epic.displayKey,
+      projectRef: getProjectRef() ?? undefined,
+      workingDirectory: currentProject?.localPath,
+      initialCommand: "claude",
+    }),
+    [getProjectRef, currentProject?.localPath]
+  );
 
+  // Force launch a new agent for epic (close existing session first)
+  const handleLaunchNewEpicAgent = useCallback(
+    (epic: Epic) => {
+      const context = buildEpicContext(epic);
+      const existing = getExistingSession(context);
+      if (existing) {
+        closeSession(existing.id);
+      }
+      // Open fresh terminal with forceNew flag to skip Claude session resume
+      openTerminalForContext({ ...context, forceNew: true });
+    },
+    [buildEpicContext, getExistingSession, closeSession, openTerminalForContext]
+  );
+
+  // Resume existing epic session or create new one
+  const handleResumeEpicAgent = useCallback(
+    (epic: Epic) => {
+      const context = buildEpicContext(epic);
       const existing = getExistingSession(context);
       if (existing) {
         switchToSession(existing.id);
@@ -819,10 +866,9 @@ export default function RoadmapPage() {
         openTerminalForContext(context);
       }
     },
-    [getProjectRef, currentProject?.localPath, getExistingSession, switchToSession, openTerminalForContext]
+    [buildEpicContext, getExistingSession, switchToSession, openTerminalForContext]
   );
 
-  // Get epic session info for side panel
   const getEpicSessionInfo = useCallback(
     (epic: Epic) => {
       const context = {
@@ -830,14 +876,17 @@ export default function RoadmapPage() {
         id: epic.id,
         title: epic.title,
       };
-      const existing = getExistingSession(context);
+      const hasTerminalTab = !!getExistingSession(context);
       const isActive = activeSession?.id === `epic-${epic.id}`;
+      const hasSession = epic.id === selectedEpic?.id
+        ? (hasTerminalTab || hasClaudeSessionForEpic)
+        : hasTerminalTab;
       return {
-        hasExistingSession: !!existing,
+        hasExistingSession: hasSession,
         isTerminalActive: isActive && terminalIsRunning,
       };
     },
-    [getExistingSession, activeSession?.id, terminalIsRunning]
+    [getExistingSession, activeSession?.id, terminalIsRunning, selectedEpic?.id, hasClaudeSessionForEpic]
   );
 
   // Get all epics for side panel dependencies
@@ -1078,7 +1127,8 @@ export default function RoadmapPage() {
                       epicCount={roadmapData.epics.length}
                       completedEpicCount={roadmapData.epics.filter((e) => e.status === "COMPLETED").length}
                       onUpdate={handleRefresh}
-                      onOpenInTerminal={() => handleOpenReleaseInTerminal(roadmapData.release)}
+                      onLaunchNewAgent={() => handleLaunchNewReleaseAgent(roadmapData.release)}
+                      onResumeAgent={() => handleResumeReleaseAgent(roadmapData.release)}
                       hasExistingSession={sessionInfo.hasExistingSession}
                       isTerminalActive={sessionInfo.isTerminalActive}
                     />
@@ -1266,8 +1316,8 @@ export default function RoadmapPage() {
               epic={selectedEpic}
               allEpics={getAllEpics}
               onClose={() => setSelectedEpic(null)}
-              onStartWork={() => handleOpenEpicInTerminal(selectedEpic)}
-              onContinueWork={getEpicSessionInfo(selectedEpic).hasExistingSession ? () => handleOpenEpicInTerminal(selectedEpic) : undefined}
+              onStartWork={() => handleLaunchNewEpicAgent(selectedEpic)}
+              onContinueWork={getEpicSessionInfo(selectedEpic).hasExistingSession ? () => handleResumeEpicAgent(selectedEpic) : undefined}
               hasExistingSession={getEpicSessionInfo(selectedEpic).hasExistingSession}
               isTerminalActive={getEpicSessionInfo(selectedEpic).isTerminalActive}
             />

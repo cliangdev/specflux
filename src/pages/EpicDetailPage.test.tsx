@@ -83,6 +83,11 @@ vi.mock("../hooks/usePageContext", () => ({
   usePageContext: vi.fn(),
 }));
 
+// Mock useHasClaudeSession hook
+vi.mock("../hooks/useHasClaudeSession", () => ({
+  useHasClaudeSession: vi.fn(() => false),
+}));
+
 const mockNavigate = vi.fn();
 
 // Mock react-router-dom partially

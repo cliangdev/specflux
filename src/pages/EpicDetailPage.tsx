@@ -18,6 +18,7 @@ import MarkdownRenderer from "../components/ui/MarkdownRenderer";
 import PrdSelector from "../components/epics/PrdSelector";
 import ReleaseSelector from "../components/epics/ReleaseSelector";
 import { usePageContext } from "../hooks/usePageContext";
+import { useHasClaudeSession } from "../hooks/useHasClaudeSession";
 import { useTerminal } from "../contexts/TerminalContext";
 import { generateEpicPrompt } from "../services/promptGenerator";
 
@@ -62,7 +63,7 @@ export default function EpicDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentProject, getProjectRef } = useProject();
-  const { openTerminalForContext, getExistingSession, switchToSession, activeSession, isRunning } = useTerminal();
+  const { openTerminalForContext, getExistingSession, switchToSession, closeSession, activeSession, isRunning } = useTerminal();
 
   const [epic, setEpic] = useState<EpicWithV2Fields | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -379,45 +380,51 @@ export default function EpicDetailPage() {
     }
   };
 
+  // Build context for terminal session
+  const buildTerminalContext = useCallback(() => {
+    if (!epic) return null;
+    const initialPrompt = generateEpicPrompt({
+      title: epic.title,
+      displayKey: epic.displayKey || epic.v2Id || epic.id,
+      status: epic.status,
+      taskCount: epic.taskStats?.total ?? 0,
+    });
+    return {
+      type: "epic" as const,
+      id: epic.v2Id || epic.id,
+      title: epic.title,
+      displayKey: epic.displayKey,
+      projectRef: getProjectRef() ?? undefined,
+      workingDirectory: currentProject?.localPath,
+      initialCommand: "claude",
+      initialPrompt,
+    };
+  }, [epic, getProjectRef, currentProject?.localPath]);
+
+  // Force launch a new agent (close existing session first)
   const handleStartWork = () => {
-    if (epic) {
-      const initialPrompt = generateEpicPrompt({
-        title: epic.title,
-        displayKey: epic.displayKey || epic.v2Id || epic.id,
-        status: epic.status,
-        taskCount: epic.taskStats?.total ?? 0,
-      });
-      const context = {
-        type: "epic" as const,
-        id: epic.v2Id || epic.id,
-        title: epic.title,
-        displayKey: epic.displayKey,
-        projectRef: getProjectRef() ?? undefined,
-        workingDirectory: currentProject?.localPath,
-        initialCommand: "claude",
-        initialPrompt,
-      };
-      const existing = getExistingSession(context);
-      if (existing) {
-        switchToSession(existing.id);
-      } else {
-        openTerminalForContext(context);
-      }
+    const context = buildTerminalContext();
+    if (!context) return;
+
+    // Close existing session if any
+    const existing = getExistingSession(context);
+    if (existing) {
+      closeSession(existing.id);
     }
+    // Open fresh terminal with forceNew flag to skip Claude session resume
+    openTerminalForContext({ ...context, forceNew: true });
   };
 
+  // Resume existing session or create new one
   const handleContinueWork = () => {
-    if (epic) {
-      const context = {
-        type: "epic" as const,
-        id: epic.v2Id || epic.id,
-        title: epic.title,
-        displayKey: epic.displayKey,
-      };
-      const existing = getExistingSession(context);
-      if (existing) {
-        switchToSession(existing.id);
-      }
+    const context = buildTerminalContext();
+    if (!context) return;
+
+    const existing = getExistingSession(context);
+    if (existing) {
+      switchToSession(existing.id);
+    } else {
+      openTerminalForContext(context);
     }
   };
 
@@ -448,13 +455,20 @@ export default function EpicDetailPage() {
     }
   };
 
-  const hasExistingSession = epic
+  // Check if a Claude session exists (even if terminal tab is closed)
+  const hasClaudeSession = useHasClaudeSession("epic", epic?.v2Id || epic?.id);
+
+  // Check if a terminal tab exists for this epic
+  const hasTerminalTab = epic
     ? !!getExistingSession({
         type: "epic" as const,
         id: epic.v2Id || epic.id,
         title: epic.title,
       })
     : false;
+
+  // Show "Resume Agent" if either terminal tab or Claude session exists
+  const hasExistingSession = hasTerminalTab || hasClaudeSession;
 
   const isTerminalShowingThisEpic = activeSession?.contextId === (epic?.v2Id || epic?.id);
 

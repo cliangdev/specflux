@@ -61,6 +61,7 @@ export interface ContextInfo {
   workingDirectory?: string; // Working directory for the terminal
   initialCommand?: string; // Command to run after terminal starts (e.g., "claude")
   initialPrompt?: string; // Prompt to send to Claude after it starts
+  forceNew?: boolean; // Skip Claude session resume, always start fresh
 }
 
 export interface TerminalSession {
@@ -74,6 +75,7 @@ export interface TerminalSession {
   workingDirectory?: string; // Working directory for the terminal
   initialCommand?: string; // Command to run after terminal starts
   initialPrompt?: string; // Prompt to send to Claude after it starts
+  forceNew?: boolean; // Skip Claude session resume, always start fresh
   isRunning: boolean;
   isConnected: boolean;
 }
@@ -442,6 +444,7 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
           workingDirectory: context.workingDirectory,
           initialCommand: context.initialCommand,
           initialPrompt: context.initialPrompt,
+          forceNew: context.forceNew,
           isRunning: false,
           isConnected: false,
         },
@@ -476,6 +479,9 @@ export function TerminalProvider({ children }: { children: ReactNode }) {
 
   const switchToSession = useCallback((sessionId: string) => {
     setActiveSessionId(sessionId);
+    // Also open and uncollapse the panel so the user can see the session
+    setIsOpen(true);
+    setIsCollapsed(false);
   }, []);
 
   // Debounced status updates to reduce re-renders during high output

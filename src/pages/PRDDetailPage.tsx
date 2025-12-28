@@ -11,6 +11,7 @@ import { EpicCreateModal } from "../components/epics";
 import { GettingStartedBanner } from "../components/prds/GettingStartedBanner";
 import { useProject } from "../contexts/ProjectContext";
 import { usePageContext } from "../hooks/usePageContext";
+import { useHasClaudeSession } from "../hooks/useHasClaudeSession";
 import { useTerminal } from "../contexts/TerminalContext";
 import {
   api,
@@ -143,7 +144,7 @@ export default function PRDDetailPage() {
   });
 
   // Terminal context for AI actions
-  const { openTerminalForContext, getExistingSession, switchToSession, activeSession, isRunning } = useTerminal();
+  const { openTerminalForContext, getExistingSession, switchToSession, closeSession, activeSession, isRunning } = useTerminal();
 
   // Set page context for terminal suggested commands - use displayKey once PRD is loaded
   usePageContext(
@@ -368,48 +369,52 @@ export default function PRDDetailPage() {
     }
   };
 
+  // Build context for terminal session
+  const buildTerminalContext = useCallback(() => {
+    if (!prd) return null;
+    const initialPrompt = generatePrdPrompt({
+      title: prd.title,
+      displayKey: prd.displayKey || prd.id,
+      status: prd.status,
+      documentCount: prd.documents?.length ?? 0,
+    });
+
+    return {
+      type: "prd" as const,
+      id: prd.id,
+      title: prd.title,
+      displayKey: prd.displayKey,
+      projectRef: getProjectRef() ?? undefined,
+      workingDirectory: currentProject?.localPath,
+      initialCommand: "claude",
+      initialPrompt,
+    };
+  }, [prd, getProjectRef, currentProject?.localPath]);
+
+  // Force launch a new agent (close existing session first)
   const handleStartWork = () => {
-    if (prd) {
-      const initialPrompt = generatePrdPrompt({
-        title: prd.title,
-        displayKey: prd.displayKey || prd.id,
-        status: prd.status,
-        documentCount: prd.documents?.length ?? 0,
-      });
+    const context = buildTerminalContext();
+    if (!context) return;
 
-      const context = {
-        type: "prd" as const,
-        id: prd.id,
-        title: prd.title,
-        displayKey: prd.displayKey,
-        projectRef: getProjectRef() ?? undefined,
-        workingDirectory: currentProject?.localPath,
-        initialCommand: "claude",
-        initialPrompt,
-      };
-
-      // Check if session already exists - switch to it directly
-      const existing = getExistingSession(context);
-      if (existing) {
-        switchToSession(existing.id);
-      } else {
-        openTerminalForContext(context);
-      }
+    // Close existing session if any
+    const existing = getExistingSession(context);
+    if (existing) {
+      closeSession(existing.id);
     }
+    // Open fresh terminal with forceNew flag to skip Claude session resume
+    openTerminalForContext({ ...context, forceNew: true });
   };
 
+  // Resume existing session or create new one
   const handleContinueWork = () => {
-    if (prd) {
-      const context = {
-        type: "prd" as const,
-        id: prd.id,
-        title: prd.title,
-        displayKey: prd.displayKey,
-      };
-      const existing = getExistingSession(context);
-      if (existing) {
-        switchToSession(existing.id);
-      }
+    const context = buildTerminalContext();
+    if (!context) return;
+
+    const existing = getExistingSession(context);
+    if (existing) {
+      switchToSession(existing.id);
+    } else {
+      openTerminalForContext(context);
     }
   };
 
@@ -497,14 +502,20 @@ export default function PRDDetailPage() {
     }
   };
 
-  // Check if terminal has existing session for this PRD
-  const hasExistingSession = prd
+  // Check if a Claude session exists (even if terminal tab is closed)
+  const hasClaudeSession = useHasClaudeSession("prd", prd?.id);
+
+  // Check if a terminal tab exists for this PRD
+  const hasTerminalTab = prd
     ? !!getExistingSession({
         type: "prd" as const,
         id: prd.id,
         title: prd.title,
       })
     : false;
+
+  // Show "Resume Agent" if either terminal tab or Claude session exists
+  const hasExistingSession = hasTerminalTab || hasClaudeSession;
 
   // Check if terminal is showing this PRD
   const isTerminalShowingThisPrd = activeSession?.contextId === prd?.id;

@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   detectClaudeSessionId,
   snapshotExistingSessions,
+  sessionExists,
+  pollForClaudeSession,
 } from "../claudeSessionDetector";
 
 // Mock Tauri APIs
@@ -16,10 +18,11 @@ vi.mock("@tauri-apps/api/path", () => ({
 }));
 
 vi.mock("../claudeSessionStore", () => ({
-  saveClaudeSessionId: vi.fn(),
+  saveClaudeSessionId: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { readDir, stat } from "@tauri-apps/plugin-fs";
+import { saveClaudeSessionId } from "../claudeSessionStore";
 
 describe("claudeSessionDetector", () => {
   beforeEach(() => {
@@ -146,6 +149,59 @@ describe("claudeSessionDetector", () => {
       const result = await detectClaudeSessionId("/Users/test/project");
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe("sessionExists", () => {
+    it("returns true when session file exists", async () => {
+      vi.mocked(readDir).mockResolvedValue([
+        { name: "abc12345-1234-1234-1234-123456789abc.jsonl", isFile: true, isDirectory: false, isSymlink: false },
+      ]);
+      vi.mocked(stat).mockResolvedValue({
+        mtime: new Date("2024-01-01T12:00:00Z"),
+      } as Awaited<ReturnType<typeof stat>>);
+
+      const result = await sessionExists("/Users/test/project", "abc12345-1234-1234-1234-123456789abc");
+      expect(result).toBe(true);
+    });
+
+    it("returns false when session file does not exist", async () => {
+      vi.mocked(readDir).mockResolvedValue([
+        { name: "other1234-1234-1234-1234-123456789abc.jsonl", isFile: true, isDirectory: false, isSymlink: false },
+      ]);
+      vi.mocked(stat).mockResolvedValue({
+        mtime: new Date("2024-01-01T12:00:00Z"),
+      } as Awaited<ReturnType<typeof stat>>);
+
+      const result = await sessionExists("/Users/test/project", "abc12345-1234-1234-1234-123456789abc");
+      expect(result).toBe(false);
+    });
+
+    it("returns false when directory cannot be read", async () => {
+      vi.mocked(readDir).mockRejectedValue(new Error("Directory not found"));
+
+      const result = await sessionExists("/Users/test/project", "abc12345-1234-1234-1234-123456789abc");
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("pollForClaudeSession", () => {
+    it("can be called without crashing", () => {
+      vi.mocked(readDir).mockResolvedValue([]);
+
+      // Just verify the function can be called without throwing
+      expect(() => {
+        pollForClaudeSession("/Users/test/project", "task:123", new Set(), new Date());
+      }).not.toThrow();
+    });
+
+    it("accepts optional callback parameter", () => {
+      vi.mocked(readDir).mockResolvedValue([]);
+
+      const onDetected = vi.fn();
+      expect(() => {
+        pollForClaudeSession("/Users/test/project", "task:123", new Set(), new Date(), onDetected);
+      }).not.toThrow();
     });
   });
 });

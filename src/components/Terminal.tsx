@@ -23,10 +23,12 @@ import { getApiBaseUrl } from "../lib/environment";
 import {
   getClaudeSessionId,
   buildContextKey,
+  removeClaudeSessionId,
 } from "../services/claudeSessionStore";
 import {
   pollForClaudeSession,
   snapshotExistingSessions,
+  sessionExists,
 } from "../services/claudeSessionDetector";
 
 type ContextType = "task" | "epic" | "project" | "prd" | "prd-workshop" | "release";
@@ -40,6 +42,7 @@ interface TerminalProps {
   workingDirectory?: string;
   initialCommand?: string;
   initialPrompt?: string; // Prompt to send to Claude after it starts
+  forceNew?: boolean; // Skip Claude session resume, always start fresh
   onStatusChange?: (running: boolean) => void;
   onConnectionChange?: (connected: boolean) => void;
 }
@@ -70,6 +73,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
     workingDirectory,
     initialCommand,
     initialPrompt,
+    forceNew,
     onStatusChange,
     onConnectionChange,
   },
@@ -310,11 +314,24 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
               // Take snapshot of existing sessions BEFORE launching Claude
               existingSessionSnapshot = await snapshotExistingSessions(workingDirectory);
 
-              const existingClaudeSession = await getClaudeSessionId(workingDirectory, contextKey);
-              if (existingClaudeSession) {
-                commandToSend = `claude --resume ${existingClaudeSession}`;
-                isResumingSession = true;
-                console.log(`Resuming Claude session: ${existingClaudeSession}`);
+              // If forceNew is set, clear any existing session ID and start fresh
+              if (forceNew) {
+                await removeClaudeSessionId(workingDirectory, contextKey);
+              } else {
+                // Try to resume existing Claude session
+                const existingClaudeSession = await getClaudeSessionId(workingDirectory, contextKey);
+                if (existingClaudeSession) {
+                  // Validate the session actually exists in Claude's storage
+                  const exists = await sessionExists(workingDirectory, existingClaudeSession);
+                  if (exists) {
+                    commandToSend = `claude --resume ${existingClaudeSession}`;
+                    isResumingSession = true;
+                  } else {
+                    // Session no longer exists - clear stale entry and start fresh
+                    console.warn(`Stored session ${existingClaudeSession} no longer exists, starting fresh`);
+                    await removeClaudeSessionId(workingDirectory, contextKey);
+                  }
+                }
               }
             } catch (error) {
               console.warn("Failed to check for Claude session:", error);
@@ -322,19 +339,12 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
           }
 
           setTimeout(async () => {
+            const commandSentAt = new Date();
             if (!cancelled) await writeToTerminal(sessionId, commandToSend + "\n");
 
-            // If resuming, send Enter after a delay to confirm the picker
-            if (isResumingSession) {
-              setTimeout(async () => {
-                if (!cancelled) await writeToTerminal(sessionId, "\r");
-              }, 1500); // Wait for picker to load
-            }
-
-            // Start polling for NEW Claude session (to save for future resume)
-            // Pass the snapshot so we only detect truly new sessions
+            // Poll for new Claude session to save for future resume
             if (workingDirectory && initialCommand === "claude" && !isResumingSession) {
-              pollForClaudeSession(workingDirectory, contextKey, existingSessionSnapshot);
+              pollForClaudeSession(workingDirectory, contextKey, existingSessionSnapshot, commandSentAt);
             }
           }, 500);
         }
@@ -399,7 +409,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
       exitUnlisten?.();
       closeTerminal(sessionId).catch(() => {});
     };
-  }, [sessionId, contextId, workingDirectory, contextType, initialCommand, initialPrompt]);
+  }, [sessionId, contextId, workingDirectory, contextType, initialCommand, initialPrompt, forceNew]);
 
   // Search handlers
   const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {

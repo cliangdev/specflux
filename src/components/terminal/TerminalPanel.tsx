@@ -525,6 +525,7 @@ export default function TerminalPanel() {
                   workingDirectory={session.workingDirectory}
                   initialCommand={session.initialCommand}
                   initialPrompt={session.initialPrompt}
+                  forceNew={session.forceNew}
                   onStatusChange={createStatusChangeHandler(session.id)}
                   onConnectionChange={createConnectionChangeHandler(session.id)}
                 />
