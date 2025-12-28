@@ -23,8 +23,8 @@ jobs:
   create-release:
     name: Create Release
     runs-on: ubuntu-latest
-    # Skip release creation for test builds
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    # Skip for test builds and preview releases (handled by release-preview.yml)
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-preview')
     outputs:
       release_id: ${{ steps.create-release.outputs.result }}
     steps:
@@ -118,7 +118,7 @@ jobs:
         run: npm run generate:client
 
       - name: Build Tauri app (Release)
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-preview')
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -145,8 +145,8 @@ jobs:
   publish-release:
     name: Publish Release
     needs: [create-release, build-tauri]
-    # Only publish for tag pushes, not test builds
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    # Only publish for production tag pushes, not test builds or preview releases
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-preview')
     runs-on: ubuntu-latest
     steps:
       - name: Publish Release
