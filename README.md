@@ -73,7 +73,7 @@ For technical details, see [Architecture](docs/ARCHITECTURE.md).
 ### Download
 > **Coming Soon**: Windows, Linux, and macOS
 
-Pre-built binaries available on [GitHub Releases](https://github.com/specflux/specflux/releases):
+Pre-built binaries available on [GitHub Releases](https://github.com/cliangdev/specflux/releases):
 
 > **Note:** Apps are currently unsigned. See [Installation](#installation) for bypass instructions.
 
@@ -82,13 +82,23 @@ Pre-built binaries available on [GitHub Releases](https://github.com/specflux/sp
 <details>
 <summary><strong>macOS</strong></summary>
 
-1. Download the `.dmg` file for your architecture (arm64 for M1/M2/M3, x64 for Intel)
-2. Open the DMG and drag SpecFlux to Applications
-3. **First launch security bypass:**
-   - Right-click the app → "Open" → Click "Open" in the dialog
-   - Or run in Terminal: `xattr -cr /Applications/SpecFlux.app`
+**Option A: Browser download with Terminal fix**
+1. Download the `.dmg` file for your architecture (arm64 for M1/M2/M3/M4, x64 for Intel)
+2. Open Terminal and run:
+   ```bash
+   xattr -cr ~/Downloads/SpecFlux*.dmg
+   ```
+3. Open the DMG and drag SpecFlux to Applications
 
-> macOS shows "unidentified developer" warnings for unsigned apps. This is normal — we'll add code signing in a future release.
+**Option B: Download via Terminal (recommended)**
+```bash
+# For Apple Silicon (M1/M2/M3/M4)
+cd ~/Downloads
+curl -LO "https://github.com/cliangdev/specflux/releases/latest/download/SpecFlux.Preview_0.1.0-preview_aarch64.dmg"
+open SpecFlux.Preview_0.1.0-preview_aarch64.dmg
+```
+
+> macOS shows "app is damaged" warnings for unsigned apps downloaded via browser. This is normal — we'll add code signing in a future release.
 
 </details>
 
