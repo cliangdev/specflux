@@ -73,7 +73,7 @@ For technical details, see [Architecture](docs/ARCHITECTURE.md).
 ### Download
 > **Coming Soon**: Windows, Linux, and macOS
 
-Pre-built binaries available on [GitHub Releases](https://github.com/specflux/specflux/releases):
+Pre-built binaries available on [GitHub Releases](https://github.com/cliangdev/specflux/releases):
 
 > **Note:** Apps are currently unsigned. See [Installation](#installation) for bypass instructions.
 
