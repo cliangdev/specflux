@@ -1,0 +1,19 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "SpecFlux Preview",
+  "identifier": "com.specflux.app.preview",
+  "app": {
+    "windows": [
+      {
+        "title": "SpecFlux Preview"
+      }
+    ]
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["specflux-preview"]
+      }
+    }
+  }
+}

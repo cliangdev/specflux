@@ -58,6 +58,11 @@ export default function TopBar() {
             <span className="text-lg font-semibold text-surface-900 dark:text-white">
               SpecFlux
             </span>
+            {import.meta.env.VITE_APP_VARIANT === "preview" && (
+              <span className="ml-1 px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 rounded">
+                PREVIEW
+              </span>
+            )}
           </div>
           <div className="h-6 w-px bg-surface-200 dark:bg-surface-700" />
           <ProjectSelector />
