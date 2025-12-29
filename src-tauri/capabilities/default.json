@@ -11,14 +11,22 @@
       "identifier": "shell:allow-execute",
       "allow": [
         { "name": "git", "cmd": "git", "args": true },
-        { "name": "claude", "cmd": "claude", "args": true }
+        { "name": "claude", "cmd": "claude", "args": true },
+        { "name": "claude-npm-global", "cmd": "$HOME/.npm-global/bin/claude", "args": true },
+        { "name": "claude-local-bin", "cmd": "$HOME/.local/bin/claude", "args": true },
+        { "name": "claude-usr-local", "cmd": "/usr/local/bin/claude", "args": true },
+        { "name": "claude-homebrew", "cmd": "/opt/homebrew/bin/claude", "args": true }
       ]
     },
     {
       "identifier": "shell:allow-spawn",
       "allow": [
         { "name": "git", "cmd": "git", "args": true },
-        { "name": "claude", "cmd": "claude", "args": true }
+        { "name": "claude", "cmd": "claude", "args": true },
+        { "name": "claude-npm-global", "cmd": "$HOME/.npm-global/bin/claude", "args": true },
+        { "name": "claude-local-bin", "cmd": "$HOME/.local/bin/claude", "args": true },
+        { "name": "claude-usr-local", "cmd": "/usr/local/bin/claude", "args": true },
+        { "name": "claude-homebrew", "cmd": "/opt/homebrew/bin/claude", "args": true }
       ]
     },
     "shell:allow-stdin-write",
