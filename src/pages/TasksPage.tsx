@@ -439,16 +439,15 @@ export default function TasksPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <h1 className="text-2xl font-semibold text-surface-900 dark:text-white">
           Tasks
         </h1>
-        <div className="flex items-center gap-3">
-          {/* Status filter */}
+        <div className="flex items-center gap-2 flex-wrap">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="select w-[160px]"
+            className="select min-w-[120px]"
           >
             {STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -457,14 +456,13 @@ export default function TasksPage() {
             ))}
           </select>
 
-          {/* Epic filter */}
           <select
             value={epicFilter ?? ""}
             onChange={(e) => {
               const val = e.target.value;
               setEpicFilter(val || undefined);
             }}
-            className="select w-[160px]"
+            className="select min-w-[120px]"
           >
             <option value="">All Epics</option>
             {epics.map((epic) => (
@@ -575,7 +573,7 @@ export default function TasksPage() {
           </p>
         </div>
       ) : (
-        <div className="card overflow-hidden">
+        <div className="card overflow-x-auto">
           <table className="min-w-full divide-y divide-surface-200 dark:divide-surface-700">
             <thead className="bg-surface-50 dark:bg-surface-800">
               <tr>

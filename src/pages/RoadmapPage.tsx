@@ -978,12 +978,11 @@ export default function RoadmapPage() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header - per PRD: "Roadmap" title with refresh and create buttons */}
-      <div className="flex items-center justify-between mb-4 flex-shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 flex-shrink-0">
         <h1 className="text-xl font-semibold text-surface-900 dark:text-white">
           Roadmap
         </h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Refresh button */}
           <button
             onClick={handleRefresh}
@@ -1133,11 +1132,9 @@ export default function RoadmapPage() {
                       isTerminalActive={sessionInfo.isTerminalActive}
                     />
 
-                    {/* Filter controls */}
                     {totalEpicsCount > 0 && (
-                      <div className="flex items-center gap-4 mb-6">
-                        {/* Search input */}
-                        <div className="relative flex-1 max-w-xs">
+                      <div className="flex flex-wrap items-center gap-3 mb-6">
+                        <div className="relative flex-1 min-w-[160px] max-w-xs">
                           <svg
                             className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400"
                             fill="none"

@@ -237,12 +237,11 @@ export function KanbanBoard({
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Board Header - matches TasksPage styling */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <h1 className="text-2xl font-semibold text-surface-900 dark:text-white">
           Board
         </h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {onTaskCreate && (
             <button onClick={onTaskCreate} className="btn btn-primary">
               <svg
