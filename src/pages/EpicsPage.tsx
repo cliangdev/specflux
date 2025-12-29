@@ -298,12 +298,11 @@ export default function EpicsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header row: Title + Actions (matching TasksPage pattern) */}
-      <div className="flex items-center justify-between mb-6 shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 shrink-0">
         <h1 className="text-2xl font-semibold text-surface-900 dark:text-white">
           Epics
         </h1>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* View toggle */}
           <div className="flex items-center bg-surface-100 dark:bg-surface-800 rounded-lg p-0.5">
             <button
@@ -365,11 +364,10 @@ export default function EpicsPage() {
             ))}
           </select>
 
-          {/* PRD filter */}
           <select
             value={prdFilter}
             onChange={(e) => setPrdFilter(e.target.value)}
-            className="select max-w-[200px]"
+            className="select min-w-[120px] max-w-[200px]"
           >
             <option value="">All PRDs</option>
             {prds.map((prd) => (

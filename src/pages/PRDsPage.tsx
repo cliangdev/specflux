@@ -135,16 +135,15 @@ export default function PRDsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <h1 className="text-2xl font-semibold text-surface-900 dark:text-white">
           PRDs
         </h1>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Status filter */}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="select w-[140px]"
+            className="select min-w-[120px]"
           >
             {STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -153,7 +152,6 @@ export default function PRDsPage() {
             ))}
           </select>
 
-          {/* Search input */}
           <div className="relative">
             <svg
               className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400"
@@ -173,7 +171,7 @@ export default function PRDsPage() {
               placeholder="Search PRDs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="input pl-10 w-[200px]"
+              className="input pl-10 min-w-[160px]"
             />
           </div>
 
