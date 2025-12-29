@@ -80,30 +80,42 @@ export async function detectGit(): Promise<GitStatus> {
 }
 
 /**
+ * Command names for Claude CLI as registered in Tauri capabilities.
+ * These map to different installation paths to handle apps launched outside terminal.
+ */
+const CLAUDE_COMMAND_NAMES = [
+  "claude",           // Default PATH lookup
+  "claude-npm-global", // ~/.npm-global/bin/claude
+  "claude-local-bin",  // ~/.local/bin/claude
+  "claude-usr-local",  // /usr/local/bin/claude
+  "claude-homebrew",   // /opt/homebrew/bin/claude
+];
+
+/**
  * Detect if Claude CLI is installed and get its version
  * Works cross-platform (macOS, Windows, Linux)
+ * Checks multiple common installation paths when launched outside terminal
  */
 export async function detectClaudeCli(): Promise<ClaudeCliStatus> {
-  try {
-    const command = Command.create("claude", ["--version"]);
-    const output = await command.execute();
+  for (const cmdName of CLAUDE_COMMAND_NAMES) {
+    try {
+      const command = Command.create(cmdName, ["--version"]);
+      const output = await command.execute();
 
-    if (output.code === 0) {
-      // Claude CLI outputs version info to stdout
-      const version = output.stdout.trim();
-      return { available: true, version };
-    } else {
-      return {
-        available: false,
-        error: output.stderr || "Claude CLI command failed",
-      };
+      if (output.code === 0) {
+        const version = output.stdout.trim();
+        return { available: true, version };
+      }
+    } catch {
+      // Try next command name
+      continue;
     }
-  } catch (err) {
-    return {
-      available: false,
-      error: err instanceof Error ? err.message : "Failed to detect Claude CLI",
-    };
   }
+
+  return {
+    available: false,
+    error: "Claude CLI not found in common installation paths",
+  };
 }
 
 /**
