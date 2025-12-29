@@ -36,6 +36,8 @@
     "fs:allow-stat",
     "fs:allow-exists",
     "fs:allow-mkdir",
-    "deep-link:default"
+    "deep-link:default",
+    "oauth:allow-start",
+    "oauth:allow-cancel"
   ]
 }
