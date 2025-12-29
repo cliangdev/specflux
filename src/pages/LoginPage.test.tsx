@@ -18,10 +18,13 @@ vi.mock("../lib/oauth-tauri", () => ({
 }));
 
 const mockUseAuth = {
+  user: null,
   signInWithEmail: vi.fn(),
   signUpWithEmail: vi.fn(),
   signInWithGitHub: vi.fn(),
   signInWithGoogle: vi.fn(),
+  signOut: vi.fn(),
+  getIdToken: vi.fn(),
   loading: false,
   error: null,
   isSignedIn: false,
