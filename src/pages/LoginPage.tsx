@@ -2,6 +2,7 @@ import { useState, FormEvent, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { isUsingEmulator } from "../lib/firebase";
+import { isTauri } from "../lib/oauth-tauri";
 
 const SAVED_EMAIL_KEY = "specflux-saved-email";
 const PENDING_GITHUB_AUTH_KEY = "specflux-pending-github-auth";
@@ -26,8 +27,32 @@ function GitHubIcon({ className }: { className?: string }) {
   );
 }
 
+// Google icon SVG component
+function GoogleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+      />
+    </svg>
+  );
+}
+
 export default function LoginPage() {
-  const { signInWithEmail, signUpWithEmail, signInWithGitHub, loading, error, isSignedIn } =
+  const { signInWithEmail, signUpWithEmail, signInWithGitHub, signInWithGoogle, loading, error, isSignedIn } =
     useAuth();
   const navigate = useNavigate();
 
@@ -39,6 +64,7 @@ export default function LoginPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [githubLoading, setGithubLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
   // Redirect to board if signed in
@@ -55,17 +81,18 @@ export default function LoginPage() {
     localStorage.removeItem(PENDING_GITHUB_AUTH_KEY);
   }, []);
 
-  // Handle Escape key to cancel GitHub auth flow in emulator mode
+  // Handle Escape key to cancel OAuth auth flow in emulator mode
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && githubLoading) {
+      if (e.key === "Escape" && (githubLoading || googleLoading)) {
         setGithubLoading(false);
+        setGoogleLoading(false);
         localStorage.removeItem(PENDING_GITHUB_AUTH_KEY);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [githubLoading]);
+  }, [githubLoading, googleLoading]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -115,6 +142,20 @@ export default function LoginPage() {
       // Error is already set in AuthContext
     } finally {
       setGithubLoading(false);
+      localStorage.removeItem(PENDING_GITHUB_AUTH_KEY);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    localStorage.setItem(PENDING_GITHUB_AUTH_KEY, "true");
+    try {
+      await signInWithGoogle();
+      // Navigation will happen via the useEffect above
+    } catch {
+      // Error is already set in AuthContext
+    } finally {
+      setGoogleLoading(false);
       localStorage.removeItem(PENDING_GITHUB_AUTH_KEY);
     }
   };
@@ -181,25 +222,49 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {/* GitHub OAuth Button */}
-          <button
-            type="button"
-            onClick={handleGitHubSignIn}
-            disabled={isLoading || githubLoading}
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium text-white bg-[#24292e] hover:bg-[#2f363d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {githubLoading ? (
-              <>
-                <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Connecting to GitHub...
-              </>
-            ) : (
-              <>
-                <GitHubIcon className="w-5 h-5" />
-                Continue with GitHub
-              </>
+          {/* OAuth Buttons */}
+          <div className="space-y-3">
+            {/* GitHub OAuth - only available in web browser, not desktop app */}
+            {!isTauri() && (
+              <button
+                type="button"
+                onClick={handleGitHubSignIn}
+                disabled={isLoading || githubLoading || googleLoading}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium text-white bg-[#24292e] hover:bg-[#2f363d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {githubLoading ? (
+                  <>
+                    <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Connecting to GitHub...
+                  </>
+                ) : (
+                  <>
+                    <GitHubIcon className="w-5 h-5" />
+                    Continue with GitHub
+                  </>
+                )}
+              </button>
             )}
-          </button>
+
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={isLoading || githubLoading || googleLoading}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium text-surface-700 dark:text-surface-200 bg-white dark:bg-surface-700 border border-surface-300 dark:border-surface-600 hover:bg-surface-50 dark:hover:bg-surface-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {googleLoading ? (
+                <>
+                  <span className="inline-block w-4 h-4 border-2 border-surface-300 border-t-surface-600 rounded-full animate-spin" />
+                  Connecting to Google...
+                </>
+              ) : (
+                <>
+                  <GoogleIcon className="w-5 h-5" />
+                  Continue with Google
+                </>
+              )}
+            </button>
+          </div>
           {isUsingEmulator() && (
             <p className="text-xs text-surface-500 dark:text-surface-500 mt-2 text-center">
               Using emulator? Press <kbd className="px-1 py-0.5 bg-surface-200 dark:bg-surface-700 rounded text-xs">⌘[</kbd> to go back

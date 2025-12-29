@@ -3,9 +3,11 @@ import {
   getAuth,
   connectAuthEmulator,
   signInWithPopup,
+  signInWithCredential,
   getRedirectResult,
   signOut as firebaseSignOut,
   GithubAuthProvider,
+  GoogleAuthProvider,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -15,6 +17,7 @@ import {
   type User,
 } from "firebase/auth";
 import { getEnvironmentConfig } from "./environment";
+import { isTauri, startGoogleOAuth, OAuthError } from "./oauth-tauri";
 
 const envConfig = getEnvironmentConfig();
 const firebaseConfig = {
@@ -74,29 +77,74 @@ export function getFirebaseAuth(): Auth {
   return auth || initializeFirebase();
 }
 
-/**
- * Check if running in Tauri desktop app.
- */
-function isTauri(): boolean {
-  return "__TAURI__" in window;
+function getGoogleClientId(): string {
+  return import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 }
 
 /**
- * Sign in with GitHub OAuth.
- * Note: OAuth doesn't work in Tauri desktop app - use email/password instead.
+ * Sign in with GitHub OAuth (browser only, uses popup).
  */
 export async function signInWithGitHub(): Promise<User> {
-  if (isTauri()) {
-    throw new Error(
-      "OAuth sign-in is not available in the desktop app. Please use email/password login.",
-    );
-  }
-
   const authInstance = getFirebaseAuth();
   const provider = new GithubAuthProvider();
-
   provider.addScope("read:user");
   provider.addScope("user:email");
+
+  try {
+    const result = await signInWithPopup(authInstance, provider);
+    return result.user;
+  } catch (error: unknown) {
+    const errorCode = (error as { code?: string }).code;
+
+    if (errorCode === "auth/popup-blocked") {
+      throw new Error(
+        "Popup was blocked. Please allow popups for this site and try again.",
+      );
+    }
+    if (errorCode === "auth/popup-closed-by-user") {
+      throw new Error("Sign-in cancelled.");
+    }
+    if (errorCode === "auth/unauthorized-domain") {
+      throw new Error(
+        "This domain is not authorized for OAuth. Add localhost to Firebase authorized domains.",
+      );
+    }
+
+    throw error;
+  }
+}
+
+/**
+ * Sign in with Google OAuth.
+ * Uses popup in browser, local OAuth server in Tauri desktop app.
+ */
+export async function signInWithGoogle(): Promise<User> {
+  const authInstance = getFirebaseAuth();
+
+  if (isTauri()) {
+    // Desktop app: use local OAuth server
+    const clientId = getGoogleClientId();
+    if (!clientId) {
+      throw new Error("Google OAuth is not configured. Please contact support.");
+    }
+
+    try {
+      const accessToken = await startGoogleOAuth(clientId);
+      const credential = GoogleAuthProvider.credential(null, accessToken);
+      const result = await signInWithCredential(authInstance, credential);
+      return result.user;
+    } catch (error) {
+      if (error instanceof OAuthError) {
+        throw new Error(error.message);
+      }
+      throw error;
+    }
+  }
+
+  // Browser: use popup
+  const provider = new GoogleAuthProvider();
+  provider.addScope("email");
+  provider.addScope("profile");
 
   try {
     const result = await signInWithPopup(authInstance, provider);

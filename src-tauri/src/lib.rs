@@ -24,6 +24,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_oauth::init())
         .manage(PtyState::new())
         .setup(|app| {
             // Create Edit menu with standard shortcuts (Cmd on Mac, Ctrl on Windows/Linux)
