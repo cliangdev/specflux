@@ -4,14 +4,6 @@ on:
   push:
     tags:
       - 'v*.*.*'
-  # Allow manual trigger for testing builds
-  workflow_dispatch:
-    inputs:
-      test_build:
-        description: 'Test build only (no release)'
-        required: true
-        default: true
-        type: boolean
 
 permissions:
   contents: write
@@ -19,41 +11,35 @@ permissions:
 env:
   NODE_VERSION: '22'
 
-# Skip entire workflow for preview tags (handled by release-preview.yml)
-# This prevents the workflow from appearing in Actions at all for preview releases
-run-name: ${{ contains(github.ref, '-preview') && 'Skipped (preview tag)' || 'Release' }}
-
 jobs:
-  # Gate job that controls whether the workflow should run
+  # Gate job - skip prerelease tags (handled by release-preview.yml)
   check-tag:
-    name: Check Tag Type
+    name: Check Tag
     runs-on: ubuntu-latest
     outputs:
-      should_run: ${{ steps.check.outputs.should_run }}
+      is_production: ${{ steps.check.outputs.is_production }}
+      version: ${{ steps.check.outputs.version }}
     steps:
       - id: check
         run: |
-          if [[ "${{ github.ref }}" == *"-preview"* ]]; then
-            echo "should_run=false" >> $GITHUB_OUTPUT
-            echo "::notice::Skipping release.yml for preview tag (handled by release-preview.yml)"
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          if [[ "$VERSION" == *"-"* ]]; then
+            echo "is_production=false" >> $GITHUB_OUTPUT
+            echo "::notice::Skipping - prerelease tags handled by release-preview.yml"
           else
-            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "is_production=true" >> $GITHUB_OUTPUT
           fi
 
   create-release:
     name: Create Release
-    needs: [check-tag]
+    needs: check-tag
+    if: needs.check-tag.outputs.is_production == 'true'
     runs-on: ubuntu-latest
-    # Skip for test builds and preview releases (handled by release-preview.yml)
-    if: needs.check-tag.outputs.should_run == 'true' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     outputs:
       release_id: ${{ steps.create-release.outputs.result }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Get version from tag
-        id: get_version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
       - name: Create Release
         id: create-release
@@ -63,43 +49,35 @@ jobs:
             const { data } = await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              tag_name: `v${{ steps.get_version.outputs.VERSION }}`,
-              name: `SpecFlux v${{ steps.get_version.outputs.VERSION }}`,
-              body: `## What's New\n\nSee the [CHANGELOG](https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/CHANGELOG.md) for details.\n\n## Installation\n\n### macOS\n- **Apple Silicon (M1/M2/M3):** Download \`SpecFlux_${{ steps.get_version.outputs.VERSION }}_aarch64.dmg\`\n- **Intel:** Download \`SpecFlux_${{ steps.get_version.outputs.VERSION }}_x64.dmg\`\n\n> **Note:** macOS may show a security warning for unsigned apps. Right-click the app → Open → Open anyway.\n\n### Windows\n- Download \`SpecFlux_${{ steps.get_version.outputs.VERSION }}_x64-setup.exe\` or \`.msi\`\n\n> **Note:** Windows SmartScreen may show a warning. Click "More info" → "Run anyway".\n\n### Linux\n- **AppImage (universal):** Download \`SpecFlux_${{ steps.get_version.outputs.VERSION }}_amd64.AppImage\`\n- **Debian/Ubuntu:** Download \`SpecFlux_${{ steps.get_version.outputs.VERSION }}_amd64.deb\``,
+              tag_name: `v${{ needs.check-tag.outputs.version }}`,
+              name: `SpecFlux v${{ needs.check-tag.outputs.version }}`,
+              body: `## What's New\n\nSee the [CHANGELOG](https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/CHANGELOG.md) for details.\n\n## Installation\n\n### macOS\n- **Apple Silicon (M1/M2/M3):** Download \`SpecFlux_${{ needs.check-tag.outputs.version }}_aarch64.dmg\`\n- **Intel:** Download \`SpecFlux_${{ needs.check-tag.outputs.version }}_x64.dmg\`\n\n> **Note:** macOS may show a security warning for unsigned apps. Right-click the app → Open → Open anyway.\n\n### Windows\n- Download \`SpecFlux_${{ needs.check-tag.outputs.version }}_x64-setup.exe\` or \`.msi\`\n\n> **Note:** Windows SmartScreen may show a warning. Click "More info" → "Run anyway".\n\n### Linux\n- **AppImage (universal):** Download \`SpecFlux_${{ needs.check-tag.outputs.version }}_amd64.AppImage\`\n- **Debian/Ubuntu:** Download \`SpecFlux_${{ needs.check-tag.outputs.version }}_amd64.deb\``,
               draft: true,
               prerelease: false
             });
             return data.id
 
-  build-tauri:
+  build:
     name: Build (${{ matrix.name }})
-    # For tag push, wait for release creation. For manual trigger, run immediately.
     needs: [check-tag, create-release]
-    if: always() && needs.check-tag.outputs.should_run == 'true' && (needs.create-release.result == 'success' || needs.create-release.result == 'skipped')
+    if: needs.check-tag.outputs.is_production == 'true'
     strategy:
       fail-fast: false
       matrix:
         include:
-          # macOS Apple Silicon (arm64) - Testing first
           - platform: macos-latest
             target: aarch64-apple-darwin
             args: --target aarch64-apple-darwin
             name: macOS-arm64
-
           # TODO: Enable after arm64 build is verified
-          # # macOS Intel (x64)
           # - platform: macos-latest
           #   target: x86_64-apple-darwin
           #   args: --target x86_64-apple-darwin
           #   name: macOS-x64
-
-          # # Windows x64
           # - platform: windows-latest
           #   target: x86_64-pc-windows-msvc
           #   args: --target x86_64-pc-windows-msvc
           #   name: Windows-x64
-
-          # # Linux x64
           # - platform: ubuntu-22.04
           #   target: x86_64-unknown-linux-gnu
           #   args: --target x86_64-unknown-linux-gnu
@@ -138,36 +116,23 @@ jobs:
       - name: Generate API Client
         run: npm run generate:client
 
-      - name: Build Tauri app (Release)
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+      - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_API_BASE_URL: ${{ secrets.PROD_API_BASE_URL }}
+          VITE_FIREBASE_API_KEY: ${{ secrets.PROD_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.PROD_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.PROD_FIREBASE_PROJECT_ID }}
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
 
-      - name: Build Tauri app (Test)
-        if: github.event_name == 'workflow_dispatch'
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          args: ${{ matrix.args }}
-
-      - name: Upload build artifacts (Test only)
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-${{ matrix.name }}
-          path: |
-            src-tauri/target/${{ matrix.target }}/release/bundle/
-
-  publish-release:
+  publish:
     name: Publish Release
-    needs: [check-tag, create-release, build-tauri]
-    # Only publish for production tag pushes, not test builds
-    if: needs.check-tag.outputs.should_run == 'true' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [check-tag, create-release, build]
+    if: needs.check-tag.outputs.is_production == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Publish Release
