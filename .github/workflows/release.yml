@@ -19,12 +19,33 @@ permissions:
 env:
   NODE_VERSION: '22'
 
+# Skip entire workflow for preview tags (handled by release-preview.yml)
+# This prevents the workflow from appearing in Actions at all for preview releases
+run-name: ${{ contains(github.ref, '-preview') && 'Skipped (preview tag)' || 'Release' }}
+
 jobs:
+  # Gate job that controls whether the workflow should run
+  check-tag:
+    name: Check Tag Type
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - id: check
+        run: |
+          if [[ "${{ github.ref }}" == *"-preview"* ]]; then
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "::notice::Skipping release.yml for preview tag (handled by release-preview.yml)"
+          else
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          fi
+
   create-release:
     name: Create Release
+    needs: [check-tag]
     runs-on: ubuntu-latest
     # Skip for test builds and preview releases (handled by release-preview.yml)
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-preview')
+    if: needs.check-tag.outputs.should_run == 'true' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     outputs:
       release_id: ${{ steps.create-release.outputs.result }}
     steps:
@@ -53,8 +74,8 @@ jobs:
   build-tauri:
     name: Build (${{ matrix.name }})
     # For tag push, wait for release creation. For manual trigger, run immediately.
-    needs: [create-release]
-    if: always() && (needs.create-release.result == 'success' || needs.create-release.result == 'skipped')
+    needs: [check-tag, create-release]
+    if: always() && needs.check-tag.outputs.should_run == 'true' && (needs.create-release.result == 'success' || needs.create-release.result == 'skipped')
     strategy:
       fail-fast: false
       matrix:
@@ -118,7 +139,7 @@ jobs:
         run: npm run generate:client
 
       - name: Build Tauri app (Release)
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-preview')
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -144,9 +165,9 @@ jobs:
 
   publish-release:
     name: Publish Release
-    needs: [create-release, build-tauri]
-    # Only publish for production tag pushes, not test builds or preview releases
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-preview')
+    needs: [check-tag, create-release, build-tauri]
+    # Only publish for production tag pushes, not test builds
+    if: needs.check-tag.outputs.should_run == 'true' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - name: Publish Release
