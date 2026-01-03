@@ -1,7 +1,9 @@
 name: Release
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     tags:
       - 'v*.*.*'
 
@@ -15,14 +17,17 @@ jobs:
   # Gate job - skip prerelease tags (handled by release-preview.yml)
   check-tag:
     name: Check Tag
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     outputs:
       is_production: ${{ steps.check.outputs.is_production }}
       version: ${{ steps.check.outputs.version }}
     steps:
       - id: check
+        env:
+          HEAD_REF: ${{ github.event.workflow_run.head_branch }}
         run: |
-          VERSION="${GITHUB_REF#refs/tags/v}"
+          VERSION="${HEAD_REF#v}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           if [[ "$VERSION" == *"-"* ]]; then
             echo "is_production=false" >> $GITHUB_OUTPUT
