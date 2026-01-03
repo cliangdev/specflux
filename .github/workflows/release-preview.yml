@@ -1,7 +1,9 @@
 name: Release Preview
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     tags:
       - 'v*.*.*-preview'
   workflow_dispatch:
@@ -20,6 +22,7 @@ env:
 jobs:
   create-release:
     name: Create Preview Release
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     outputs:
       release_id: ${{ steps.create-release.outputs.result }}
@@ -29,11 +32,13 @@ jobs:
 
       - name: Get version from tag or input
         id: get_version
+        env:
+          HEAD_REF: ${{ github.event.workflow_run.head_branch }}
         run: |
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-          else
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${HEAD_REF#v}" >> $GITHUB_OUTPUT
           fi
 
       - name: Create Release
