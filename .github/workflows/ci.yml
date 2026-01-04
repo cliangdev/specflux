@@ -20,6 +20,44 @@ env:
   NODE_VERSION: '22'
 
 jobs:
+  api-spec-check:
+    name: API Spec Sync Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read API version
+        id: api-version
+        run: |
+          VERSION=$(cat openapi/.api-version)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "API version: $VERSION"
+
+      - name: Download spec from backend release
+        run: |
+          VERSION="${{ steps.api-version.outputs.version }}"
+          URL="https://raw.githubusercontent.com/cliangdev/specflux-backend/${VERSION}/src/main/resources/openapi/api.yaml"
+          echo "Downloading from: $URL"
+          curl -fsSL "$URL" -o /tmp/backend-api.yaml
+
+      - name: Compare specs
+        run: |
+          if diff -q openapi/api.yaml /tmp/backend-api.yaml > /dev/null; then
+            echo "✅ API spec is in sync with backend release ${{ steps.api-version.outputs.version }}"
+          else
+            echo "❌ API spec is out of sync!"
+            echo ""
+            echo "Local spec differs from backend release ${{ steps.api-version.outputs.version }}"
+            echo ""
+            echo "To fix, run:"
+            echo "  npm run sync:api ${{ steps.api-version.outputs.version }}"
+            echo "  npm run generate:client"
+            echo ""
+            echo "Diff:"
+            diff openapi/api.yaml /tmp/backend-api.yaml || true
+            exit 1
+          fi
+
   lint:
     name: Lint & Format
     runs-on: ubuntu-latest
