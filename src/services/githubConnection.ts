@@ -5,9 +5,8 @@
  * Uses the generated API client for backend communication.
  */
 
-import { start as startOAuth, onUrl, cancel } from "@fabianlars/tauri-plugin-oauth";
-import { open } from "@tauri-apps/plugin-shell";
 import { getApiBaseUrl } from "../lib/environment";
+import { startOAuthServer, OAuthError } from "../lib/oauth-tauri";
 import { api } from "../api/client";
 import type { GithubStatus } from "../api/generated";
 
@@ -21,71 +20,39 @@ export interface GitHubConnectionStatus {
 const GITHUB_CONNECTION_KEY = "specflux:github:connection";
 
 /**
- * Connect to GitHub via OAuth flow
- * Opens the OAuth flow and redirects to backend /api/github/install
+ * Connect to GitHub via OAuth flow.
+ * Uses shared OAuth server to handle the callback.
  */
 export async function connectGitHub(): Promise<void> {
   const backendUrl = getApiBaseUrl();
 
   try {
-    // Start local OAuth server
-    const port = await startOAuth();
-
-    // Build the OAuth URL with callback to local server
-    const redirectUri = `http://localhost:${port}`;
-    const oauthUrl = `${backendUrl}/api/github/install?redirect_uri=${encodeURIComponent(redirectUri)}`;
-
-    // Listen for OAuth callback
-    const unlisten = await onUrl((url) => {
-      // Extract tokens from callback URL
-      const callbackUrl = new URL(url);
-      const token = callbackUrl.searchParams.get("token");
-      const username = callbackUrl.searchParams.get("username");
-      const avatarUrl = callbackUrl.searchParams.get("avatar_url");
-
-      if (token && username) {
-        // Store connection status in local cache
-        const status: GitHubConnectionStatus = {
-          isConnected: true,
-          username,
-          avatarUrl: avatarUrl || undefined,
-          connectedAt: new Date(),
-        };
-
-        localStorage.setItem(GITHUB_CONNECTION_KEY, JSON.stringify(status));
-      }
-
-      // Clean up
-      unlisten();
-      cancel(port);
+    // Start OAuth flow using shared server
+    const result = await startOAuthServer((redirectUri) => {
+      return `${backendUrl}/api/github/install?redirect_uri=${encodeURIComponent(redirectUri)}`;
     });
 
-    // Open browser to start OAuth flow
-    await open(oauthUrl);
+    // Check for success
+    const githubStatus = result.params.get("github");
+    if (githubStatus === "error") {
+      throw new OAuthError("GitHub authorization failed.", "invalid_response");
+    }
 
-    // Wait for callback (with timeout)
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        unlisten();
-        cancel(port);
-        reject(new Error("OAuth timeout - no response received"));
-      }, 120000); // 2 minute timeout
+    // Extract connection info from callback
+    const username = result.params.get("username");
 
-      // Check periodically if connection was established
-      const checkInterval = setInterval(() => {
-        const status = getGitHubStatus();
-        if (status.isConnected) {
-          clearTimeout(timeout);
-          clearInterval(checkInterval);
-          resolve();
-        }
-      }, 500);
-    });
+    // Store connection status in local cache
+    const status: GitHubConnectionStatus = {
+      isConnected: true,
+      username: username || undefined,
+      connectedAt: new Date(),
+    };
+    localStorage.setItem(GITHUB_CONNECTION_KEY, JSON.stringify(status));
   } catch (error) {
     console.error("Failed to connect GitHub:", error);
-    throw new Error(
-      error instanceof Error ? error.message : "Failed to connect to GitHub"
-    );
+    throw error instanceof OAuthError
+      ? error
+      : new Error(error instanceof Error ? error.message : "Failed to connect to GitHub");
   }
 }
 

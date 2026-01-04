@@ -88,7 +88,25 @@ describe("githubConnection", () => {
       const { start } = await import("@fabianlars/tauri-plugin-oauth");
       vi.mocked(start).mockRejectedValue(new Error("Failed to start server"));
 
-      await expect(connectGitHub()).rejects.toThrow("Failed to start server");
+      await expect(connectGitHub()).rejects.toThrow("Could not start login server");
+    });
+
+    it("should throw error when GitHub returns error", async () => {
+      const { start, onUrl } = await import("@fabianlars/tauri-plugin-oauth");
+      const { open } = await import("@tauri-apps/plugin-shell");
+
+      vi.mocked(start).mockResolvedValue(8000);
+      vi.mocked(open).mockResolvedValue();
+
+      // Mock onUrl to return an error callback
+      vi.mocked(onUrl).mockImplementation(async (callback) => {
+        setTimeout(() => {
+          callback("http://localhost:8000?github=error");
+        }, 100);
+        return () => {};
+      });
+
+      await expect(connectGitHub()).rejects.toThrow("GitHub authorization failed");
     });
 
     it("should store connection data on successful OAuth", async () => {
@@ -98,13 +116,11 @@ describe("githubConnection", () => {
       vi.mocked(start).mockResolvedValue(8000);
       vi.mocked(open).mockResolvedValue();
 
-      // Mock onUrl to immediately call the callback
+      // Mock onUrl to immediately call the callback with success response
       vi.mocked(onUrl).mockImplementation(async (callback) => {
-        // Simulate OAuth callback
+        // Simulate OAuth callback from backend
         setTimeout(() => {
-          callback(
-            "http://localhost:8000?token=abc123&username=testuser&avatar_url=https://github.com/avatar.png"
-          );
+          callback("http://localhost:8000?github=success&username=testuser");
         }, 100);
         return () => {};
       });
@@ -121,7 +137,6 @@ describe("githubConnection", () => {
       const parsed = JSON.parse(stored!);
       expect(parsed.isConnected).toBe(true);
       expect(parsed.username).toBe("testuser");
-      expect(parsed.avatarUrl).toBe("https://github.com/avatar.png");
     });
 
     it("should timeout if no response received", async () => {
@@ -149,7 +164,7 @@ describe("githubConnection", () => {
       await connectPromise;
 
       expect(caughtError).toBeDefined();
-      expect(caughtError?.message).toContain("OAuth timeout");
+      expect(caughtError?.message).toContain("timed out");
 
       vi.useRealTimers();
     });
