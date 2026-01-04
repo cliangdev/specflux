@@ -228,4 +228,52 @@ describe("gitOperations", () => {
       );
     });
   });
+
+  describe("parseGitHubUrl", () => {
+    it("should parse HTTPS URL with .git suffix", () => {
+      const result = gitOps.parseGitHubUrl(
+        "https://github.com/octocat/hello-world.git",
+      );
+      expect(result).toEqual({ owner: "octocat", repo: "hello-world" });
+    });
+
+    it("should parse HTTPS URL without .git suffix", () => {
+      const result = gitOps.parseGitHubUrl(
+        "https://github.com/octocat/hello-world",
+      );
+      expect(result).toEqual({ owner: "octocat", repo: "hello-world" });
+    });
+
+    it("should parse SSH URL with .git suffix", () => {
+      const result = gitOps.parseGitHubUrl(
+        "git@github.com:octocat/hello-world.git",
+      );
+      expect(result).toEqual({ owner: "octocat", repo: "hello-world" });
+    });
+
+    it("should parse SSH URL without .git suffix", () => {
+      const result = gitOps.parseGitHubUrl("git@github.com:octocat/hello-world");
+      expect(result).toEqual({ owner: "octocat", repo: "hello-world" });
+    });
+
+    it("should handle organization names with hyphens", () => {
+      const result = gitOps.parseGitHubUrl(
+        "https://github.com/my-org/my-repo.git",
+      );
+      expect(result).toEqual({ owner: "my-org", repo: "my-repo" });
+    });
+
+    it("should return undefined for non-GitHub URLs", () => {
+      expect(gitOps.parseGitHubUrl("https://gitlab.com/user/repo")).toBeUndefined();
+      expect(gitOps.parseGitHubUrl("https://bitbucket.org/user/repo")).toBeUndefined();
+      expect(gitOps.parseGitHubUrl("git@gitlab.com:user/repo.git")).toBeUndefined();
+    });
+
+    it("should be case-insensitive for github.com domain", () => {
+      const result = gitOps.parseGitHubUrl(
+        "https://GitHub.COM/octocat/hello-world.git",
+      );
+      expect(result).toEqual({ owner: "octocat", repo: "hello-world" });
+    });
+  });
 });

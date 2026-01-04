@@ -138,3 +138,95 @@ export async function getGitStatus(repoDir: string): Promise<GitStatus> {
     untrackedFiles: status.untracked_files,
   };
 }
+
+/**
+ * Remote repository information
+ */
+export interface RemoteInfo {
+  /** Full remote URL */
+  url: string;
+  /** Repository owner (e.g., "octocat") */
+  owner: string;
+  /** Repository name (e.g., "hello-world") */
+  repo: string;
+}
+
+/**
+ * Parse GitHub owner/repo from remote URL.
+ *
+ * @param url - The remote URL (HTTPS or SSH format)
+ * @returns Parsed owner and repo, or undefined if not a GitHub URL
+ */
+export function parseGitHubUrl(
+  url: string,
+): { owner: string; repo: string } | undefined {
+  // HTTPS format: https://github.com/owner/repo.git
+  const httpsMatch = url.match(/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?$/i);
+  if (httpsMatch) {
+    return { owner: httpsMatch[1], repo: httpsMatch[2] };
+  }
+
+  // SSH format: git@github.com:owner/repo.git
+  const sshMatch = url.match(/github\.com:([^/]+)\/([^/]+?)(?:\.git)?$/i);
+  if (sshMatch) {
+    return { owner: sshMatch[1], repo: sshMatch[2] };
+  }
+
+  return undefined;
+}
+
+/**
+ * Get the remote URL for a repository.
+ * Uses shell command since Tauri doesn't have a native git remote command.
+ *
+ * @param repoDir - The repository directory path
+ * @param remoteName - The remote name (default: "origin")
+ * @returns The remote URL, or undefined if not configured
+ */
+export async function getRemoteUrl(
+  repoDir: string,
+  remoteName: string = "origin",
+): Promise<string | undefined> {
+  try {
+    // Dynamic import to avoid issues in non-Tauri environments (tests)
+    const { Command } = await import("@tauri-apps/plugin-shell");
+    const command = Command.create("git", [
+      "-C",
+      repoDir,
+      "remote",
+      "get-url",
+      remoteName,
+    ]);
+    const output = await command.execute();
+    if (output.code === 0) {
+      return output.stdout.trim();
+    }
+  } catch {
+    // No remote configured or git command failed
+  }
+  return undefined;
+}
+
+/**
+ * Get remote repository information including parsed GitHub owner/repo.
+ *
+ * @param repoDir - The repository directory path
+ * @param remoteName - The remote name (default: "origin")
+ * @returns Remote info with URL, owner, and repo, or undefined if not a GitHub remote
+ */
+export async function getRemoteInfo(
+  repoDir: string,
+  remoteName: string = "origin",
+): Promise<RemoteInfo | undefined> {
+  const url = await getRemoteUrl(repoDir, remoteName);
+  if (!url) return undefined;
+
+  const parsed = parseGitHubUrl(url);
+  if (!parsed) return undefined;
+
+  return {
+    url,
+    owner: parsed.owner,
+    repo: parsed.repo,
+  };
+}
