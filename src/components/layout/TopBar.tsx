@@ -4,6 +4,7 @@ import { useTheme, useAuth, useProject } from "../../contexts";
 import { UserProfileModal } from "../ui/UserProfileModal";
 import { SyncStatusBadge } from "../sync/SyncStatusBadge";
 import { useSyncStatus } from "../../hooks/useSyncStatus";
+import { isGitHubConnected } from "../../services/githubConnection";
 
 function SunIcon({ className }: { className?: string }) {
   return (
@@ -80,10 +81,11 @@ export default function TopBar() {
         <div className="flex items-center gap-3">
           {currentProject?.localPath && (
             <SyncStatusBadge
-              status={syncData.status}
+              status={isGitHubConnected() ? syncData.status : "local_only"}
               onClick={
-                syncData.status === "pending_push" ||
-                syncData.status === "pending_pull"
+                isGitHubConnected() &&
+                (syncData.status === "pending_push" ||
+                  syncData.status === "pending_pull")
                   ? sync
                   : undefined
               }
