@@ -150,13 +150,49 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`
 
 ## Development Workflow
 
+### API-First Development (CRITICAL)
+
+**All API changes MUST start with the OpenAPI specification.** This ensures contract-first development where both frontend and backend agree on the API before implementation.
+
+#### Adding or Modifying API Endpoints
+1. **Update OpenAPI spec first** - Edit `openapi/api.yaml` with the new/modified endpoints
+2. **Generate frontend client** - Run `npm run generate:client` to create TypeScript types
+3. **Implement backend** - Create Spring Boot controller matching the spec exactly
+4. **Implement frontend** - Use the generated client to call the API
+
+#### Why OpenAPI First?
+- **Single source of truth** for API contracts
+- **Type safety** - Frontend gets typed client automatically
+- **Documentation** - Swagger UI available at `/swagger-ui.html`
+- **Validation** - Backend can validate requests against spec
+- **No drift** - Frontend and backend always in sync
+
+#### Example: Adding a New Endpoint
+```bash
+# 1. Edit openapi/api.yaml - add your endpoint definition
+# 2. Generate client
+npm run generate:client
+
+# 3. Implement backend controller (must match spec exactly)
+# 4. Use generated client in frontend
+import { api } from '../api';
+const result = await api.yourDomain.yourEndpoint({ ... });
+```
+
 ### Adding a Frontend Feature
 1. Create feature branch from `main`
-2. If API changes needed, update `openapi/api.yaml`
+2. If API changes needed, **update `openapi/api.yaml` FIRST**
 3. Run `npm run generate:client` to regenerate TypeScript client
 4. Implement React components/pages
 5. Write tests with Vitest
 6. Create PR for review
+
+### Adding a Backend Feature
+1. Create feature branch from `main` in `specflux-backend`
+2. **Update `openapi/api.yaml` in frontend repo FIRST** (or coordinate the spec)
+3. Implement Spring Boot controller matching the OpenAPI spec
+4. Write tests
+5. Create PR for review
 
 ### API Client Generation
 The frontend uses an auto-generated TypeScript client from the OpenAPI spec:
