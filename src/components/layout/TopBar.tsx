@@ -81,9 +81,14 @@ export default function TopBar() {
         <div className="flex items-center gap-3">
           {currentProject?.localPath && (
             <SyncStatusBadge
-              status={isGitHubConnected() ? syncData.status : "local_only"}
+              status={
+                isGitHubConnected() && syncData.githubUrl
+                  ? syncData.status
+                  : "local_only"
+              }
               onClick={
                 isGitHubConnected() &&
+                syncData.githubUrl &&
                 (syncData.status === "pending_push" ||
                   syncData.status === "pending_pull")
                   ? sync

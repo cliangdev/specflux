@@ -10,7 +10,18 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
 
+// Mock the Tauri shell plugin for setRemoteUrl
+const mockExecute = vi.fn();
+vi.mock("@tauri-apps/plugin-shell", () => ({
+  Command: {
+    create: vi.fn(() => ({
+      execute: mockExecute,
+    })),
+  },
+}));
+
 import { invoke } from "@tauri-apps/api/core";
+import { Command } from "@tauri-apps/plugin-shell";
 
 describe("gitOperations", () => {
   beforeEach(() => {
@@ -274,6 +285,129 @@ describe("gitOperations", () => {
         "https://GitHub.COM/octocat/hello-world.git",
       );
       expect(result).toEqual({ owner: "octocat", repo: "hello-world" });
+    });
+  });
+
+  describe("setRemoteUrl", () => {
+    beforeEach(() => {
+      mockExecute.mockClear();
+      vi.mocked(Command.create).mockClear();
+    });
+
+    it("should add remote when it does not exist", async () => {
+      // First call (getRemoteUrl check) returns not found
+      mockExecute.mockResolvedValueOnce({ code: 1, stdout: "", stderr: "" });
+      // Second call (remote add) succeeds
+      mockExecute.mockResolvedValueOnce({ code: 0, stdout: "", stderr: "" });
+
+      await gitOps.setRemoteUrl(
+        "/path/to/repo",
+        "https://github.com/owner/repo.git"
+      );
+
+      expect(Command.create).toHaveBeenNthCalledWith(1, "git", [
+        "-C",
+        "/path/to/repo",
+        "remote",
+        "get-url",
+        "origin",
+      ]);
+      expect(Command.create).toHaveBeenNthCalledWith(2, "git", [
+        "-C",
+        "/path/to/repo",
+        "remote",
+        "add",
+        "origin",
+        "https://github.com/owner/repo.git",
+      ]);
+    });
+
+    it("should update remote when it exists", async () => {
+      // First call (getRemoteUrl check) returns existing URL
+      mockExecute.mockResolvedValueOnce({
+        code: 0,
+        stdout: "https://github.com/old/repo.git\n",
+        stderr: "",
+      });
+      // Second call (remote set-url) succeeds
+      mockExecute.mockResolvedValueOnce({ code: 0, stdout: "", stderr: "" });
+
+      await gitOps.setRemoteUrl(
+        "/path/to/repo",
+        "https://github.com/new/repo.git"
+      );
+
+      expect(Command.create).toHaveBeenNthCalledWith(2, "git", [
+        "-C",
+        "/path/to/repo",
+        "remote",
+        "set-url",
+        "origin",
+        "https://github.com/new/repo.git",
+      ]);
+    });
+
+    it("should use custom remote name", async () => {
+      // First call returns not found
+      mockExecute.mockResolvedValueOnce({ code: 1, stdout: "", stderr: "" });
+      // Second call succeeds
+      mockExecute.mockResolvedValueOnce({ code: 0, stdout: "", stderr: "" });
+
+      await gitOps.setRemoteUrl(
+        "/path/to/repo",
+        "https://github.com/owner/repo.git",
+        "upstream"
+      );
+
+      expect(Command.create).toHaveBeenNthCalledWith(1, "git", [
+        "-C",
+        "/path/to/repo",
+        "remote",
+        "get-url",
+        "upstream",
+      ]);
+      expect(Command.create).toHaveBeenNthCalledWith(2, "git", [
+        "-C",
+        "/path/to/repo",
+        "remote",
+        "add",
+        "upstream",
+        "https://github.com/owner/repo.git",
+      ]);
+    });
+
+    it("should throw error when add fails", async () => {
+      // First call returns not found
+      mockExecute.mockResolvedValueOnce({ code: 1, stdout: "", stderr: "" });
+      // Second call fails
+      mockExecute.mockResolvedValueOnce({
+        code: 1,
+        stdout: "",
+        stderr: "fatal: remote origin already exists",
+      });
+
+      await expect(
+        gitOps.setRemoteUrl("/path/to/repo", "https://github.com/owner/repo.git")
+      ).rejects.toThrow("fatal: remote origin already exists");
+    });
+
+    it("should throw error when update fails", async () => {
+      // First call returns existing URL
+      mockExecute.mockResolvedValueOnce({
+        code: 0,
+        stdout: "https://github.com/old/repo.git\n",
+        stderr: "",
+      });
+      // Second call fails
+      mockExecute.mockResolvedValueOnce({
+        code: 1,
+        stdout: "",
+        stderr: "fatal: could not set url",
+      });
+
+      await expect(
+        gitOps.setRemoteUrl("/path/to/repo", "https://github.com/new/repo.git")
+      ).rejects.toThrow("fatal: could not set url");
     });
   });
 });

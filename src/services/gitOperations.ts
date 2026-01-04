@@ -230,3 +230,55 @@ export async function getRemoteInfo(
     repo: parsed.repo,
   };
 }
+
+/**
+ * Set or update the remote URL for a repository.
+ * If the remote doesn't exist, it will be added.
+ * If it exists, the URL will be updated.
+ *
+ * @param repoDir - The repository directory path
+ * @param url - The remote URL to set
+ * @param remoteName - The remote name (default: "origin")
+ * @throws Error if the operation fails
+ */
+export async function setRemoteUrl(
+  repoDir: string,
+  url: string,
+  remoteName: string = "origin",
+): Promise<void> {
+  // Dynamic import to avoid issues in non-Tauri environments (tests)
+  const { Command } = await import("@tauri-apps/plugin-shell");
+
+  // First, check if the remote exists
+  const existingUrl = await getRemoteUrl(repoDir, remoteName);
+
+  if (existingUrl) {
+    // Remote exists, update its URL
+    const command = Command.create("git", [
+      "-C",
+      repoDir,
+      "remote",
+      "set-url",
+      remoteName,
+      url,
+    ]);
+    const output = await command.execute();
+    if (output.code !== 0) {
+      throw new Error(output.stderr || "Failed to update remote URL");
+    }
+  } else {
+    // Remote doesn't exist, add it
+    const command = Command.create("git", [
+      "-C",
+      repoDir,
+      "remote",
+      "add",
+      remoteName,
+      url,
+    ]);
+    const output = await command.execute();
+    if (output.code !== 0) {
+      throw new Error(output.stderr || "Failed to add remote");
+    }
+  }
+}

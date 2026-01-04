@@ -2,9 +2,11 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { SyncSettings } from "../SyncSettings";
 import * as githubConnection from "../../../services/githubConnection";
+import * as gitOperations from "../../../services/gitOperations";
 
 // Mock the services
 vi.mock("../../../services/githubConnection");
+vi.mock("../../../services/gitOperations");
 
 // Mock useProject hook
 vi.mock("../../../contexts", () => ({
@@ -38,6 +40,8 @@ describe("SyncSettings", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    // Default: no remote configured
+    vi.mocked(gitOperations.getRemoteInfo).mockResolvedValue(undefined);
   });
 
   describe("when GitHub is not connected", () => {
@@ -202,6 +206,48 @@ describe("SyncSettings", () => {
         "https://github.com/testuser"
       );
       expect(profileLink).toHaveAttribute("target", "_blank");
+    });
+
+    it("should show Link Repository button when no repo is linked", async () => {
+      vi.mocked(gitOperations.getRemoteInfo).mockResolvedValue(undefined);
+
+      render(<SyncSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText("No repository linked")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /Link Repository/i })).toBeInTheDocument();
+      });
+    });
+
+    it("should show linked repository info when repo is linked", async () => {
+      vi.mocked(gitOperations.getRemoteInfo).mockResolvedValue({
+        url: "https://github.com/octocat/hello-world.git",
+        owner: "octocat",
+        repo: "hello-world",
+      });
+
+      render(<SyncSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText("octocat/hello-world")).toBeInTheDocument();
+        expect(screen.queryByText("No repository linked")).not.toBeInTheDocument();
+      });
+    });
+
+    it("should open link modal when Link Repository button is clicked", async () => {
+      vi.mocked(gitOperations.getRemoteInfo).mockResolvedValue(undefined);
+
+      render(<SyncSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /Link Repository/i })).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: /Link Repository/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole("heading", { name: "Link Repository" })).toBeInTheDocument();
+      });
     });
   });
 
