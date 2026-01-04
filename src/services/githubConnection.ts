@@ -5,7 +5,6 @@
  * Uses the generated API client for backend communication.
  */
 
-import { getApiBaseUrl } from "../lib/environment";
 import { startOAuthServer, OAuthError } from "../lib/oauth-tauri";
 import { api } from "../api/client";
 import type { GithubInstallationStatus } from "../api/generated";
@@ -24,12 +23,12 @@ const GITHUB_CONNECTION_KEY = "specflux:github:connection";
  * Uses shared OAuth server to handle the callback.
  */
 export async function connectGitHub(): Promise<void> {
-  const backendUrl = getApiBaseUrl();
-
   try {
     // Start OAuth flow using shared server
-    const result = await startOAuthServer((redirectUri) => {
-      return `${backendUrl}/api/github/install?redirect_uri=${encodeURIComponent(redirectUri)}`;
+    // Calls API with auth to get the authUrl, then opens browser
+    const result = await startOAuthServer(async (redirectUri) => {
+      const response = await api.github.initiateGithubInstall({ redirectUri });
+      return response.authUrl;
     });
 
     // Check for success

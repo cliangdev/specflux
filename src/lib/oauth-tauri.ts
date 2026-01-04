@@ -66,11 +66,11 @@ export interface OAuthCallbackResult {
  * Start a local OAuth server and open browser to the given URL.
  * Returns when callback is received or throws on timeout/error.
  *
- * @param buildUrl - Function that receives the redirect URI and returns the full OAuth URL to open
+ * @param buildUrl - Function that receives the redirect URI and returns the full OAuth URL to open (can be async)
  * @returns The callback result with URL and parsed query params
  */
 export async function startOAuthServer(
-  buildUrl: (redirectUri: string) => string,
+  buildUrl: (redirectUri: string) => string | Promise<string>,
 ): Promise<OAuthCallbackResult> {
   let port: number | null = null;
   let unsubscribe: (() => void) | null = null;
@@ -88,7 +88,7 @@ export async function startOAuthServer(
     }
 
     const redirectUri = `http://localhost:${port}`;
-    const authUrl = buildUrl(redirectUri);
+    const authUrl = await Promise.resolve(buildUrl(redirectUri));
 
     const callbackPromise = new Promise<OAuthCallbackResult>((resolve, reject) => {
       timeoutId = setTimeout(() => {

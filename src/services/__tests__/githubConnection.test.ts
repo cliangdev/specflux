@@ -22,6 +22,7 @@ vi.mock("@tauri-apps/plugin-shell", () => ({
 vi.mock("../../api/client", () => ({
   api: {
     github: {
+      initiateGithubInstall: vi.fn(),
       disconnectGithubInstallation: vi.fn(),
       getGithubInstallationStatus: vi.fn(),
     },
@@ -94,9 +95,13 @@ describe("githubConnection", () => {
     it("should throw error when GitHub returns error", async () => {
       const { start, onUrl } = await import("@fabianlars/tauri-plugin-oauth");
       const { open } = await import("@tauri-apps/plugin-shell");
+      const { api } = await import("../../api/client");
 
       vi.mocked(start).mockResolvedValue(8000);
       vi.mocked(open).mockResolvedValue();
+      vi.mocked(api.github.initiateGithubInstall).mockResolvedValue({
+        authUrl: "https://github.com/login/oauth/authorize?client_id=test",
+      });
 
       // Mock onUrl to return an error callback
       vi.mocked(onUrl).mockImplementation(async (callback) => {
@@ -112,9 +117,13 @@ describe("githubConnection", () => {
     it("should store connection data on successful OAuth", async () => {
       const { start, onUrl } = await import("@fabianlars/tauri-plugin-oauth");
       const { open } = await import("@tauri-apps/plugin-shell");
+      const { api } = await import("../../api/client");
 
       vi.mocked(start).mockResolvedValue(8000);
       vi.mocked(open).mockResolvedValue();
+      vi.mocked(api.github.initiateGithubInstall).mockResolvedValue({
+        authUrl: "https://github.com/login/oauth/authorize?client_id=test",
+      });
 
       // Mock onUrl to immediately call the callback with success response
       vi.mocked(onUrl).mockImplementation(async (callback) => {
@@ -142,11 +151,15 @@ describe("githubConnection", () => {
     it("should timeout if no response received", async () => {
       const { start, onUrl, cancel } = await import("@fabianlars/tauri-plugin-oauth");
       const { open } = await import("@tauri-apps/plugin-shell");
+      const { api } = await import("../../api/client");
 
       vi.useFakeTimers();
 
       vi.mocked(start).mockResolvedValue(8000);
       vi.mocked(open).mockResolvedValue();
+      vi.mocked(api.github.initiateGithubInstall).mockResolvedValue({
+        authUrl: "https://github.com/login/oauth/authorize?client_id=test",
+      });
       vi.mocked(onUrl).mockResolvedValue(() => {});
       vi.mocked(cancel).mockResolvedValue(undefined);
 

@@ -1867,10 +1867,10 @@ paths:
       operationId: initiateGithubInstall
       summary: Initiate GitHub App installation
       description: |
-        Redirects user to GitHub OAuth flow to install the SpecFlux GitHub App.
+        Returns the GitHub OAuth URL for the user to authorize the SpecFlux GitHub App.
+        The client should open this URL in a browser to complete the OAuth flow.
         For desktop apps, pass redirect_uri to receive the callback on a local server.
       tags: [GitHub]
-      security: []  # No auth required for initial redirect
       parameters:
         - name: redirect_uri
           in: query
@@ -1883,13 +1883,12 @@ paths:
             redirect back to a local server (e.g., http://localhost:8765).
             If not provided, redirects to the configured frontend URL.
       responses:
-        '302':
-          description: Redirect to GitHub OAuth authorization page
-          headers:
-            Location:
+        '200':
+          description: GitHub OAuth URL to open in browser
+          content:
+            application/json:
               schema:
-                type: string
-                example: https://github.com/apps/specflux-sync/installations/new
+                $ref: '#/components/schemas/GithubInstallResponse'
         '500':
           $ref: '#/components/responses/InternalServerError'
 
@@ -1909,10 +1908,10 @@ paths:
           description: OAuth authorization code from GitHub
         - name: installation_id
           in: query
-          required: true
+          required: false
           schema:
             type: integer
-          description: GitHub installation ID
+          description: GitHub App installation ID (only present during app installation flow)
         - name: setup_action
           in: query
           required: false
@@ -3389,6 +3388,16 @@ components:
             $ref: '#/components/schemas/McpServer'
 
     # GitHub
+    GithubInstallResponse:
+      type: object
+      required: [authUrl]
+      properties:
+        authUrl:
+          type: string
+          format: uri
+          description: GitHub OAuth URL to open in browser
+          example: https://github.com/login/oauth/authorize?client_id=xxx&redirect_uri=xxx&scope=repo&state=xxx
+
     GithubInstallationStatus:
       type: object
       required: [installed]
