@@ -1,7 +1,9 @@
 mod commands;
+mod git;
 mod pty;
 
 use commands::terminal::*;
+use git::*;
 use pty::PtyState;
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem, Submenu},
@@ -84,6 +86,14 @@ pub fn run() {
             terminal_close,
             list_terminal_sessions,
             has_terminal_session,
+            git_clone_repo,
+            git_add_files,
+            git_auto_commit,
+            git_commit_changes,
+            git_push_changes,
+            git_pull_changes,
+            git_fetch_remote,
+            git_get_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

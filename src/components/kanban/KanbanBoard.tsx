@@ -23,6 +23,11 @@ import {
   TerminalIcon,
   DocumentIcon,
 } from "../ui/ContextMenu";
+import { SyncStatusBadge } from "../sync/SyncStatusBadge";
+import { SyncStatusPanel } from "../sync/SyncStatusPanel";
+import { useSyncStatus } from "../../hooks/useSyncStatus";
+import { getStoredWorkspacePath } from "../../services/workspacePreferences";
+import { join } from "@tauri-apps/api/path";
 
 interface KanbanBoardProps {
   projectId: number;
@@ -62,6 +67,31 @@ export function KanbanBoard({
     x: number;
     y: number;
   } | null>(null);
+
+  // Sync status state
+  const [showSyncPanel, setShowSyncPanel] = useState(false);
+  const [repoPath, setRepoPath] = useState<string | undefined>(undefined);
+
+  // Initialize repo path
+  useEffect(() => {
+    const initRepoPath = async () => {
+      if (projectRef) {
+        const workspacePath = getStoredWorkspacePath();
+        if (workspacePath) {
+          const path = await join(workspacePath, projectRef);
+          setRepoPath(path);
+        }
+      }
+    };
+    initRepoPath();
+  }, [projectRef]);
+
+  // Use sync status hook
+  const { syncData, sync } = useSyncStatus({
+    repoPath,
+    pollInterval: 30000,
+    pollOnWindowFocus: true,
+  });
 
   // Get columns for the workflow template
   const columns = useMemo(
@@ -238,9 +268,19 @@ export function KanbanBoard({
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <h1 className="text-2xl font-semibold text-surface-900 dark:text-white">
-          Board
-        </h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-semibold text-surface-900 dark:text-white">
+            Board
+          </h1>
+          {repoPath && (
+            <SyncStatusBadge
+              status={syncData.status}
+              onClick={() => setShowSyncPanel(true)}
+              showLabel
+              size="md"
+            />
+          )}
+        </div>
         <div className="flex items-center gap-2 flex-wrap">
           {onTaskCreate && (
             <button onClick={onTaskCreate} className="btn btn-primary">
@@ -262,6 +302,26 @@ export function KanbanBoard({
           )}
         </div>
       </div>
+
+      {/* Sync Status Panel */}
+      {showSyncPanel && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/20">
+          <div
+            className="fixed inset-0"
+            onClick={() => setShowSyncPanel(false)}
+            aria-hidden="true"
+          />
+          <div className="relative mt-20 w-full max-w-md">
+            <SyncStatusPanel
+              status={syncData.status}
+              lastSyncedAt={syncData.lastSyncedAt}
+              pendingChanges={syncData.pendingChanges}
+              githubUrl={syncData.githubUrl}
+              onSync={sync}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Kanban Columns */}
       <div className="flex-1 overflow-x-auto overflow-y-hidden custom-scrollbar">

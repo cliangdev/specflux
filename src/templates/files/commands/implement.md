@@ -113,11 +113,30 @@ GET /api/projects/{projectRef}/tasks/{taskRef}/acceptance-criteria
 
 Based on gathered context:
 1. List all tasks in dependency order
-2. Identify critical components needing tests
-3. Map acceptance criteria to implementation steps
-4. Note any blockers or dependencies
+2. Map acceptance criteria to implementation steps and corresponding tests
+3. Note any blockers or dependencies
 
-### 2.2 Update Epic Status to IN_PROGRESS
+### 2.2 Create Fresh Branch from Main
+
+**CRITICAL**: Always start implementation on a fresh branch from the latest main.
+
+```bash
+# Ensure we're on main and up to date
+git checkout main
+git pull origin main
+
+# Create feature branch based on context type
+git checkout -b <branch-name>
+```
+
+**Branch naming convention:**
+| Context Type | Branch Name Pattern |
+|--------------|---------------------|
+| `prd` | `feature/prd-<prd-ref>` (e.g., `feature/prd-SPEC-P1`) |
+| `epic` | `feature/epic-<epic-ref>` (e.g., `feature/epic-SPEC-E5`) |
+| `task` | `fix/<task-ref>` or `feature/<task-ref>` (e.g., `fix/SPEC-42`) |
+
+### 2.3 Update Epic Status to IN_PROGRESS
 
 ```bash
 # For epic
@@ -132,6 +151,40 @@ PUT /api/projects/{projectRef}/prds/{prdRef}
 ## Phase 3: Implement Tasks
 
 Work through tasks in dependency order. **Each task = one git commit.**
+
+### 3.0 Consider Using Sub-Agents and Skills
+
+**For complex tasks**, delegate to specialized sub-agents for better results:
+
+| Task Complexity | Approach |
+|-----------------|----------|
+| Simple (1-2 files, clear changes) | Implement directly |
+| Medium (3-5 files, single domain) | Use appropriate skill |
+| Complex (multi-file, cross-cutting) | Spawn specialized sub-agent |
+
+**Available sub-agents:**
+- `backend-dev` - Spring Boot APIs, database, backend logic
+- `frontend-dev` - React components, UI, Tauri integration
+- `fullstack-dev` - End-to-end features spanning both layers
+
+**When to spawn a sub-agent:**
+- Task involves significant code in one domain (e.g., "implement user settings API")
+- Multiple related files need coordinated changes
+- Task benefits from domain expertise
+
+**Example - spawning for a backend task:**
+```
+Use Task tool with subagent_type="backend-dev":
+"Implement SPEC-55: Profile data model.
+Create migration, repository, and service layer.
+Acceptance criteria: [list criteria]
+Write tests for each criterion."
+```
+
+**Always activate relevant skills** before implementation:
+- Backend work: `springboot-patterns`, `database-migrations`, `api-design`
+- Frontend work: `ui-patterns`, `typescript-patterns`, `tauri-dev`
+- API changes: `api-spec-update`
 
 ### 3.1 Start Task - Update Status to IN_PROGRESS
 
@@ -157,16 +210,17 @@ GET /api/projects/{projectRef}/tasks/{taskRef}/acceptance-criteria
    - Follow project conventions and patterns
    - Reference PRD/wireframes for requirements
 
-2. **Add tests for critical components**
-   - Unit tests for business logic
-   - Integration tests for API endpoints
-   - Component tests for UI elements
-   - Test edge cases mentioned in acceptance criteria
+2. **Write tests for each acceptance criterion**
+   - **IMPORTANT**: Each acceptance criterion should have at least one corresponding test
+   - Unit tests for business logic criteria
+   - Integration tests for API/data flow criteria
+   - Component tests for UI behavior criteria
+   - Name tests clearly to map back to criteria (e.g., `should display error when field is empty`)
 
 3. **Verify acceptance criteria are covered**
    - Run tests to confirm functionality
-   - Manually verify if needed
-   - Check each criterion is satisfied
+   - Ensure test coverage maps to acceptance criteria
+   - Check each criterion is satisfied by code AND tests
 
 ### 3.4 Complete Task - Mark Criteria and Commit
 
@@ -181,21 +235,25 @@ PATCH /api/projects/{projectRef}/tasks/{taskRef}
 ```
 
 **Git commit for the task:**
+
+Keep commit messages **simple and descriptive** - focus on what was done so future agents can understand the work:
+
 ```bash
 git add .
-git commit -m "feat(PROJ-42): <task title>
+git commit -m "<task-ref>: <brief description of what was implemented>
 
-- <bullet points of what was implemented>
-- <tests added>
-
-Acceptance Criteria:
-- [x] <criterion 1>
-- [x] <criterion 2>
-
-🤖 Generated with Claude Code
-
-Co-Authored-By: Claude <noreply@anthropic.com>"
+<optional 1-2 lines of context if needed>"
 ```
+
+**Examples of good commit messages:**
+- `SPEC-42: add user profile form with validation`
+- `SPEC-43: implement profile API endpoints and tests`
+- `SPEC-44: add profile avatar upload with S3 integration`
+
+**Avoid:**
+- Long lists of acceptance criteria in commits
+- Verbose boilerplate text
+- Implementation details better captured in code comments
 
 ### 3.5 Handle Blocked Tasks
 
@@ -286,7 +344,11 @@ BACKLOG → IN_PROGRESS → COMPLETED
 
 🚀 Starting implementation of Epic SPEC-E5...
 
-Updating epic status to IN_PROGRESS...
+→ Creating fresh branch from main...
+  git checkout main && git pull origin main
+  git checkout -b feature/epic-SPEC-E5
+
+→ Updating epic status to IN_PROGRESS...
 
 ═══════════════════════════════════════
 📦 Task SPEC-55: Profile data model
@@ -300,21 +362,12 @@ Updating epic status to IN_PROGRESS...
 - [ ] Repository with CRUD operations
 
 [Implementation...]
-[Adding tests...]
+[Writing tests for each criterion...]
 [Verifying criteria...]
 
 ✅ All criteria verified. Creating commit...
 
-git commit -m "feat(SPEC-55): Profile data model
-
-- Add user_profiles table migration
-- Create ProfileRepository with CRUD operations
-- Add unit tests for repository
-
-Acceptance Criteria:
-- [x] User profile table with avatar_url, bio, preferences
-- [x] Migration script with rollback support
-- [x] Repository with CRUD operations"
+git commit -m "SPEC-55: add profile data model with migration and repository"
 
 → Marking criteria as met via API...
 → Updating task status to COMPLETED...
@@ -325,17 +378,17 @@ Acceptance Criteria:
 
 → Updating task status to IN_PROGRESS...
 
-[...continues for each task...]
+[...continues for each task, one commit per task...]
 
 ═══════════════════════════════════════
 ✅ Epic SPEC-E5 Complete!
 ═══════════════════════════════════════
 
 **Verification:**
-- [x] All 3 tasks completed
+- [x] All 3 tasks completed (3 commits)
 - [x] All task criteria met (9/9)
 - [x] All epic criteria met (4/4)
-- [x] Tests passing
+- [x] Tests passing (each criterion has corresponding test)
 
 → Updating epic status to COMPLETED...
 
