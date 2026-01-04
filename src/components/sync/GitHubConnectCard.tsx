@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Command } from "@tauri-apps/plugin-shell";
 
 interface GitHubConnectCardProps {
-  onConnect: (githubUrl: string) => Promise<void>;
+  onConnect: () => Promise<void>;
+  projectPath?: string;
   className?: string;
 }
 
@@ -89,6 +91,23 @@ const ShieldCheckIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+// Link icon
+const LinkIcon = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"
+    />
+  </svg>
+);
+
 const benefits = [
   {
     icon: ArrowPathIcon,
@@ -107,62 +126,109 @@ const benefits = [
   },
 ];
 
+/**
+ * Get the remote URL of the repository
+ */
+async function getRemoteUrl(path: string): Promise<string | undefined> {
+  try {
+    const command = Command.create("git", [
+      "-C",
+      path,
+      "remote",
+      "get-url",
+      "origin",
+    ]);
+    const output = await command.execute();
+    if (output.code === 0) {
+      return output.stdout.trim();
+    }
+  } catch {
+    // No remote configured
+  }
+  return undefined;
+}
+
+/**
+ * Parse GitHub owner/repo from remote URL
+ */
+function parseGitHubUrl(
+  url: string
+): { owner: string; repo: string } | undefined {
+  // HTTPS format: https://github.com/owner/repo.git
+  const httpsMatch = url.match(/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?$/i);
+  if (httpsMatch) {
+    return { owner: httpsMatch[1], repo: httpsMatch[2] };
+  }
+
+  // SSH format: git@github.com:owner/repo.git
+  const sshMatch = url.match(/github\.com:([^/]+)\/([^/]+?)(?:\.git)?$/i);
+  if (sshMatch) {
+    return { owner: sshMatch[1], repo: sshMatch[2] };
+  }
+
+  return undefined;
+}
+
 export function GitHubConnectCard({
   onConnect,
+  projectPath,
   className = "",
 }: GitHubConnectCardProps) {
-  const [githubUrl, setGithubUrl] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [detectedRepo, setDetectedRepo] = useState<{
+    url: string;
+    owner: string;
+    repo: string;
+  } | null>(null);
+  const [checkingRepo, setCheckingRepo] = useState(false);
 
-  const validateUrl = (url: string): { valid: boolean; error?: string } => {
-    if (!url.trim()) {
-      return { valid: false, error: "Repository URL is required" };
+  // Check for existing GitHub remote when projectPath changes
+  useEffect(() => {
+    async function detectRepo() {
+      if (!projectPath) {
+        setDetectedRepo(null);
+        return;
+      }
+
+      setCheckingRepo(true);
+      try {
+        const remoteUrl = await getRemoteUrl(projectPath);
+        if (remoteUrl) {
+          const parsed = parseGitHubUrl(remoteUrl);
+          if (parsed) {
+            setDetectedRepo({
+              url: remoteUrl,
+              owner: parsed.owner,
+              repo: parsed.repo,
+            });
+          } else {
+            setDetectedRepo(null);
+          }
+        } else {
+          setDetectedRepo(null);
+        }
+      } catch {
+        setDetectedRepo(null);
+      } finally {
+        setCheckingRepo(false);
+      }
     }
 
-    // Check for common GitHub URL patterns
-    const httpsPattern = /^https?:\/\/github\.com\/[\w-]+\/[\w.-]+/i;
-    const sshPattern = /^git@github\.com:[\w-]+\/[\w.-]+\.git$/i;
-    const aliasPattern = /^[\w.-]+:[\w-]+\/[\w.-]+\.git$/;
-
-    if (
-      !httpsPattern.test(url.trim()) &&
-      !sshPattern.test(url.trim()) &&
-      !aliasPattern.test(url.trim())
-    ) {
-      return {
-        valid: false,
-        error:
-          "Invalid URL format. Use https://github.com/owner/repo or git@github.com:owner/repo.git",
-      };
-    }
-
-    return { valid: true };
-  };
+    detectRepo();
+  }, [projectPath]);
 
   const handleConnect = async () => {
-    const validation = validateUrl(githubUrl);
-    if (!validation.valid) {
-      setError(validation.error || "Invalid URL");
-      return;
-    }
-
     try {
       setConnecting(true);
       setError(null);
-      await onConnect(githubUrl.trim());
+      await onConnect();
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to connect to GitHub"
       );
     } finally {
       setConnecting(false);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !connecting) {
-      handleConnect();
     }
   };
 
@@ -212,82 +278,101 @@ export function GitHubConnectCard({
         })}
       </div>
 
-      {/* Connection form */}
-      <div className="space-y-3">
-        <div>
-          <label
-            htmlFor="githubUrl"
-            className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1.5"
-          >
-            GitHub Repository URL
-          </label>
-          <input
-            id="githubUrl"
-            type="text"
-            value={githubUrl}
-            onChange={(e) => {
-              setGithubUrl(e.target.value);
-              setError(null);
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder="https://github.com/owner/repository"
-            className="input"
-            disabled={connecting}
-          />
-          <p className="text-xs text-surface-500 dark:text-surface-400 mt-1.5">
-            Supports HTTPS and SSH URLs
-          </p>
-        </div>
-
-        {error && (
-          <div className="p-3 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-lg text-red-600 dark:text-red-300 text-sm">
-            {error}
+      {/* Detected repo indicator */}
+      {!checkingRepo && detectedRepo && (
+        <div className="mb-4 p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 rounded-lg">
+          <div className="flex items-center gap-2">
+            <LinkIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+              Detected GitHub Repository
+            </span>
           </div>
-        )}
+          <a
+            href={`https://github.com/${detectedRepo.owner}/${detectedRepo.repo}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 text-sm text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
+          >
+            {detectedRepo.owner}/{detectedRepo.repo}
+            <svg
+              className="w-3 h-3"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
+              />
+            </svg>
+          </a>
+        </div>
+      )}
 
-        <button
-          onClick={handleConnect}
-          disabled={connecting || !githubUrl.trim()}
-          className="w-full btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {connecting ? (
-            <>
-              <svg
-                className="animate-spin w-4 h-4"
-                viewBox="0 0 24 24"
-                fill="none"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                />
-              </svg>
-              Connecting...
-            </>
-          ) : (
-            <>
-              <GitHubIcon className="w-4 h-4" />
-              Connect Repository
-            </>
-          )}
-        </button>
-      </div>
+      {/* Error message */}
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-lg text-red-600 dark:text-red-300 text-sm">
+          {error}
+        </div>
+      )}
+
+      {/* Connect button */}
+      <button
+        onClick={handleConnect}
+        disabled={connecting}
+        className="w-full btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {connecting ? (
+          <>
+            <svg
+              className="animate-spin w-4 h-4"
+              viewBox="0 0 24 24"
+              fill="none"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+              />
+            </svg>
+            Connecting...
+          </>
+        ) : (
+          <>
+            <GitHubIcon className="w-4 h-4" />
+            {detectedRepo
+              ? `Connect ${detectedRepo.owner}/${detectedRepo.repo}`
+              : "Connect to GitHub"}
+          </>
+        )}
+      </button>
 
       {/* Help text */}
       <div className="mt-4 p-3 bg-accent-50 dark:bg-accent-900/20 rounded-lg border border-accent-200 dark:border-accent-800/50">
         <p className="text-xs text-accent-700 dark:text-accent-300">
-          <strong>Note:</strong> Make sure you have the necessary permissions to
-          access the repository. For private repositories, ensure your SSH keys
-          or credentials are configured.
+          {detectedRepo ? (
+            <>
+              <strong>Note:</strong> We detected a GitHub remote in your
+              project. Click the button above to authenticate with GitHub and
+              enable sync.
+            </>
+          ) : (
+            <>
+              <strong>Note:</strong> Clicking the button will open GitHub to
+              authorize SpecFlux. After authorization, your project will be
+              linked to your GitHub account.
+            </>
+          )}
         </p>
       </div>
     </div>

@@ -6,6 +6,7 @@ import {
   type GitHubConnectionStatus,
 } from "../../services/githubConnection";
 import { GitHubConnectCard } from "../sync/GitHubConnectCard";
+import { useProject } from "../../contexts";
 
 interface SyncSettingsProps {
   className?: string;
@@ -61,6 +62,7 @@ const CheckCircleIcon = ({ className }: { className?: string }) => (
 );
 
 export function SyncSettings({ className = "" }: SyncSettingsProps) {
+  const { currentProject } = useProject();
   const [githubStatus, setGithubStatus] = useState<GitHubConnectionStatus>({
     isConnected: false,
   });
@@ -91,13 +93,11 @@ export function SyncSettings({ className = "" }: SyncSettingsProps) {
     }
   };
 
-  const handleConnect = async (_githubUrl: string) => {
+  const handleConnect = async () => {
     setConnecting(true);
     setError(null);
 
     try {
-      // TODO: Use githubUrl to clone/connect existing repo
-      // For now, just connect to GitHub OAuth
       await connectGitHub();
       loadGitHubStatus();
     } catch (err) {
@@ -232,7 +232,10 @@ export function SyncSettings({ className = "" }: SyncSettingsProps) {
           </div>
         ) : (
           /* Not Connected State */
-          <GitHubConnectCard onConnect={handleConnect} />
+          <GitHubConnectCard
+            onConnect={handleConnect}
+            projectPath={currentProject?.localPath}
+          />
         )}
       </div>
 

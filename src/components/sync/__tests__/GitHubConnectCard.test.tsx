@@ -1,16 +1,27 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { GitHubConnectCard } from "../GitHubConnectCard";
+
+// Mock the shell plugin
+vi.mock("@tauri-apps/plugin-shell", () => ({
+  Command: {
+    create: vi.fn(),
+  },
+}));
 
 describe("GitHubConnectCard", () => {
   const defaultProps = {
     onConnect: vi.fn().mockResolvedValue(undefined),
   };
 
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   describe("rendering", () => {
     it("renders card with title", () => {
       render(<GitHubConnectCard {...defaultProps} />);
-      expect(screen.getByText("Connect to GitHub")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Connect to GitHub" })).toBeInTheDocument();
     });
 
     it("shows description", () => {
@@ -29,136 +40,49 @@ describe("GitHubConnectCard", () => {
       expect(screen.getByText("Backup & Recovery")).toBeInTheDocument();
     });
 
-    it("shows URL input field", () => {
-      render(<GitHubConnectCard {...defaultProps} />);
-      const input = screen.getByPlaceholderText("https://github.com/owner/repository");
-      expect(input).toBeInTheDocument();
-    });
-
     it("shows connect button", () => {
       render(<GitHubConnectCard {...defaultProps} />);
-      expect(screen.getByRole("button", { name: /Connect Repository/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /Connect to GitHub/i })
+      ).toBeInTheDocument();
     });
 
-    it("shows help text about permissions", () => {
+    it("shows help text about authorization", () => {
       render(<GitHubConnectCard {...defaultProps} />);
       expect(
-        screen.getByText(/Make sure you have the necessary permissions/i)
+        screen.getByText(/Clicking the button will open GitHub to authorize/i)
       ).toBeInTheDocument();
     });
   });
 
-  describe("URL input", () => {
-    it("allows typing in the input field", () => {
-      render(<GitHubConnectCard {...defaultProps} />);
-      const input = screen.getByPlaceholderText(
-        "https://github.com/owner/repository"
-      ) as HTMLInputElement;
-
-      fireEvent.change(input, {
-        target: { value: "https://github.com/test/repo" },
-      });
-
-      expect(input.value).toBe("https://github.com/test/repo");
-    });
-
-    it("clears error when typing", async () => {
-      render(<GitHubConnectCard {...defaultProps} />);
-      const input = screen.getByPlaceholderText("https://github.com/owner/repository");
-
-      // Type invalid URL to trigger validation error
-      fireEvent.change(input, { target: { value: "invalid-url" } });
-      const button = screen.getByRole("button", { name: /Connect Repository/i });
-      fireEvent.click(button);
-
-      // Wait for error to appear
-      await waitFor(() => {
-        expect(screen.getByText(/Invalid URL format/i)).toBeInTheDocument();
-      });
-
-      // Error should clear when typing
-      fireEvent.change(input, {
-        target: { value: "https://github.com/test/repo" },
-      });
-      expect(screen.queryByText(/Invalid URL format/i)).not.toBeInTheDocument();
-    });
-  });
-
   describe("connect button", () => {
-    it("is disabled when URL is empty", () => {
+    it("is enabled by default", () => {
       render(<GitHubConnectCard {...defaultProps} />);
-      const button = screen.getByRole("button", { name: /Connect Repository/i });
-      expect(button).toBeDisabled();
-    });
-
-    it("is enabled when URL is provided", () => {
-      render(<GitHubConnectCard {...defaultProps} />);
-      const input = screen.getByPlaceholderText("https://github.com/owner/repository");
-      const button = screen.getByRole("button", { name: /Connect Repository/i });
-
-      fireEvent.change(input, {
-        target: { value: "https://github.com/test/repo" },
-      });
-
+      const button = screen.getByRole("button", { name: /Connect to GitHub/i });
       expect(button).toBeEnabled();
     });
 
-    it("validates URL format before connecting", async () => {
-      render(<GitHubConnectCard {...defaultProps} />);
-      const input = screen.getByPlaceholderText("https://github.com/owner/repository");
-      const button = screen.getByRole("button", { name: /Connect Repository/i });
-
-      fireEvent.change(input, { target: { value: "invalid-url" } });
-      fireEvent.click(button);
-
-      await waitFor(() => {
-        expect(screen.getByText(/Invalid URL format/i)).toBeInTheDocument();
-      });
-    });
-
-    it("accepts HTTPS GitHub URLs", async () => {
+    it("calls onConnect when clicked", async () => {
       const onConnect = vi.fn().mockResolvedValue(undefined);
       render(<GitHubConnectCard {...defaultProps} onConnect={onConnect} />);
-      const input = screen.getByPlaceholderText("https://github.com/owner/repository");
-      const button = screen.getByRole("button", { name: /Connect Repository/i });
+      const button = screen.getByRole("button", { name: /Connect to GitHub/i });
 
-      fireEvent.change(input, {
-        target: { value: "https://github.com/owner/repo" },
-      });
       fireEvent.click(button);
 
       await waitFor(() => {
-        expect(onConnect).toHaveBeenCalledWith("https://github.com/owner/repo");
-      });
-    });
-
-    it("accepts SSH GitHub URLs", async () => {
-      const onConnect = vi.fn().mockResolvedValue(undefined);
-      render(<GitHubConnectCard {...defaultProps} onConnect={onConnect} />);
-      const input = screen.getByPlaceholderText("https://github.com/owner/repository");
-      const button = screen.getByRole("button", { name: /Connect Repository/i });
-
-      fireEvent.change(input, {
-        target: { value: "git@github.com:owner/repo.git" },
-      });
-      fireEvent.click(button);
-
-      await waitFor(() => {
-        expect(onConnect).toHaveBeenCalledWith("git@github.com:owner/repo.git");
+        expect(onConnect).toHaveBeenCalled();
       });
     });
 
     it("shows loading state while connecting", async () => {
       const onConnect = vi
         .fn()
-        .mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 100)));
+        .mockImplementation(
+          () => new Promise((resolve) => setTimeout(resolve, 100))
+        );
       render(<GitHubConnectCard {...defaultProps} onConnect={onConnect} />);
-      const input = screen.getByPlaceholderText("https://github.com/owner/repository");
-      const button = screen.getByRole("button", { name: /Connect Repository/i });
+      const button = screen.getByRole("button", { name: /Connect to GitHub/i });
 
-      fireEvent.change(input, {
-        target: { value: "https://github.com/owner/repo" },
-      });
       fireEvent.click(button);
 
       expect(screen.getByText("Connecting...")).toBeInTheDocument();
@@ -174,12 +98,8 @@ describe("GitHubConnectCard", () => {
         .fn()
         .mockRejectedValue(new Error("Connection failed"));
       render(<GitHubConnectCard {...defaultProps} onConnect={onConnect} />);
-      const input = screen.getByPlaceholderText("https://github.com/owner/repository");
-      const button = screen.getByRole("button", { name: /Connect Repository/i });
+      const button = screen.getByRole("button", { name: /Connect to GitHub/i });
 
-      fireEvent.change(input, {
-        target: { value: "https://github.com/owner/repo" },
-      });
       fireEvent.click(button);
 
       await waitFor(() => {
@@ -188,33 +108,110 @@ describe("GitHubConnectCard", () => {
     });
   });
 
-  describe("keyboard interaction", () => {
-    it("connects on Enter key press", async () => {
-      const onConnect = vi.fn().mockResolvedValue(undefined);
-      render(<GitHubConnectCard {...defaultProps} onConnect={onConnect} />);
-      const input = screen.getByPlaceholderText("https://github.com/owner/repository");
+  describe("detected repository", () => {
+    it("shows detected repo when projectPath has GitHub remote", async () => {
+      const { Command } = await import("@tauri-apps/plugin-shell");
+      vi.mocked(Command.create).mockReturnValue({
+        execute: vi.fn().mockResolvedValue({
+          code: 0,
+          stdout: "https://github.com/owner/my-repo.git\n",
+          stderr: "",
+        }),
+      } as never);
 
-      fireEvent.change(input, {
-        target: { value: "https://github.com/owner/repo" },
-      });
-      fireEvent.keyDown(input, { key: "Enter" });
+      render(
+        <GitHubConnectCard {...defaultProps} projectPath="/test/project" />
+      );
 
       await waitFor(() => {
-        expect(onConnect).toHaveBeenCalledWith("https://github.com/owner/repo");
+        expect(screen.getByText("Detected GitHub Repository")).toBeInTheDocument();
+        expect(screen.getByText("owner/my-repo")).toBeInTheDocument();
       });
     });
 
-    it("does not connect on other key presses", () => {
-      const onConnect = vi.fn();
-      render(<GitHubConnectCard {...defaultProps} onConnect={onConnect} />);
-      const input = screen.getByPlaceholderText("https://github.com/owner/repository");
+    it("updates button text when repo is detected", async () => {
+      const { Command } = await import("@tauri-apps/plugin-shell");
+      vi.mocked(Command.create).mockReturnValue({
+        execute: vi.fn().mockResolvedValue({
+          code: 0,
+          stdout: "git@github.com:test-owner/test-repo.git\n",
+          stderr: "",
+        }),
+      } as never);
 
-      fireEvent.change(input, {
-        target: { value: "https://github.com/owner/repo" },
+      render(
+        <GitHubConnectCard {...defaultProps} projectPath="/test/project" />
+      );
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: /Connect test-owner\/test-repo/i })
+        ).toBeInTheDocument();
       });
-      fireEvent.keyDown(input, { key: "Escape" });
+    });
 
-      expect(onConnect).not.toHaveBeenCalled();
+    it("shows help text about detected repo", async () => {
+      const { Command } = await import("@tauri-apps/plugin-shell");
+      vi.mocked(Command.create).mockReturnValue({
+        execute: vi.fn().mockResolvedValue({
+          code: 0,
+          stdout: "https://github.com/owner/repo.git\n",
+          stderr: "",
+        }),
+      } as never);
+
+      render(
+        <GitHubConnectCard {...defaultProps} projectPath="/test/project" />
+      );
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/We detected a GitHub remote in your project/i)
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("does not show detected repo when no remote configured", async () => {
+      const { Command } = await import("@tauri-apps/plugin-shell");
+      vi.mocked(Command.create).mockReturnValue({
+        execute: vi.fn().mockResolvedValue({
+          code: 1,
+          stdout: "",
+          stderr: "fatal: No such remote 'origin'",
+        }),
+      } as never);
+
+      render(
+        <GitHubConnectCard {...defaultProps} projectPath="/test/project" />
+      );
+
+      // Wait for the detection to complete
+      await waitFor(() => {
+        expect(
+          screen.queryByText("Detected GitHub Repository")
+        ).not.toBeInTheDocument();
+      });
+    });
+
+    it("does not show detected repo for non-GitHub remotes", async () => {
+      const { Command } = await import("@tauri-apps/plugin-shell");
+      vi.mocked(Command.create).mockReturnValue({
+        execute: vi.fn().mockResolvedValue({
+          code: 0,
+          stdout: "https://gitlab.com/owner/repo.git\n",
+          stderr: "",
+        }),
+      } as never);
+
+      render(
+        <GitHubConnectCard {...defaultProps} projectPath="/test/project" />
+      );
+
+      await waitFor(() => {
+        expect(
+          screen.queryByText("Detected GitHub Repository")
+        ).not.toBeInTheDocument();
+      });
     });
   });
 
