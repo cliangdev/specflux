@@ -53,17 +53,6 @@ const config = new Configuration({
  * API client instances for Spring Boot backend.
  * Singleton instances that share the same configuration.
  * Auth tokens are refreshed per-request via the accessToken callback.
- *
- * Available APIs:
- * - agents: Agent management (nested under projects)
- * - epics: Epic management (nested under projects)
- * - mcpServers: MCP server management (nested under projects)
- * - projects: Project CRUD
- * - releases: Release management (nested under projects)
- * - repositories: Repository management (nested under projects)
- * - skills: Skill management (nested under projects)
- * - tasks: Task CRUD with dependencies and acceptance criteria
- * - users: User profile management
  */
 export const api = {
   agents: new AgentsApi(config),

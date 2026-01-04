@@ -8,7 +8,7 @@
 import { getApiBaseUrl } from "../lib/environment";
 import { startOAuthServer, OAuthError } from "../lib/oauth-tauri";
 import { api } from "../api/client";
-import type { GithubStatus } from "../api/generated";
+import type { GithubInstallationStatus } from "../api/generated";
 
 export interface GitHubConnectionStatus {
   isConnected: boolean;
@@ -84,13 +84,13 @@ export function getGitHubStatus(): GitHubConnectionStatus {
  */
 export async function fetchGitHubStatus(): Promise<GitHubConnectionStatus> {
   try {
-    const response: GithubStatus = await api.github.getGithubStatus();
+    const response: GithubInstallationStatus = await api.github.getGithubInstallationStatus();
 
     const status: GitHubConnectionStatus = {
       isConnected: response.installed,
       username: response.githubUsername ?? undefined,
-      avatarUrl: response.avatarUrl ?? undefined,
-      connectedAt: response.connectedAt ? new Date(response.connectedAt) : undefined,
+      // avatarUrl not yet available from backend API
+      connectedAt: response.connectedAt ?? undefined,
     };
 
     // Update local cache
@@ -115,7 +115,7 @@ export async function fetchGitHubStatus(): Promise<GitHubConnectionStatus> {
 export async function disconnectGitHub(): Promise<void> {
   try {
     // Call backend API to disconnect
-    await api.github.disconnectGithub();
+    await api.github.disconnectGithubInstallation();
 
     // Clear local cache
     localStorage.removeItem(GITHUB_CONNECTION_KEY);

@@ -22,8 +22,8 @@ vi.mock("@tauri-apps/plugin-shell", () => ({
 vi.mock("../../api/client", () => ({
   api: {
     github: {
-      disconnectGithub: vi.fn(),
-      getGithubStatus: vi.fn(),
+      disconnectGithubInstallation: vi.fn(),
+      getGithubInstallationStatus: vi.fn(),
     },
   },
 }));
@@ -173,7 +173,7 @@ describe("githubConnection", () => {
   describe("disconnectGitHub", () => {
     it("should clear stored connection data", async () => {
       const { api } = await import("../../api/client");
-      vi.mocked(api.github.disconnectGithub).mockResolvedValue(undefined);
+      vi.mocked(api.github.disconnectGithubInstallation).mockResolvedValue(undefined);
 
       localStorage.setItem(
         "specflux:github:connection",
@@ -184,19 +184,19 @@ describe("githubConnection", () => {
 
       const stored = localStorage.getItem("specflux:github:connection");
       expect(stored).toBeNull();
-      expect(api.github.disconnectGithub).toHaveBeenCalled();
+      expect(api.github.disconnectGithubInstallation).toHaveBeenCalled();
     });
 
     it("should not throw if no data to clear", async () => {
       const { api } = await import("../../api/client");
-      vi.mocked(api.github.disconnectGithub).mockResolvedValue(undefined);
+      vi.mocked(api.github.disconnectGithubInstallation).mockResolvedValue(undefined);
 
       await expect(disconnectGitHub()).resolves.not.toThrow();
     });
 
     it("should throw error if API call fails", async () => {
       const { api } = await import("../../api/client");
-      vi.mocked(api.github.disconnectGithub).mockRejectedValue(
+      vi.mocked(api.github.disconnectGithubInstallation).mockRejectedValue(
         new Error("API error")
       );
 

@@ -196,19 +196,21 @@ describe("gitOperations", () => {
       });
     });
 
-    it("should handle camelCase response from Rust (if already converted)", async () => {
+    it("should convert snake_case response from Rust to camelCase", async () => {
+      // Mock returns snake_case (from Rust)
       const mockStatus = {
         branch: "feature/test",
-        hasChanges: true,
-        stagedFiles: ["test.ts"],
-        unstagedFiles: [],
-        untrackedFiles: [],
+        has_changes: true,
+        staged_files: ["test.ts"],
+        unstaged_files: [],
+        untracked_files: [],
       };
 
       vi.mocked(invoke).mockResolvedValue(mockStatus);
 
       const status = await gitOps.getGitStatus("/path/to/repo");
 
+      // Result is converted to camelCase
       expect(status).toEqual({
         branch: "feature/test",
         hasChanges: true,
