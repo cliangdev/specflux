@@ -224,6 +224,11 @@ This generates code in `src/api/generated/` from `openapi/api.yaml`.
 - Pagination with cursor-based approach
 - All endpoints require Firebase auth token
 
+### Code Style
+- **Avoid unnecessary inline comments** - Comments should explain "why", not "what"
+- Self-explanatory code doesn't need comments (e.g., `// Get user by ID` before `getUser(id)`)
+- Good comments explain architectural decisions or non-obvious behavior
+
 ## Key Documentation
 
 - **Product Spec:** `docs/research/specflux-product-spec.md` - Complete vision, architecture, workflows
