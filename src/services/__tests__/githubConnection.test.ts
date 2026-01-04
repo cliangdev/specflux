@@ -123,7 +123,7 @@ describe("githubConnection", () => {
       vi.mocked(start).mockResolvedValue(8000);
       vi.mocked(open).mockResolvedValue();
       vi.mocked(onUrl).mockResolvedValue(() => {});
-      vi.mocked(cancel).mockReturnValue(undefined);
+      vi.mocked(cancel).mockResolvedValue(undefined);
 
       let caughtError: Error | undefined;
 
