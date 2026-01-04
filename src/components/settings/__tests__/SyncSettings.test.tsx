@@ -6,6 +6,16 @@ import * as githubConnection from "../../../services/githubConnection";
 // Mock the services
 vi.mock("../../../services/githubConnection");
 
+// Mock useProject hook
+vi.mock("../../../contexts", () => ({
+  useProject: () => ({
+    currentProject: {
+      id: "test-project",
+      localPath: "/test/project/path",
+    },
+  }),
+}));
+
 // Mock GitHubConnectCard component
 vi.mock("../../sync/GitHubConnectCard", () => ({
   GitHubConnectCard: ({

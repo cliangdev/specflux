@@ -77,10 +77,10 @@ tags:
     description: |
       MCP Server management endpoints.
       MCP servers are Model Context Protocol servers configured in .claude/.mcp.json.
-  - name: ApiKeys
+  - name: GitHub
     description: |
-      API Key management endpoints.
-      API keys provide secure programmatic access to the SpecFlux API without Firebase authentication.
+      GitHub App integration endpoints.
+      Handles OAuth installation flow and repository creation for project cloud sync.
 
 paths:
   # ==================== PROJECTS ====================
@@ -1360,87 +1360,6 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  # ==================== API KEYS ====================
-  /api/users/me/api-keys:
-    get:
-      operationId: listApiKeys
-      summary: List user's API keys
-      description: |
-        Returns all API keys for the authenticated user.
-        Note: Only metadata is returned - the full key is never shown after creation.
-      tags: [ApiKeys]
-      responses:
-        '200':
-          description: List of API keys
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ApiKey'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-
-    post:
-      operationId: createApiKey
-      summary: Create a new API key
-      description: |
-        Creates a new API key for the authenticated user.
-
-        **IMPORTANT**: The full API key is only returned in this response.
-        It cannot be retrieved again - the user must save it immediately.
-
-        MVP Limitation: Users can only have one active API key at a time.
-        Attempting to create a second key returns 409 Conflict.
-      tags: [ApiKeys]
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateApiKeyRequest'
-      responses:
-        '201':
-          description: API key created successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiKeyCreated'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '409':
-          $ref: '#/components/responses/Conflict'
-
-  /api/users/me/api-keys/{keyId}:
-    parameters:
-      - name: keyId
-        in: path
-        required: true
-        description: API key public ID (key_xxx)
-        schema:
-          type: string
-
-    delete:
-      operationId: revokeApiKey
-      summary: Revoke an API key
-      description: |
-        Immediately revokes an API key. The key will no longer be valid for authentication.
-        This action cannot be undone.
-      tags: [ApiKeys]
-      responses:
-        '204':
-          description: API key revoked successfully
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          description: API key does not belong to the authenticated user
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
   # ==================== REPOSITORIES ====================
   /api/projects/{projectRef}/repositories:
     parameters:
@@ -1938,6 +1857,113 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  # ==================== GITHUB ====================
+  /api/github/install:
+    get:
+      operationId: initiateGithubInstall
+      summary: Initiate GitHub App installation
+      description: |
+        Redirects user to GitHub OAuth flow to install the SpecFlux GitHub App.
+        For desktop apps, pass redirect_uri to receive the callback on a local server.
+      tags: [GitHub]
+      security: []  # No auth required for initial redirect
+      parameters:
+        - name: redirect_uri
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uri
+          description: |
+            URL to redirect to after OAuth completes. Used by desktop apps to
+            redirect back to a local server (e.g., http://localhost:8765).
+            If not provided, redirects to the configured frontend URL.
+      responses:
+        '302':
+          description: Redirect to GitHub OAuth authorization page
+          headers:
+            Location:
+              schema:
+                type: string
+                example: https://github.com/apps/specflux-sync/installations/new
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/github/callback:
+    get:
+      operationId: handleGithubCallback
+      summary: Handle GitHub OAuth callback
+      description: Processes the OAuth callback from GitHub, exchanges code for tokens, and stores installation
+      tags: [GitHub]
+      security: []  # Auth happens via code exchange
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+          description: OAuth authorization code from GitHub
+        - name: installation_id
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: GitHub installation ID
+        - name: setup_action
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Setup action (install/update)
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+          description: CSRF protection state parameter
+      responses:
+        '302':
+          description: Redirect to frontend with success/error status
+          headers:
+            Location:
+              schema:
+                type: string
+                example: https://app.specflux.ai/settings/integrations?github=success
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/github/status:
+    get:
+      operationId: getGithubInstallationStatus
+      summary: Get GitHub installation status
+      description: Check if the current user has installed the GitHub App
+      tags: [GitHub]
+      responses:
+        '200':
+          description: GitHub installation status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GithubInstallationStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/github/disconnect:
+    delete:
+      operationId: disconnectGithubInstallation
+      summary: Disconnect GitHub installation
+      description: Removes the GitHub App installation for the current user
+      tags: [GitHub]
+      responses:
+        '204':
+          description: GitHub installation disconnected successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -2003,6 +2029,13 @@ components:
 
     Conflict:
       description: Resource already exists
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalServerError:
+      description: Internal server error
       content:
         application/json:
           schema:
@@ -2918,97 +2951,6 @@ components:
           maxLength: 500
           description: New avatar URL (null to remove)
 
-    # ==================== API KEY SCHEMAS ====================
-    ApiKey:
-      type: object
-      description: API key metadata (without the secret key)
-      required: [id, keyPrefix, createdAt]
-      properties:
-        id:
-          type: string
-          description: Unique API key identifier (e.g., key_abc123def456)
-          example: key_abc123def456
-        name:
-          type: string
-          nullable: true
-          description: Optional display name for the key
-          example: Claude Code CLI
-        keyPrefix:
-          type: string
-          description: Masked key prefix for identification (e.g., sfx_a1B2****)
-          example: sfx_a1B2****
-        createdAt:
-          type: string
-          format: date-time
-          description: When the API key was created
-        expiresAt:
-          type: string
-          format: date-time
-          nullable: true
-          description: When the API key expires (null = never)
-        lastUsedAt:
-          type: string
-          format: date-time
-          nullable: true
-          description: When the API key was last used for authentication
-        isExpired:
-          type: boolean
-          description: Whether the key has passed its expiration date
-        isRevoked:
-          type: boolean
-          description: Whether the key has been revoked
-
-    ApiKeyCreated:
-      type: object
-      description: |
-        API key creation response with the full key.
-        WARNING: The key field is only returned once at creation time.
-      required: [id, key, keyPrefix, createdAt]
-      properties:
-        id:
-          type: string
-          description: Unique API key identifier
-          example: key_abc123def456
-        key:
-          type: string
-          description: |
-            The full API key. ONLY returned at creation time.
-            Must be copied and stored securely - cannot be retrieved again.
-          example: sfx_a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8s9T0
-        name:
-          type: string
-          nullable: true
-          description: Optional display name for the key
-        keyPrefix:
-          type: string
-          description: Key prefix for identification
-          example: sfx_a1B2c3D4e5F6
-        createdAt:
-          type: string
-          format: date-time
-          description: When the API key was created
-        expiresAt:
-          type: string
-          format: date-time
-          nullable: true
-          description: When the API key expires (null = never)
-
-    CreateApiKeyRequest:
-      type: object
-      description: Request to create a new API key
-      properties:
-        name:
-          type: string
-          maxLength: 100
-          description: Optional display name for the key
-          example: Claude Code CLI
-        expiresAt:
-          type: string
-          format: date-time
-          nullable: true
-          description: When the key should expire (null = never expires)
-          example: '2025-03-15T00:00:00Z'
-
     # Repository
     RepositoryStatus:
       type: string
@@ -3296,3 +3238,24 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/McpServer'
+
+    # GitHub
+    GithubInstallationStatus:
+      type: object
+      required: [installed]
+      properties:
+        installed:
+          type: boolean
+          description: Whether the user has installed the GitHub App
+          example: true
+        githubUsername:
+          type: string
+          nullable: true
+          description: GitHub username (only present if installed)
+          example: octocat
+        connectedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the GitHub App was installed
+          example: '2024-01-15T10:30:00Z'

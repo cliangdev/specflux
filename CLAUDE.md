@@ -238,6 +238,35 @@ This generates code in `src/api/generated/` from `openapi/api.yaml`.
 - **Approval Gates:** Human review points before downstream tasks proceed
 - **Worktrees:** Git worktrees for parallel task execution in same repo
 
+## Desktop OAuth Flow
+
+SpecFlux is a **desktop application** - all OAuth flows must redirect back to a local server, not a web URL.
+
+### How It Works
+
+1. Desktop app starts a local OAuth server on a random port (e.g., `http://localhost:8765`)
+2. App opens browser to backend: `/api/github/install?redirect_uri=http://localhost:8765`
+3. Backend encodes `redirect_uri` in OAuth `state` parameter (Base64 JSON)
+4. Backend redirects to GitHub OAuth with the encoded state
+5. User authorizes on GitHub
+6. GitHub redirects to backend callback with code + state
+7. Backend exchanges code for tokens, stores in DB
+8. Backend extracts `redirect_uri` from state, redirects there with success/error
+9. Desktop app's local server captures the callback
+10. App updates UI and closes local server
+
+### Key Files
+
+- **Frontend:** `src/services/githubConnection.ts` - Starts local server, opens OAuth URL
+- **Frontend:** `src/lib/oauth-tauri.ts` - Tauri OAuth plugin wrapper
+- **Backend:** `GithubController.java` - Handles install/callback with `redirect_uri` in state
+
+### Important
+
+- Always pass `redirect_uri` when initiating OAuth from the desktop app
+- The backend's `frontendUrl` config is NOT used for desktop OAuth
+- Use `@fabianlars/tauri-plugin-oauth` for the local callback server
+
 ## Running the Full Stack
 
 ```bash
