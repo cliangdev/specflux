@@ -115,22 +115,34 @@ describe("SyncSettings", () => {
       expect(screen.getByText("Disconnect GitHub")).toBeInTheDocument();
     });
 
-    it("should show confirmation before disconnect", async () => {
-      const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
-
+    it("should show confirmation modal before disconnect", async () => {
       render(<SyncSettings />);
 
       const disconnectButton = screen.getByText("Disconnect GitHub");
       fireEvent.click(disconnectButton);
 
-      expect(confirmSpy).toHaveBeenCalled();
+      // Modal should appear
+      expect(screen.getByRole("heading", { name: "Disconnect GitHub" })).toBeInTheDocument();
+      expect(screen.getByText(/Are you sure you want to disconnect/)).toBeInTheDocument();
       expect(githubConnection.disconnectGitHub).not.toHaveBeenCalled();
+    });
 
-      confirmSpy.mockRestore();
+    it("should not disconnect when cancelled", async () => {
+      render(<SyncSettings />);
+
+      const disconnectButton = screen.getByText("Disconnect GitHub");
+      fireEvent.click(disconnectButton);
+
+      // Click cancel button in modal
+      const cancelButton = screen.getByRole("button", { name: "Cancel" });
+      fireEvent.click(cancelButton);
+
+      // Modal should close and disconnect should not be called
+      expect(screen.queryByRole("heading", { name: "Disconnect GitHub" })).not.toBeInTheDocument();
+      expect(githubConnection.disconnectGitHub).not.toHaveBeenCalled();
     });
 
     it("should disconnect when confirmed", async () => {
-      const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
       vi.mocked(githubConnection.disconnectGitHub).mockResolvedValue();
 
       render(<SyncSettings />);
@@ -138,11 +150,13 @@ describe("SyncSettings", () => {
       const disconnectButton = screen.getByText("Disconnect GitHub");
       fireEvent.click(disconnectButton);
 
+      // Click disconnect button in modal
+      const confirmButton = screen.getByRole("button", { name: "Disconnect" });
+      fireEvent.click(confirmButton);
+
       await waitFor(() => {
         expect(githubConnection.disconnectGitHub).toHaveBeenCalled();
       });
-
-      confirmSpy.mockRestore();
     });
 
     it("should show auto-sync toggle", () => {
@@ -193,7 +207,6 @@ describe("SyncSettings", () => {
 
   describe("error handling", () => {
     it("should show error when disconnect fails", async () => {
-      const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
       vi.mocked(githubConnection.getGitHubStatus).mockReturnValue({
         isConnected: true,
         username: "testuser",
@@ -204,14 +217,17 @@ describe("SyncSettings", () => {
 
       render(<SyncSettings />);
 
+      // Open the confirmation modal
       const disconnectButton = screen.getByText("Disconnect GitHub");
       fireEvent.click(disconnectButton);
+
+      // Click disconnect in modal
+      const confirmButton = screen.getByRole("button", { name: "Disconnect" });
+      fireEvent.click(confirmButton);
 
       await waitFor(() => {
         expect(screen.getByText("Disconnect failed")).toBeInTheDocument();
       });
-
-      confirmSpy.mockRestore();
     });
   });
 
