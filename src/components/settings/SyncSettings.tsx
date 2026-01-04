@@ -142,96 +142,66 @@ export function SyncSettings({ className = "" }: SyncSettingsProps) {
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* Header */}
-      <div>
-        <h2 className="text-lg font-semibold text-surface-900 dark:text-white">
-          Sync Settings
-        </h2>
-        <p className="text-sm text-surface-600 dark:text-surface-400 mt-1">
-          Manage GitHub connection and project synchronization preferences.
-        </p>
-      </div>
-
       {/* Error Alert */}
       {error && (
-        <div className="p-4 bg-semantic-error/10 border border-semantic-error/30 rounded-lg">
-          <p className="text-sm text-semantic-error">{error}</p>
+        <div className="p-3 bg-semantic-error/10 border border-semantic-error/30 rounded-lg text-sm text-semantic-error">
+          {error}
         </div>
       )}
 
-      {/* GitHub Connection Status */}
-      <div className="card">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-surface-100 dark:bg-surface-800 rounded-lg">
-              <LinkIcon className="w-5 h-5 text-surface-600 dark:text-surface-400" />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-surface-900 dark:text-white">
-                GitHub Connection
-              </h3>
-              <p className="text-xs text-surface-500 dark:text-surface-400">
-                {githubStatus.isConnected
-                  ? "Your GitHub account is connected"
-                  : "Connect your GitHub account to enable sync"}
-              </p>
-            </div>
-          </div>
-          {githubStatus.isConnected && (
-            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-              <CheckCircleIcon className="w-5 h-5" />
-              <span className="text-xs font-medium">Connected</span>
-            </div>
-          )}
-        </div>
-
-        {/* Connected State */}
+      {/* GitHub Connection */}
+      <div>
+        <label className="block text-sm font-medium mb-2 text-surface-900 dark:text-white">
+          GitHub Connection
+        </label>
         {githubStatus.isConnected ? (
-          <div className="space-y-4">
-            {/* User Info */}
-            {githubStatus.username && (
-              <div className="flex items-center gap-3 p-3 bg-surface-50 dark:bg-surface-800 rounded-lg">
-                {githubStatus.avatarUrl && (
-                  <img
-                    src={githubStatus.avatarUrl}
-                    alt={githubStatus.username}
-                    className="w-10 h-10 rounded-full"
-                  />
-                )}
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-surface-900 dark:text-white">
+          <div className="space-y-3">
+            {/* Connected User Info */}
+            <div className="flex items-center gap-3 px-3 py-2 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg">
+              {githubStatus.avatarUrl && (
+                <img
+                  src={githubStatus.avatarUrl}
+                  alt={githubStatus.username}
+                  className="w-8 h-8 rounded-full"
+                />
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-surface-900 dark:text-white truncate">
                     @{githubStatus.username}
                   </p>
-                  {githubStatus.connectedAt && (
-                    <p className="text-xs text-surface-500 dark:text-surface-400">
-                      Connected on{" "}
-                      {githubStatus.connectedAt.toLocaleDateString()}
-                    </p>
-                  )}
+                  <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+                    <CheckCircleIcon className="w-3.5 h-3.5" />
+                    Connected
+                  </span>
                 </div>
-                <a
-                  href={`https://github.com/${githubStatus.username}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-xs text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300"
-                >
-                  View Profile
-                  <ExternalLinkIcon className="w-3 h-3" />
-                </a>
+                {githubStatus.connectedAt && (
+                  <p className="text-xs text-surface-500 dark:text-surface-400">
+                    Connected on {githubStatus.connectedAt.toLocaleDateString()}
+                  </p>
+                )}
               </div>
-            )}
+              <a
+                href={`https://github.com/${githubStatus.username}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300"
+              >
+                View Profile
+                <ExternalLinkIcon className="w-3 h-3" />
+              </a>
+            </div>
 
             {/* Disconnect Button */}
             <button
               onClick={handleDisconnect}
               disabled={disconnecting}
-              className="btn btn-secondary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-surface-700 dark:text-surface-300 rounded-lg text-sm font-medium hover:bg-surface-200 dark:hover:bg-surface-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {disconnecting ? "Disconnecting..." : "Disconnect GitHub"}
             </button>
           </div>
         ) : (
-          /* Not Connected State */
           <GitHubConnectCard
             onConnect={handleConnect}
             projectPath={currentProject?.localPath}
@@ -239,20 +209,19 @@ export function SyncSettings({ className = "" }: SyncSettingsProps) {
         )}
       </div>
 
-      {/* Auto-Sync Preferences */}
+      {/* Auto-Sync Toggle */}
       {githubStatus.isConnected && (
-        <div className="card">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <h3 className="text-sm font-semibold text-surface-900 dark:text-white mb-1">
+        <div>
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="block text-sm font-medium text-surface-900 dark:text-white">
                 Auto-sync on file changes
-              </h3>
-              <p className="text-xs text-surface-500 dark:text-surface-400">
-                Automatically commit and push changes when you save files in your
-                project. Changes are debounced by 5 seconds.
+              </label>
+              <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5">
+                Automatically commit and push changes when you save files.
               </p>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer ml-4">
+            <label className="relative inline-flex items-center cursor-pointer">
               <input
                 type="checkbox"
                 checked={autoSync}
@@ -265,7 +234,7 @@ export function SyncSettings({ className = "" }: SyncSettingsProps) {
         </div>
       )}
 
-      {/* Additional Info */}
+      {/* Info Box */}
       <div className="p-4 bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800 rounded-lg">
         <div className="flex items-start gap-3">
           <svg

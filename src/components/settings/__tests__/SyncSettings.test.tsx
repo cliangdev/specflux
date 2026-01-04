@@ -52,9 +52,6 @@ describe("SyncSettings", () => {
 
       expect(screen.getByTestId("github-connect-card")).toBeInTheDocument();
       expect(screen.getByText("GitHub Connection")).toBeInTheDocument();
-      expect(
-        screen.getByText(/Connect your GitHub account to enable sync/i)
-      ).toBeInTheDocument();
     });
 
     it("should call connectGitHub when connect button is clicked", async () => {
