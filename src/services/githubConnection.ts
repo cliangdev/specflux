@@ -6,6 +6,7 @@
 
 import { start as startOAuth, onUrl, cancel } from "@fabianlars/tauri-plugin-oauth";
 import { open } from "@tauri-apps/plugin-shell";
+import { getApiBaseUrl } from "../lib/environment";
 
 export interface GitHubConnectionStatus {
   isConnected: boolean;
@@ -17,19 +18,11 @@ export interface GitHubConnectionStatus {
 const GITHUB_CONNECTION_KEY = "specflux:github:connection";
 
 /**
- * Get the backend API URL from environment or default
- */
-function getBackendUrl(): string {
-  // In production, this would come from env or config
-  return import.meta.env.VITE_API_URL || "http://localhost:8090";
-}
-
-/**
  * Connect to GitHub via OAuth flow
  * Opens the OAuth flow and redirects to backend /api/github/install
  */
 export async function connectGitHub(): Promise<void> {
-  const backendUrl = getBackendUrl();
+  const backendUrl = getApiBaseUrl();
 
   try {
     // Start local OAuth server
