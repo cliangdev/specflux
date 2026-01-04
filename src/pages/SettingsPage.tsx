@@ -5,17 +5,19 @@ import { RepositorySettings } from "../components/settings/RepositorySettings";
 import { PromptsSettings } from "../components/settings/PromptsSettings";
 import { ClaudeItemsPage } from "../components/settings/ClaudeItemsPage";
 import { ApiKeysSettings } from "../components/settings/ApiKeysSettings";
+import { SyncSettings } from "../components/settings/SyncSettings";
 
 type SettingsTab =
   | "general"
   | "repositories"
+  | "sync"
   | "prompts"
   | "commands"
   | "skills"
   | "mcp"
   | "api-keys";
 
-const VALID_TABS: SettingsTab[] = ["general", "repositories", "prompts", "commands", "skills", "mcp", "api-keys"];
+const VALID_TABS: SettingsTab[] = ["general", "repositories", "sync", "prompts", "commands", "skills", "mcp", "api-keys"];
 
 interface TabGroup {
   label: string;
@@ -28,6 +30,7 @@ const tabGroups: TabGroup[] = [
     tabs: [
       { id: "general", label: "General" },
       { id: "repositories", label: "Repositories" },
+      { id: "sync", label: "Sync" },
     ],
   },
   {
@@ -113,6 +116,7 @@ export default function SettingsPage() {
           <div className="max-w-3xl">
             {activeTab === "general" && <GeneralSettings />}
             {activeTab === "repositories" && <RepositorySettings />}
+            {activeTab === "sync" && <SyncSettings />}
             {activeTab === "prompts" && <PromptsSettings />}
             {activeTab === "commands" && <ClaudeItemsPage category="command" />}
             {activeTab === "skills" && <ClaudeItemsPage category="skill" />}

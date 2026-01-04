@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../../api";
-import type { ApiKey, ApiKeyCreated } from "../../api/generated";
+import type { ApiKeyResponse, ApiKeyCreatedResponse } from "../../api/generated";
 
 export function ApiKeysSettings() {
-  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+  const [apiKeys, setApiKeys] = useState<ApiKeyResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -14,12 +14,12 @@ export function ApiKeysSettings() {
   const [expirationDays, setExpirationDays] = useState<number | null>(null);
 
   // Key created state (shows the full key once)
-  const [createdKey, setCreatedKey] = useState<ApiKeyCreated | null>(null);
+  const [createdKey, setCreatedKey] = useState<ApiKeyCreatedResponse | null>(null);
   const [copied, setCopied] = useState(false);
 
   // Revoke modal state
   const [showRevokeModal, setShowRevokeModal] = useState(false);
-  const [keyToRevoke, setKeyToRevoke] = useState<ApiKey | null>(null);
+  const [keyToRevoke, setKeyToRevoke] = useState<ApiKeyResponse | null>(null);
   const [revoking, setRevoking] = useState(false);
 
   const loadApiKeys = useCallback(async () => {
@@ -45,14 +45,9 @@ export function ApiKeysSettings() {
     setError(null);
 
     try {
-      const expiresAt = expirationDays
-        ? new Date(Date.now() + expirationDays * 24 * 60 * 60 * 1000)
-        : undefined;
-
       const result = await api.apiKeys.createApiKey({
         createApiKeyRequest: {
-          name: keyName || undefined,
-          expiresAt,
+          name: keyName || "API Key",
         },
       });
 

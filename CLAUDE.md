@@ -150,13 +150,49 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`
 
 ## Development Workflow
 
+### API-First Development (CRITICAL)
+
+**All API changes MUST start with the OpenAPI specification.** This ensures contract-first development where both frontend and backend agree on the API before implementation.
+
+#### Adding or Modifying API Endpoints
+1. **Update OpenAPI spec first** - Edit `openapi/api.yaml` with the new/modified endpoints
+2. **Generate frontend client** - Run `npm run generate:client` to create TypeScript types
+3. **Implement backend** - Create Spring Boot controller matching the spec exactly
+4. **Implement frontend** - Use the generated client to call the API
+
+#### Why OpenAPI First?
+- **Single source of truth** for API contracts
+- **Type safety** - Frontend gets typed client automatically
+- **Documentation** - Swagger UI available at `/swagger-ui.html`
+- **Validation** - Backend can validate requests against spec
+- **No drift** - Frontend and backend always in sync
+
+#### Example: Adding a New Endpoint
+```bash
+# 1. Edit openapi/api.yaml - add your endpoint definition
+# 2. Generate client
+npm run generate:client
+
+# 3. Implement backend controller (must match spec exactly)
+# 4. Use generated client in frontend
+import { api } from '../api';
+const result = await api.yourDomain.yourEndpoint({ ... });
+```
+
 ### Adding a Frontend Feature
 1. Create feature branch from `main`
-2. If API changes needed, update `openapi/api.yaml`
+2. If API changes needed, **update `openapi/api.yaml` FIRST**
 3. Run `npm run generate:client` to regenerate TypeScript client
 4. Implement React components/pages
 5. Write tests with Vitest
 6. Create PR for review
+
+### Adding a Backend Feature
+1. Create feature branch from `main` in `specflux-backend`
+2. **Update `openapi/api.yaml` in frontend repo FIRST** (or coordinate the spec)
+3. Implement Spring Boot controller matching the OpenAPI spec
+4. Write tests
+5. Create PR for review
 
 ### API Client Generation
 The frontend uses an auto-generated TypeScript client from the OpenAPI spec:
@@ -188,6 +224,11 @@ This generates code in `src/api/generated/` from `openapi/api.yaml`.
 - Pagination with cursor-based approach
 - All endpoints require Firebase auth token
 
+### Code Style
+- **Avoid unnecessary inline comments** - Comments should explain "why", not "what"
+- Self-explanatory code doesn't need comments (e.g., `// Get user by ID` before `getUser(id)`)
+- Good comments explain architectural decisions or non-obvious behavior
+
 ## Key Documentation
 
 - **Product Spec:** `docs/research/specflux-product-spec.md` - Complete vision, architecture, workflows
@@ -201,6 +242,35 @@ This generates code in `src/api/generated/` from `openapi/api.yaml`.
 - **Workflows:** Templates defining required phases
 - **Approval Gates:** Human review points before downstream tasks proceed
 - **Worktrees:** Git worktrees for parallel task execution in same repo
+
+## Desktop OAuth Flow
+
+SpecFlux is a **desktop application** - all OAuth flows must redirect back to a local server, not a web URL.
+
+### How It Works
+
+1. Desktop app starts a local OAuth server on a random port (e.g., `http://localhost:8765`)
+2. App opens browser to backend: `/api/github/install?redirect_uri=http://localhost:8765`
+3. Backend encodes `redirect_uri` in OAuth `state` parameter (Base64 JSON)
+4. Backend redirects to GitHub OAuth with the encoded state
+5. User authorizes on GitHub
+6. GitHub redirects to backend callback with code + state
+7. Backend exchanges code for tokens, stores in DB
+8. Backend extracts `redirect_uri` from state, redirects there with success/error
+9. Desktop app's local server captures the callback
+10. App updates UI and closes local server
+
+### Key Files
+
+- **Frontend:** `src/services/githubConnection.ts` - Starts local server, opens OAuth URL
+- **Frontend:** `src/lib/oauth-tauri.ts` - Tauri OAuth plugin wrapper
+- **Backend:** `GithubController.java` - Handles install/callback with `redirect_uri` in state
+
+### Important
+
+- Always pass `redirect_uri` when initiating OAuth from the desktop app
+- The backend's `frontendUrl` config is NOT used for desktop OAuth
+- Use `@fabianlars/tauri-plugin-oauth` for the local callback server
 
 ## Running the Full Stack
 

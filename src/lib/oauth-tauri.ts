@@ -8,9 +8,9 @@
 import { start, cancel, onUrl } from "@fabianlars/tauri-plugin-oauth";
 import { open } from "@tauri-apps/plugin-shell";
 
-const OAUTH_CONFIG = {
+export const OAUTH_CONFIG = {
   ports: [8765, 8766, 8767, 8768, 8769],
-  timeoutMs: 60 * 1000,
+  timeoutMs: 120 * 1000, // 2 minutes
   response: `
     <!DOCTYPE html>
     <html>
@@ -54,23 +54,24 @@ export class OAuthError extends Error {
   }
 }
 
-const GOOGLE_OAUTH_CONFIG = {
-  authUrl: "https://accounts.google.com/o/oauth2/v2/auth",
-  scope: "email profile openid",
-};
-
 /**
- * Start Google OAuth flow in desktop app.
- * Opens system browser, waits for callback, returns access token.
+ * Result from OAuth callback containing the full URL and parsed params.
  */
-export async function startGoogleOAuth(clientId: string): Promise<string> {
-  return startOAuthFlow(clientId, GOOGLE_OAUTH_CONFIG);
+export interface OAuthCallbackResult {
+  url: string;
+  params: URLSearchParams;
 }
 
-async function startOAuthFlow(
-  clientId: string,
-  config: { authUrl: string; scope: string },
-): Promise<string> {
+/**
+ * Start a local OAuth server and open browser to the given URL.
+ * Returns when callback is received or throws on timeout/error.
+ *
+ * @param buildUrl - Function that receives the redirect URI and returns the full OAuth URL to open (can be async)
+ * @returns The callback result with URL and parsed query params
+ */
+export async function startOAuthServer(
+  buildUrl: (redirectUri: string) => string | Promise<string>,
+): Promise<OAuthCallbackResult> {
   let port: number | null = null;
   let unsubscribe: (() => void) | null = null;
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -87,23 +88,24 @@ async function startOAuthFlow(
     }
 
     const redirectUri = `http://localhost:${port}`;
-    const authUrl = buildOAuthUrl(config, clientId, redirectUri);
+    const authUrl = await Promise.resolve(buildUrl(redirectUri));
 
-    const tokenPromise = new Promise<string>((resolve, reject) => {
+    const callbackPromise = new Promise<OAuthCallbackResult>((resolve, reject) => {
       timeoutId = setTimeout(() => {
         reject(new OAuthError("Login timed out. Please try again.", "timeout"));
       }, OAUTH_CONFIG.timeoutMs);
 
       onUrl(async (url: string) => {
         try {
-          const token = extractAccessToken(url);
-          if (token) {
-            resolve(token);
-          } else {
-            reject(new OAuthError("Login failed. Please try again.", "invalid_response"));
-          }
+          const urlObj = new URL(url);
+          // Support both query params and hash params (for implicit flow)
+          const queryParams = urlObj.searchParams;
+          const hashParams = new URLSearchParams(urlObj.hash.substring(1));
+          // Merge both - hash params take precedence (for Google implicit flow)
+          const params = new URLSearchParams([...queryParams, ...hashParams]);
+          resolve({ url, params });
         } catch {
-          reject(new OAuthError("Login failed. Please try again.", "invalid_response"));
+          reject(new OAuthError("Invalid callback URL received.", "invalid_response"));
         }
       }).then((unsub: () => void) => {
         unsubscribe = unsub;
@@ -111,7 +113,7 @@ async function startOAuthFlow(
     });
 
     await open(authUrl);
-    return await tokenPromise;
+    return await callbackPromise;
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
     if (unsubscribe) (unsubscribe as () => void)();
@@ -125,29 +127,32 @@ async function startOAuthFlow(
   }
 }
 
-function buildOAuthUrl(
-  config: { authUrl: string; scope: string },
-  clientId: string,
-  redirectUri: string,
-): string {
-  const params = new URLSearchParams({
-    response_type: "token",
-    client_id: clientId,
-    redirect_uri: redirectUri,
-    scope: config.scope,
-    prompt: "select_account",
-  });
-  return `${config.authUrl}?${params.toString()}`;
-}
+const GOOGLE_OAUTH_CONFIG = {
+  authUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+  scope: "email profile openid",
+};
 
-function extractAccessToken(url: string): string | null {
-  try {
-    const urlObj = new URL(url);
-    const hashParams = new URLSearchParams(urlObj.hash.substring(1));
-    return hashParams.get("access_token");
-  } catch {
-    return null;
+/**
+ * Start Google OAuth flow in desktop app.
+ * Opens system browser, waits for callback, returns access token.
+ */
+export async function startGoogleOAuth(clientId: string): Promise<string> {
+  const result = await startOAuthServer((redirectUri) => {
+    const params = new URLSearchParams({
+      response_type: "token",
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      scope: GOOGLE_OAUTH_CONFIG.scope,
+      prompt: "select_account",
+    });
+    return `${GOOGLE_OAUTH_CONFIG.authUrl}?${params.toString()}`;
+  });
+
+  const token = result.params.get("access_token");
+  if (!token) {
+    throw new OAuthError("No access token received from Google.", "invalid_response");
   }
+  return token;
 }
 
 /**
