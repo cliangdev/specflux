@@ -1971,29 +1971,26 @@ paths:
     get:
       operationId: listGithubRepos
       summary: List user's GitHub repositories
-      description: Returns repositories accessible to the user via their GitHub OAuth connection
+      description: Returns repositories owned by the authenticated user's GitHub account
       tags: [GitHub]
       parameters:
         - name: page
           in: query
+          required: false
           schema:
             type: integer
             default: 1
+            minimum: 1
           description: Page number for pagination
-        - name: perPage
+        - name: per_page
           in: query
+          required: false
           schema:
             type: integer
             default: 30
+            minimum: 1
             maximum: 100
-          description: Number of repos per page
-        - name: sort
-          in: query
-          schema:
-            type: string
-            enum: [updated, name, created]
-            default: updated
-          description: Sort order for repositories
+          description: Number of repositories per page (max 100)
       responses:
         '200':
           description: List of GitHub repositories
@@ -2013,7 +2010,7 @@ paths:
     post:
       operationId: createGithubRepo
       summary: Create a new GitHub repository
-      description: Creates a new repository on GitHub under the authenticated user's account
+      description: Creates a new repository on GitHub for the authenticated user
       tags: [GitHub]
       requestBody:
         required: true
@@ -2039,7 +2036,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '422':
-          description: Repository name already exists
+          description: Repository name already exists or is invalid
           content:
             application/json:
               schema:
@@ -3517,30 +3514,21 @@ components:
           type: string
           nullable: true
           description: Repository description
-          example: My awesome project
+          example: A sample project
         private:
           type: boolean
           description: Whether the repository is private
-          example: false
+          example: true
         htmlUrl:
           type: string
           format: uri
-          description: GitHub web URL
+          description: GitHub web URL for the repository
           example: https://github.com/octocat/my-project
         cloneUrl:
           type: string
           format: uri
           description: HTTPS clone URL
           example: https://github.com/octocat/my-project.git
-        sshUrl:
-          type: string
-          description: SSH clone URL
-          example: git@github.com:octocat/my-project.git
-        updatedAt:
-          type: string
-          format: date-time
-          description: Last updated timestamp
-          example: '2024-01-15T10:30:00Z'
 
     GithubRepoListResponse:
       type: object
@@ -3550,9 +3538,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/GithubRepo'
+          description: List of GitHub repositories
         totalCount:
           type: integer
-          description: Total number of repositories
+          description: Total number of repositories (approximate)
           example: 42
         page:
           type: integer
@@ -3560,7 +3549,7 @@ components:
           example: 1
         perPage:
           type: integer
-          description: Items per page
+          description: Number of repositories per page
           example: 30
 
     CreateGithubRepoRequest:
@@ -3569,7 +3558,7 @@ components:
       properties:
         name:
           type: string
-          description: Repository name (will be slugified)
+          description: Repository name (alphanumeric with hyphens and underscores)
           example: my-new-project
           minLength: 1
           maxLength: 100
@@ -3577,8 +3566,7 @@ components:
           type: string
           nullable: true
           description: Repository description
-          example: A new project for SpecFlux
-          maxLength: 350
+          example: A new project created from SpecFlux
         private:
           type: boolean
           default: true
