@@ -2,11 +2,21 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { LinkRepositoryModal } from "../LinkRepositoryModal";
 import * as gitOps from "../../../services/gitOperations";
+import { api } from "../../../api/client";
 
 // Mock git operations
 vi.mock("../../../services/gitOperations", () => ({
   setRemoteUrl: vi.fn(),
-  parseGitHubUrl: vi.fn(),
+}));
+
+// Mock API client
+vi.mock("../../../api/client", () => ({
+  api: {
+    github: {
+      listGithubRepos: vi.fn(),
+      createGithubRepo: vi.fn(),
+    },
+  },
 }));
 
 describe("LinkRepositoryModal", () => {
@@ -18,23 +28,24 @@ describe("LinkRepositoryModal", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default: parseGitHubUrl returns undefined (invalid)
-    vi.mocked(gitOps.parseGitHubUrl).mockReturnValue(undefined);
   });
 
-  it("should render modal with title and input", () => {
+  it("should render modal with tabs", () => {
     render(<LinkRepositoryModal {...defaultProps} />);
 
     expect(
       screen.getByRole("heading", { name: "Link Repository" })
     ).toBeInTheDocument();
-    expect(
-      screen.getByPlaceholderText("https://github.com/owner/repo")
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Link Repository" })
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Create New/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Link Existing/i })).toBeInTheDocument();
+  });
+
+  it("should show Create New tab by default", () => {
+    render(<LinkRepositoryModal {...defaultProps} />);
+
+    expect(screen.getByPlaceholderText("my-project")).toBeInTheDocument();
+    expect(screen.getByText("Repository Name")).toBeInTheDocument();
+    expect(screen.getByText("Visibility")).toBeInTheDocument();
   });
 
   it("should call onCancel when cancel button is clicked", () => {
@@ -58,192 +69,245 @@ describe("LinkRepositoryModal", () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
-  it("should call onCancel when close button is clicked", () => {
-    const onCancel = vi.fn();
-    render(<LinkRepositoryModal {...defaultProps} onCancel={onCancel} />);
+  describe("Create New tab", () => {
+    it("should disable submit button when repo name is empty", () => {
+      render(<LinkRepositoryModal {...defaultProps} />);
 
-    // Close button is the X button in header
-    const closeButtons = screen.getAllByRole("button");
-    const closeButton = closeButtons.find(
-      (btn) =>
-        !btn.textContent?.includes("Cancel") &&
-        !btn.textContent?.includes("Link Repository")
-    );
-    if (closeButton) {
-      fireEvent.click(closeButton);
-    }
-
-    expect(onCancel).toHaveBeenCalledTimes(1);
-  });
-
-  it("should disable submit button when URL is empty", () => {
-    render(<LinkRepositoryModal {...defaultProps} />);
-
-    const submitButton = screen.getByRole("button", { name: "Link Repository" });
-    expect(submitButton).toBeDisabled();
-  });
-
-  it("should disable submit button when URL is invalid", () => {
-    vi.mocked(gitOps.parseGitHubUrl).mockReturnValue(undefined);
-
-    render(<LinkRepositoryModal {...defaultProps} />);
-
-    const input = screen.getByPlaceholderText("https://github.com/owner/repo");
-    fireEvent.change(input, { target: { value: "not-a-valid-url" } });
-
-    const submitButton = screen.getByRole("button", { name: "Link Repository" });
-    expect(submitButton).toBeDisabled();
-  });
-
-  it("should show validation message for valid GitHub URL", () => {
-    vi.mocked(gitOps.parseGitHubUrl).mockReturnValue({
-      owner: "octocat",
-      repo: "hello-world",
+      const submitButton = screen.getByRole("button", { name: /Create & Link/i });
+      expect(submitButton).toBeDisabled();
     });
 
-    render(<LinkRepositoryModal {...defaultProps} />);
+    it("should enable submit button when repo name is provided", () => {
+      render(<LinkRepositoryModal {...defaultProps} />);
 
-    const input = screen.getByPlaceholderText("https://github.com/owner/repo");
-    fireEvent.change(input, {
-      target: { value: "https://github.com/octocat/hello-world" },
+      const input = screen.getByPlaceholderText("my-project");
+      fireEvent.change(input, { target: { value: "test-repo" } });
+
+      const submitButton = screen.getByRole("button", { name: /Create & Link/i });
+      expect(submitButton).not.toBeDisabled();
     });
 
-    expect(screen.getByText("Repository:")).toBeInTheDocument();
-    expect(screen.getByText("octocat/hello-world")).toBeInTheDocument();
-  });
+    it("should create repo and set remote on submit", async () => {
+      vi.mocked(api.github.createGithubRepo).mockResolvedValue({
+        id: 123,
+        name: "test-repo",
+        fullName: "user/test-repo",
+        _private: true,
+        htmlUrl: "https://github.com/user/test-repo",
+        cloneUrl: "https://github.com/user/test-repo.git",
+      });
+      vi.mocked(gitOps.setRemoteUrl).mockResolvedValue(undefined);
 
-  it("should show validation message for invalid URL", () => {
-    vi.mocked(gitOps.parseGitHubUrl).mockReturnValue(undefined);
+      const onSuccess = vi.fn();
+      render(<LinkRepositoryModal {...defaultProps} onSuccess={onSuccess} />);
 
-    render(<LinkRepositoryModal {...defaultProps} />);
+      const input = screen.getByPlaceholderText("my-project");
+      fireEvent.change(input, { target: { value: "test-repo" } });
 
-    const input = screen.getByPlaceholderText("https://github.com/owner/repo");
-    fireEvent.change(input, { target: { value: "https://gitlab.com/user/repo" } });
+      fireEvent.click(screen.getByRole("button", { name: /Create & Link/i }));
 
-    expect(
-      screen.getByText("Please enter a valid GitHub URL (HTTPS or SSH)")
-    ).toBeInTheDocument();
-  });
-
-  it("should enable submit button when URL is valid", () => {
-    vi.mocked(gitOps.parseGitHubUrl).mockReturnValue({
-      owner: "octocat",
-      repo: "hello-world",
+      await waitFor(() => {
+        expect(api.github.createGithubRepo).toHaveBeenCalledWith({
+          createGithubRepoRequest: {
+            name: "test-repo",
+            description: undefined,
+            _private: true,
+          },
+        });
+        expect(gitOps.setRemoteUrl).toHaveBeenCalledWith(
+          "/path/to/repo",
+          "https://github.com/user/test-repo.git"
+        );
+        expect(onSuccess).toHaveBeenCalled();
+      });
     });
 
-    render(<LinkRepositoryModal {...defaultProps} />);
-
-    const input = screen.getByPlaceholderText("https://github.com/owner/repo");
-    fireEvent.change(input, {
-      target: { value: "https://github.com/octocat/hello-world" },
-    });
-
-    const submitButton = screen.getByRole("button", { name: "Link Repository" });
-    expect(submitButton).not.toBeDisabled();
-  });
-
-  it("should call setRemoteUrl and onSuccess when form is submitted", async () => {
-    vi.mocked(gitOps.parseGitHubUrl).mockReturnValue({
-      owner: "octocat",
-      repo: "hello-world",
-    });
-    vi.mocked(gitOps.setRemoteUrl).mockResolvedValue(undefined);
-
-    const onSuccess = vi.fn();
-    render(<LinkRepositoryModal {...defaultProps} onSuccess={onSuccess} />);
-
-    const input = screen.getByPlaceholderText("https://github.com/owner/repo");
-    fireEvent.change(input, {
-      target: { value: "https://github.com/octocat/hello-world" },
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: "Link Repository" }));
-
-    await waitFor(() => {
-      expect(gitOps.setRemoteUrl).toHaveBeenCalledWith(
-        "/path/to/repo",
-        "https://github.com/octocat/hello-world"
+    it("should show error when create fails", async () => {
+      vi.mocked(api.github.createGithubRepo).mockRejectedValue(
+        new Error("Repository already exists")
       );
-      expect(onSuccess).toHaveBeenCalledTimes(1);
+
+      render(<LinkRepositoryModal {...defaultProps} />);
+
+      const input = screen.getByPlaceholderText("my-project");
+      fireEvent.change(input, { target: { value: "test-repo" } });
+
+      fireEvent.click(screen.getByRole("button", { name: /Create & Link/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText("Repository already exists")).toBeInTheDocument();
+      });
+    });
+
+    it("should toggle visibility between private and public", () => {
+      render(<LinkRepositoryModal {...defaultProps} />);
+
+      // Private is selected by default
+      const privateRadio = screen.getByLabelText(/Private/i);
+      const publicRadio = screen.getByLabelText(/Public/i);
+
+      expect(privateRadio).toBeChecked();
+      expect(publicRadio).not.toBeChecked();
+
+      // Click public
+      fireEvent.click(publicRadio);
+
+      expect(privateRadio).not.toBeChecked();
+      expect(publicRadio).toBeChecked();
     });
   });
 
-  it("should show error message when setRemoteUrl fails", async () => {
-    vi.mocked(gitOps.parseGitHubUrl).mockReturnValue({
-      owner: "octocat",
-      repo: "hello-world",
-    });
-    vi.mocked(gitOps.setRemoteUrl).mockRejectedValue(
-      new Error("Failed to add remote")
-    );
-
-    render(<LinkRepositoryModal {...defaultProps} />);
-
-    const input = screen.getByPlaceholderText("https://github.com/owner/repo");
-    fireEvent.change(input, {
-      target: { value: "https://github.com/octocat/hello-world" },
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: "Link Repository" }));
-
-    await waitFor(() => {
-      expect(screen.getByText("Failed to add remote")).toBeInTheDocument();
-    });
-  });
-
-  it("should trim whitespace from URL", async () => {
-    vi.mocked(gitOps.parseGitHubUrl).mockReturnValue({
-      owner: "octocat",
-      repo: "hello-world",
-    });
-    vi.mocked(gitOps.setRemoteUrl).mockResolvedValue(undefined);
-
-    render(<LinkRepositoryModal {...defaultProps} />);
-
-    const input = screen.getByPlaceholderText("https://github.com/owner/repo");
-    fireEvent.change(input, {
-      target: { value: "  https://github.com/octocat/hello-world  " },
+  describe("Link Existing tab", () => {
+    beforeEach(() => {
+      vi.mocked(api.github.listGithubRepos).mockResolvedValue({
+        repos: [
+          {
+            id: 1,
+            name: "repo-one",
+            fullName: "user/repo-one",
+            _private: false,
+            htmlUrl: "https://github.com/user/repo-one",
+            cloneUrl: "https://github.com/user/repo-one.git",
+            description: "First repository",
+          },
+          {
+            id: 2,
+            name: "repo-two",
+            fullName: "user/repo-two",
+            _private: true,
+            htmlUrl: "https://github.com/user/repo-two",
+            cloneUrl: "https://github.com/user/repo-two.git",
+          },
+        ],
+        totalCount: 2,
+        page: 1,
+        perPage: 30,
+      });
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Link Repository" }));
+    it("should load repos when Link Existing tab is clicked", async () => {
+      render(<LinkRepositoryModal {...defaultProps} />);
 
-    await waitFor(() => {
-      expect(gitOps.setRemoteUrl).toHaveBeenCalledWith(
-        "/path/to/repo",
-        "https://github.com/octocat/hello-world"
+      fireEvent.click(screen.getByRole("button", { name: /Link Existing/i }));
+
+      await waitFor(() => {
+        expect(api.github.listGithubRepos).toHaveBeenCalled();
+        expect(screen.getByText("user/repo-one")).toBeInTheDocument();
+        expect(screen.getByText("user/repo-two")).toBeInTheDocument();
+      });
+    });
+
+    it("should show repo descriptions", async () => {
+      render(<LinkRepositoryModal {...defaultProps} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /Link Existing/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText("First repository")).toBeInTheDocument();
+      });
+    });
+
+    it("should filter repos by search query", async () => {
+      render(<LinkRepositoryModal {...defaultProps} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /Link Existing/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText("user/repo-one")).toBeInTheDocument();
+      });
+
+      const searchInput = screen.getByPlaceholderText("Search by name...");
+      fireEvent.change(searchInput, { target: { value: "two" } });
+
+      expect(screen.queryByText("user/repo-one")).not.toBeInTheDocument();
+      expect(screen.getByText("user/repo-two")).toBeInTheDocument();
+    });
+
+    it("should disable submit button when no repo is selected", async () => {
+      render(<LinkRepositoryModal {...defaultProps} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /Link Existing/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText("user/repo-one")).toBeInTheDocument();
+      });
+
+      const submitButton = screen.getByRole("button", { name: "Link Repository" });
+      expect(submitButton).toBeDisabled();
+    });
+
+    it("should enable submit button when repo is selected", async () => {
+      render(<LinkRepositoryModal {...defaultProps} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /Link Existing/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText("user/repo-one")).toBeInTheDocument();
+      });
+
+      // Select repo-one
+      fireEvent.click(screen.getByText("user/repo-one"));
+
+      const submitButton = screen.getByRole("button", { name: "Link Repository" });
+      expect(submitButton).not.toBeDisabled();
+    });
+
+    it("should set remote when existing repo is linked", async () => {
+      vi.mocked(gitOps.setRemoteUrl).mockResolvedValue(undefined);
+
+      const onSuccess = vi.fn();
+      render(<LinkRepositoryModal {...defaultProps} onSuccess={onSuccess} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /Link Existing/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText("user/repo-one")).toBeInTheDocument();
+      });
+
+      // Select repo-one
+      fireEvent.click(screen.getByText("user/repo-one"));
+
+      // Click Link Repository
+      fireEvent.click(screen.getByRole("button", { name: "Link Repository" }));
+
+      await waitFor(() => {
+        expect(gitOps.setRemoteUrl).toHaveBeenCalledWith(
+          "/path/to/repo",
+          "https://github.com/user/repo-one.git"
+        );
+        expect(onSuccess).toHaveBeenCalled();
+      });
+    });
+
+    it("should show error when loading repos fails", async () => {
+      vi.mocked(api.github.listGithubRepos).mockRejectedValue(
+        new Error("Failed to load repositories")
       );
-    });
-  });
 
-  it("should show loading state while submitting", async () => {
-    vi.mocked(gitOps.parseGitHubUrl).mockReturnValue({
-      owner: "octocat",
-      repo: "hello-world",
-    });
-    // Create a promise that we can control
-    let resolvePromise: () => void;
-    const promise = new Promise<void>((resolve) => {
-      resolvePromise = resolve;
-    });
-    vi.mocked(gitOps.setRemoteUrl).mockReturnValue(promise);
+      render(<LinkRepositoryModal {...defaultProps} />);
 
-    render(<LinkRepositoryModal {...defaultProps} />);
+      fireEvent.click(screen.getByRole("button", { name: /Link Existing/i }));
 
-    const input = screen.getByPlaceholderText("https://github.com/owner/repo");
-    fireEvent.change(input, {
-      target: { value: "https://github.com/octocat/hello-world" },
+      await waitFor(() => {
+        expect(screen.getByText("Failed to load repositories")).toBeInTheDocument();
+      });
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Link Repository" }));
+    it("should show message when no repos found", async () => {
+      vi.mocked(api.github.listGithubRepos).mockResolvedValue({
+        repos: [],
+        totalCount: 0,
+        page: 1,
+        perPage: 30,
+      });
 
-    // Should show spinner
-    expect(document.querySelector(".animate-spin")).toBeInTheDocument();
+      render(<LinkRepositoryModal {...defaultProps} />);
 
-    // Resolve the promise
-    resolvePromise!();
+      fireEvent.click(screen.getByRole("button", { name: /Link Existing/i }));
 
-    await waitFor(() => {
-      expect(document.querySelector(".animate-spin")).not.toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText("No repositories found")).toBeInTheDocument();
+      });
     });
   });
 });
