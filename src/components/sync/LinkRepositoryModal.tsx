@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { setRemoteUrl } from "../../services/gitOperations";
 import { api } from "../../api/client";
+import { getApiErrorMessage } from "../../api";
 import type { GithubRepo } from "../../api/generated";
 
 interface LinkRepositoryModalProps {
@@ -155,7 +156,7 @@ export function LinkRepositoryModal({
         setNameConflict(true);
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to load repositories";
+      const errorMessage = await getApiErrorMessage(err, "Failed to load repositories");
       setReposLoadError(errorMessage);
       setReposLoaded(true); // Mark as loaded even on error to prevent retry loops
     } finally {
@@ -187,7 +188,8 @@ export function LinkRepositoryModal({
       await setRemoteUrl(repoDir, newRepo.cloneUrl);
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create repository");
+      const message = await getApiErrorMessage(err, "Failed to create repository");
+      setError(message);
     } finally {
       setIsLoading(false);
     }
@@ -272,12 +274,6 @@ export function LinkRepositoryModal({
 
         {/* Content */}
         <div className="p-4">
-          {error && (
-            <div className="mb-4 p-3 bg-semantic-error/10 border border-semantic-error/30 rounded-lg text-sm text-semantic-error">
-              {error}
-            </div>
-          )}
-
           {activeTab === "create" ? (
             <form onSubmit={handleCreateRepo} className="space-y-4">
               <div>
@@ -360,6 +356,15 @@ export function LinkRepositoryModal({
                     </div>
                   </label>
                 </div>
+              </div>
+
+              {/* Error message area - fixed height to prevent layout shift */}
+              <div className="min-h-[52px] pt-4">
+                {error && (
+                  <div className="p-3 bg-semantic-error/10 border border-semantic-error/30 rounded-lg text-sm text-semantic-error">
+                    {error}
+                  </div>
+                )}
               </div>
 
               {/* Footer */}
@@ -488,6 +493,15 @@ export function LinkRepositoryModal({
                         </div>
                       </label>
                     ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Error message area - fixed height to prevent layout shift */}
+              <div className="min-h-[52px] pt-4">
+                {error && (
+                  <div className="p-3 bg-semantic-error/10 border border-semantic-error/30 rounded-lg text-sm text-semantic-error">
+                    {error}
                   </div>
                 )}
               </div>
