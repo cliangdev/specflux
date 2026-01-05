@@ -52,7 +52,7 @@ describe("LinkRepositoryModal", () => {
 
     const repoNameInput = screen.getByPlaceholderText("my-project") as HTMLInputElement;
     expect(repoNameInput).toBeInTheDocument();
-    expect(repoNameInput.value).toBe("repo"); // From "/path/to/repo"
+    expect(repoNameInput.value).toBe("specflux-repo-spec"); // From "/path/to/repo"
     expect(screen.getByText("Repository Name")).toBeInTheDocument();
     expect(screen.getByText("Visibility")).toBeInTheDocument();
   });
@@ -101,7 +101,7 @@ describe("LinkRepositoryModal", () => {
       render(<LinkRepositoryModal {...defaultProps} />);
 
       const input = screen.getByPlaceholderText("my-project") as HTMLInputElement;
-      expect(input.value).toBe("repo");
+      expect(input.value).toBe("specflux-repo-spec");
 
       fireEvent.change(input, { target: { value: "custom-name" } });
       expect(input.value).toBe("custom-name");
@@ -115,11 +115,11 @@ describe("LinkRepositoryModal", () => {
         repos: [
           {
             id: 1,
-            name: "repo",
-            fullName: "user/repo",
+            name: "specflux-repo-spec",
+            fullName: "user/specflux-repo-spec",
             _private: true,
-            htmlUrl: "https://github.com/user/repo",
-            cloneUrl: "https://github.com/user/repo.git",
+            htmlUrl: "https://github.com/user/specflux-repo-spec",
+            cloneUrl: "https://github.com/user/specflux-repo-spec.git",
           },
         ],
         totalCount: 1,
@@ -131,11 +131,11 @@ describe("LinkRepositoryModal", () => {
 
       await waitFor(() => {
         const input = screen.getByPlaceholderText("my-project") as HTMLInputElement;
-        expect(input.value).toBe("repo-1"); // Should suggest unique name
+        expect(input.value).toBe("specflux-repo-spec-1"); // Should suggest unique name
       });
 
       // Should show conflict message
-      expect(screen.getByText(/A repository named "repo" already exists/)).toBeInTheDocument();
+      expect(screen.getByText(/A repository named "specflux-repo-spec" already exists/)).toBeInTheDocument();
     });
 
     it("should increment suffix for multiple conflicts", async () => {
@@ -143,19 +143,19 @@ describe("LinkRepositoryModal", () => {
         repos: [
           {
             id: 1,
-            name: "repo",
-            fullName: "user/repo",
+            name: "specflux-repo-spec",
+            fullName: "user/specflux-repo-spec",
             _private: true,
-            htmlUrl: "https://github.com/user/repo",
-            cloneUrl: "https://github.com/user/repo.git",
+            htmlUrl: "https://github.com/user/specflux-repo-spec",
+            cloneUrl: "https://github.com/user/specflux-repo-spec.git",
           },
           {
             id: 2,
-            name: "repo-1",
-            fullName: "user/repo-1",
+            name: "specflux-repo-spec-1",
+            fullName: "user/specflux-repo-spec-1",
             _private: true,
-            htmlUrl: "https://github.com/user/repo-1",
-            cloneUrl: "https://github.com/user/repo-1.git",
+            htmlUrl: "https://github.com/user/specflux-repo-spec-1",
+            cloneUrl: "https://github.com/user/specflux-repo-spec-1.git",
           },
         ],
         totalCount: 2,
@@ -167,7 +167,7 @@ describe("LinkRepositoryModal", () => {
 
       await waitFor(() => {
         const input = screen.getByPlaceholderText("my-project") as HTMLInputElement;
-        expect(input.value).toBe("repo-2"); // Should skip repo-1 and suggest repo-2
+        expect(input.value).toBe("specflux-repo-spec-2"); // Should skip -1 and suggest -2
       });
     });
 
@@ -176,11 +176,11 @@ describe("LinkRepositoryModal", () => {
         repos: [
           {
             id: 1,
-            name: "repo",
-            fullName: "user/repo",
+            name: "specflux-repo-spec",
+            fullName: "user/specflux-repo-spec",
             _private: true,
-            htmlUrl: "https://github.com/user/repo",
-            cloneUrl: "https://github.com/user/repo.git",
+            htmlUrl: "https://github.com/user/specflux-repo-spec",
+            cloneUrl: "https://github.com/user/specflux-repo-spec.git",
           },
         ],
         totalCount: 1,
@@ -191,13 +191,13 @@ describe("LinkRepositoryModal", () => {
       render(<LinkRepositoryModal {...defaultProps} />);
 
       await waitFor(() => {
-        expect(screen.getByText(/A repository named "repo" already exists/)).toBeInTheDocument();
+        expect(screen.getByText(/A repository named "specflux-repo-spec" already exists/)).toBeInTheDocument();
       });
 
       const input = screen.getByPlaceholderText("my-project");
       fireEvent.change(input, { target: { value: "my-custom-name" } });
 
-      expect(screen.queryByText(/A repository named "repo" already exists/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/A repository named "specflux-repo-spec" already exists/)).not.toBeInTheDocument();
     });
 
     it("should create repo and set remote on submit", async () => {

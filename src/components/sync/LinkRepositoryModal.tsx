@@ -100,8 +100,9 @@ export function LinkRepositoryModal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Derive default repo name from folder path
-  const baseName = repoDir.split("/").pop() || "project";
+  // Derive default repo name from project folder
+  const projectName = repoDir.split("/").pop() || "project";
+  const baseName = `specflux-${projectName.toLowerCase().replace(/[^a-z0-9-]/g, "-")}-spec`;
 
   // Create new repo state
   const [repoName, setRepoName] = useState(baseName);
