@@ -100,34 +100,63 @@ export function LinkRepositoryModal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Derive default repo name from folder path
+  const baseName = repoDir.split("/").pop() || "project";
+
   // Create new repo state
-  const [repoName, setRepoName] = useState("");
+  const [repoName, setRepoName] = useState(baseName);
   const [repoDescription, setRepoDescription] = useState("");
   const [isPrivate, setIsPrivate] = useState(true);
+  const [nameConflict, setNameConflict] = useState(false);
 
   // Link existing repo state
   const [repos, setRepos] = useState<GithubRepo[]>([]);
   const [loadingRepos, setLoadingRepos] = useState(false);
   const [selectedRepo, setSelectedRepo] = useState<GithubRepo | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [reposLoaded, setReposLoaded] = useState(false);
+  const [reposLoadError, setReposLoadError] = useState<string | null>(null);
 
-  // Load existing repos when "Link Existing" tab is selected
+  // Generate unique repo name if base name conflicts
+  const generateUniqueName = (base: string, existingRepos: GithubRepo[]): string => {
+    const existingNames = new Set(existingRepos.map((r) => r.name.toLowerCase()));
+    if (!existingNames.has(base.toLowerCase())) {
+      return base;
+    }
+    // Try with suffix: base-1, base-2, etc.
+    let suffix = 1;
+    while (existingNames.has(`${base}-${suffix}`.toLowerCase())) {
+      suffix++;
+    }
+    return `${base}-${suffix}`;
+  };
+
+  // Load repos on mount to check for name conflicts
   useEffect(() => {
-    if (activeTab === "existing" && repos.length === 0) {
+    if (!reposLoaded) {
       loadRepos();
     }
-  }, [activeTab]);
+  }, []);
 
   const loadRepos = async () => {
     setLoadingRepos(true);
-    setError(null);
+    setReposLoadError(null);
     try {
       const response = await api.github.listGithubRepos({ perPage: 100 });
       setRepos(response.repos);
+      setReposLoaded(true);
+
+      // Check if default name conflicts and auto-suggest unique name
+      const existingNames = new Set(response.repos.map((r) => r.name.toLowerCase()));
+      if (existingNames.has(baseName.toLowerCase())) {
+        const uniqueName = generateUniqueName(baseName, response.repos);
+        setRepoName(uniqueName);
+        setNameConflict(true);
+      }
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load repositories"
-      );
+      const errorMessage = err instanceof Error ? err.message : "Failed to load repositories";
+      setReposLoadError(errorMessage);
+      setReposLoaded(true); // Mark as loaded even on error to prevent retry loops
     } finally {
       setLoadingRepos(false);
     }
@@ -260,11 +289,17 @@ export function LinkRepositoryModal({
                   onChange={(e) => {
                     setRepoName(e.target.value);
                     setError(null);
+                    setNameConflict(false);
                   }}
                   placeholder="my-project"
                   className="input w-full"
                   autoFocus
                 />
+                {nameConflict && (
+                  <p className="mt-1 text-xs text-surface-500 dark:text-surface-400">
+                    A repository named "{baseName}" already exists, so we suggested "{repoName}"
+                  </p>
+                )}
               </div>
 
               <div>
@@ -404,6 +439,10 @@ export function LinkRepositoryModal({
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                       />
                     </svg>
+                  </div>
+                ) : reposLoadError ? (
+                  <div className="p-4 text-center text-sm text-semantic-error">
+                    {reposLoadError}
                   </div>
                 ) : filteredRepos.length === 0 ? (
                   <div className="p-4 text-center text-sm text-surface-500 dark:text-surface-400">

@@ -28,6 +28,13 @@ describe("LinkRepositoryModal", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default: no existing repos (so no conflicts)
+    vi.mocked(api.github.listGithubRepos).mockResolvedValue({
+      repos: [],
+      totalCount: 0,
+      page: 1,
+      perPage: 100,
+    });
   });
 
   it("should render modal with tabs", () => {
@@ -40,10 +47,12 @@ describe("LinkRepositoryModal", () => {
     expect(screen.getByRole("button", { name: /Link Existing/i })).toBeInTheDocument();
   });
 
-  it("should show Create New tab by default", () => {
+  it("should show Create New tab by default with pre-populated repo name", async () => {
     render(<LinkRepositoryModal {...defaultProps} />);
 
-    expect(screen.getByPlaceholderText("my-project")).toBeInTheDocument();
+    const repoNameInput = screen.getByPlaceholderText("my-project") as HTMLInputElement;
+    expect(repoNameInput).toBeInTheDocument();
+    expect(repoNameInput.value).toBe("repo"); // From "/path/to/repo"
     expect(screen.getByText("Repository Name")).toBeInTheDocument();
     expect(screen.getByText("Visibility")).toBeInTheDocument();
   });
@@ -70,21 +79,125 @@ describe("LinkRepositoryModal", () => {
   });
 
   describe("Create New tab", () => {
-    it("should disable submit button when repo name is empty", () => {
+    it("should enable submit button when repo name is pre-populated", () => {
       render(<LinkRepositoryModal {...defaultProps} />);
+
+      // Submit is enabled because repo name is pre-populated from path
+      const submitButton = screen.getByRole("button", { name: /Create & Link/i });
+      expect(submitButton).not.toBeDisabled();
+    });
+
+    it("should disable submit button when repo name is cleared", () => {
+      render(<LinkRepositoryModal {...defaultProps} />);
+
+      const input = screen.getByPlaceholderText("my-project");
+      fireEvent.change(input, { target: { value: "" } });
 
       const submitButton = screen.getByRole("button", { name: /Create & Link/i });
       expect(submitButton).toBeDisabled();
     });
 
-    it("should enable submit button when repo name is provided", () => {
+    it("should allow changing the pre-populated repo name", () => {
       render(<LinkRepositoryModal {...defaultProps} />);
 
-      const input = screen.getByPlaceholderText("my-project");
-      fireEvent.change(input, { target: { value: "test-repo" } });
+      const input = screen.getByPlaceholderText("my-project") as HTMLInputElement;
+      expect(input.value).toBe("repo");
+
+      fireEvent.change(input, { target: { value: "custom-name" } });
+      expect(input.value).toBe("custom-name");
 
       const submitButton = screen.getByRole("button", { name: /Create & Link/i });
       expect(submitButton).not.toBeDisabled();
+    });
+
+    it("should auto-suggest unique name when folder name conflicts with existing repo", async () => {
+      vi.mocked(api.github.listGithubRepos).mockResolvedValue({
+        repos: [
+          {
+            id: 1,
+            name: "repo",
+            fullName: "user/repo",
+            _private: true,
+            htmlUrl: "https://github.com/user/repo",
+            cloneUrl: "https://github.com/user/repo.git",
+          },
+        ],
+        totalCount: 1,
+        page: 1,
+        perPage: 100,
+      });
+
+      render(<LinkRepositoryModal {...defaultProps} />);
+
+      await waitFor(() => {
+        const input = screen.getByPlaceholderText("my-project") as HTMLInputElement;
+        expect(input.value).toBe("repo-1"); // Should suggest unique name
+      });
+
+      // Should show conflict message
+      expect(screen.getByText(/A repository named "repo" already exists/)).toBeInTheDocument();
+    });
+
+    it("should increment suffix for multiple conflicts", async () => {
+      vi.mocked(api.github.listGithubRepos).mockResolvedValue({
+        repos: [
+          {
+            id: 1,
+            name: "repo",
+            fullName: "user/repo",
+            _private: true,
+            htmlUrl: "https://github.com/user/repo",
+            cloneUrl: "https://github.com/user/repo.git",
+          },
+          {
+            id: 2,
+            name: "repo-1",
+            fullName: "user/repo-1",
+            _private: true,
+            htmlUrl: "https://github.com/user/repo-1",
+            cloneUrl: "https://github.com/user/repo-1.git",
+          },
+        ],
+        totalCount: 2,
+        page: 1,
+        perPage: 100,
+      });
+
+      render(<LinkRepositoryModal {...defaultProps} />);
+
+      await waitFor(() => {
+        const input = screen.getByPlaceholderText("my-project") as HTMLInputElement;
+        expect(input.value).toBe("repo-2"); // Should skip repo-1 and suggest repo-2
+      });
+    });
+
+    it("should clear conflict message when user changes repo name", async () => {
+      vi.mocked(api.github.listGithubRepos).mockResolvedValue({
+        repos: [
+          {
+            id: 1,
+            name: "repo",
+            fullName: "user/repo",
+            _private: true,
+            htmlUrl: "https://github.com/user/repo",
+            cloneUrl: "https://github.com/user/repo.git",
+          },
+        ],
+        totalCount: 1,
+        page: 1,
+        perPage: 100,
+      });
+
+      render(<LinkRepositoryModal {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/A repository named "repo" already exists/)).toBeInTheDocument();
+      });
+
+      const input = screen.getByPlaceholderText("my-project");
+      fireEvent.change(input, { target: { value: "my-custom-name" } });
+
+      expect(screen.queryByText(/A repository named "repo" already exists/)).not.toBeInTheDocument();
     });
 
     it("should create repo and set remote on submit", async () => {
