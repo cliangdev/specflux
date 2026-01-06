@@ -322,29 +322,34 @@ describe("gitOperations", () => {
       ]);
     });
 
-    it("should update remote when it exists", async () => {
-      // First call (getRemoteUrl check) returns existing URL
+    it("should be idempotent when same URL (with .git variation)", async () => {
+      // Remote exists with same URL (just without .git)
       mockExecute.mockResolvedValueOnce({
         code: 0,
-        stdout: "https://github.com/old/repo.git\n",
+        stdout: "https://github.com/owner/repo\n",
         stderr: "",
       });
-      // Second call (remote set-url) succeeds
-      mockExecute.mockResolvedValueOnce({ code: 0, stdout: "", stderr: "" });
 
       await gitOps.setRemoteUrl(
         "/path/to/repo",
-        "https://github.com/new/repo.git"
+        "https://github.com/owner/repo.git"
       );
 
-      expect(Command.create).toHaveBeenNthCalledWith(2, "git", [
-        "-C",
-        "/path/to/repo",
-        "remote",
-        "set-url",
-        "origin",
-        "https://github.com/new/repo.git",
-      ]);
+      // Should only call get-url, not add or set-url
+      expect(Command.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("should throw error when remote exists with different URL", async () => {
+      // Remote exists with different URL
+      mockExecute.mockResolvedValueOnce({
+        code: 0,
+        stdout: "https://github.com/existing/project.git\n",
+        stderr: "",
+      });
+
+      await expect(
+        gitOps.setRemoteUrl("/path/to/repo", "https://github.com/new/repo.git")
+      ).rejects.toThrow("Remote 'origin' already exists with URL");
     });
 
     it("should use custom remote name", async () => {
@@ -391,23 +396,5 @@ describe("gitOperations", () => {
       ).rejects.toThrow("fatal: remote origin already exists");
     });
 
-    it("should throw error when update fails", async () => {
-      // First call returns existing URL
-      mockExecute.mockResolvedValueOnce({
-        code: 0,
-        stdout: "https://github.com/old/repo.git\n",
-        stderr: "",
-      });
-      // Second call fails
-      mockExecute.mockResolvedValueOnce({
-        code: 1,
-        stdout: "",
-        stderr: "fatal: could not set url",
-      });
-
-      await expect(
-        gitOps.setRemoteUrl("/path/to/repo", "https://github.com/new/repo.git")
-      ).rejects.toThrow("fatal: could not set url");
-    });
   });
 });

@@ -232,13 +232,28 @@ export async function getRemoteInfo(
 }
 
 /**
- * Set or update the remote URL for a repository.
- * If the remote doesn't exist, it will be added.
- * If it exists, the URL will be updated.
+ * Normalize a git URL for comparison.
+ * Strips trailing .git, lowercases, and handles protocol variations.
+ */
+function normalizeGitUrl(url: string): string {
+  return url
+    .trim()
+    .toLowerCase()
+    .replace(/\.git$/, "")
+    .replace(/\/$/, "");
+}
+
+/**
+ * Set the remote URL for a repository.
+ *
+ * SAFETY: This function will NOT overwrite an existing remote that points
+ * to a different repository. This prevents accidentally changing a project's
+ * remote to point to an unrelated SpecFlux spec repository.
  *
  * @param repoDir - The repository directory path
  * @param url - The remote URL to set
  * @param remoteName - The remote name (default: "origin")
+ * @throws Error if the remote already exists with a different URL
  * @throws Error if the operation fails
  */
 export async function setRemoteUrl(
@@ -246,40 +261,38 @@ export async function setRemoteUrl(
   url: string,
   remoteName: string = "origin",
 ): Promise<void> {
-  // Dynamic import to avoid issues in non-Tauri environments (tests)
-  const { Command } = await import("@tauri-apps/plugin-shell");
-
-  // First, check if the remote exists
   const existingUrl = await getRemoteUrl(repoDir, remoteName);
 
   if (existingUrl) {
-    // Remote exists, update its URL
-    const command = Command.create("git", [
-      "-C",
-      repoDir,
-      "remote",
-      "set-url",
-      remoteName,
-      url,
-    ]);
-    const output = await command.execute();
-    if (output.code !== 0) {
-      throw new Error(output.stderr || "Failed to update remote URL");
+    const normalizedExisting = normalizeGitUrl(existingUrl);
+    const normalizedNew = normalizeGitUrl(url);
+
+    if (normalizedExisting === normalizedNew) {
+      // Same URL (ignoring minor variations), nothing to do
+      return;
     }
-  } else {
-    // Remote doesn't exist, add it
-    const command = Command.create("git", [
-      "-C",
-      repoDir,
-      "remote",
-      "add",
-      remoteName,
-      url,
-    ]);
-    const output = await command.execute();
-    if (output.code !== 0) {
-      throw new Error(output.stderr || "Failed to add remote");
-    }
+
+    // Different URL - refuse to overwrite for safety
+    throw new Error(
+      `Remote '${remoteName}' already exists with URL: ${existingUrl}\n` +
+      `Cannot overwrite with: ${url}\n` +
+      `To link a different repository, first unlink the current one.`
+    );
+  }
+
+  // Remote doesn't exist, add it
+  const { Command } = await import("@tauri-apps/plugin-shell");
+  const command = Command.create("git", [
+    "-C",
+    repoDir,
+    "remote",
+    "add",
+    remoteName,
+    url,
+  ]);
+  const output = await command.execute();
+  if (output.code !== 0) {
+    throw new Error(output.stderr || "Failed to add remote");
   }
 }
 
