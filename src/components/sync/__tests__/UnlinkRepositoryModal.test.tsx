@@ -2,20 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { UnlinkRepositoryModal } from "../UnlinkRepositoryModal";
 import * as gitOps from "../../../services/gitOperations";
-import { api } from "../../../api/client";
 
 // Mock git operations
 vi.mock("../../../services/gitOperations", () => ({
   removeRemote: vi.fn(),
-}));
-
-// Mock API client
-vi.mock("../../../api/client", () => ({
-  api: {
-    github: {
-      deleteGithubRepo: vi.fn(),
-    },
-  },
 }));
 
 describe("UnlinkRepositoryModal", () => {
@@ -45,11 +35,15 @@ describe("UnlinkRepositoryModal", () => {
     expect(screen.getByText("user/test-repo")).toBeInTheDocument();
   });
 
-  it("should have unlink only option selected by default", () => {
+  it("should show explanation text", () => {
     render(<UnlinkRepositoryModal {...defaultProps} />);
 
-    const unlinkOnlyRadio = screen.getByLabelText(/Unlink only/i);
-    expect(unlinkOnlyRadio).toBeChecked();
+    expect(
+      screen.getByText(/This will remove the connection between this project/)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/The repository will remain on GitHub/)
+    ).toBeInTheDocument();
   });
 
   it("should call onCancel when cancel button is clicked", () => {
@@ -73,125 +67,47 @@ describe("UnlinkRepositoryModal", () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
-  describe("Unlink only mode", () => {
-    it("should remove remote and call onSuccess when unlink button is clicked", async () => {
-      vi.mocked(gitOps.removeRemote).mockResolvedValue(undefined);
+  it("should remove remote and call onSuccess when unlink button is clicked", async () => {
+    vi.mocked(gitOps.removeRemote).mockResolvedValue(undefined);
 
-      const onSuccess = vi.fn();
-      render(<UnlinkRepositoryModal {...defaultProps} onSuccess={onSuccess} />);
+    const onSuccess = vi.fn();
+    render(<UnlinkRepositoryModal {...defaultProps} onSuccess={onSuccess} />);
 
-      fireEvent.click(screen.getByRole("button", { name: "Unlink" }));
+    fireEvent.click(screen.getByRole("button", { name: "Unlink" }));
 
-      await waitFor(() => {
-        expect(gitOps.removeRemote).toHaveBeenCalledWith("/path/to/repo");
-        expect(api.github.deleteGithubRepo).not.toHaveBeenCalled();
-        expect(onSuccess).toHaveBeenCalled();
-      });
-    });
-
-    it("should show error when unlink fails", async () => {
-      vi.mocked(gitOps.removeRemote).mockRejectedValue(
-        new Error("Failed to remove remote")
-      );
-
-      render(<UnlinkRepositoryModal {...defaultProps} />);
-
-      fireEvent.click(screen.getByRole("button", { name: "Unlink" }));
-
-      await waitFor(() => {
-        expect(screen.getByText("Failed to remove remote")).toBeInTheDocument();
-      });
+    await waitFor(() => {
+      expect(gitOps.removeRemote).toHaveBeenCalledWith("/path/to/repo");
+      expect(onSuccess).toHaveBeenCalled();
     });
   });
 
-  describe("Unlink and delete mode", () => {
-    it("should show confirmation input when delete option is selected", () => {
-      render(<UnlinkRepositoryModal {...defaultProps} />);
+  it("should show error when unlink fails", async () => {
+    vi.mocked(gitOps.removeRemote).mockRejectedValue(
+      new Error("Failed to remove remote")
+    );
 
-      fireEvent.click(screen.getByLabelText(/Unlink and delete from GitHub/i));
+    render(<UnlinkRepositoryModal {...defaultProps} />);
 
-      expect(screen.getByText(/Type/)).toBeInTheDocument();
-      expect(screen.getByText("test-repo")).toBeInTheDocument();
-      expect(screen.getByPlaceholderText("test-repo")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Unlink" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Failed to remove remote")).toBeInTheDocument();
     });
+  });
 
-    it("should disable submit button until repo name is typed", () => {
-      render(<UnlinkRepositoryModal {...defaultProps} />);
+  it("should disable buttons while loading", async () => {
+    // Make removeRemote hang
+    vi.mocked(gitOps.removeRemote).mockImplementation(
+      () => new Promise(() => {})
+    );
 
-      fireEvent.click(screen.getByLabelText(/Unlink and delete from GitHub/i));
+    render(<UnlinkRepositoryModal {...defaultProps} />);
 
-      const submitButton = screen.getByRole("button", { name: /Delete & Unlink/i });
-      expect(submitButton).toBeDisabled();
-    });
+    const unlinkButton = screen.getByRole("button", { name: "Unlink" });
+    fireEvent.click(unlinkButton);
 
-    it("should enable submit button when correct repo name is typed", () => {
-      render(<UnlinkRepositoryModal {...defaultProps} />);
-
-      fireEvent.click(screen.getByLabelText(/Unlink and delete from GitHub/i));
-
-      const confirmInput = screen.getByPlaceholderText("test-repo");
-      fireEvent.change(confirmInput, { target: { value: "test-repo" } });
-
-      const submitButton = screen.getByRole("button", { name: /Delete & Unlink/i });
-      expect(submitButton).not.toBeDisabled();
-    });
-
-    it("should delete repo and remove remote when confirmed", async () => {
-      vi.mocked(api.github.deleteGithubRepo).mockResolvedValue(undefined);
-      vi.mocked(gitOps.removeRemote).mockResolvedValue(undefined);
-
-      const onSuccess = vi.fn();
-      render(<UnlinkRepositoryModal {...defaultProps} onSuccess={onSuccess} />);
-
-      fireEvent.click(screen.getByLabelText(/Unlink and delete from GitHub/i));
-
-      const confirmInput = screen.getByPlaceholderText("test-repo");
-      fireEvent.change(confirmInput, { target: { value: "test-repo" } });
-
-      fireEvent.click(screen.getByRole("button", { name: /Delete & Unlink/i }));
-
-      await waitFor(() => {
-        expect(api.github.deleteGithubRepo).toHaveBeenCalledWith({
-          owner: "user",
-          repo: "test-repo",
-        });
-        expect(gitOps.removeRemote).toHaveBeenCalledWith("/path/to/repo");
-        expect(onSuccess).toHaveBeenCalled();
-      });
-    });
-
-    it("should show error when delete fails", async () => {
-      vi.mocked(api.github.deleteGithubRepo).mockRejectedValue(
-        new Error("No permission to delete repository")
-      );
-
-      render(<UnlinkRepositoryModal {...defaultProps} />);
-
-      fireEvent.click(screen.getByLabelText(/Unlink and delete from GitHub/i));
-
-      const confirmInput = screen.getByPlaceholderText("test-repo");
-      fireEvent.change(confirmInput, { target: { value: "test-repo" } });
-
-      fireEvent.click(screen.getByRole("button", { name: /Delete & Unlink/i }));
-
-      await waitFor(() => {
-        expect(screen.getByText("No permission to delete repository")).toBeInTheDocument();
-      });
-    });
-
-    it("should clear confirmation input when switching back to unlink only", () => {
-      render(<UnlinkRepositoryModal {...defaultProps} />);
-
-      // Switch to delete mode and type something
-      fireEvent.click(screen.getByLabelText(/Unlink and delete from GitHub/i));
-      const confirmInput = screen.getByPlaceholderText("test-repo");
-      fireEvent.change(confirmInput, { target: { value: "test" } });
-
-      // Switch back to unlink only
-      fireEvent.click(screen.getByLabelText(/Unlink only/i));
-
-      // Confirmation input should not be visible
-      expect(screen.queryByPlaceholderText("test-repo")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
     });
   });
 });

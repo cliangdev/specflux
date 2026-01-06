@@ -246,7 +246,7 @@ describe("SyncSettings", () => {
       fireEvent.click(screen.getByRole("button", { name: /Link Repository/i }));
 
       await waitFor(() => {
-        expect(screen.getByRole("heading", { name: "Create Repository" })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "Link Repository" })).toBeInTheDocument();
       });
     });
   });

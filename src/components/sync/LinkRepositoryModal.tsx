@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { setRemoteUrl } from "../../services/gitOperations";
 import { api } from "../../api/client";
 import { getApiErrorMessage } from "../../api";
@@ -58,6 +58,34 @@ const GlobeIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const LinkIcon = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"
+    />
+  </svg>
+);
+
+const PlusIcon = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+  </svg>
+);
+
 export function LinkRepositoryModal({
   repoDir,
   onSuccess,
@@ -70,57 +98,53 @@ export function LinkRepositoryModal({
   const projectName = repoDir.split("/").pop() || "project";
   const baseName = `specflux-${projectName.toLowerCase().replace(/[^a-z0-9-]/g, "-")}-spec`;
 
-  // Create new repo state
   const [repoName, setRepoName] = useState(baseName);
   const [repoDescription, setRepoDescription] = useState("");
   const [isPrivate, setIsPrivate] = useState(true);
-  const [nameConflict, setNameConflict] = useState(false);
-  const [loadingRepos, setLoadingRepos] = useState(false);
-  const [reposLoaded, setReposLoaded] = useState(false);
 
-  // Generate unique repo name if base name conflicts
-  const generateUniqueName = (base: string, existingRepos: GithubRepo[]): string => {
-    const existingNames = new Set(existingRepos.map((r) => r.name.toLowerCase()));
-    if (!existingNames.has(base.toLowerCase())) {
-      return base;
-    }
-    // Try with suffix: base-1, base-2, etc.
-    let suffix = 1;
-    while (existingNames.has(`${base}-${suffix}`.toLowerCase())) {
-      suffix++;
-    }
-    return `${base}-${suffix}`;
-  };
+  // State for checking if repo exists
+  const [existingRepos, setExistingRepos] = useState<GithubRepo[]>([]);
+  const [loadingRepos, setLoadingRepos] = useState(true);
+  const [matchingRepo, setMatchingRepo] = useState<GithubRepo | null>(null);
 
-  // Load repos on mount to check for name conflicts
+  // Load all user repos on mount
   useEffect(() => {
-    if (!reposLoaded) {
-      loadRepos();
-    }
+    loadRepos();
   }, []);
 
   const loadRepos = async () => {
     setLoadingRepos(true);
     try {
       const response = await api.github.listGithubRepos({ perPage: 100 });
-      setReposLoaded(true);
-
-      // Check if default name conflicts and auto-suggest unique name
-      const existingNames = new Set(response.repos.map((r) => r.name.toLowerCase()));
-      if (existingNames.has(baseName.toLowerCase())) {
-        const uniqueName = generateUniqueName(baseName, response.repos);
-        setRepoName(uniqueName);
-        setNameConflict(true);
-      }
+      setExistingRepos(response.repos);
     } catch {
-      // Failed to load repos is not critical - user can still create
-      setReposLoaded(true);
+      // Failed to load repos - user can still create
     } finally {
       setLoadingRepos(false);
     }
   };
 
-  const handleCreateRepo = async (e: React.FormEvent) => {
+  // Check if repo name matches an existing repo
+  const checkRepoExists = useCallback(
+    (name: string) => {
+      if (!name.trim()) {
+        setMatchingRepo(null);
+        return;
+      }
+      const match = existingRepos.find(
+        (r) => r.name.toLowerCase() === name.trim().toLowerCase()
+      );
+      setMatchingRepo(match || null);
+    },
+    [existingRepos]
+  );
+
+  // Check for existing repo whenever name or repos change
+  useEffect(() => {
+    checkRepoExists(repoName);
+  }, [repoName, checkRepoExists]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!repoName.trim()) {
       setError("Repository name is required");
@@ -131,25 +155,36 @@ export function LinkRepositoryModal({
     setError(null);
 
     try {
-      // Create repo on GitHub
-      const newRepo = await api.github.createGithubRepo({
-        createGithubRepoRequest: {
-          name: repoName.trim(),
-          description: repoDescription.trim() || undefined,
-          _private: isPrivate,
-        },
-      });
+      let cloneUrl: string;
+
+      if (matchingRepo) {
+        // Repo exists - just link to it
+        cloneUrl = matchingRepo.cloneUrl;
+      } else {
+        // Create new repo
+        const newRepo = await api.github.createGithubRepo({
+          createGithubRepoRequest: {
+            name: repoName.trim(),
+            description: repoDescription.trim() || undefined,
+            _private: isPrivate,
+          },
+        });
+        cloneUrl = newRepo.cloneUrl;
+      }
 
       // Set remote URL locally
-      await setRemoteUrl(repoDir, newRepo.cloneUrl);
+      await setRemoteUrl(repoDir, cloneUrl);
       onSuccess();
     } catch (err) {
-      const message = await getApiErrorMessage(err, "Failed to create repository");
+      const action = matchingRepo ? "link to" : "create";
+      const message = await getApiErrorMessage(err, `Failed to ${action} repository`);
       setError(message);
     } finally {
       setIsLoading(false);
     }
   };
+
+  const repoExists = !!matchingRepo;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -165,7 +200,7 @@ export function LinkRepositoryModal({
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-surface-200 dark:border-surface-700">
           <h2 className="text-lg font-semibold text-surface-900 dark:text-white">
-            Create Repository
+            Link Repository
           </h2>
           <button
             onClick={onCancel}
@@ -177,7 +212,7 @@ export function LinkRepositoryModal({
 
         {/* Content */}
         <div className="p-4">
-          <form onSubmit={handleCreateRepo} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1.5">
                 Repository Name
@@ -188,87 +223,123 @@ export function LinkRepositoryModal({
                 onChange={(e) => {
                   setRepoName(e.target.value);
                   setError(null);
-                  setNameConflict(false);
                 }}
                 placeholder="my-project"
                 className="input w-full"
                 autoFocus
                 disabled={loadingRepos}
               />
-              {nameConflict && (
-                <p className="mt-1 text-xs text-surface-500 dark:text-surface-400">
-                  A repository named "{baseName}" already exists, so we suggested "{repoName}"
-                </p>
-              )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1.5">
-                Description (optional)
-              </label>
-              <input
-                type="text"
-                value={repoDescription}
-                onChange={(e) => setRepoDescription(e.target.value)}
-                placeholder="A brief description of your project"
-                className="input w-full"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
-                Visibility
-              </label>
-              <div className="space-y-2">
-                <label className="flex items-start gap-3 p-3 border border-surface-200 dark:border-surface-700 rounded-lg cursor-pointer hover:bg-surface-50 dark:hover:bg-surface-700/50 transition-colors">
-                  <input
-                    type="radio"
-                    checked={isPrivate}
-                    onChange={() => setIsPrivate(true)}
-                    className="mt-0.5"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <LockIcon className="w-4 h-4 text-surface-500" />
-                      <span className="text-sm font-medium text-surface-900 dark:text-white">
-                        Private
-                      </span>
+            {/* Status indicator */}
+            {!loadingRepos && repoName.trim() && (
+              <div
+                className={`flex items-start gap-2 p-3 rounded-lg ${
+                  repoExists
+                    ? "bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800"
+                    : "bg-surface-50 dark:bg-surface-700/50 border border-surface-200 dark:border-surface-700"
+                }`}
+              >
+                {repoExists ? (
+                  <>
+                    <LinkIcon className="w-5 h-5 text-accent-600 dark:text-accent-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-accent-700 dark:text-accent-300">
+                        Repository exists
+                      </p>
+                      <p className="text-xs text-accent-600 dark:text-accent-400 mt-0.5">
+                        <span className="font-medium">{matchingRepo?.fullName}</span> will be linked to
+                        this project.
+                      </p>
                     </div>
-                    <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5">
-                      Only you can see and commit to this repository
-                    </p>
-                  </div>
-                </label>
-                <label className="flex items-start gap-3 p-3 border border-surface-200 dark:border-surface-700 rounded-lg cursor-pointer hover:bg-surface-50 dark:hover:bg-surface-700/50 transition-colors">
-                  <input
-                    type="radio"
-                    checked={!isPrivate}
-                    onChange={() => setIsPrivate(false)}
-                    className="mt-0.5"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <GlobeIcon className="w-4 h-4 text-surface-500" />
-                      <span className="text-sm font-medium text-surface-900 dark:text-white">
-                        Public
-                      </span>
+                  </>
+                ) : (
+                  <>
+                    <PlusIcon className="w-5 h-5 text-surface-500 dark:text-surface-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-surface-700 dark:text-surface-300">
+                        New repository
+                      </p>
+                      <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5">
+                        A new {isPrivate ? "private" : "public"} repository will be created and linked.
+                      </p>
                     </div>
-                    <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5">
-                      Anyone on the internet can see this repository
-                    </p>
-                  </div>
-                </label>
+                  </>
+                )}
               </div>
-            </div>
+            )}
 
-            {/* Error message area - fixed height to prevent layout shift */}
-            <div className="min-h-[52px] pt-4">
-              {error && (
-                <div className="p-3 bg-semantic-error/10 border border-semantic-error/30 rounded-lg text-sm text-semantic-error">
-                  {error}
+            {/* Description - only for new repos */}
+            {!repoExists && (
+              <div>
+                <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1.5">
+                  Description (optional)
+                </label>
+                <input
+                  type="text"
+                  value={repoDescription}
+                  onChange={(e) => setRepoDescription(e.target.value)}
+                  placeholder="A brief description of your project"
+                  className="input w-full"
+                />
+              </div>
+            )}
+
+            {/* Visibility - only for new repos */}
+            {!repoExists && (
+              <div>
+                <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
+                  Visibility
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-start gap-3 p-3 border border-surface-200 dark:border-surface-700 rounded-lg cursor-pointer hover:bg-surface-50 dark:hover:bg-surface-700/50 transition-colors">
+                    <input
+                      type="radio"
+                      checked={isPrivate}
+                      onChange={() => setIsPrivate(true)}
+                      className="mt-0.5"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <LockIcon className="w-4 h-4 text-surface-500" />
+                        <span className="text-sm font-medium text-surface-900 dark:text-white">
+                          Private
+                        </span>
+                      </div>
+                      <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5">
+                        Only you can see and commit to this repository
+                      </p>
+                    </div>
+                  </label>
+                  <label className="flex items-start gap-3 p-3 border border-surface-200 dark:border-surface-700 rounded-lg cursor-pointer hover:bg-surface-50 dark:hover:bg-surface-700/50 transition-colors">
+                    <input
+                      type="radio"
+                      checked={!isPrivate}
+                      onChange={() => setIsPrivate(false)}
+                      className="mt-0.5"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <GlobeIcon className="w-4 h-4 text-surface-500" />
+                        <span className="text-sm font-medium text-surface-900 dark:text-white">
+                          Public
+                        </span>
+                      </div>
+                      <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5">
+                        Anyone on the internet can see this repository
+                      </p>
+                    </div>
+                  </label>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+
+            {/* Error message */}
+            {error && (
+              <div className="p-3 bg-semantic-error/10 border border-semantic-error/30 rounded-lg text-sm text-semantic-error">
+                {error}
+              </div>
+            )}
 
             {/* Footer */}
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-surface-200 dark:border-surface-700">
@@ -306,7 +377,7 @@ export function LinkRepositoryModal({
                     />
                   </svg>
                 )}
-                {loadingRepos ? "Loading..." : "Create & Link"}
+                {loadingRepos ? "Loading..." : repoExists ? "Link" : "Create & Link"}
               </button>
             </div>
           </form>

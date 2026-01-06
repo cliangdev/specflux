@@ -2080,45 +2080,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /api/github/repos/{owner}/{repo}:
-    delete:
-      operationId: deleteGithubRepo
-      summary: Delete a GitHub repository
-      description: |
-        Permanently deletes the specified repository from GitHub.
-        This action is irreversible. Requires delete_repo scope.
-      tags: [GitHub]
-      parameters:
-        - name: owner
-          in: path
-          required: true
-          schema:
-            type: string
-          description: Repository owner (username or organization)
-        - name: repo
-          in: path
-          required: true
-          schema:
-            type: string
-          description: Repository name
-      responses:
-        '204':
-          description: Repository deleted successfully
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          description: No permission to delete repository
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Repository not found or GitHub not connected
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
   # ==================== API KEYS ====================
   /api/users/me/api-keys:
     get:
