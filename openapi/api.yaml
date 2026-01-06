@@ -2042,6 +2042,83 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /api/github/repos/{owner}/{repo}/exists:
+    get:
+      operationId: checkGithubRepoExists
+      summary: Check if a GitHub repository exists
+      description: |
+        Checks if the specified repository exists on GitHub and is accessible
+        to the authenticated user. Returns 200 with exists=true if found,
+        or exists=false if not found or not accessible.
+      tags: [GitHub]
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Repository owner (username or organization)
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Repository name
+      responses:
+        '200':
+          description: Repository existence check result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GithubRepoExistsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: GitHub not connected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/github/repos/{owner}/{repo}:
+    delete:
+      operationId: deleteGithubRepo
+      summary: Delete a GitHub repository
+      description: |
+        Permanently deletes the specified repository from GitHub.
+        This action is irreversible. Requires delete_repo scope.
+      tags: [GitHub]
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Repository owner (username or organization)
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Repository name
+      responses:
+        '204':
+          description: Repository deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: No permission to delete repository
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Repository not found or GitHub not connected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   # ==================== API KEYS ====================
   /api/users/me/api-keys:
     get:
@@ -3571,4 +3648,13 @@ components:
           type: boolean
           default: true
           description: Whether the repository should be private
+          example: true
+
+    GithubRepoExistsResponse:
+      type: object
+      required: [exists]
+      properties:
+        exists:
+          type: boolean
+          description: Whether the repository exists and is accessible
           example: true

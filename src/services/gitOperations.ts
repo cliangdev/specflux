@@ -282,3 +282,30 @@ export async function setRemoteUrl(
     }
   }
 }
+
+/**
+ * Remove a remote from a repository.
+ *
+ * @param repoDir - The repository directory path
+ * @param remoteName - The remote name (default: "origin")
+ * @throws Error if the operation fails
+ */
+export async function removeRemote(
+  repoDir: string,
+  remoteName: string = "origin",
+): Promise<void> {
+  // Dynamic import to avoid issues in non-Tauri environments (tests)
+  const { Command } = await import("@tauri-apps/plugin-shell");
+
+  const command = Command.create("git", [
+    "-C",
+    repoDir,
+    "remote",
+    "remove",
+    remoteName,
+  ]);
+  const output = await command.execute();
+  if (output.code !== 0) {
+    throw new Error(output.stderr || "Failed to remove remote");
+  }
+}

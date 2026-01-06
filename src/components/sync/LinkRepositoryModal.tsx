@@ -10,8 +10,6 @@ interface LinkRepositoryModalProps {
   onCancel: () => void;
 }
 
-type TabType = "create" | "existing";
-
 const XMarkIcon = ({ className }: { className?: string }) => (
   <svg
     className={className}
@@ -24,38 +22,6 @@ const XMarkIcon = ({ className }: { className?: string }) => (
       strokeLinecap="round"
       strokeLinejoin="round"
       d="M6 18L18 6M6 6l12 12"
-    />
-  </svg>
-);
-
-const PlusIcon = ({ className }: { className?: string }) => (
-  <svg
-    className={className}
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-    strokeWidth={2}
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M12 4.5v15m7.5-7.5h-15"
-    />
-  </svg>
-);
-
-const FolderIcon = ({ className }: { className?: string }) => (
-  <svg
-    className={className}
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-    strokeWidth={2}
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
     />
   </svg>
 );
@@ -97,7 +63,6 @@ export function LinkRepositoryModal({
   onSuccess,
   onCancel,
 }: LinkRepositoryModalProps) {
-  const [activeTab, setActiveTab] = useState<TabType>("create");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -110,14 +75,8 @@ export function LinkRepositoryModal({
   const [repoDescription, setRepoDescription] = useState("");
   const [isPrivate, setIsPrivate] = useState(true);
   const [nameConflict, setNameConflict] = useState(false);
-
-  // Link existing repo state
-  const [repos, setRepos] = useState<GithubRepo[]>([]);
   const [loadingRepos, setLoadingRepos] = useState(false);
-  const [selectedRepo, setSelectedRepo] = useState<GithubRepo | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
   const [reposLoaded, setReposLoaded] = useState(false);
-  const [reposLoadError, setReposLoadError] = useState<string | null>(null);
 
   // Generate unique repo name if base name conflicts
   const generateUniqueName = (base: string, existingRepos: GithubRepo[]): string => {
@@ -142,10 +101,8 @@ export function LinkRepositoryModal({
 
   const loadRepos = async () => {
     setLoadingRepos(true);
-    setReposLoadError(null);
     try {
       const response = await api.github.listGithubRepos({ perPage: 100 });
-      setRepos(response.repos);
       setReposLoaded(true);
 
       // Check if default name conflicts and auto-suggest unique name
@@ -155,10 +112,9 @@ export function LinkRepositoryModal({
         setRepoName(uniqueName);
         setNameConflict(true);
       }
-    } catch (err) {
-      const errorMessage = await getApiErrorMessage(err, "Failed to load repositories");
-      setReposLoadError(errorMessage);
-      setReposLoaded(true); // Mark as loaded even on error to prevent retry loops
+    } catch {
+      // Failed to load repos is not critical - user can still create
+      setReposLoaded(true);
     } finally {
       setLoadingRepos(false);
     }
@@ -195,33 +151,6 @@ export function LinkRepositoryModal({
     }
   };
 
-  const handleLinkExisting = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedRepo) {
-      setError("Please select a repository");
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      await setRemoteUrl(repoDir, selectedRepo.cloneUrl);
-      onSuccess();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to link repository");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Filter repos by search query
-  const filteredRepos = repos.filter(
-    (repo) =>
-      repo.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      repo.fullName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
@@ -236,7 +165,7 @@ export function LinkRepositoryModal({
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-surface-200 dark:border-surface-700">
           <h2 className="text-lg font-semibold text-surface-900 dark:text-white">
-            Link Repository
+            Create Repository
           </h2>
           <button
             onClick={onCancel}
@@ -246,307 +175,141 @@ export function LinkRepositoryModal({
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-surface-200 dark:border-surface-700">
-          <button
-            onClick={() => setActiveTab("create")}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
-              activeTab === "create"
-                ? "text-accent-600 dark:text-accent-400 border-b-2 border-accent-600 dark:border-accent-400 -mb-px"
-                : "text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white"
-            }`}
-          >
-            <PlusIcon className="w-4 h-4" />
-            Create New
-          </button>
-          <button
-            onClick={() => setActiveTab("existing")}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
-              activeTab === "existing"
-                ? "text-accent-600 dark:text-accent-400 border-b-2 border-accent-600 dark:border-accent-400 -mb-px"
-                : "text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white"
-            }`}
-          >
-            <FolderIcon className="w-4 h-4" />
-            Link Existing
-          </button>
-        </div>
-
         {/* Content */}
         <div className="p-4">
-          {activeTab === "create" ? (
-            <form onSubmit={handleCreateRepo} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1.5">
-                  Repository Name
-                </label>
-                <input
-                  type="text"
-                  value={repoName}
-                  onChange={(e) => {
-                    setRepoName(e.target.value);
-                    setError(null);
-                    setNameConflict(false);
-                  }}
-                  placeholder="my-project"
-                  className="input w-full"
-                  autoFocus
-                />
-                {nameConflict && (
-                  <p className="mt-1 text-xs text-surface-500 dark:text-surface-400">
-                    A repository named "{baseName}" already exists, so we suggested "{repoName}"
-                  </p>
-                )}
-              </div>
+          <form onSubmit={handleCreateRepo} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1.5">
+                Repository Name
+              </label>
+              <input
+                type="text"
+                value={repoName}
+                onChange={(e) => {
+                  setRepoName(e.target.value);
+                  setError(null);
+                  setNameConflict(false);
+                }}
+                placeholder="my-project"
+                className="input w-full"
+                autoFocus
+                disabled={loadingRepos}
+              />
+              {nameConflict && (
+                <p className="mt-1 text-xs text-surface-500 dark:text-surface-400">
+                  A repository named "{baseName}" already exists, so we suggested "{repoName}"
+                </p>
+              )}
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1.5">
-                  Description (optional)
-                </label>
-                <input
-                  type="text"
-                  value={repoDescription}
-                  onChange={(e) => setRepoDescription(e.target.value)}
-                  placeholder="A brief description of your project"
-                  className="input w-full"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1.5">
+                Description (optional)
+              </label>
+              <input
+                type="text"
+                value={repoDescription}
+                onChange={(e) => setRepoDescription(e.target.value)}
+                placeholder="A brief description of your project"
+                className="input w-full"
+              />
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
-                  Visibility
+            <div>
+              <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
+                Visibility
+              </label>
+              <div className="space-y-2">
+                <label className="flex items-start gap-3 p-3 border border-surface-200 dark:border-surface-700 rounded-lg cursor-pointer hover:bg-surface-50 dark:hover:bg-surface-700/50 transition-colors">
+                  <input
+                    type="radio"
+                    checked={isPrivate}
+                    onChange={() => setIsPrivate(true)}
+                    className="mt-0.5"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <LockIcon className="w-4 h-4 text-surface-500" />
+                      <span className="text-sm font-medium text-surface-900 dark:text-white">
+                        Private
+                      </span>
+                    </div>
+                    <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5">
+                      Only you can see and commit to this repository
+                    </p>
+                  </div>
                 </label>
-                <div className="space-y-2">
-                  <label className="flex items-start gap-3 p-3 border border-surface-200 dark:border-surface-700 rounded-lg cursor-pointer hover:bg-surface-50 dark:hover:bg-surface-700/50 transition-colors">
-                    <input
-                      type="radio"
-                      checked={isPrivate}
-                      onChange={() => setIsPrivate(true)}
-                      className="mt-0.5"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <LockIcon className="w-4 h-4 text-surface-500" />
-                        <span className="text-sm font-medium text-surface-900 dark:text-white">
-                          Private
-                        </span>
-                      </div>
-                      <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5">
-                        Only you can see and commit to this repository
-                      </p>
+                <label className="flex items-start gap-3 p-3 border border-surface-200 dark:border-surface-700 rounded-lg cursor-pointer hover:bg-surface-50 dark:hover:bg-surface-700/50 transition-colors">
+                  <input
+                    type="radio"
+                    checked={!isPrivate}
+                    onChange={() => setIsPrivate(false)}
+                    className="mt-0.5"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <GlobeIcon className="w-4 h-4 text-surface-500" />
+                      <span className="text-sm font-medium text-surface-900 dark:text-white">
+                        Public
+                      </span>
                     </div>
-                  </label>
-                  <label className="flex items-start gap-3 p-3 border border-surface-200 dark:border-surface-700 rounded-lg cursor-pointer hover:bg-surface-50 dark:hover:bg-surface-700/50 transition-colors">
-                    <input
-                      type="radio"
-                      checked={!isPrivate}
-                      onChange={() => setIsPrivate(false)}
-                      className="mt-0.5"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <GlobeIcon className="w-4 h-4 text-surface-500" />
-                        <span className="text-sm font-medium text-surface-900 dark:text-white">
-                          Public
-                        </span>
-                      </div>
-                      <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5">
-                        Anyone on the internet can see this repository
-                      </p>
-                    </div>
-                  </label>
+                    <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5">
+                      Anyone on the internet can see this repository
+                    </p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Error message area - fixed height to prevent layout shift */}
+            <div className="min-h-[52px] pt-4">
+              {error && (
+                <div className="p-3 bg-semantic-error/10 border border-semantic-error/30 rounded-lg text-sm text-semantic-error">
+                  {error}
                 </div>
-              </div>
+              )}
+            </div>
 
-              {/* Error message area - fixed height to prevent layout shift */}
-              <div className="min-h-[52px] pt-4">
-                {error && (
-                  <div className="p-3 bg-semantic-error/10 border border-semantic-error/30 rounded-lg text-sm text-semantic-error">
-                    {error}
-                  </div>
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-surface-200 dark:border-surface-700">
+              <button
+                type="button"
+                onClick={onCancel}
+                disabled={isLoading}
+                className="px-4 py-2 text-sm font-medium text-surface-600 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isLoading || !repoName.trim() || loadingRepos}
+                className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {(isLoading || loadingRepos) && (
+                  <svg
+                    className="animate-spin w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
                 )}
-              </div>
-
-              {/* Footer */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-surface-200 dark:border-surface-700">
-                <button
-                  type="button"
-                  onClick={onCancel}
-                  disabled={isLoading}
-                  className="px-4 py-2 text-sm font-medium text-surface-600 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isLoading || !repoName.trim()}
-                  className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {isLoading && (
-                    <svg
-                      className="animate-spin w-4 h-4"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                      />
-                    </svg>
-                  )}
-                  Create & Link
-                </button>
-              </div>
-            </form>
-          ) : (
-            <form onSubmit={handleLinkExisting} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1.5">
-                  Search Repositories
-                </label>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by name..."
-                  className="input w-full"
-                  autoFocus
-                />
-              </div>
-
-              <div className="max-h-64 overflow-y-auto border border-surface-200 dark:border-surface-700 rounded-lg">
-                {loadingRepos ? (
-                  <div className="flex items-center justify-center p-8">
-                    <svg
-                      className="animate-spin w-6 h-6 text-accent-500"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                      />
-                    </svg>
-                  </div>
-                ) : reposLoadError ? (
-                  <div className="p-4 text-center text-sm text-semantic-error">
-                    {reposLoadError}
-                  </div>
-                ) : filteredRepos.length === 0 ? (
-                  <div className="p-4 text-center text-sm text-surface-500 dark:text-surface-400">
-                    {searchQuery
-                      ? "No repositories match your search"
-                      : "No repositories found"}
-                  </div>
-                ) : (
-                  <div className="divide-y divide-surface-200 dark:divide-surface-700">
-                    {filteredRepos.map((repo) => (
-                      <label
-                        key={repo.id}
-                        className={`flex items-center gap-3 p-3 cursor-pointer transition-colors ${
-                          selectedRepo?.id === repo.id
-                            ? "bg-accent-50 dark:bg-accent-900/20"
-                            : "hover:bg-surface-50 dark:hover:bg-surface-700/50"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="repo"
-                          checked={selectedRepo?.id === repo.id}
-                          onChange={() => setSelectedRepo(repo)}
-                          className="flex-shrink-0"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-surface-900 dark:text-white truncate">
-                              {repo.fullName}
-                            </span>
-                            {repo._private ? (
-                              <LockIcon className="w-3.5 h-3.5 text-surface-400 flex-shrink-0" />
-                            ) : (
-                              <GlobeIcon className="w-3.5 h-3.5 text-surface-400 flex-shrink-0" />
-                            )}
-                          </div>
-                          {repo.description && (
-                            <p className="text-xs text-surface-500 dark:text-surface-400 truncate mt-0.5">
-                              {repo.description}
-                            </p>
-                          )}
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Error message area - fixed height to prevent layout shift */}
-              <div className="min-h-[52px] pt-4">
-                {error && (
-                  <div className="p-3 bg-semantic-error/10 border border-semantic-error/30 rounded-lg text-sm text-semantic-error">
-                    {error}
-                  </div>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-surface-200 dark:border-surface-700">
-                <button
-                  type="button"
-                  onClick={onCancel}
-                  disabled={isLoading}
-                  className="px-4 py-2 text-sm font-medium text-surface-600 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isLoading || !selectedRepo}
-                  className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {isLoading && (
-                    <svg
-                      className="animate-spin w-4 h-4"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                      />
-                    </svg>
-                  )}
-                  Link Repository
-                </button>
-              </div>
-            </form>
-          )}
+                {loadingRepos ? "Loading..." : "Create & Link"}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>

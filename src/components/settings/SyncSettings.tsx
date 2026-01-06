@@ -8,8 +8,10 @@ import {
 import { getRemoteInfo, type RemoteInfo } from "../../services/gitOperations";
 import { GitHubConnectCard } from "../sync/GitHubConnectCard";
 import { LinkRepositoryModal } from "../sync/LinkRepositoryModal";
+import { UnlinkRepositoryModal } from "../sync/UnlinkRepositoryModal";
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { useProject } from "../../contexts";
+import { api } from "../../api/client";
 
 interface SyncSettingsProps {
   className?: string;
@@ -80,6 +82,38 @@ const FolderIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const ExclamationTriangleIcon = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
+    />
+  </svg>
+);
+
+const UnlinkIcon = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M13.181 8.68a4.503 4.503 0 011.903 6.405m-9.768-2.782L3.56 14.06a4.5 4.5 0 006.364 6.365l3.129-3.129m5.614-5.615l1.757-1.757a4.5 4.5 0 00-6.364-6.365l-4.5 4.5c-.258.26-.479.541-.661.84m1.903 6.405a4.495 4.495 0 01-1.242-.88 4.483 4.483 0 01-.88-1.242M3 3l18 18"
+    />
+  </svg>
+);
+
 export function SyncSettings({ className = "" }: SyncSettingsProps) {
   const { currentProject } = useProject();
   const [githubStatus, setGithubStatus] = useState<GitHubConnectionStatus>({
@@ -87,10 +121,13 @@ export function SyncSettings({ className = "" }: SyncSettingsProps) {
   });
   const [linkedRepo, setLinkedRepo] = useState<RemoteInfo | null>(null);
   const [loadingRepo, setLoadingRepo] = useState(false);
+  const [repoExists, setRepoExists] = useState<boolean | null>(null);
+  const [checkingRepoExists, setCheckingRepoExists] = useState(false);
   const [, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
+  const [showUnlinkModal, setShowUnlinkModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [autoSync, setAutoSync] = useState(true);
 
@@ -100,10 +137,25 @@ export function SyncSettings({ className = "" }: SyncSettingsProps) {
     loadAutoSyncPreference();
   }, []);
 
+  // Function to check if repo exists on GitHub
+  const checkRepoExists = useCallback(async (owner: string, repo: string) => {
+    setCheckingRepoExists(true);
+    try {
+      const response = await api.github.checkGithubRepoExists({ owner, repo });
+      setRepoExists(response._exists);
+    } catch {
+      // If API call fails, assume repo exists (don't block user)
+      setRepoExists(true);
+    } finally {
+      setCheckingRepoExists(false);
+    }
+  }, []);
+
   // Function to load linked repository
   const loadLinkedRepo = useCallback(async () => {
     if (!currentProject?.localPath) {
       setLinkedRepo(null);
+      setRepoExists(null);
       return;
     }
 
@@ -111,12 +163,20 @@ export function SyncSettings({ className = "" }: SyncSettingsProps) {
     try {
       const remoteInfo = await getRemoteInfo(currentProject.localPath);
       setLinkedRepo(remoteInfo || null);
+
+      // Check if the repo exists on GitHub
+      if (remoteInfo) {
+        checkRepoExists(remoteInfo.owner, remoteInfo.repo);
+      } else {
+        setRepoExists(null);
+      }
     } catch {
       setLinkedRepo(null);
+      setRepoExists(null);
     } finally {
       setLoadingRepo(false);
     }
-  }, [currentProject?.localPath]);
+  }, [currentProject?.localPath, checkRepoExists]);
 
   // Load linked repository when project changes
   useEffect(() => {
@@ -186,6 +246,12 @@ export function SyncSettings({ className = "" }: SyncSettingsProps) {
   const handleLinkSuccess = () => {
     setShowLinkModal(false);
     loadLinkedRepo();
+  };
+
+  const handleUnlinkSuccess = () => {
+    setShowUnlinkModal(false);
+    setLinkedRepo(null);
+    setRepoExists(null);
   };
 
   return (
@@ -270,31 +336,76 @@ export function SyncSettings({ className = "" }: SyncSettingsProps) {
                 Detecting repository...
               </span>
             </div>
-          ) : linkedRepo ? (
-            <div className="flex items-center gap-3 px-3 py-2 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg">
-              <FolderIcon className="w-5 h-5 text-surface-500 dark:text-surface-400 flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <a
-                  href={`https://github.com/${linkedRepo.owner}/${linkedRepo.repo}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm font-medium text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 hover:underline"
-                >
-                  {linkedRepo.owner}/{linkedRepo.repo}
-                </a>
-                <p className="text-xs text-surface-500 dark:text-surface-400 truncate">
-                  {linkedRepo.url}
-                </p>
+          ) : linkedRepo && repoExists === false ? (
+            /* Repo not found on GitHub */
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 px-3 py-2 bg-semantic-error/10 border border-semantic-error/30 rounded-lg">
+                <ExclamationTriangleIcon className="w-5 h-5 text-semantic-error flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-semantic-error">
+                    Repository Not Found
+                  </p>
+                  <p className="text-xs text-surface-600 dark:text-surface-400 mt-0.5">
+                    The linked repository <span className="font-medium">{linkedRepo.owner}/{linkedRepo.repo}</span> was
+                    deleted on GitHub or you no longer have access.
+                  </p>
+                </div>
               </div>
-              <a
-                href={`https://github.com/${linkedRepo.owner}/${linkedRepo.repo}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300"
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowUnlinkModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-surface-700 dark:text-surface-300 rounded-lg text-sm font-medium hover:bg-surface-200 dark:hover:bg-surface-700"
+                >
+                  <UnlinkIcon className="w-4 h-4" />
+                  Unlink
+                </button>
+                <button
+                  onClick={() => setShowLinkModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-accent-600 hover:bg-accent-700 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  <LinkIcon className="w-4 h-4" />
+                  Create New Repository
+                </button>
+              </div>
+            </div>
+          ) : linkedRepo ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 px-3 py-2 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg">
+                <FolderIcon className="w-5 h-5 text-surface-500 dark:text-surface-400 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <a
+                    href={`https://github.com/${linkedRepo.owner}/${linkedRepo.repo}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 hover:underline"
+                  >
+                    {linkedRepo.owner}/{linkedRepo.repo}
+                  </a>
+                  <p className="text-xs text-surface-500 dark:text-surface-400 truncate">
+                    {linkedRepo.url}
+                  </p>
+                </div>
+                {checkingRepoExists ? (
+                  <div className="w-4 h-4 border-2 border-surface-300 dark:border-surface-600 border-t-accent-500 rounded-full animate-spin" />
+                ) : (
+                  <a
+                    href={`https://github.com/${linkedRepo.owner}/${linkedRepo.repo}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-xs text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300"
+                  >
+                    Open
+                    <ExternalLinkIcon className="w-3 h-3" />
+                  </a>
+                )}
+              </div>
+              <button
+                onClick={() => setShowUnlinkModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 text-surface-700 dark:text-surface-300 rounded-lg text-sm font-medium hover:bg-surface-200 dark:hover:bg-surface-700"
               >
-                Open
-                <ExternalLinkIcon className="w-3 h-3" />
-              </a>
+                <UnlinkIcon className="w-4 h-4" />
+                Unlink Repository
+              </button>
             </div>
           ) : (
             <div className="space-y-3">
@@ -394,6 +505,16 @@ export function SyncSettings({ className = "" }: SyncSettingsProps) {
           repoDir={currentProject.localPath}
           onSuccess={handleLinkSuccess}
           onCancel={() => setShowLinkModal(false)}
+        />
+      )}
+
+      {/* Unlink Repository Modal */}
+      {showUnlinkModal && currentProject?.localPath && linkedRepo && (
+        <UnlinkRepositoryModal
+          repoDir={currentProject.localPath}
+          repoFullName={`${linkedRepo.owner}/${linkedRepo.repo}`}
+          onSuccess={handleUnlinkSuccess}
+          onCancel={() => setShowUnlinkModal(false)}
         />
       )}
     </div>
