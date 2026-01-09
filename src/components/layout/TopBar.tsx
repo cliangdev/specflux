@@ -1,10 +1,7 @@
 import { useState } from "react";
 import { ProjectSelector, EnvironmentIndicator } from "../ui";
-import { useTheme, useAuth, useProject } from "../../contexts";
+import { useTheme, useAuth } from "../../contexts";
 import { UserProfileModal } from "../ui/UserProfileModal";
-import { SyncStatusBadge } from "../sync/SyncStatusBadge";
-import { useSyncStatus } from "../../hooks/useSyncStatus";
-import { isGitHubConnected } from "../../services/githubConnection";
 
 function SunIcon({ className }: { className?: string }) {
   return (
@@ -45,14 +42,7 @@ function MoonIcon({ className }: { className?: string }) {
 export default function TopBar() {
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
-  const { currentProject } = useProject();
   const [showProfileModal, setShowProfileModal] = useState(false);
-
-  // Get sync status for current project
-  const { syncData, sync } = useSyncStatus({
-    repoPath: currentProject?.localPath,
-    pollInterval: 30000,
-  });
 
   // Get user initial for avatar
   const userInitial = user?.displayName?.[0] || user?.email?.[0]?.toUpperCase() || "U";
@@ -79,25 +69,6 @@ export default function TopBar() {
         </div>
 
         <div className="flex items-center gap-3">
-          {currentProject?.localPath && (
-            <SyncStatusBadge
-              status={
-                isGitHubConnected() && syncData.githubUrl
-                  ? syncData.status
-                  : "local_only"
-              }
-              onClick={
-                isGitHubConnected() &&
-                syncData.githubUrl &&
-                (syncData.status === "pending_push" ||
-                  syncData.status === "pending_pull")
-                  ? sync
-                  : undefined
-              }
-              showLabel
-              size="sm"
-            />
-          )}
           <EnvironmentIndicator />
           <div className="h-6 w-px bg-surface-200 dark:bg-surface-700" />
           <button

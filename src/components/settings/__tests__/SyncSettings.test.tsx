@@ -86,13 +86,6 @@ describe("SyncSettings", () => {
       });
     });
 
-    it("should not show auto-sync preference", () => {
-      render(<SyncSettings />);
-
-      expect(
-        screen.queryByText(/Auto-sync on file changes/i)
-      ).not.toBeInTheDocument();
-    });
   });
 
   describe("when GitHub is connected", () => {
@@ -161,40 +154,6 @@ describe("SyncSettings", () => {
       await waitFor(() => {
         expect(githubConnection.disconnectGitHub).toHaveBeenCalled();
       });
-    });
-
-    it("should show auto-sync toggle", () => {
-      render(<SyncSettings />);
-
-      expect(
-        screen.getByText(/Auto-sync on file changes/i)
-      ).toBeInTheDocument();
-    });
-
-    it("should toggle auto-sync preference", () => {
-      render(<SyncSettings />);
-
-      const toggle = screen.getByRole("checkbox") as HTMLInputElement;
-      expect(toggle.checked).toBe(true); // Default is enabled
-
-      fireEvent.click(toggle);
-
-      expect(toggle.checked).toBe(false);
-      expect(localStorage.getItem("specflux:sync:autoSync")).toBe("false");
-
-      fireEvent.click(toggle);
-
-      expect(toggle.checked).toBe(true);
-      expect(localStorage.getItem("specflux:sync:autoSync")).toBe("true");
-    });
-
-    it("should load saved auto-sync preference", () => {
-      localStorage.setItem("specflux:sync:autoSync", "false");
-
-      render(<SyncSettings />);
-
-      const toggle = screen.getByRole("checkbox") as HTMLInputElement;
-      expect(toggle.checked).toBe(false);
     });
 
     it("should render GitHub profile link", () => {

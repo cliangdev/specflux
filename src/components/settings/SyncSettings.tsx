@@ -129,12 +129,10 @@ export function SyncSettings({ className = "" }: SyncSettingsProps) {
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [showUnlinkModal, setShowUnlinkModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [autoSync, setAutoSync] = useState(true);
 
   // Load GitHub status on mount
   useEffect(() => {
     loadGitHubStatus();
-    loadAutoSyncPreference();
   }, []);
 
   // Function to check if repo exists on GitHub
@@ -188,17 +186,6 @@ export function SyncSettings({ className = "" }: SyncSettingsProps) {
     setGithubStatus(status);
   };
 
-  const loadAutoSyncPreference = () => {
-    try {
-      const stored = localStorage.getItem("specflux:sync:autoSync");
-      if (stored !== null) {
-        setAutoSync(stored === "true");
-      }
-    } catch (err) {
-      console.warn("Failed to load auto-sync preference:", err);
-    }
-  };
-
   const handleConnect = async () => {
     setConnecting(true);
     setError(null);
@@ -231,15 +218,6 @@ export function SyncSettings({ className = "" }: SyncSettingsProps) {
       );
     } finally {
       setDisconnecting(false);
-    }
-  };
-
-  const handleToggleAutoSync = (enabled: boolean) => {
-    setAutoSync(enabled);
-    try {
-      localStorage.setItem("specflux:sync:autoSync", enabled.toString());
-    } catch (err) {
-      console.warn("Failed to save auto-sync preference:", err);
     }
   };
 
@@ -429,31 +407,6 @@ export function SyncSettings({ className = "" }: SyncSettingsProps) {
               </button>
             </div>
           )}
-        </div>
-      )}
-
-      {/* Auto-Sync Toggle */}
-      {githubStatus.isConnected && (
-        <div>
-          <div className="flex items-center justify-between">
-            <div>
-              <label className="block text-sm font-medium text-surface-900 dark:text-white">
-                Auto-sync on file changes
-              </label>
-              <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5">
-                Automatically commit and push changes when you save files.
-              </p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={autoSync}
-                onChange={(e) => handleToggleAutoSync(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-surface-300 dark:bg-surface-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-accent-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-surface-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-600"></div>
-            </label>
-          </div>
         </div>
       )}
 
