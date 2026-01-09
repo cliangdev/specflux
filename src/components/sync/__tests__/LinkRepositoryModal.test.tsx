@@ -7,6 +7,7 @@ import { api } from "../../../api/client";
 // Mock git operations
 vi.mock("../../../services/gitOperations", () => ({
   setRemoteUrl: vi.fn(),
+  getRemoteUrl: vi.fn(),
 }));
 
 // Mock API client
@@ -35,6 +36,8 @@ describe("LinkRepositoryModal", () => {
       page: 1,
       perPage: 100,
     });
+    // Default: no existing remote
+    vi.mocked(gitOps.getRemoteUrl).mockResolvedValue(undefined);
   });
 
   it("should render modal with Link Repository title", () => {
@@ -81,14 +84,6 @@ describe("LinkRepositoryModal", () => {
         totalCount: 0,
         page: 1,
         perPage: 100,
-      });
-    });
-
-    it("should show 'New repository' indicator", async () => {
-      render(<LinkRepositoryModal {...defaultProps} />);
-
-      await waitFor(() => {
-        expect(screen.getByText("New repository")).toBeInTheDocument();
       });
     });
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { setRemoteUrl } from "../../services/gitOperations";
+import { setRemoteUrl, getRemoteUrl } from "../../services/gitOperations";
 import { api } from "../../api/client";
 import { getApiErrorMessage } from "../../api";
 import type { GithubRepo } from "../../api/generated";
@@ -74,18 +74,6 @@ const LinkIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const PlusIcon = ({ className }: { className?: string }) => (
-  <svg
-    className={className}
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-    strokeWidth={2}
-  >
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-  </svg>
-);
-
 export function LinkRepositoryModal({
   repoDir,
   onSuccess,
@@ -107,10 +95,23 @@ export function LinkRepositoryModal({
   const [loadingRepos, setLoadingRepos] = useState(true);
   const [matchingRepo, setMatchingRepo] = useState<GithubRepo | null>(null);
 
-  // Load all user repos on mount
+  // State for checking if local remote already exists
+  const [existingRemote, setExistingRemote] = useState<string | null>(null);
+
+  // Load all user repos and check for existing remote on mount
   useEffect(() => {
     loadRepos();
+    checkExistingRemote();
   }, []);
+
+  const checkExistingRemote = async () => {
+    try {
+      const remoteUrl = await getRemoteUrl(repoDir);
+      setExistingRemote(remoteUrl || null);
+    } catch {
+      setExistingRemote(null);
+    }
+  };
 
   const loadRepos = async () => {
     setLoadingRepos(true);
@@ -231,41 +232,47 @@ export function LinkRepositoryModal({
               />
             </div>
 
-            {/* Status indicator */}
-            {!loadingRepos && repoName.trim() && (
-              <div
-                className={`flex items-start gap-2 p-3 rounded-lg ${
-                  repoExists
-                    ? "bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800"
-                    : "bg-surface-50 dark:bg-surface-700/50 border border-surface-200 dark:border-surface-700"
-                }`}
-              >
-                {repoExists ? (
-                  <>
-                    <LinkIcon className="w-5 h-5 text-accent-600 dark:text-accent-400 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium text-accent-700 dark:text-accent-300">
-                        Repository exists
-                      </p>
-                      <p className="text-xs text-accent-600 dark:text-accent-400 mt-0.5">
-                        <span className="font-medium">{matchingRepo?.fullName}</span> will be linked to
-                        this project.
-                      </p>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <PlusIcon className="w-5 h-5 text-surface-500 dark:text-surface-400 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium text-surface-700 dark:text-surface-300">
-                        New repository
-                      </p>
-                      <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5">
-                        A new {isPrivate ? "private" : "public"} repository will be created and linked.
-                      </p>
-                    </div>
-                  </>
-                )}
+            {/* Warning if local directory already has a remote */}
+            {existingRemote && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                <svg
+                  className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
+                  />
+                </svg>
+                <div>
+                  <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                    Directory already has a remote
+                  </p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                    This directory is already linked to a git repository. Change the project&apos;s
+                    local path to a dedicated spec folder first.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Status indicator - only show when repo exists on GitHub */}
+            {!loadingRepos && repoName.trim() && repoExists && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800">
+                <LinkIcon className="w-5 h-5 text-accent-600 dark:text-accent-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-accent-700 dark:text-accent-300">
+                    Repository exists
+                  </p>
+                  <p className="text-xs text-accent-600 dark:text-accent-400 mt-0.5">
+                    <span className="font-medium">{matchingRepo?.fullName}</span> will be linked to
+                    this project.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -353,7 +360,7 @@ export function LinkRepositoryModal({
               </button>
               <button
                 type="submit"
-                disabled={isLoading || !repoName.trim() || loadingRepos}
+                disabled={isLoading || !repoName.trim() || loadingRepos || !!existingRemote}
                 className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {(isLoading || loadingRepos) && (
