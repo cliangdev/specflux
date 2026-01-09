@@ -8,6 +8,9 @@ import { api } from "../../../api/client";
 vi.mock("../../../services/gitOperations", () => ({
   setRemoteUrl: vi.fn(),
   getRemoteUrl: vi.fn(),
+  getGitStatus: vi.fn(),
+  autoCommit: vi.fn(),
+  pushWithUpstream: vi.fn(),
 }));
 
 // Mock API client
@@ -38,6 +41,17 @@ describe("LinkRepositoryModal", () => {
     });
     // Default: no existing remote
     vi.mocked(gitOps.getRemoteUrl).mockResolvedValue(undefined);
+    // Default: clean git status (no changes)
+    vi.mocked(gitOps.getGitStatus).mockResolvedValue({
+      branch: "main",
+      hasChanges: false,
+      stagedFiles: [],
+      unstagedFiles: [],
+      untrackedFiles: [],
+    });
+    // Default: git operations succeed
+    vi.mocked(gitOps.autoCommit).mockResolvedValue(undefined);
+    vi.mocked(gitOps.pushWithUpstream).mockResolvedValue(undefined);
   });
 
   it("should render modal with Link Repository title", () => {

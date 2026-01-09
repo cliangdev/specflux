@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { setRemoteUrl, getRemoteUrl } from "../../services/gitOperations";
+import {
+  setRemoteUrl,
+  getRemoteUrl,
+  getGitStatus,
+  autoCommit,
+  pushWithUpstream,
+} from "../../services/gitOperations";
 import { api } from "../../api/client";
 import { getApiErrorMessage } from "../../api";
 import type { GithubRepo } from "../../api/generated";
@@ -148,6 +154,8 @@ export function LinkRepositoryModal({
     checkRepoExists(repoName);
   }, [repoName, checkRepoExists]);
 
+  const [progressMessage, setProgressMessage] = useState<string | null>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!repoName.trim()) {
@@ -157,15 +165,18 @@ export function LinkRepositoryModal({
 
     setIsLoading(true);
     setError(null);
+    setProgressMessage(null);
 
     try {
       let cloneUrl: string;
 
       if (matchingRepo) {
         // Repo exists - just link to it
+        setProgressMessage("Linking repository...");
         cloneUrl = matchingRepo.cloneUrl;
       } else {
         // Create new repo
+        setProgressMessage("Creating repository on GitHub...");
         const newRepo = await api.github.createGithubRepo({
           createGithubRepoRequest: {
             name: repoName.trim(),
@@ -177,14 +188,34 @@ export function LinkRepositoryModal({
       }
 
       // Set remote URL locally
+      setProgressMessage("Setting up local repository...");
       await setRemoteUrl(repoDir, cloneUrl);
+
+      // Check if there are uncommitted changes to push
+      setProgressMessage("Checking for changes...");
+      const status = await getGitStatus(repoDir);
+
+      if (status.hasChanges || status.untrackedFiles.length > 0) {
+        // Auto-commit all changes
+        setProgressMessage("Committing files...");
+        await autoCommit(repoDir, "Initial commit: SpecFlux project setup");
+      }
+
+      // Push to remote (set upstream for first push)
+      setProgressMessage("Pushing to GitHub...");
+      await pushWithUpstream(repoDir);
+
       onSuccess();
     } catch (err) {
       const action = matchingRepo ? "link to" : "create";
-      const message = await getApiErrorMessage(err, `Failed to ${action} repository`);
+      const message = await getApiErrorMessage(
+        err,
+        `Failed to ${action} repository`
+      );
       setError(message);
     } finally {
       setIsLoading(false);
+      setProgressMessage(null);
     }
   };
 
@@ -348,6 +379,32 @@ export function LinkRepositoryModal({
             {error && (
               <div className="p-3 bg-semantic-error/10 border border-semantic-error/30 rounded-lg text-sm text-semantic-error">
                 {error}
+              </div>
+            )}
+
+            {/* Progress message */}
+            {progressMessage && (
+              <div className="flex items-center gap-2 p-3 bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800 rounded-lg text-sm text-accent-700 dark:text-accent-300">
+                <svg
+                  className="animate-spin w-4 h-4 flex-shrink-0"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+                {progressMessage}
               </div>
             )}
 

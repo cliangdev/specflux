@@ -395,6 +395,60 @@ describe("gitOperations", () => {
         gitOps.setRemoteUrl("/path/to/repo", "https://github.com/owner/repo.git")
       ).rejects.toThrow("fatal: remote origin already exists");
     });
+  });
 
+  describe("pushWithUpstream", () => {
+    beforeEach(() => {
+      mockExecute.mockClear();
+      vi.mocked(Command.create).mockClear();
+    });
+
+    it("should get branch name and push with upstream", async () => {
+      // First call: get branch name
+      mockExecute.mockResolvedValueOnce({
+        code: 0,
+        stdout: "main\n",
+        stderr: "",
+      });
+      // Second call: push with upstream
+      mockExecute.mockResolvedValueOnce({ code: 0, stdout: "", stderr: "" });
+
+      await gitOps.pushWithUpstream("/path/to/repo");
+
+      expect(Command.create).toHaveBeenNthCalledWith(1, "git", [
+        "-C",
+        "/path/to/repo",
+        "rev-parse",
+        "--abbrev-ref",
+        "HEAD",
+      ]);
+      expect(Command.create).toHaveBeenNthCalledWith(2, "git", [
+        "-C",
+        "/path/to/repo",
+        "push",
+        "-u",
+        "origin",
+        "main",
+      ]);
+    });
+
+    it("should throw error if push fails", async () => {
+      // First call: get branch name
+      mockExecute.mockResolvedValueOnce({
+        code: 0,
+        stdout: "main\n",
+        stderr: "",
+      });
+      // Second call: push fails
+      mockExecute.mockResolvedValueOnce({
+        code: 1,
+        stdout: "",
+        stderr: "fatal: remote rejected",
+      });
+
+      await expect(gitOps.pushWithUpstream("/path/to/repo")).rejects.toThrow(
+        "fatal: remote rejected"
+      );
+    });
   });
 });

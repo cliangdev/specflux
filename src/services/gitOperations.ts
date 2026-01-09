@@ -297,6 +297,49 @@ export async function setRemoteUrl(
 }
 
 /**
+ * Push to remote with upstream tracking (for initial push).
+ * Does `git push -u origin <branch>`.
+ *
+ * @param repoDir - The repository directory path
+ * @param remoteName - The remote name (default: "origin")
+ * @throws Error if push fails
+ */
+export async function pushWithUpstream(
+  repoDir: string,
+  remoteName: string = "origin",
+): Promise<void> {
+  const { Command } = await import("@tauri-apps/plugin-shell");
+
+  // Get current branch name
+  const branchCmd = Command.create("git", [
+    "-C",
+    repoDir,
+    "rev-parse",
+    "--abbrev-ref",
+    "HEAD",
+  ]);
+  const branchOutput = await branchCmd.execute();
+  if (branchOutput.code !== 0) {
+    throw new Error(branchOutput.stderr || "Failed to get current branch");
+  }
+  const branch = branchOutput.stdout.trim();
+
+  // Push with upstream
+  const pushCmd = Command.create("git", [
+    "-C",
+    repoDir,
+    "push",
+    "-u",
+    remoteName,
+    branch,
+  ]);
+  const pushOutput = await pushCmd.execute();
+  if (pushOutput.code !== 0) {
+    throw new Error(pushOutput.stderr || "Failed to push to remote");
+  }
+}
+
+/**
  * Remove a remote from a repository.
  *
  * @param repoDir - The repository directory path
