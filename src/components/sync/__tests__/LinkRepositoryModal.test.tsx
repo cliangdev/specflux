@@ -303,4 +303,31 @@ describe("LinkRepositoryModal", () => {
     const submitButton = screen.getByRole("button", { name: /Create & Link/i });
     expect(submitButton).toBeDisabled();
   });
+
+  describe("when directory has existing remote", () => {
+    beforeEach(() => {
+      vi.mocked(gitOps.getRemoteUrl).mockResolvedValue(
+        "https://github.com/existing/project.git"
+      );
+    });
+
+    it("should show warning about existing remote", async () => {
+      render(<LinkRepositoryModal {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Directory already has a remote")).toBeInTheDocument();
+      });
+    });
+
+    it("should disable submit button when remote exists", async () => {
+      render(<LinkRepositoryModal {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Directory already has a remote")).toBeInTheDocument();
+      });
+
+      const submitButton = screen.getByRole("button", { name: /Create & Link/i });
+      expect(submitButton).toBeDisabled();
+    });
+  });
 });
