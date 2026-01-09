@@ -98,20 +98,23 @@ export function LinkRepositoryModal({
   // State for checking if local remote already exists
   const [existingRemote, setExistingRemote] = useState<string | null>(null);
 
-  // Load all user repos and check for existing remote on mount
+  // Load all user repos on mount
   useEffect(() => {
     loadRepos();
-    checkExistingRemote();
   }, []);
 
-  const checkExistingRemote = async () => {
-    try {
-      const remoteUrl = await getRemoteUrl(repoDir);
-      setExistingRemote(remoteUrl || null);
-    } catch {
-      setExistingRemote(null);
-    }
-  };
+  // Check for existing remote when repoDir changes
+  useEffect(() => {
+    const checkRemote = async () => {
+      try {
+        const remoteUrl = await getRemoteUrl(repoDir);
+        setExistingRemote(remoteUrl || null);
+      } catch {
+        setExistingRemote(null);
+      }
+    };
+    checkRemote();
+  }, [repoDir]);
 
   const loadRepos = async () => {
     setLoadingRepos(true);
