@@ -5,6 +5,7 @@ import {
   getGitStatus,
   autoCommit,
   pushWithUpstream,
+  syncWithRemote,
 } from "../../services/gitOperations";
 import { api } from "../../api/client";
 import { getApiErrorMessage } from "../../api";
@@ -190,6 +191,10 @@ export function LinkRepositoryModal({
       // Set remote URL locally
       setProgressMessage("Setting up local repository...");
       await setRemoteUrl(repoDir, cloneUrl);
+
+      // Sync with remote (handles case where remote has commits but local doesn't)
+      setProgressMessage("Syncing with remote...");
+      await syncWithRemote(repoDir);
 
       // Check if there are uncommitted changes to push
       setProgressMessage("Checking for changes...");

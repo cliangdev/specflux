@@ -11,6 +11,7 @@ vi.mock("../../../services/gitOperations", () => ({
   getGitStatus: vi.fn(),
   autoCommit: vi.fn(),
   pushWithUpstream: vi.fn(),
+  syncWithRemote: vi.fn(),
 }));
 
 // Mock API client
@@ -52,6 +53,7 @@ describe("LinkRepositoryModal", () => {
     // Default: git operations succeed
     vi.mocked(gitOps.autoCommit).mockResolvedValue(undefined);
     vi.mocked(gitOps.pushWithUpstream).mockResolvedValue(undefined);
+    vi.mocked(gitOps.syncWithRemote).mockResolvedValue(undefined);
   });
 
   it("should render modal with Link Repository title", () => {

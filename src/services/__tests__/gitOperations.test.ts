@@ -451,4 +451,102 @@ describe("gitOperations", () => {
       );
     });
   });
+
+  describe("hasLocalCommits", () => {
+    beforeEach(() => {
+      mockExecute.mockClear();
+      vi.mocked(Command.create).mockClear();
+    });
+
+    it("should return true when repo has commits", async () => {
+      mockExecute.mockResolvedValueOnce({
+        code: 0,
+        stdout: "abc1234\n",
+        stderr: "",
+      });
+
+      const result = await gitOps.hasLocalCommits("/path/to/repo");
+
+      expect(result).toBe(true);
+      expect(Command.create).toHaveBeenCalledWith("git", [
+        "-C",
+        "/path/to/repo",
+        "rev-parse",
+        "HEAD",
+      ]);
+    });
+
+    it("should return false when repo has no commits", async () => {
+      mockExecute.mockResolvedValueOnce({
+        code: 128,
+        stdout: "",
+        stderr: "fatal: bad revision 'HEAD'",
+      });
+
+      const result = await gitOps.hasLocalCommits("/path/to/repo");
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("syncWithRemote", () => {
+    beforeEach(() => {
+      mockExecute.mockClear();
+      vi.mocked(Command.create).mockClear();
+    });
+
+    it("should fetch and reset when local has no commits but remote does", async () => {
+      // Fetch succeeds
+      mockExecute.mockResolvedValueOnce({ code: 0, stdout: "", stderr: "" });
+      // hasLocalCommits returns false
+      mockExecute.mockResolvedValueOnce({ code: 128, stdout: "", stderr: "" });
+      // Remote branch exists
+      mockExecute.mockResolvedValueOnce({ code: 0, stdout: "abc123\n", stderr: "" });
+      // Reset succeeds
+      mockExecute.mockResolvedValueOnce({ code: 0, stdout: "", stderr: "" });
+
+      await gitOps.syncWithRemote("/path/to/repo");
+
+      expect(Command.create).toHaveBeenCalledTimes(4);
+      expect(Command.create).toHaveBeenNthCalledWith(4, "git", [
+        "-C",
+        "/path/to/repo",
+        "reset",
+        "origin/main",
+      ]);
+    });
+
+    it("should skip reset when local already has commits", async () => {
+      // Fetch succeeds
+      mockExecute.mockResolvedValueOnce({ code: 0, stdout: "", stderr: "" });
+      // hasLocalCommits returns true
+      mockExecute.mockResolvedValueOnce({ code: 0, stdout: "abc123\n", stderr: "" });
+
+      await gitOps.syncWithRemote("/path/to/repo");
+
+      expect(Command.create).toHaveBeenCalledTimes(2);
+    });
+
+    it("should handle empty remote gracefully", async () => {
+      // Fetch fails (empty remote)
+      mockExecute.mockResolvedValueOnce({ code: 1, stdout: "", stderr: "" });
+
+      await gitOps.syncWithRemote("/path/to/repo");
+
+      expect(Command.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("should handle remote branch not existing", async () => {
+      // Fetch succeeds
+      mockExecute.mockResolvedValueOnce({ code: 0, stdout: "", stderr: "" });
+      // hasLocalCommits returns false
+      mockExecute.mockResolvedValueOnce({ code: 128, stdout: "", stderr: "" });
+      // Remote branch doesn't exist
+      mockExecute.mockResolvedValueOnce({ code: 128, stdout: "", stderr: "" });
+
+      await gitOps.syncWithRemote("/path/to/repo");
+
+      expect(Command.create).toHaveBeenCalledTimes(3);
+    });
+  });
 });

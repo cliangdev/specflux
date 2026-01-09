@@ -340,6 +340,86 @@ export async function pushWithUpstream(
 }
 
 /**
+ * Check if local repository has any commits.
+ *
+ * @param repoDir - The repository directory path
+ * @returns true if there are commits, false if repo is empty
+ */
+export async function hasLocalCommits(repoDir: string): Promise<boolean> {
+  const { Command } = await import("@tauri-apps/plugin-shell");
+  const cmd = Command.create("git", ["-C", repoDir, "rev-parse", "HEAD"]);
+  const output = await cmd.execute();
+  return output.code === 0;
+}
+
+/**
+ * Sync local repo with remote for initial link.
+ * Handles the case where remote has commits but local doesn't.
+ *
+ * This function:
+ * 1. Fetches from remote
+ * 2. If local has no commits but remote does, resets to remote branch
+ * 3. Preserves local working directory files
+ *
+ * @param repoDir - The repository directory path
+ * @param remoteName - The remote name (default: "origin")
+ * @param branch - The branch name (default: "main")
+ */
+export async function syncWithRemote(
+  repoDir: string,
+  remoteName: string = "origin",
+  branch: string = "main",
+): Promise<void> {
+  const { Command } = await import("@tauri-apps/plugin-shell");
+
+  // Fetch from remote
+  const fetchCmd = Command.create("git", [
+    "-C",
+    repoDir,
+    "fetch",
+    remoteName,
+  ]);
+  const fetchOutput = await fetchCmd.execute();
+  if (fetchOutput.code !== 0) {
+    // Remote might be empty, that's okay
+    return;
+  }
+
+  // Check if local has commits
+  const hasLocal = await hasLocalCommits(repoDir);
+  if (hasLocal) {
+    // Local has commits, no need to reset
+    return;
+  }
+
+  // Check if remote branch exists
+  const remoteRefCmd = Command.create("git", [
+    "-C",
+    repoDir,
+    "rev-parse",
+    "--verify",
+    `${remoteName}/${branch}`,
+  ]);
+  const remoteRefOutput = await remoteRefCmd.execute();
+  if (remoteRefOutput.code !== 0) {
+    // Remote branch doesn't exist, that's okay
+    return;
+  }
+
+  // Reset to remote branch (keeps working directory files)
+  const resetCmd = Command.create("git", [
+    "-C",
+    repoDir,
+    "reset",
+    `${remoteName}/${branch}`,
+  ]);
+  const resetOutput = await resetCmd.execute();
+  if (resetOutput.code !== 0) {
+    throw new Error(resetOutput.stderr || "Failed to sync with remote");
+  }
+}
+
+/**
  * Remove a remote from a repository.
  *
  * @param repoDir - The repository directory path
