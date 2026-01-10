@@ -10,7 +10,18 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
 
+// Mock the Tauri shell plugin for setRemoteUrl
+const mockExecute = vi.fn();
+vi.mock("@tauri-apps/plugin-shell", () => ({
+  Command: {
+    create: vi.fn(() => ({
+      execute: mockExecute,
+    })),
+  },
+}));
+
 import { invoke } from "@tauri-apps/api/core";
+import { Command } from "@tauri-apps/plugin-shell";
 
 describe("gitOperations", () => {
   beforeEach(() => {
@@ -274,6 +285,268 @@ describe("gitOperations", () => {
         "https://GitHub.COM/octocat/hello-world.git",
       );
       expect(result).toEqual({ owner: "octocat", repo: "hello-world" });
+    });
+  });
+
+  describe("setRemoteUrl", () => {
+    beforeEach(() => {
+      mockExecute.mockClear();
+      vi.mocked(Command.create).mockClear();
+    });
+
+    it("should add remote when it does not exist", async () => {
+      // First call (getRemoteUrl check) returns not found
+      mockExecute.mockResolvedValueOnce({ code: 1, stdout: "", stderr: "" });
+      // Second call (remote add) succeeds
+      mockExecute.mockResolvedValueOnce({ code: 0, stdout: "", stderr: "" });
+
+      await gitOps.setRemoteUrl(
+        "/path/to/repo",
+        "https://github.com/owner/repo.git"
+      );
+
+      expect(Command.create).toHaveBeenNthCalledWith(1, "git", [
+        "-C",
+        "/path/to/repo",
+        "remote",
+        "get-url",
+        "origin",
+      ]);
+      expect(Command.create).toHaveBeenNthCalledWith(2, "git", [
+        "-C",
+        "/path/to/repo",
+        "remote",
+        "add",
+        "origin",
+        "https://github.com/owner/repo.git",
+      ]);
+    });
+
+    it("should be idempotent when same URL (with .git variation)", async () => {
+      // Remote exists with same URL (just without .git)
+      mockExecute.mockResolvedValueOnce({
+        code: 0,
+        stdout: "https://github.com/owner/repo\n",
+        stderr: "",
+      });
+
+      await gitOps.setRemoteUrl(
+        "/path/to/repo",
+        "https://github.com/owner/repo.git"
+      );
+
+      // Should only call get-url, not add or set-url
+      expect(Command.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("should throw error when remote exists with different URL", async () => {
+      // Remote exists with different URL
+      mockExecute.mockResolvedValueOnce({
+        code: 0,
+        stdout: "https://github.com/existing/project.git\n",
+        stderr: "",
+      });
+
+      await expect(
+        gitOps.setRemoteUrl("/path/to/repo", "https://github.com/new/repo.git")
+      ).rejects.toThrow("Remote 'origin' already exists with URL");
+    });
+
+    it("should use custom remote name", async () => {
+      // First call returns not found
+      mockExecute.mockResolvedValueOnce({ code: 1, stdout: "", stderr: "" });
+      // Second call succeeds
+      mockExecute.mockResolvedValueOnce({ code: 0, stdout: "", stderr: "" });
+
+      await gitOps.setRemoteUrl(
+        "/path/to/repo",
+        "https://github.com/owner/repo.git",
+        "upstream"
+      );
+
+      expect(Command.create).toHaveBeenNthCalledWith(1, "git", [
+        "-C",
+        "/path/to/repo",
+        "remote",
+        "get-url",
+        "upstream",
+      ]);
+      expect(Command.create).toHaveBeenNthCalledWith(2, "git", [
+        "-C",
+        "/path/to/repo",
+        "remote",
+        "add",
+        "upstream",
+        "https://github.com/owner/repo.git",
+      ]);
+    });
+
+    it("should throw error when add fails", async () => {
+      // First call returns not found
+      mockExecute.mockResolvedValueOnce({ code: 1, stdout: "", stderr: "" });
+      // Second call fails
+      mockExecute.mockResolvedValueOnce({
+        code: 1,
+        stdout: "",
+        stderr: "fatal: remote origin already exists",
+      });
+
+      await expect(
+        gitOps.setRemoteUrl("/path/to/repo", "https://github.com/owner/repo.git")
+      ).rejects.toThrow("fatal: remote origin already exists");
+    });
+  });
+
+  describe("pushWithUpstream", () => {
+    beforeEach(() => {
+      mockExecute.mockClear();
+      vi.mocked(Command.create).mockClear();
+    });
+
+    it("should get branch name and push with upstream", async () => {
+      // First call: get branch name
+      mockExecute.mockResolvedValueOnce({
+        code: 0,
+        stdout: "main\n",
+        stderr: "",
+      });
+      // Second call: push with upstream
+      mockExecute.mockResolvedValueOnce({ code: 0, stdout: "", stderr: "" });
+
+      await gitOps.pushWithUpstream("/path/to/repo");
+
+      expect(Command.create).toHaveBeenNthCalledWith(1, "git", [
+        "-C",
+        "/path/to/repo",
+        "rev-parse",
+        "--abbrev-ref",
+        "HEAD",
+      ]);
+      expect(Command.create).toHaveBeenNthCalledWith(2, "git", [
+        "-C",
+        "/path/to/repo",
+        "push",
+        "-u",
+        "origin",
+        "main",
+      ]);
+    });
+
+    it("should throw error if push fails", async () => {
+      // First call: get branch name
+      mockExecute.mockResolvedValueOnce({
+        code: 0,
+        stdout: "main\n",
+        stderr: "",
+      });
+      // Second call: push fails
+      mockExecute.mockResolvedValueOnce({
+        code: 1,
+        stdout: "",
+        stderr: "fatal: remote rejected",
+      });
+
+      await expect(gitOps.pushWithUpstream("/path/to/repo")).rejects.toThrow(
+        "fatal: remote rejected"
+      );
+    });
+  });
+
+  describe("hasLocalCommits", () => {
+    beforeEach(() => {
+      mockExecute.mockClear();
+      vi.mocked(Command.create).mockClear();
+    });
+
+    it("should return true when repo has commits", async () => {
+      mockExecute.mockResolvedValueOnce({
+        code: 0,
+        stdout: "abc1234\n",
+        stderr: "",
+      });
+
+      const result = await gitOps.hasLocalCommits("/path/to/repo");
+
+      expect(result).toBe(true);
+      expect(Command.create).toHaveBeenCalledWith("git", [
+        "-C",
+        "/path/to/repo",
+        "rev-parse",
+        "HEAD",
+      ]);
+    });
+
+    it("should return false when repo has no commits", async () => {
+      mockExecute.mockResolvedValueOnce({
+        code: 128,
+        stdout: "",
+        stderr: "fatal: bad revision 'HEAD'",
+      });
+
+      const result = await gitOps.hasLocalCommits("/path/to/repo");
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("syncWithRemote", () => {
+    beforeEach(() => {
+      mockExecute.mockClear();
+      vi.mocked(Command.create).mockClear();
+    });
+
+    it("should fetch and reset when local has no commits but remote does", async () => {
+      // Fetch succeeds
+      mockExecute.mockResolvedValueOnce({ code: 0, stdout: "", stderr: "" });
+      // hasLocalCommits returns false
+      mockExecute.mockResolvedValueOnce({ code: 128, stdout: "", stderr: "" });
+      // Remote branch exists
+      mockExecute.mockResolvedValueOnce({ code: 0, stdout: "abc123\n", stderr: "" });
+      // Reset succeeds
+      mockExecute.mockResolvedValueOnce({ code: 0, stdout: "", stderr: "" });
+
+      await gitOps.syncWithRemote("/path/to/repo");
+
+      expect(Command.create).toHaveBeenCalledTimes(4);
+      expect(Command.create).toHaveBeenNthCalledWith(4, "git", [
+        "-C",
+        "/path/to/repo",
+        "reset",
+        "origin/main",
+      ]);
+    });
+
+    it("should skip reset when local already has commits", async () => {
+      // Fetch succeeds
+      mockExecute.mockResolvedValueOnce({ code: 0, stdout: "", stderr: "" });
+      // hasLocalCommits returns true
+      mockExecute.mockResolvedValueOnce({ code: 0, stdout: "abc123\n", stderr: "" });
+
+      await gitOps.syncWithRemote("/path/to/repo");
+
+      expect(Command.create).toHaveBeenCalledTimes(2);
+    });
+
+    it("should handle empty remote gracefully", async () => {
+      // Fetch fails (empty remote)
+      mockExecute.mockResolvedValueOnce({ code: 1, stdout: "", stderr: "" });
+
+      await gitOps.syncWithRemote("/path/to/repo");
+
+      expect(Command.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("should handle remote branch not existing", async () => {
+      // Fetch succeeds
+      mockExecute.mockResolvedValueOnce({ code: 0, stdout: "", stderr: "" });
+      // hasLocalCommits returns false
+      mockExecute.mockResolvedValueOnce({ code: 128, stdout: "", stderr: "" });
+      // Remote branch doesn't exist
+      mockExecute.mockResolvedValueOnce({ code: 128, stdout: "", stderr: "" });
+
+      await gitOps.syncWithRemote("/path/to/repo");
+
+      expect(Command.create).toHaveBeenCalledTimes(3);
     });
   });
 });

@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useProject } from "../../contexts/ProjectContext";
 import { api } from "../../api";
 import { open } from "@tauri-apps/plugin-dialog";
-import { readTextFile } from "@tauri-apps/plugin-fs";
 import {
   initProjectStructure,
   isProjectInitialized,
@@ -14,11 +13,6 @@ import {
 } from "../../templates";
 import { useProjectHealth } from "../../hooks/useProjectHealth";
 import { ProjectHealthPanel } from "./ProjectHealthPanel";
-import {
-  isGitInitialized,
-  initializeGit,
-  createInitialGitignore,
-} from "../../services/git";
 
 export function GeneralSettings() {
   const navigate = useNavigate();
@@ -36,7 +30,6 @@ export function GeneralSettings() {
   const [formData, setFormData] = useState({
     name: "",
     localPath: "",
-    gitRemote: "",
   });
 
   // Template sync state
@@ -46,10 +39,6 @@ export function GeneralSettings() {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
   const [showTemplates, setShowTemplates] = useState(false);
-
-  // Git initialization state
-  const [gitInitialized, setGitInitialized] = useState(false);
-  const [initializingGit, setInitializingGit] = useState(false);
 
   // Project health check
   const {
@@ -95,21 +84,6 @@ export function GeneralSettings() {
     }
   };
 
-  // Helper function to detect git remote URL by reading .git/config directly
-  // No git CLI required - just file system access
-  const detectGitRemote = async (path: string): Promise<string> => {
-    try {
-      const configPath = `${path}/.git/config`;
-      const content = await readTextFile(configPath);
-      // Parse [remote "origin"] section and extract url
-      const match = content.match(/\[remote "origin"\][^[]*url\s*=\s*(.+)/);
-      return match?.[1]?.trim() || "";
-    } catch {
-      // .git/config doesn't exist or not readable - not a git repo
-    }
-    return "";
-  };
-
   // Load project data
   useEffect(() => {
     if (currentProject) {
@@ -123,21 +97,14 @@ export function GeneralSettings() {
       api.projects
         .getProject({ ref: projectRef })
         .then(async (projectData) => {
-          // Auto-detect git remote from localPath
-          let detectedGitRemote = "";
           if (projectData.localPath) {
-            detectedGitRemote = await detectGitRemote(projectData.localPath);
-            // Also load template status
+            // Load template status
             await loadTemplateStatus(projectData.localPath);
-            // Check if git is initialized
-            const gitInit = await isGitInitialized(projectData.localPath);
-            setGitInitialized(gitInit);
           }
 
           setFormData({
             name: projectData.name || "",
             localPath: projectData.localPath || "",
-            gitRemote: detectedGitRemote,
           });
         })
         .catch((err) => {
@@ -148,36 +115,6 @@ export function GeneralSettings() {
     }
   }, [currentProject, getProjectRef, loadTemplateStatus]);
 
-  // Handle git initialization
-  const handleInitGit = async () => {
-    if (!formData.localPath || !currentProject?.id) return;
-
-    setInitializingGit(true);
-    setError(null);
-
-    try {
-      const result = await initializeGit(formData.localPath);
-      if (result.success) {
-        // Fetch existing repositories to add to .gitignore
-        const reposResponse = await api.repositories.listRepositories({
-          projectRef: currentProject.id,
-        });
-        const existingRepoNames = (reposResponse.data ?? []).map((r) => r.name);
-
-        await createInitialGitignore(formData.localPath, existingRepoNames);
-        setGitInitialized(true);
-        setSuccess(true);
-        setTimeout(() => setSuccess(false), 3000);
-      } else {
-        setError(result.error || "Failed to initialize git");
-      }
-    } catch (err) {
-      setError("Failed to initialize git: " + String(err));
-    } finally {
-      setInitializingGit(false);
-    }
-  };
-
   const handleBrowse = async () => {
     try {
       const selected = await open({
@@ -187,13 +124,9 @@ export function GeneralSettings() {
       });
 
       if (selected && typeof selected === "string") {
-        // Auto-detect git remote from selected path
-        const detectedGitRemote = await detectGitRemote(selected);
-
         setFormData({
           ...formData,
           localPath: selected,
-          gitRemote: detectedGitRemote,
         });
       }
     } catch (err) {
@@ -224,15 +157,8 @@ export function GeneralSettings() {
         },
       });
 
-      // Re-detect git remote if localPath changed
+      // Initialize project structure if localPath changed
       if (formData.localPath && formData.localPath !== oldLocalPath) {
-        const detectedGitRemote = await detectGitRemote(formData.localPath);
-        setFormData({
-          ...formData,
-          gitRemote: detectedGitRemote,
-        });
-
-        // Initialize project structure if not already done
         const initialized = await isProjectInitialized(formData.localPath);
         if (!initialized) {
           await initProjectStructure(formData.localPath);
@@ -448,121 +374,6 @@ export function GeneralSettings() {
             >
               Browse
             </button>
-          </div>
-        )}
-      </div>
-
-      {/* Git URL (conditional: show init button or remote) */}
-      <div>
-        <label className="flex items-center gap-2 text-sm font-medium mb-2 text-surface-900 dark:text-white">
-          Git URL
-          <span className="group relative inline-flex">
-            <svg
-              className="w-4 h-4 text-surface-400 cursor-help"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <span className="absolute left-6 top-1/2 -translate-y-1/2 w-64 p-2 bg-surface-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-              Recommended: Initialize git in this directory to version control
-              PRDs and project specs.
-            </span>
-          </span>
-        </label>
-        {formData.localPath ? (
-          gitInitialized ? (
-            // Git is initialized - show remote or next steps
-            formData.gitRemote ? (
-              <div className="px-3 py-2 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg text-sm text-surface-600 dark:text-surface-400 min-h-[38px] flex items-center break-all font-mono">
-                {formData.gitRemote}
-              </div>
-            ) : (
-              <div className="p-4 bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800 rounded-lg">
-                <div className="flex items-start gap-3">
-                  <svg
-                    className="w-5 h-5 text-accent-500 flex-shrink-0 mt-0.5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-accent-800 dark:text-accent-200">
-                      No remote configured
-                    </p>
-                    <p className="text-xs text-accent-700 dark:text-accent-300 mt-1">
-                      To back up your PRDs and specs to GitHub:
-                    </p>
-                    <ol className="text-xs text-accent-700 dark:text-accent-300 mt-2 space-y-1 list-decimal list-inside">
-                      <li>Create a new repository on GitHub</li>
-                      <li>
-                        Run in terminal:{" "}
-                        <code className="bg-accent-100 dark:bg-accent-900/50 px-1 py-0.5 rounded font-mono text-[11px]">
-                          cd "{formData.localPath}" && git remote add origin git@github.com:you/your-repo.git
-                        </code>
-                      </li>
-                    </ol>
-                    <p className="text-xs text-accent-600 dark:text-accent-400 mt-2 italic">
-                      Refresh this page after adding the remote.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )
-          ) : (
-            // Local path set but no git - show init prompt
-            <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-              <div className="flex items-start gap-3">
-                <svg
-                  className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                  />
-                </svg>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                    Git not initialized
-                  </p>
-                  <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                    Initialize git to version control your PRDs and specs.
-                    Code repositories will be automatically excluded.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleInitGit}
-                    disabled={initializingGit}
-                    className="mt-3 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium rounded"
-                  >
-                    {initializingGit ? "Initializing..." : "Initialize Git Repository"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )
-        ) : (
-          // No local path set yet
-          <div className="px-3 py-2 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg text-sm text-surface-400 dark:text-surface-500">
-            Set local path first
           </div>
         )}
       </div>

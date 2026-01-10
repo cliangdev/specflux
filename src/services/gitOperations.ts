@@ -230,3 +230,218 @@ export async function getRemoteInfo(
     repo: parsed.repo,
   };
 }
+
+/**
+ * Normalize a git URL for comparison.
+ * Strips trailing .git, lowercases, and handles protocol variations.
+ */
+function normalizeGitUrl(url: string): string {
+  return url
+    .trim()
+    .toLowerCase()
+    .replace(/\.git$/, "")
+    .replace(/\/$/, "");
+}
+
+/**
+ * Set the remote URL for a repository.
+ *
+ * SAFETY: This function will NOT overwrite an existing remote that points
+ * to a different repository. This prevents accidentally changing a project's
+ * remote to point to an unrelated SpecFlux spec repository.
+ *
+ * @param repoDir - The repository directory path
+ * @param url - The remote URL to set
+ * @param remoteName - The remote name (default: "origin")
+ * @throws Error if the remote already exists with a different URL
+ * @throws Error if the operation fails
+ */
+export async function setRemoteUrl(
+  repoDir: string,
+  url: string,
+  remoteName: string = "origin",
+): Promise<void> {
+  const existingUrl = await getRemoteUrl(repoDir, remoteName);
+
+  if (existingUrl) {
+    const normalizedExisting = normalizeGitUrl(existingUrl);
+    const normalizedNew = normalizeGitUrl(url);
+
+    if (normalizedExisting === normalizedNew) {
+      // Same URL (ignoring minor variations), nothing to do
+      return;
+    }
+
+    // Different URL - refuse to overwrite for safety
+    throw new Error(
+      `Remote '${remoteName}' already exists with URL: ${existingUrl}\n` +
+      `Cannot overwrite with: ${url}\n` +
+      `To link a different repository, first unlink the current one.`
+    );
+  }
+
+  // Remote doesn't exist, add it
+  const { Command } = await import("@tauri-apps/plugin-shell");
+  const command = Command.create("git", [
+    "-C",
+    repoDir,
+    "remote",
+    "add",
+    remoteName,
+    url,
+  ]);
+  const output = await command.execute();
+  if (output.code !== 0) {
+    throw new Error(output.stderr || "Failed to add remote");
+  }
+}
+
+/**
+ * Push to remote with upstream tracking (for initial push).
+ * Does `git push -u origin <branch>`.
+ *
+ * @param repoDir - The repository directory path
+ * @param remoteName - The remote name (default: "origin")
+ * @throws Error if push fails
+ */
+export async function pushWithUpstream(
+  repoDir: string,
+  remoteName: string = "origin",
+): Promise<void> {
+  const { Command } = await import("@tauri-apps/plugin-shell");
+
+  // Get current branch name
+  const branchCmd = Command.create("git", [
+    "-C",
+    repoDir,
+    "rev-parse",
+    "--abbrev-ref",
+    "HEAD",
+  ]);
+  const branchOutput = await branchCmd.execute();
+  if (branchOutput.code !== 0) {
+    throw new Error(branchOutput.stderr || "Failed to get current branch");
+  }
+  const branch = branchOutput.stdout.trim();
+
+  // Push with upstream
+  const pushCmd = Command.create("git", [
+    "-C",
+    repoDir,
+    "push",
+    "-u",
+    remoteName,
+    branch,
+  ]);
+  const pushOutput = await pushCmd.execute();
+  if (pushOutput.code !== 0) {
+    throw new Error(pushOutput.stderr || "Failed to push to remote");
+  }
+}
+
+/**
+ * Check if local repository has any commits.
+ *
+ * @param repoDir - The repository directory path
+ * @returns true if there are commits, false if repo is empty
+ */
+export async function hasLocalCommits(repoDir: string): Promise<boolean> {
+  const { Command } = await import("@tauri-apps/plugin-shell");
+  const cmd = Command.create("git", ["-C", repoDir, "rev-parse", "HEAD"]);
+  const output = await cmd.execute();
+  return output.code === 0;
+}
+
+/**
+ * Sync local repo with remote for initial link.
+ * Handles the case where remote has commits but local doesn't.
+ *
+ * This function:
+ * 1. Fetches from remote
+ * 2. If local has no commits but remote does, resets to remote branch
+ * 3. Preserves local working directory files
+ *
+ * @param repoDir - The repository directory path
+ * @param remoteName - The remote name (default: "origin")
+ * @param branch - The branch name (default: "main")
+ */
+export async function syncWithRemote(
+  repoDir: string,
+  remoteName: string = "origin",
+  branch: string = "main",
+): Promise<void> {
+  const { Command } = await import("@tauri-apps/plugin-shell");
+
+  // Fetch from remote
+  const fetchCmd = Command.create("git", [
+    "-C",
+    repoDir,
+    "fetch",
+    remoteName,
+  ]);
+  const fetchOutput = await fetchCmd.execute();
+  if (fetchOutput.code !== 0) {
+    // Remote might be empty, that's okay
+    return;
+  }
+
+  // Check if local has commits
+  const hasLocal = await hasLocalCommits(repoDir);
+  if (hasLocal) {
+    // Local has commits, no need to reset
+    return;
+  }
+
+  // Check if remote branch exists
+  const remoteRefCmd = Command.create("git", [
+    "-C",
+    repoDir,
+    "rev-parse",
+    "--verify",
+    `${remoteName}/${branch}`,
+  ]);
+  const remoteRefOutput = await remoteRefCmd.execute();
+  if (remoteRefOutput.code !== 0) {
+    // Remote branch doesn't exist, that's okay
+    return;
+  }
+
+  // Reset to remote branch (keeps working directory files)
+  const resetCmd = Command.create("git", [
+    "-C",
+    repoDir,
+    "reset",
+    `${remoteName}/${branch}`,
+  ]);
+  const resetOutput = await resetCmd.execute();
+  if (resetOutput.code !== 0) {
+    throw new Error(resetOutput.stderr || "Failed to sync with remote");
+  }
+}
+
+/**
+ * Remove a remote from a repository.
+ *
+ * @param repoDir - The repository directory path
+ * @param remoteName - The remote name (default: "origin")
+ * @throws Error if the operation fails
+ */
+export async function removeRemote(
+  repoDir: string,
+  remoteName: string = "origin",
+): Promise<void> {
+  // Dynamic import to avoid issues in non-Tauri environments (tests)
+  const { Command } = await import("@tauri-apps/plugin-shell");
+
+  const command = Command.create("git", [
+    "-C",
+    repoDir,
+    "remote",
+    "remove",
+    remoteName,
+  ]);
+  const output = await command.execute();
+  if (output.code !== 0) {
+    throw new Error(output.stderr || "Failed to remove remote");
+  }
+}

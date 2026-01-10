@@ -20,6 +20,10 @@ import {
   type User,
 } from "../lib/firebase";
 import { api } from "../api";
+import {
+  GITHUB_CONNECTION_KEY,
+  fetchGitHubStatus,
+} from "../services/githubConnection";
 
 interface AuthContextValue {
   /** Current Firebase user, null if not signed in */
@@ -74,6 +78,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
       );
       setUser(restoredUser);
       setLoading(false);
+
+      // Validate GitHub connection cache against backend
+      // This ensures cache matches actual user's GitHub status
+      if (restoredUser) {
+        fetchGitHubStatus().catch((err) => {
+          console.warn("[AuthContext] Failed to validate GitHub status:", err);
+        });
+      } else {
+        // No user - clear any stale GitHub cache
+        localStorage.removeItem(GITHUB_CONNECTION_KEY);
+      }
     });
 
     // Check for redirect result (from popup-blocked fallback)
@@ -207,6 +222,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setLoading(true);
     setError(null);
     try {
+      // Clear GitHub connection cache before signing out
+      // This prevents the next user from seeing previous user's connection
+      localStorage.removeItem(GITHUB_CONNECTION_KEY);
       await firebaseSignOut();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Sign out failed";
