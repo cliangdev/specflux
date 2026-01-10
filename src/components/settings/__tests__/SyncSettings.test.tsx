@@ -2,9 +2,11 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { SyncSettings } from "../SyncSettings";
 import * as githubConnection from "../../../services/githubConnection";
+import * as gitOperations from "../../../services/gitOperations";
 
 // Mock the services
 vi.mock("../../../services/githubConnection");
+vi.mock("../../../services/gitOperations");
 
 // Mock useProject hook
 vi.mock("../../../contexts", () => ({
@@ -38,6 +40,8 @@ describe("SyncSettings", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    // Default: no remote configured
+    vi.mocked(gitOperations.getRemoteInfo).mockResolvedValue(undefined);
   });
 
   describe("when GitHub is not connected", () => {
@@ -82,13 +86,6 @@ describe("SyncSettings", () => {
       });
     });
 
-    it("should not show auto-sync preference", () => {
-      render(<SyncSettings />);
-
-      expect(
-        screen.queryByText(/Auto-sync on file changes/i)
-      ).not.toBeInTheDocument();
-    });
   });
 
   describe("when GitHub is connected", () => {
@@ -159,40 +156,6 @@ describe("SyncSettings", () => {
       });
     });
 
-    it("should show auto-sync toggle", () => {
-      render(<SyncSettings />);
-
-      expect(
-        screen.getByText(/Auto-sync on file changes/i)
-      ).toBeInTheDocument();
-    });
-
-    it("should toggle auto-sync preference", () => {
-      render(<SyncSettings />);
-
-      const toggle = screen.getByRole("checkbox") as HTMLInputElement;
-      expect(toggle.checked).toBe(true); // Default is enabled
-
-      fireEvent.click(toggle);
-
-      expect(toggle.checked).toBe(false);
-      expect(localStorage.getItem("specflux:sync:autoSync")).toBe("false");
-
-      fireEvent.click(toggle);
-
-      expect(toggle.checked).toBe(true);
-      expect(localStorage.getItem("specflux:sync:autoSync")).toBe("true");
-    });
-
-    it("should load saved auto-sync preference", () => {
-      localStorage.setItem("specflux:sync:autoSync", "false");
-
-      render(<SyncSettings />);
-
-      const toggle = screen.getByRole("checkbox") as HTMLInputElement;
-      expect(toggle.checked).toBe(false);
-    });
-
     it("should render GitHub profile link", () => {
       render(<SyncSettings />);
 
@@ -202,6 +165,48 @@ describe("SyncSettings", () => {
         "https://github.com/testuser"
       );
       expect(profileLink).toHaveAttribute("target", "_blank");
+    });
+
+    it("should show Link Repository button when no repo is linked", async () => {
+      vi.mocked(gitOperations.getRemoteInfo).mockResolvedValue(undefined);
+
+      render(<SyncSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText("No repository linked")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /Link Repository/i })).toBeInTheDocument();
+      });
+    });
+
+    it("should show linked repository info when repo is linked", async () => {
+      vi.mocked(gitOperations.getRemoteInfo).mockResolvedValue({
+        url: "https://github.com/octocat/hello-world.git",
+        owner: "octocat",
+        repo: "hello-world",
+      });
+
+      render(<SyncSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText("octocat/hello-world")).toBeInTheDocument();
+        expect(screen.queryByText("No repository linked")).not.toBeInTheDocument();
+      });
+    });
+
+    it("should open link modal when Link Repository button is clicked", async () => {
+      vi.mocked(gitOperations.getRemoteInfo).mockResolvedValue(undefined);
+
+      render(<SyncSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /Link Repository/i })).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: /Link Repository/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole("heading", { name: "Link Repository" })).toBeInTheDocument();
+      });
     });
   });
 

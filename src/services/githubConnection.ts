@@ -16,7 +16,8 @@ export interface GitHubConnectionStatus {
   connectedAt?: Date;
 }
 
-const GITHUB_CONNECTION_KEY = "specflux:github:connection";
+/** localStorage key for GitHub connection cache */
+export const GITHUB_CONNECTION_KEY = "specflux:github:connection";
 
 /**
  * Connect to GitHub via OAuth flow.
