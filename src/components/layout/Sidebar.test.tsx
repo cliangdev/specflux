@@ -20,7 +20,6 @@ describe("Sidebar", () => {
 
     expect(screen.getByRole("link", { name: /board/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /tasks/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /roadmap/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /files/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /settings/i })).toBeInTheDocument();
   });
@@ -35,10 +34,6 @@ describe("Sidebar", () => {
     expect(screen.getByRole("link", { name: /tasks/i })).toHaveAttribute(
       "href",
       "/tasks",
-    );
-    expect(screen.getByRole("link", { name: /roadmap/i })).toHaveAttribute(
-      "href",
-      "/roadmap",
     );
     expect(screen.getByRole("link", { name: /files/i })).toHaveAttribute(
       "href",
