@@ -3,8 +3,12 @@ import { useSearchParams } from "react-router-dom";
 import { useProject } from "../contexts";
 import { api, type Epic, type Prd, EpicStatus } from "../api";
 import { EpicCard, EpicCreateModal } from "../components/epics";
+import { EpicGraph } from "../components/roadmap";
 import { usePageContext } from "../hooks/usePageContext";
 
+type ViewMode = "cards" | "graph";
+
+const VIEW_STORAGE_KEY = "specflux-epics-view";
 const FILTERS_STORAGE_KEY = "specflux-epics-filters";
 
 interface EpicsFilters {
@@ -67,6 +71,10 @@ export default function EpicsPage() {
   usePageContext({ type: "epics" });
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem(VIEW_STORAGE_KEY);
+    return saved === "cards" || saved === "graph" ? saved : "graph";
+  });
 
   // Load initial filters from localStorage
   const [initialFilters] = useState(loadFilters);
@@ -91,6 +99,11 @@ export default function EpicsPage() {
       staleFiltersCleared.current = true;
     }
   }, [currentProject?.id, initialFilters.projectId]);
+
+  // Persist view mode to localStorage
+  useEffect(() => {
+    localStorage.setItem(VIEW_STORAGE_KEY, viewMode);
+  }, [viewMode]);
 
   // Persist filters to localStorage (include project ID to detect stale filters later)
   useEffect(() => {
@@ -233,6 +246,36 @@ export default function EpicsPage() {
           Epics
         </h1>
         <div className="flex items-center gap-2 flex-wrap">
+          {/* View mode toggle */}
+          <div className="flex items-center bg-surface-100 dark:bg-surface-800 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode("cards")}
+              className={`p-1.5 rounded transition-colors ${
+                viewMode === "cards"
+                  ? "bg-white dark:bg-surface-700 text-surface-900 dark:text-white shadow-sm"
+                  : "text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-white"
+              }`}
+              title="Card view"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setViewMode("graph")}
+              className={`p-1.5 rounded transition-colors ${
+                viewMode === "graph"
+                  ? "bg-white dark:bg-surface-700 text-surface-900 dark:text-white shadow-sm"
+                  : "text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-white"
+              }`}
+              title="Dependency graph view"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </button>
+          </div>
+
           {/* Status filter */}
           <select
             value={statusFilter}
@@ -332,6 +375,12 @@ export default function EpicsPage() {
               : "Get started by creating your first epic."}
           </p>
         </div>
+      ) : viewMode === "graph" ? (
+        <EpicGraph
+          key={`${prdFilter}-${statusFilter}`}
+          epics={filteredEpics}
+          className="flex-1 min-h-0"
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-auto">
           {filteredEpics.map((epic) => (
