@@ -3,6 +3,10 @@
  *
  * Creates the .specflux/ and .claude/ directories with all required
  * subdirectories and template files for a SpecFlux-managed project.
+ *
+ * NOTE: Commands (/specflux:planning, /specflux:implement) are provided by
+ * the SpecFlux plugin installed at ~/.claude/plugins/specflux/. Only
+ * project-specific tech skills are synced here.
  */
 
 import { mkdir, writeTextFile, exists } from "@tauri-apps/plugin-fs";
@@ -80,8 +84,8 @@ export async function initProjectStructure(projectPath: string): Promise<void> {
     }
   }
 
-  // Create .claude directories
-  const claudeDirs = [".claude/commands", ".claude/skills"];
+  // Create .claude directories (skills only - commands provided by plugin)
+  const claudeDirs = [".claude/skills"];
 
   for (const dir of claudeDirs) {
     const fullPath = await join(projectPath, dir);
@@ -121,13 +125,11 @@ export async function syncTemplates(
     : TEMPLATE_REGISTRY;
 
   // Ensure parent directories exist for all template categories
+  // NOTE: Commands and specflux-api are provided by the plugin
   const templateDirs = [
-    ".claude/commands",
     ".claude/skills/ui-patterns",
-    ".claude/skills/api-design",
     ".claude/skills/typescript-patterns",
     ".claude/skills/springboot-patterns",
-    ".claude/skills/specflux-api",
     ".claude/skills/frontend-design",
   ];
 

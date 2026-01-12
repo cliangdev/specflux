@@ -1,0 +1,10 @@
+{
+  "name": "specflux",
+  "version": "1.0.0",
+  "description": "SpecFlux product development workflows - unified planning and implementation commands",
+  "author": {
+    "name": "SpecFlux"
+  },
+  "repository": "https://github.com/specflux/specflux",
+  "keywords": ["prd", "epic", "task", "planning", "implementation", "workflow"]
+}
