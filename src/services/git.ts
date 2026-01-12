@@ -5,7 +5,7 @@
  * Cross-platform support for macOS, Windows, and Linux.
  */
 
-import { Command, Child } from "@tauri-apps/plugin-shell";
+import { Command } from "@tauri-apps/plugin-shell";
 import { readTextFile, writeTextFile, mkdir } from "@tauri-apps/plugin-fs";
 
 export interface GitHubUrlInfo {
@@ -32,15 +32,9 @@ export interface CloneResult {
   error?: string;
 }
 
-let activeCloneProcess: Child | null = null;
-
 /**
- * Parse a GitHub URL to extract owner and repo name
- * Supports:
- * - HTTPS: https://github.com/owner/repo
- * - HTTPS with .git: https://github.com/owner/repo.git
- * - SSH: git@github.com:owner/repo.git
- * - SSH alias: github.com-alias:owner/repo.git (for multi-account setups)
+ * Parse a GitHub URL to extract owner and repo name.
+ * Supports HTTPS, SSH, and SSH alias formats.
  */
 export function parseGitHubUrl(url: string): GitHubUrlInfo | null {
   const trimmedUrl = url.trim();
@@ -106,22 +100,14 @@ export function validateGitUrl(url: string): { valid: boolean; error?: string } 
  * Get the clone destination path
  */
 export function getClonePath(localPath: string, repoName: string): string {
-  // Normalize path separators for cross-platform
   const normalizedLocalPath = localPath.replace(/\\/g, "/").replace(/\/$/, "");
   return `${normalizedLocalPath}/${repoName}`;
 }
 
 /**
- * Parse git clone progress output
- * Git outputs progress to stderr in various formats:
- * - "Cloning into 'repo'..."
- * - "remote: Counting objects: 100, done."
- * - "remote: Compressing objects: 50% (50/100)"
- * - "Receiving objects: 75% (75/100), 1.50 MiB | 500.00 KiB/s"
- * - "Resolving deltas: 100% (50/50), done."
+ * Parse git clone progress output from stderr
  */
 export function parseCloneProgress(line: string): CloneProgress | null {
-  // Counting objects
   const countingMatch = line.match(/Counting objects:\s*(\d+)/i);
   if (countingMatch) {
     return {
@@ -131,7 +117,6 @@ export function parseCloneProgress(line: string): CloneProgress | null {
     };
   }
 
-  // Compressing objects with percentage
   const compressingMatch = line.match(
     /Compressing objects:\s*(\d+)%\s*\((\d+)\/(\d+)\)/i,
   );
@@ -145,7 +130,6 @@ export function parseCloneProgress(line: string): CloneProgress | null {
     };
   }
 
-  // Receiving objects with percentage
   const receivingMatch = line.match(
     /Receiving objects:\s*(\d+)%\s*\((\d+)\/(\d+)\)/i,
   );
@@ -159,7 +143,6 @@ export function parseCloneProgress(line: string): CloneProgress | null {
     };
   }
 
-  // Resolving deltas with percentage
   const resolvingMatch = line.match(
     /Resolving deltas:\s*(\d+)%\s*\((\d+)\/(\d+)\)/i,
   );
@@ -177,12 +160,7 @@ export function parseCloneProgress(line: string): CloneProgress | null {
 }
 
 /**
- * Clone a repository from GitHub
- *
- * @param gitUrl - The git URL to clone (can be SSH with custom alias)
- * @param targetPath - The local path to clone to
- * @param onProgress - Callback for progress updates
- * @returns Clone result with success status
+ * Clone a repository from GitHub with timeout protection
  */
 export async function cloneRepository(
   gitUrl: string,
@@ -190,6 +168,10 @@ export async function cloneRepository(
   onProgress?: (progress: CloneProgress) => void,
 ): Promise<CloneResult> {
   try {
+    if (onProgress) {
+      onProgress({ phase: "receiving", percent: 0, message: "Starting clone..." });
+    }
+
     const command = Command.create("git", [
       "clone",
       "--progress",
@@ -197,25 +179,24 @@ export async function cloneRepository(
       targetPath,
     ]);
 
-    const child = await command.spawn();
-    activeCloneProcess = child;
-
-    let stderr = "";
-
-    command.stdout.on("data", () => {});
-
-    command.stderr.on("data", (line) => {
-      stderr += line + "\n";
-      if (onProgress) {
-        const progress = parseCloneProgress(line);
-        if (progress) {
-          onProgress(progress);
-        }
-      }
+    const timeoutMs = 10000;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("TIMEOUT")), timeoutMs);
     });
 
-    const output = await command.execute();
-    activeCloneProcess = null;
+    let output;
+    try {
+      output = await Promise.race([command.execute(), timeoutPromise]);
+    } catch (err) {
+      if (err instanceof Error && err.message === "TIMEOUT") {
+        return {
+          success: false,
+          path: targetPath,
+          error: "Connection timed out. Check your network connection and SSH configuration.",
+        };
+      }
+      throw err;
+    }
 
     if (output.code === 0) {
       if (onProgress) {
@@ -223,32 +204,10 @@ export async function cloneRepository(
       }
       return { success: true, path: targetPath };
     } else {
-      let errorMessage = "Clone failed";
-
-      if (stderr.includes("Repository not found")) {
-        errorMessage =
-          "Repository not found. Check the URL and your access permissions.";
-      } else if (
-        stderr.includes("Authentication failed") ||
-        stderr.includes("Permission denied")
-      ) {
-        errorMessage =
-          "Authentication failed. Make sure your SSH keys or credentials are configured.";
-      } else if (stderr.includes("already exists")) {
-        errorMessage =
-          "Directory already exists. Choose a different location or use Browse Local.";
-      } else if (stderr.includes("Could not resolve host")) {
-        errorMessage =
-          "Network error. Check your internet connection and try again.";
-      } else if (stderr) {
-        const lines = stderr.trim().split("\n").filter(Boolean);
-        errorMessage = lines[lines.length - 1] || "Clone failed";
-      }
-
+      const errorMessage = parseCloneError(output.stderr || "");
       return { success: false, path: targetPath, error: errorMessage };
     }
   } catch (err) {
-    activeCloneProcess = null;
     return {
       success: false,
       path: targetPath,
@@ -258,18 +217,41 @@ export async function cloneRepository(
 }
 
 /**
- * Cancel an in-progress clone operation
+ * Parse stderr output to extract a user-friendly error message
  */
-export async function cancelClone(): Promise<void> {
-  if (activeCloneProcess) {
-    try {
-      await activeCloneProcess.kill();
-    } catch {
-      // Kill errors are expected when process already terminated
-    }
-    activeCloneProcess = null;
+function parseCloneError(stderr: string): string {
+  if (stderr.includes("Repository not found")) {
+    return "Repository not found. Check the URL and your access permissions.";
   }
+  if (
+    stderr.includes("Authentication failed") ||
+    stderr.includes("Permission denied")
+  ) {
+    return "Authentication failed. Make sure your SSH keys or credentials are configured.";
+  }
+  if (stderr.includes("already exists")) {
+    return "Directory already exists. Choose a different location or use Browse Local.";
+  }
+  if (stderr.includes("Could not resolve host")) {
+    return "Network error. Check your internet connection and try again.";
+  }
+  if (stderr.includes("Host key verification failed")) {
+    return "SSH host key verification failed. Run 'ssh -T git@github.com' in terminal to add the host key.";
+  }
+
+  const lines = stderr.trim().split("\n").filter(Boolean);
+  const errorLines = lines.filter((line) => !line.startsWith("Cloning into"));
+  return (
+    errorLines[errorLines.length - 1] ||
+    lines[lines.length - 1] ||
+    "Clone failed"
+  );
 }
+
+/**
+ * Cancel an in-progress clone operation (no-op with current implementation)
+ */
+export async function cancelClone(): Promise<void> {}
 
 /**
  * Check if a directory exists
@@ -475,7 +457,6 @@ export async function addToGitignore(
 
 /**
  * Create initial .gitignore for project (if doesn't exist)
- * Optionally include existing repository names to ignore
  */
 export async function createInitialGitignore(
   projectPath: string,
@@ -485,12 +466,10 @@ export async function createInitialGitignore(
 
   try {
     await readTextFile(gitignorePath);
-    // File exists - add any missing repos
     for (const repoName of existingRepoNames) {
       await addToGitignore(projectPath, repoName);
     }
   } catch {
-    // File doesn't exist - create with header and repos
     const repoEntries = existingRepoNames.map((name) => `${name}/`).join("\n");
     const content = `# SpecFlux Project
 # Version control for PRDs, specs, and configuration
