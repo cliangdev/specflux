@@ -3,41 +3,26 @@ import { useProject } from "../../contexts/ProjectContext";
 import { api } from "../../api";
 import type { Repository } from "../../api/generated/models/Repository";
 import { useProjectHealth } from "../../hooks/useProjectHealth";
+import { useLocalProjectPath } from "../../hooks/useLocalProjectPath";
 import { CloneRepositoryModal } from "./CloneRepositoryModal";
 import { CreateRepositoryModal } from "./CreateRepositoryModal";
 import { addToGitignore } from "../../services/git";
 
-interface RepositoryFormData {
-  name: string;
-  path: string;
-  gitUrl: string;
-  defaultAgent: string;
-}
-
-type ModalMode = "edit" | null;
 type AddMode = "create" | "clone" | null;
 
 export function RepositorySettings() {
   const { currentProject } = useProject();
+  const { localPath } = useLocalProjectPath();
   const [loading, setLoading] = useState(false);
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [addMode, setAddMode] = useState<AddMode>(null);
-  const [editingRepo, setEditingRepo] = useState<Repository | null>(null);
   const [deletingRepo, setDeletingRepo] = useState<Repository | null>(null);
-  const [formData, setFormData] = useState<RepositoryFormData>({
-    name: "",
-    path: "",
-    gitUrl: "",
-    defaultAgent: "",
-  });
-  const [saving, setSaving] = useState(false);
 
   // Project health check - only need status for clone button
   const { status: healthStatus } = useProjectHealth(currentProject);
 
-  const canClone = healthStatus !== "error" && currentProject?.localPath;
+  const canClone = healthStatus !== "error" && localPath;
 
   const loadRepositories = useCallback(async () => {
     if (!currentProject?.id) return;
@@ -64,54 +49,6 @@ export function RepositorySettings() {
       loadRepositories();
     }
   }, [currentProject, loadRepositories]);
-
-  const handleEditClick = (repo: Repository) => {
-    setFormData({
-      name: repo.name,
-      path: repo.path,
-      gitUrl: repo.gitUrl || "",
-      defaultAgent: "",
-    });
-    setEditingRepo(repo);
-    setModalMode("edit");
-  };
-
-  const handleModalClose = () => {
-    setModalMode(null);
-    setEditingRepo(null);
-    setFormData({
-      name: "",
-      path: "",
-      gitUrl: "",
-      defaultAgent: "",
-    });
-  };
-
-  const handleSave = async () => {
-    if (!currentProject?.id || !editingRepo) return;
-
-    setSaving(true);
-    setError(null);
-
-    try {
-      await api.repositories.updateRepository({
-        projectRef: currentProject.id,
-        repoRef: editingRepo.id,
-        updateRepositoryRequest: {
-          name: formData.name,
-          gitUrl: formData.gitUrl || undefined,
-        },
-      });
-
-      await loadRepositories();
-      handleModalClose();
-    } catch (err) {
-      setError("Failed to update repository");
-      console.error(err);
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleDeleteClick = (repo: Repository) => {
     setDeletingRepo(repo);
@@ -182,19 +119,19 @@ export function RepositorySettings() {
   }
 
   // Handle cloned or created repository
-  const handleRepositoryAdded = async (repoName: string, repoPath: string) => {
-    if (!currentProject?.id || !currentProject.localPath) return;
+  const handleRepositoryAdded = async (repoName: string, _repoPath: string) => {
+    if (!currentProject?.id || !localPath) return;
 
     try {
       // Add to gitignore
-      await addToGitignore(currentProject.localPath, repoName);
+      await addToGitignore(localPath, repoName);
 
-      // Register the repository in the backend
+      // Register the repository in the backend (path is relative to project localPath)
       await api.repositories.createRepository({
         projectRef: currentProject.id,
         createRepositoryRequest: {
           name: repoName,
-          path: repoPath,
+          path: repoName,
         },
       });
 
@@ -286,16 +223,10 @@ export function RepositorySettings() {
                     {repo.name}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 font-mono text-xs">
-                    {repo.path}
+                    {localPath ? `${localPath}/${repo.path}` : repo.path}
                   </td>
                   <td className="px-4 py-3">{getStatusBadge(repo.status)}</td>
-                  <td className="px-4 py-3 text-right space-x-2">
-                    <button
-                      onClick={() => handleEditClick(repo)}
-                      className="text-accent-600 hover:text-accent-700 dark:text-accent-400 dark:hover:text-accent-300 text-sm font-medium"
-                    >
-                      Edit
-                    </button>
+                  <td className="px-4 py-3 text-right">
                     <button
                       onClick={() => handleDeleteClick(repo)}
                       className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-sm font-medium"
@@ -307,74 +238,6 @@ export function RepositorySettings() {
               ))}
             </tbody>
           </table>
-        </div>
-      )}
-
-      {/* Edit Modal */}
-      {modalMode === "edit" && editingRepo && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-lg mx-4">
-            {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Edit Repository
-              </h3>
-            </div>
-
-            {/* Modal Body */}
-            <div className="px-6 py-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
-                  Local Path
-                  <span className="text-xs text-gray-400 ml-2">
-                    (cannot be changed)
-                  </span>
-                </label>
-                <div className="px-3 py-2 bg-gray-100 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded text-sm text-gray-500 dark:text-gray-400 font-mono">
-                  {formData.path}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
-                  Repository Name
-                </label>
-                <div className="px-3 py-2 bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded text-sm text-gray-600 dark:text-gray-400 min-h-[38px] flex items-center font-mono">
-                  {formData.name}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
-                  Git URL
-                </label>
-                <div className="px-3 py-2 bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded text-sm text-gray-600 dark:text-gray-400 min-h-[38px] flex items-center break-all font-mono">
-                  {formData.gitUrl || (
-                    <span className="text-gray-400 dark:text-gray-500 font-sans">
-                      Not configured
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700 flex gap-3 justify-end">
-              <button
-                onClick={handleModalClose}
-                className="bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded text-sm font-medium hover:bg-gray-50 dark:hover:bg-slate-600"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving || !formData.name || !formData.path}
-                className="bg-accent-600 hover:bg-accent-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-medium shadow-sm"
-              >
-                {saving ? "Saving..." : "Save Changes"}
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
@@ -420,18 +283,18 @@ export function RepositorySettings() {
       )}
 
       {/* Clone Repository Modal */}
-      {addMode === "clone" && currentProject?.localPath && (
+      {addMode === "clone" && localPath && (
         <CloneRepositoryModal
-          localPath={currentProject.localPath}
+          localPath={localPath}
           onClose={() => setAddMode(null)}
           onCloned={handleRepositoryAdded}
         />
       )}
 
       {/* Create Repository Modal */}
-      {addMode === "create" && currentProject?.localPath && (
+      {addMode === "create" && localPath && (
         <CreateRepositoryModal
-          localPath={currentProject.localPath}
+          localPath={localPath}
           onClose={() => setAddMode(null)}
           onCreated={handleRepositoryAdded}
         />

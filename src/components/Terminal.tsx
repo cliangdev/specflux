@@ -90,6 +90,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
   const sessionId = `${contextType}-${contextId}`;
   const initialCommandSentRef = useRef(false);
   const initialPromptSentRef = useRef(false);
+  const userScrolledRef = useRef(false); // Track if user has scrolled away from bottom
 
   // Refs for context values
   const contextDisplayKeyRef = useRef(contextDisplayKey);
@@ -204,6 +205,14 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
     xtermRef.current = term;
     fitAddonRef.current = fitAddon;
 
+    // Track user scroll to prevent auto-scrolling when user is reading history
+    const scrollDisposer = term.onScroll(() => {
+      // Check if user is at the bottom (within a small threshold)
+      const buffer = term.buffer.active;
+      const isAtBottom = buffer.viewportY >= buffer.baseY - 1;
+      userScrolledRef.current = !isAtBottom;
+    });
+
     // Debounced resize handler
     let lastWidth = 0;
     let lastHeight = 0;
@@ -218,8 +227,19 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
         lastWidth = width;
         lastHeight = height;
         try {
+          // Preserve scroll position during resize
+          const viewportY = term.buffer.active.viewportY;
+          const wasAtBottom = !userScrolledRef.current;
+
           fitAddon.fit();
           resizeTerminalIpc(sessionId, term.cols, term.rows).catch(() => {});
+
+          // Restore scroll position if user was not at the bottom
+          if (!wasAtBottom) {
+            queueMicrotask(() => {
+              term.scrollToLine(viewportY);
+            });
+          }
         } catch {
           // Ignore fit errors - can happen during cleanup
         }
@@ -232,6 +252,7 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
     return () => {
       if (resizeTimeout) clearTimeout(resizeTimeout);
       resizeObserver.disconnect();
+      scrollDisposer.dispose();
       webglAddon?.dispose();
       term.dispose();
     };
@@ -370,7 +391,20 @@ const TerminalComponent = forwardRef<TerminalRef, TerminalProps>(function Termin
 
         outputUnlisten = await onTerminalOutput((event) => {
           if (event.sessionId === sessionId) {
+            // Save scroll position before write
+            const wasAtBottom = !userScrolledRef.current;
+            const viewportY = term.buffer.active.viewportY;
+
             term.write(new Uint8Array(event.data));
+
+            // Only scroll to bottom if user was already at the bottom
+            // If user scrolled up to read history, preserve their position
+            if (!wasAtBottom) {
+              // Restore scroll position after a microtask (after xterm processes the write)
+              queueMicrotask(() => {
+                term.scrollToLine(viewportY);
+              });
+            }
           }
         });
 

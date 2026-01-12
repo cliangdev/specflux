@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { api, type CreateProjectRequest } from "../../api";
 import { open } from "@tauri-apps/plugin-dialog";
 import { initProjectStructure } from "../../templates";
+import { setLocalProjectPath } from "../../services/localProjectSettings";
 
 interface ProjectCreateModalProps {
   onClose: () => void;
@@ -83,15 +84,18 @@ export default function ProjectCreateModal({
         projectKey,
         name: name.trim(),
         description: description.trim() || undefined,
-        localPath: localPath.trim() || undefined,
+        // localPath is stored locally per-user, not in backend
       };
 
-      await api.projects.createProject({
+      const createdProject = await api.projects.createProject({
         createProjectRequest: request,
       });
 
-      // Initialize project structure if localPath is set
-      if (localPath.trim()) {
+      // Save localPath to local storage (per-user setting)
+      if (localPath.trim() && createdProject.id) {
+        setLocalProjectPath(createdProject.id, localPath.trim());
+
+        // Initialize project structure
         await initProjectStructure(localPath.trim());
       }
 
