@@ -159,6 +159,10 @@ export default function PRDDetailPage() {
   const [showAddDocModal, setShowAddDocModal] = useState(false);
   const [showCreateEpicModal, setShowCreateEpicModal] = useState(false);
 
+  // Inline description editing state
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [editDescription, setEditDescription] = useState("");
+
   const loadPrd = useCallback(async () => {
     const projectRef = getProjectRef();
     if (!projectRef || !prdRef) {
@@ -475,6 +479,45 @@ export default function PRDDetailPage() {
     window.history.replaceState({}, document.title);
   };
 
+  const handleDescriptionSave = async () => {
+    const projectRef = getProjectRef();
+    if (!projectRef || !prd) return;
+
+    const trimmed = editDescription.trim();
+    const oldDescription = prd.description ?? "";
+
+    // Always exit editing mode
+    setEditingDescription(false);
+
+    if (trimmed !== oldDescription) {
+      // Optimistically update local state
+      setPrd({ ...prd, description: trimmed || undefined });
+
+      try {
+        await api.prds.updatePrd({
+          projectRef,
+          prdRef: prd.id,
+          updatePrdRequest: { description: trimmed || "" },
+        });
+      } catch (err) {
+        // Revert on error
+        setPrd({ ...prd, description: oldDescription || undefined });
+        console.error("Failed to update description:", err);
+      }
+    }
+  };
+
+  const handleDescriptionKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      setEditDescription(prd?.description ?? "");
+      setEditingDescription(false);
+    }
+    // Ctrl/Cmd + Enter to save
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      handleDescriptionSave();
+    }
+  };
+
   const handleEpicStatusChange = async (epicId: string, newStatus: string) => {
     const projectRef = getProjectRef();
     if (!projectRef) return;
@@ -654,6 +697,64 @@ export default function PRDDetailPage() {
       <div className="flex-1 flex overflow-hidden">
         {/* Document Sidebar */}
         <div className="w-64 flex-shrink-0 border-r border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-900 overflow-y-auto scrollbar-hidden">
+          {/* Description Section */}
+          <div className="p-4 border-b border-surface-200 dark:border-surface-700">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-400 dark:text-surface-500">
+                Description
+              </h2>
+              {editingDescription ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleDescriptionSave}
+                    className="text-xs text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 font-medium"
+                  >
+                    Save
+                  </button>
+                  <span className="text-surface-300 dark:text-surface-600">|</span>
+                  <button
+                    onClick={() => {
+                      setEditDescription(prd.description ?? "");
+                      setEditingDescription(false);
+                    }}
+                    className="text-xs text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-surface-300 font-medium"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    setEditDescription(prd.description ?? "");
+                    setEditingDescription(true);
+                  }}
+                  className="text-xs text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 font-medium"
+                >
+                  Edit
+                </button>
+              )}
+            </div>
+            {editingDescription ? (
+              <textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                onKeyDown={handleDescriptionKeyDown}
+                placeholder="Enter a brief description of this PRD..."
+                className="w-full h-24 px-3 py-2 text-sm border border-surface-300 dark:border-surface-600 rounded-lg bg-white dark:bg-surface-800 text-surface-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-accent-500 resize-none"
+                autoFocus
+              />
+            ) : prd.description ? (
+              <p className="text-sm text-surface-600 dark:text-surface-400 line-clamp-4">
+                {prd.description}
+              </p>
+            ) : (
+              <p className="text-sm text-surface-400 dark:text-surface-500 italic">
+                No description yet. Click Edit to add one.
+              </p>
+            )}
+          </div>
+
+          {/* Documents Section */}
           <div className="p-4">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-xs font-semibold uppercase tracking-wider text-surface-400 dark:text-surface-500">
