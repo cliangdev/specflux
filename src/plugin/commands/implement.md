@@ -1,6 +1,6 @@
 # /specflux:implement - Implementation Entry Point
 
-Start implementation work on an epic or task. Loads context and kicks off the coding workflow.
+Start implementation work on epics or tasks. Loads context and kicks off the coding workflow.
 
 **Skills**: Use `specflux-api` for API operations. The `specflux-coding` skill automatically activates to guide the implementation workflow.
 
@@ -15,22 +15,26 @@ The terminal session provides context via environment variables:
 ## Usage
 
 ```
-/specflux:implement [ref]
+/specflux:implement [ref...]
 ```
 
 - Without argument: Uses current context from environment
-- With argument: Implements specific ref (epic or task key)
+- With argument(s): Implements specific ref(s) - can be multiple epics or tasks
+- Multiple items in one session share a single branch and PR
 
 ## Process
 
 ### 1. Detect Scope
 
-Based on `SPECFLUX_CONTEXT_TYPE` or provided ref:
+Based on `SPECFLUX_CONTEXT_TYPE` or provided refs:
 
-| Context | Scope |
-|---------|-------|
-| `epic` | All tasks in the epic |
-| `task` | Single task |
+| Input | Scope |
+|-------|-------|
+| Single epic ref | All tasks in that epic |
+| Multiple epic refs | All tasks across all epics |
+| Single task ref | Single task |
+| Multiple task refs | Multiple tasks |
+| Mixed refs | All specified items |
 
 ### 2. Fetch Context
 
@@ -77,10 +81,14 @@ git checkout -b <branch-name>
 ```
 
 **Branch naming:**
-| Context | Pattern |
-|---------|---------|
-| `epic` | `feature/epic-<epic-ref>` |
-| `task` | `fix/<task-ref>` or `feature/<task-ref>` |
+| Scope | Pattern |
+|-------|---------|
+| Single epic | `feature/<epic-ref>` |
+| Multiple epics | `feature/<first-epic-ref>-and-more` |
+| Single task | `fix/<task-ref>` or `feature/<task-ref>` |
+| Multiple tasks | `feature/<first-task-ref>-batch` |
+
+**Note:** One branch per implementation session, regardless of how many items are being implemented.
 
 ### 6. Update Status
 
@@ -106,69 +114,85 @@ The skill is always active when coding, so you just proceed with implementation 
 ## Implementation Flow Summary
 
 ```
-/specflux:implement SPEC-E5
+/specflux:implement SPEC-E5 SPEC-E6
     │
-    ├─► Fetch epic + tasks + documents
+    ├─► Fetch all epics + tasks + PRD documents
     │
-    ├─► Create branch: feature/epic-SPEC-E5
+    ├─► Create single branch: feature/SPEC-E5-and-more
     │
-    ├─► Update epic status: IN_PROGRESS
+    ├─► For each epic:
+    │   ├─► Update epic status: IN_PROGRESS
+    │   │
+    │   └─► For each task (specflux-coding skill):
+    │       ├─► Update task status: IN_PROGRESS
+    │       ├─► Read acceptance criteria
+    │       ├─► Write tests for each criterion
+    │       ├─► Implement until all tests pass
+    │       ├─► Mark criteria as met via API
+    │       ├─► Commit: "SPEC-XX: brief description"
+    │       └─► Update task status: COMPLETED
+    │   │
+    │   └─► All tasks done → Mark epic COMPLETED
     │
-    └─► For each task (specflux-coding skill):
-        ├─► Update task status: IN_PROGRESS
-        ├─► Read acceptance criteria
-        ├─► Write tests for each criterion
-        ├─► Implement until all tests pass
-        ├─► Mark criteria as met via API
-        ├─► Commit: "SPEC-XX: brief description"
-        └─► Update task status: COMPLETED
-    │
-    └─► All tasks done → Mark epic COMPLETED → Suggest PR
+    └─► ALL epics complete → Suggest PR
 ```
+
+**Important:** PR is only suggested after ALL work items in the session are complete.
 
 ---
 
 ## Sub-Agent Delegation
 
-For complex tasks, delegate to specialized sub-agents:
+For complex tasks, delegate to specialized sub-agents if available in the project.
 
-| Task Type | Sub-Agent |
-|-----------|-----------|
-| Backend API, database | `backend-dev` |
-| React components, UI | `frontend-dev` |
-| End-to-end features | `fullstack-dev` |
+**Check for available agents:**
+```bash
+ls .claude/agents/
+```
+
+Match task requirements to available agents based on their descriptions. If no specialized agent exists for a task type, handle the implementation directly.
+
+**IMPORTANT:** All sub-agents MUST follow the `specflux-coding` workflow:
+- Tests first (turn acceptance criteria into tests)
+- Implement until tests pass
+- One commit per task
 
 When spawning sub-agents, provide:
-- Task reference
-- Acceptance criteria
-- Relevant file paths
+- Task reference and acceptance criteria
+- Instruction to follow `specflux-coding` skill
+- Relevant file paths and context
 
 ---
 
 ## Example Session
 
 ```
-> /specflux:implement SPEC-E5
+> /specflux:implement SPEC-E5 SPEC-E6
 
-Reading epic SPEC-E5: "User Profile"...
+Reading epics...
+- SPEC-E5: "User Profile"
+- SPEC-E6: "User Settings"
 
 Reference Documents:
 - .specflux/prds/user-management/prd.md
 - .specflux/prds/user-management/wireframes.md
 
 Tasks in scope:
-1. SPEC-55: Profile data model
-2. SPEC-56: Profile API endpoints
-3. SPEC-57: Profile UI components
+Epic SPEC-E5:
+  1. SPEC-55: Profile data model
+  2. SPEC-56: Profile API endpoints
+  3. SPEC-57: Profile UI components
+Epic SPEC-E6:
+  4. SPEC-58: Settings data model
+  5. SPEC-59: Settings API endpoints
 
-Creating branch: feature/epic-SPEC-E5
-Updating epic status to IN_PROGRESS...
+Creating branch: feature/SPEC-E5-and-more
 
 ═══════════════════════════════════════
+Epic SPEC-E5: User Profile → IN_PROGRESS
+═══════════════════════════════════════
+
 📦 Task SPEC-55: Profile data model
-═══════════════════════════════════════
-
-Status: IN_PROGRESS
 
 Acceptance Criteria:
 1. User profile table with avatar_url, bio, preferences
@@ -176,27 +200,39 @@ Acceptance Criteria:
 3. Repository with CRUD operations
 
 Writing tests for each criterion...
-[Tests created]
-
 Implementing until all tests pass...
-[Implementation in progress]
-
 ✅ All tests passing.
 
-Marking criteria as met...
 Committing: "SPEC-55: add profile data model with migration and repository"
 Status: COMPLETED
 
-═══════════════════════════════════════
 📦 Task SPEC-56: Profile API endpoints
-═══════════════════════════════════════
+[...continues...]
 
-[...continues for each task...]
+📦 Task SPEC-57: Profile UI components
+[...continues...]
 
-═══════════════════════════════════════
 ✅ Epic SPEC-E5 Complete!
+
+═══════════════════════════════════════
+Epic SPEC-E6: User Settings → IN_PROGRESS
 ═══════════════════════════════════════
 
-All 3 tasks completed.
+📦 Task SPEC-58: Settings data model
+[...continues...]
+
+📦 Task SPEC-59: Settings API endpoints
+[...continues...]
+
+✅ Epic SPEC-E6 Complete!
+
+═══════════════════════════════════════
+✅ All Work Items Complete!
+═══════════════════════════════════════
+
+Epics completed: SPEC-E5, SPEC-E6
+Total tasks: 5
+Total commits: 5
+
 Ready for PR creation!
 ```

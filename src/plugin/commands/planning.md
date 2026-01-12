@@ -26,7 +26,7 @@ The terminal session provides context via environment variables:
 ```
 Check Context ($SPECFLUX_CONTEXT_TYPE, $SPECFLUX_CONTEXT_ID)
     │
-    ├─► No context → List PRDs or create new
+    ├─► No context → Start PRD creation interview (Phase 1)
     │
     ├─► PRD context, no epics → Offer: refine PRD or breakdown
     │
@@ -38,7 +38,7 @@ Check Context ($SPECFLUX_CONTEXT_TYPE, $SPECFLUX_CONTEXT_ID)
 ## Phase 1: PRD Creation
 
 ### When to Enter
-- No PRD context and user wants to create
+- No context (automatically starts interview)
 - Argument is `draft`
 
 ### Interview (one question at a time)
@@ -194,17 +194,20 @@ After PRD is saved, ask:
 - Argument is `breakdown`
 - User said "yes" after PRD creation
 
-### Read PRD Context
+### Read PRD Context (if needed)
 
-1. Fetch PRD and documents:
-   ```
-   GET /api/projects/{projectRef}/prds/{prdRef}
-   GET /api/projects/{projectRef}/prds/{prdRef}/documents
-   ```
+If continuing from Phase 1, context is already loaded. Otherwise fetch:
 
-2. Read all documents from file system
+```
+GET /api/projects/{projectRef}/prds/{prdRef}
+GET /api/projects/{projectRef}/prds/{prdRef}/documents
+```
 
-3. **Clarify ambiguities** - Ask about unclear requirements before proceeding
+Then read documents from file system.
+
+### Clarify Ambiguities
+
+Before proceeding, identify and ask about any unclear requirements.
 
 ### Design Epics
 

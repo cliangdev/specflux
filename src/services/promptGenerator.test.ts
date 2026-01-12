@@ -20,8 +20,8 @@ describe("promptGenerator", () => {
       expect(result).toContain("(SPEC-P1)");
       expect(result).toContain("status: DRAFT");
       expect(result).toContain("3 docs");
-      expect(result).toContain("/prd refine");
-      expect(result).toContain("/epic");
+      expect(result).toContain("/specflux:planning refine");
+      expect(result).toContain("/specflux:planning breakdown");
       expect(result).toContain("run the corresponding slash command");
     });
 
@@ -50,8 +50,8 @@ describe("promptGenerator", () => {
       expect(result).toContain("(SPEC-E1)");
       expect(result).toContain("status: IN_PROGRESS");
       expect(result).toContain("5 tasks");
-      expect(result).toContain("/implement");
-      expect(result).toContain("/task");
+      expect(result).toContain("/specflux:implement SPEC-E1");
+      expect(result).toContain("/specflux:planning breakdown");
       expect(result).toContain("run the corresponding slash command");
     });
 
@@ -80,7 +80,7 @@ describe("promptGenerator", () => {
       expect(result).toContain("(SPEC-T1)");
       expect(result).toContain("status: READY");
       expect(result).toContain("priority: HIGH");
-      expect(result).toContain("/task SPEC-T1");
+      expect(result).toContain("/specflux:implement SPEC-T1");
     });
   });
 
@@ -93,9 +93,8 @@ describe("promptGenerator", () => {
 
       expect(result).toContain('project "SpecFlux"');
       expect(result).toContain("(SPEC)");
-      expect(result).toContain("/prd");
-      expect(result).toContain("/epic");
-      expect(result).toContain("/task");
+      expect(result).toContain("/specflux:planning");
+      expect(result).toContain("/specflux:implement");
       expect(result).toContain("run the corresponding slash command");
     });
   });
