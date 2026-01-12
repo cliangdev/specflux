@@ -53,10 +53,6 @@ tags:
     description: |
       Task management endpoints.
       Tasks are individual work units executed by Claude Code agents, with status tracking and dependencies.
-  - name: Releases
-    description: |
-      Release/milestone management endpoints.
-      Releases group completed epics and tasks into versioned milestones for deployment tracking.
   - name: Users
     description: |
       User profile management endpoints.
@@ -438,11 +434,6 @@ paths:
         - name: prdRef
           in: query
           description: Filter by PRD (public ID or display key)
-          schema:
-            type: string
-        - name: releaseRef
-          in: query
-          description: Filter by Release (public ID or display key)
           schema:
             type: string
       responses:
@@ -1156,141 +1147,6 @@ paths:
       responses:
         '204':
           description: Dependency removed
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  # ==================== RELEASES ====================
-  /api/projects/{projectRef}/releases:
-    parameters:
-      - name: projectRef
-        in: path
-        required: true
-        schema:
-          type: string
-
-    get:
-      operationId: listReleases
-      summary: List releases in a project
-      tags: [Releases]
-      parameters:
-        - $ref: '#/components/parameters/CursorParam'
-        - $ref: '#/components/parameters/LimitParam'
-        - $ref: '#/components/parameters/SortParam'
-        - $ref: '#/components/parameters/OrderParam'
-        - name: status
-          in: query
-          schema:
-            $ref: '#/components/schemas/ReleaseStatus'
-      responses:
-        '200':
-          description: List of releases
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ReleaseListResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-    post:
-      operationId: createRelease
-      summary: Create a new release
-      tags: [Releases]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateReleaseRequest'
-      responses:
-        '201':
-          description: Release created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Release'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-  /api/projects/{projectRef}/releases/{releaseRef}:
-    parameters:
-      - name: projectRef
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: releaseRef
-        in: path
-        required: true
-        description: Release public ID (rel_xxx) or display key (SPEC-R1)
-        schema:
-          type: string
-
-    get:
-      operationId: getRelease
-      summary: Get a release
-      tags: [Releases]
-      parameters:
-        - name: include
-          in: query
-          required: false
-          description: |
-            Comma-separated list of nested resources to include:
-            - epics: Include all epics in this release
-            - tasks: Include tasks within each epic (requires epics)
-            Example: include=epics,tasks
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Release details (with optional nested epics/tasks based on include param)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ReleaseWithEpics'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-    put:
-      operationId: updateRelease
-      summary: Update a release
-      tags: [Releases]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateReleaseRequest'
-      responses:
-        '200':
-          description: Release updated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Release'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
-
-    delete:
-      operationId: deleteRelease
-      summary: Delete a release
-      tags: [Releases]
-      responses:
-        '204':
-          description: Release deleted
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -2591,10 +2447,6 @@ components:
           type: string
         projectId:
           type: string
-        releaseId:
-          type: string
-          nullable: true
-          description: Public ID of the associated release
         title:
           type: string
         description:
@@ -2661,10 +2513,6 @@ components:
           type: string
           format: date
           nullable: true
-        releaseRef:
-          type: string
-          nullable: true
-          description: Release publicId or displayKey to assign
         prdRef:
           type: string
           nullable: true
@@ -2702,10 +2550,6 @@ components:
           type: string
           format: date
           nullable: true
-        releaseRef:
-          type: string
-          nullable: true
-          description: Release publicId or displayKey to assign
         prdRef:
           type: string
           nullable: true
@@ -2854,117 +2698,7 @@ components:
         pagination:
           $ref: '#/components/schemas/CursorPagination'
 
-    # Release
-    ReleaseStatus:
-      type: string
-      enum: [PLANNED, IN_PROGRESS, RELEASED, CANCELLED]
-
-    Release:
-      type: object
-      required: [id, displayKey, projectId, name, status, createdAt, updatedAt]
-      properties:
-        id:
-          type: string
-          description: Unique identifier (e.g., rel_abc123xyz789)
-        displayKey:
-          type: string
-        projectId:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-          nullable: true
-        targetDate:
-          type: string
-          format: date
-          nullable: true
-        status:
-          $ref: '#/components/schemas/ReleaseStatus'
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-
-    CreateReleaseRequest:
-      type: object
-      required: [name]
-      properties:
-        name:
-          type: string
-          maxLength: 255
-        description:
-          type: string
-          nullable: true
-        targetDate:
-          type: string
-          format: date
-          nullable: true
-
-    UpdateReleaseRequest:
-      type: object
-      properties:
-        name:
-          type: string
-          maxLength: 255
-        description:
-          type: string
-          nullable: true
-        status:
-          $ref: '#/components/schemas/ReleaseStatus'
-        targetDate:
-          type: string
-          format: date
-          nullable: true
-
-    ReleaseListResponse:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/Release'
-        pagination:
-          $ref: '#/components/schemas/CursorPagination'
-
-    ReleaseWithEpics:
-      description: Release with optionally nested epics and tasks (based on include parameter)
-      type: object
-      required: [id, displayKey, projectId, name, status, createdAt, updatedAt]
-      properties:
-        id:
-          type: string
-          description: Unique identifier (e.g., rel_abc123xyz789)
-        displayKey:
-          type: string
-        projectId:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-          nullable: true
-        targetDate:
-          type: string
-          format: date
-          nullable: true
-        status:
-          $ref: '#/components/schemas/ReleaseStatus'
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-        epics:
-          type: array
-          nullable: true
-          description: Nested epics (present when include=epics)
-          items:
-            $ref: '#/components/schemas/EpicWithTasks'
-
+    # EpicWithTasks schema for nested views
     EpicWithTasks:
       description: Epic with optionally nested tasks (based on include parameter)
       type: object
@@ -2977,9 +2711,6 @@ components:
           type: string
         projectId:
           type: string
-        releaseId:
-          type: string
-          nullable: true
         title:
           type: string
         description:
