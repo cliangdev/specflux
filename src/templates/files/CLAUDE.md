@@ -2,41 +2,49 @@
 
 ## SpecFlux Project
 
-This project is managed by SpecFlux. Use the SpecFlux API to create and track epics, tasks, and acceptance criteria.
+This project is managed by SpecFlux. The SpecFlux plugin provides commands for planning and implementation workflows.
 
 ## Available Commands
 
 | Command | Description |
 |---------|-------------|
-| `/prd` | Create or refine product PRD (saved to `.specflux/prds/`) |
-| `/epic` | Break down PRD into epics and tasks via API |
-| `/implement` | Implement epic, working through tasks |
-| `/task` | Work on a specific task |
+| `/specflux:planning` | Create PRDs, break into epics and tasks - unified planning workflow |
+| `/specflux:planning draft` | Start drafting a new PRD |
+| `/specflux:planning refine` | Refine the current PRD |
+| `/specflux:planning breakdown` | Break PRD into epics and tasks |
+| `/specflux:planning status` | Show planning progress |
+| `/specflux:implement` | Start implementation on an epic or task |
+| `/specflux:implement {ref}` | Implement specific epic/task (e.g., SPEC-E1, SPEC-42) |
 
-## Required Skill
+## Plugin Skills
 
-Use the `specflux-api` skill when working with epics, tasks, or acceptance criteria. It provides API endpoint documentation for:
-- Creating/updating epics and tasks
-- Managing acceptance criteria
-- Tracking task dependencies
-- Updating status and progress
+The SpecFlux plugin provides these skills (always active):
+
+| Skill | Purpose |
+|-------|---------|
+| `specflux-coding` | Implementation workflow: tests first, one commit per task |
+| `specflux-api` | SpecFlux API interactions |
+| `prd-template` | PRD structure and patterns |
+| `epic-template` | Epic/task breakdown patterns |
 
 ## File Conventions
 
 - PRD documents: `.specflux/prds/{name}/prd.md`
-- Task state files: `.specflux/task-states/task-{id}-state.md`
-
-## API Reference
-
-SpecFlux API at `$SPECFLUX_API_URL/api` (set in your shell profile):
-- Epics: `/api/projects/{projectRef}/epics`
-- Tasks: `/api/projects/{projectRef}/tasks`
-- Acceptance criteria: `.../epics/{epicRef}/acceptance-criteria` or `.../tasks/{taskRef}/acceptance-criteria`
+- Supporting docs: `.specflux/prds/{name}/architecture.md`, `user-flows.md`, etc.
 
 ## Workflow
 
-1. **Create PRD**: `/prd` to define what you're building
-2. **Define Epics**: `/epic <name>` creates epic + tasks via API
-3. **Implement**: `/implement <epic>` or `/task <id>` for granular work
-4. **Track Progress**: Update acceptance criteria and status via API
-5. **Review**: Create PR when work is complete
+1. **Planning**: `/specflux:planning` to create PRD → break into epics → break into tasks
+2. **Implementation**: `/specflux:implement` to work through tasks
+3. **Each task**: Tests first → implement → one commit when all pass
+4. **PR**: Create PR when epic complete
+
+## API Reference
+
+SpecFlux API at `$SPECFLUX_API_URL/api`:
+- Projects: `/api/projects`
+- PRDs: `/api/projects/{projectRef}/prds`
+- Epics: `/api/projects/{projectRef}/epics`
+- Tasks: `/api/projects/{projectRef}/tasks`
+
+See `specflux-api` skill for complete endpoint documentation.

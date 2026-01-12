@@ -3,6 +3,10 @@
  *
  * Defines all available templates with their source files and destinations.
  * This registry makes it easy to add new templates and track what's available.
+ *
+ * NOTE: Commands and specflux-api skill are provided by the SpecFlux plugin
+ * installed at ~/.claude/plugins/specflux/. Only project-specific tech skills
+ * are synced here.
  */
 
 export interface TemplateDefinition {
@@ -20,56 +24,40 @@ export interface TemplateDefinition {
 
 /**
  * All available templates that can be synced to projects.
+ *
+ * Commands (/specflux:planning, /specflux:implement) are provided by the
+ * SpecFlux plugin and NOT included here.
  */
 export const TEMPLATE_REGISTRY: TemplateDefinition[] = [
-  {
-    id: "prd",
-    sourceFile: "commands/prd.md",
-    destPath: ".claude/commands/prd.md",
-    description: "/prd - Create or refine product specification",
-    category: "command",
-  },
-  {
-    id: "epic",
-    sourceFile: "commands/epic.md",
-    destPath: ".claude/commands/epic.md",
-    description: "/epic - Define or refine an epic",
-    category: "command",
-  },
-  {
-    id: "implement",
-    sourceFile: "commands/implement.md",
-    destPath: ".claude/commands/implement.md",
-    description: "/implement - Implement an epic",
-    category: "command",
-  },
-  {
-    id: "task",
-    sourceFile: "commands/task.md",
-    destPath: ".claude/commands/task.md",
-    description: "/task - Work on a specific task",
-    category: "command",
-  },
+  // Config templates
   {
     id: "claude-md",
     sourceFile: "CLAUDE.md",
     destPath: "CLAUDE.md",
-    description: "Project CLAUDE.md with SpecFlux commands",
+    description: "Project CLAUDE.md with SpecFlux plugin reference",
     category: "config",
   },
-  // Skill templates
+  {
+    id: "claude-settings",
+    sourceFile: ".claude/settings.json",
+    destPath: ".claude/settings.json",
+    description: "Claude Code permissions and security settings",
+    category: "config",
+  },
+  // MCP config template
+  {
+    id: "mcp-config",
+    sourceFile: ".mcp.json",
+    destPath: ".claude/.mcp.json",
+    description: "MCP server configuration (GitHub, filesystem)",
+    category: "mcp",
+  },
+  // Project-specific skill templates (tech patterns)
   {
     id: "skill-frontend-design",
     sourceFile: "skills/frontend-design/SKILL.md",
     destPath: ".claude/skills/frontend-design/SKILL.md",
     description: "Distinctive, production-grade frontend design patterns",
-    category: "skill",
-  },
-  {
-    id: "skill-frontend-design-license",
-    sourceFile: "skills/frontend-design/LICENSE.txt",
-    destPath: ".claude/skills/frontend-design/LICENSE.txt",
-    description: "License for frontend-design skill",
     category: "skill",
   },
   {
@@ -92,36 +80,6 @@ export const TEMPLATE_REGISTRY: TemplateDefinition[] = [
     destPath: ".claude/skills/ui-patterns/SKILL.md",
     description: "UI design patterns with React and TailwindCSS",
     category: "skill",
-  },
-  {
-    id: "skill-specflux-api",
-    sourceFile: "skills/specflux-api/SKILL.md",
-    destPath: ".claude/skills/specflux-api/SKILL.md",
-    description: "SpecFlux REST API for managing projects, epics, and tasks",
-    category: "skill",
-  },
-  {
-    id: "skill-specflux-api-reference",
-    sourceFile: "skills/specflux-api/references/api.md",
-    destPath: ".claude/skills/specflux-api/references/api.md",
-    description: "Complete SpecFlux API endpoint documentation",
-    category: "skill",
-  },
-  // MCP config template
-  {
-    id: "mcp-config",
-    sourceFile: ".mcp.json",
-    destPath: ".claude/.mcp.json",
-    description: "MCP server configuration (GitHub, filesystem)",
-    category: "mcp",
-  },
-  // Claude Code settings template
-  {
-    id: "claude-settings",
-    sourceFile: ".claude/settings.json",
-    destPath: ".claude/settings.json",
-    description: "Claude Code permissions and security settings",
-    category: "config",
   },
 ];
 
