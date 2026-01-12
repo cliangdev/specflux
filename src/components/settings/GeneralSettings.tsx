@@ -195,7 +195,7 @@ export function GeneralSettings() {
       }
 
       // Delete all related entities before deleting the project
-      // Order matters: tasks -> epics -> prds -> releases -> repos -> agents -> skills -> mcp servers
+      // Order matters: tasks -> epics -> prds -> repos -> agents -> skills -> mcp servers
       // Use pagination (limit 100 max) to handle large datasets
 
       // 1. Delete all tasks (paginate through all)
@@ -246,19 +246,19 @@ export function GeneralSettings() {
         await api.repositories.deleteRepository({ projectRef, repoRef: repo.id });
       }
 
-      // 6. Delete all agents
+      // 5. Delete all agents
       const agentsResponse = await api.agents.listAgents({ projectRef });
       for (const agent of agentsResponse.data ?? []) {
         await api.agents.deleteAgent({ projectRef, agentRef: agent.id });
       }
 
-      // 7. Delete all skills
+      // 6. Delete all skills
       const skillsResponse = await api.skills.listSkills({ projectRef });
       for (const skill of skillsResponse.data ?? []) {
         await api.skills.deleteSkill({ projectRef, skillRef: skill.id });
       }
 
-      // 8. Delete all MCP servers
+      // 7. Delete all MCP servers
       const mcpResponse = await api.mcpServers.listMcpServers({ projectRef });
       for (const server of mcpResponse.data ?? []) {
         await api.mcpServers.deleteMcpServer({ projectRef, serverRef: server.id });

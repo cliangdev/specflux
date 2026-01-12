@@ -19,9 +19,6 @@ vi.mock("../api", () => ({
       updateEpic: vi.fn(),
       deleteEpic: vi.fn(),
     },
-    releases: {
-      listReleases: vi.fn(),
-    },
     prds: {
       listPrds: vi.fn(),
     },

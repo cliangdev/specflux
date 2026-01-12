@@ -61,9 +61,6 @@ vi.mock("../api", async (importOriginal) => {
       epics: {
         listEpics: vi.fn(),
       },
-      releases: {
-        listReleases: vi.fn(),
-      },
       prds: {
         listPrds: vi.fn(),
       },
@@ -196,10 +193,7 @@ describe("EpicsPage", () => {
       });
     });
 
-    it("renders epics in card view when selected", async () => {
-      // Set view mode to cards (default is now graph)
-      localStorage.setItem("specflux-epics-view", "cards");
-
+    it("renders epics in card view", async () => {
       vi.mocked(api.projects.listProjects).mockResolvedValue({
         data: [mockProject1],
         pagination: { hasMore: false },
@@ -252,7 +246,7 @@ describe("EpicsPage", () => {
   });
 
   describe("filter behavior", () => {
-    it("has status, release, and PRD filter dropdowns", async () => {
+    it("has status and PRD filter dropdowns", async () => {
       vi.mocked(api.projects.listProjects).mockResolvedValue({
         data: [mockProject1],
         pagination: { hasMore: false },
@@ -282,7 +276,6 @@ describe("EpicsPage", () => {
         "specflux-epics-filters",
         JSON.stringify({
           status: "",
-          release: "",
           prd: "prd_nonexistent", // This PRD doesn't exist in the new project
         }),
       );
@@ -317,7 +310,6 @@ describe("EpicsPage", () => {
         "specflux-epics-filters",
         JSON.stringify({
           status: "",
-          release: "",
           prd: "prd_from_old_project",
         }),
       );
@@ -342,54 +334,6 @@ describe("EpicsPage", () => {
       const calls = vi.mocked(api.epics.listEpics).mock.calls;
       const lastCall = calls[calls.length - 1];
       expect(lastCall[0].prdRef).toBeUndefined();
-    });
-
-    it("clears release filter when switching projects", async () => {
-      // Set up a stale release filter
-      localStorage.setItem(
-        "specflux-epics-filters",
-        JSON.stringify({
-          status: "",
-          release: "rel_from_old_project",
-          prd: "",
-        }),
-      );
-
-      vi.mocked(api.projects.listProjects).mockResolvedValue({
-        data: [mockProject2],
-        pagination: { hasMore: false },
-      });
-      vi.mocked(api.epics.listEpics).mockResolvedValue({
-        data: mockEpics,
-        pagination: { hasMore: false },
-      });
-
-      renderWithProvider();
-
-      await waitFor(() => {
-        // Should show epics (not filtered out by stale release filter)
-        expect(screen.getByText("Epic One")).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe("view modes", () => {
-    it("has view toggle buttons for cards and graph", async () => {
-      vi.mocked(api.projects.listProjects).mockResolvedValue({
-        data: [mockProject1],
-        pagination: { hasMore: false },
-      });
-      vi.mocked(api.epics.listEpics).mockResolvedValue({
-        data: mockEpics,
-        pagination: { hasMore: false },
-      });
-
-      renderWithProvider();
-
-      await waitFor(() => {
-        expect(screen.getByTitle("Card view")).toBeInTheDocument();
-        expect(screen.getByTitle("Dependency graph view")).toBeInTheDocument();
-      });
     });
   });
 });

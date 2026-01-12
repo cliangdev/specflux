@@ -9,7 +9,7 @@ import { calculatePhase } from "../../utils/phaseCalculation";
 interface EpicEditModalProps {
   epic: Epic;
   projectId: string;
-  allEpics: Epic[]; // All epics in the same release for dependency selection
+  allEpics: Epic[]; // All epics for dependency selection
   onClose: () => void;
   onUpdated: () => void;
 }

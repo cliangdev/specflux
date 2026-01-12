@@ -119,7 +119,6 @@ export default function EpicDetailPage() {
         createdById: v2Epic.createdById,
         createdAt: new Date(v2Epic.createdAt),
         updatedAt: new Date(v2Epic.updatedAt),
-        releaseId: v2Epic.releaseId,
         prdId: v2Epic.prdId,
         prdFilePath: v2Epic.prdFilePath,
         epicFilePath: v2Epic.epicFilePath,
@@ -176,7 +175,6 @@ export default function EpicDetailPage() {
         createdById: e.createdById,
         createdAt: new Date(e.createdAt),
         updatedAt: new Date(e.updatedAt),
-        releaseId: e.releaseId,
         phase: e.phase,
       }));
       setAllEpics(convertedEpics);

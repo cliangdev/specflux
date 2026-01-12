@@ -162,12 +162,10 @@ export default function EpicsPage() {
         status: e.status, // Keep UPPER_CASE status from v2 API
         targetDate: e.targetDate ?? null,
         projectId: 0,
-        releaseId: null, // v1 field - not used for v2
-        releasePublicId: e.releaseId, // v2 uses id for release
         createdByUserId: 0, // Required field
         createdAt: e.createdAt,
         updatedAt: e.updatedAt,
-        dependsOn: e.dependsOn ?? [], // Include dependencies for graph view (string[] for v2)
+        dependsOn: e.dependsOn ?? [], // Include dependencies (string[] for v2)
         taskStats: e.taskStats, // Include task stats
         progressPercentage: e.progressPercentage, // Include progress percentage
         phase: e.phase, // Include phase for dependency depth
