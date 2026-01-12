@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProject } from "../../contexts/ProjectContext";
 import { api } from "../../api";
@@ -6,17 +6,15 @@ import { open } from "@tauri-apps/plugin-dialog";
 import {
   initProjectStructure,
   isProjectInitialized,
-  syncTemplates,
-  getTemplateStatus,
-  type TemplateStatus,
-  type SyncResult,
 } from "../../templates";
 import { useProjectHealth } from "../../hooks/useProjectHealth";
 import { ProjectHealthPanel } from "./ProjectHealthPanel";
+import { useLocalProjectPath } from "../../hooks/useLocalProjectPath";
 
 export function GeneralSettings() {
   const navigate = useNavigate();
   const { currentProject, refreshProjects, getProjectRef } = useProject();
+  const { localPath: storedLocalPath, setLocalPath: saveLocalPath } = useLocalProjectPath();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,14 +30,6 @@ export function GeneralSettings() {
     localPath: "",
   });
 
-  // Template sync state
-  const [templateStatuses, setTemplateStatuses] = useState<TemplateStatus[]>(
-    [],
-  );
-  const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
-  const [showTemplates, setShowTemplates] = useState(false);
-
   // Project health check
   const {
     status: healthStatus,
@@ -47,42 +37,6 @@ export function GeneralSettings() {
     loading: healthLoading,
     refresh: refreshHealth,
   } = useProjectHealth(currentProject);
-
-  // Load template statuses when local path is set
-  const loadTemplateStatus = useCallback(async (path: string) => {
-    if (!path) {
-      setTemplateStatuses([]);
-      return;
-    }
-    try {
-      const statuses = await getTemplateStatus(path);
-      setTemplateStatuses(statuses);
-    } catch (err) {
-      console.error("Failed to load template status:", err);
-      setTemplateStatuses([]);
-    }
-  }, []);
-
-  // Handle template sync
-  const handleSyncTemplates = async (force: boolean = false) => {
-    if (!formData.localPath) return;
-
-    setSyncing(true);
-    setSyncResult(null);
-
-    try {
-      const result = await syncTemplates(formData.localPath, { force });
-      setSyncResult(result);
-      await loadTemplateStatus(formData.localPath);
-
-      // Clear result after 5 seconds
-      setTimeout(() => setSyncResult(null), 5000);
-    } catch (err) {
-      setError("Failed to sync templates: " + String(err));
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   // Load project data
   useEffect(() => {
@@ -96,15 +50,13 @@ export function GeneralSettings() {
       }
       api.projects
         .getProject({ ref: projectRef })
-        .then(async (projectData) => {
-          if (projectData.localPath) {
-            // Load template status
-            await loadTemplateStatus(projectData.localPath);
-          }
+        .then((projectData) => {
+          // Use localPath from local storage (storedLocalPath), not backend
+          const effectiveLocalPath = storedLocalPath || "";
 
           setFormData({
             name: projectData.name || "",
-            localPath: projectData.localPath || "",
+            localPath: effectiveLocalPath,
           });
         })
         .catch((err) => {
@@ -113,7 +65,7 @@ export function GeneralSettings() {
         })
         .finally(() => setLoading(false));
     }
-  }, [currentProject, getProjectRef, loadTemplateStatus]);
+  }, [currentProject, getProjectRef, storedLocalPath]);
 
   const handleBrowse = async () => {
     try {
@@ -148,20 +100,26 @@ export function GeneralSettings() {
         setError("Project reference not available");
         return;
       }
-      const oldLocalPath = currentProject.localPath;
+
+      // Update project name in backend (localPath is stored locally, not in backend)
       await api.projects.updateProject({
         ref: projectRef,
         updateProjectRequest: {
           name: formData.name,
-          localPath: formData.localPath || undefined,
         },
       });
 
-      // Initialize project structure if localPath changed
-      if (formData.localPath && formData.localPath !== oldLocalPath) {
-        const initialized = await isProjectInitialized(formData.localPath);
-        if (!initialized) {
-          await initProjectStructure(formData.localPath);
+      // Save localPath to local storage (per-user setting)
+      const oldLocalPath = storedLocalPath;
+      if (formData.localPath !== oldLocalPath) {
+        saveLocalPath(formData.localPath);
+
+        // Initialize project structure if localPath is new
+        if (formData.localPath) {
+          const initialized = await isProjectInitialized(formData.localPath);
+          if (!initialized) {
+            await initProjectStructure(formData.localPath);
+          }
         }
       }
 
@@ -338,9 +296,9 @@ export function GeneralSettings() {
             </span>
           </span>
         </label>
-        {currentProject.localPath ? (
+        {storedLocalPath ? (
           <div className="px-3 py-2 bg-surface-100 dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-lg text-sm text-surface-700 dark:text-surface-300 font-mono">
-            {formData.localPath}
+            {storedLocalPath}
           </div>
         ) : (
           <div className="flex gap-2">
@@ -363,126 +321,6 @@ export function GeneralSettings() {
           </div>
         )}
       </div>
-
-      {/* Claude Code Templates */}
-      {formData.localPath && (
-        <div className="border border-surface-200 dark:border-surface-700 rounded-lg overflow-hidden">
-          <div className="bg-surface-50 dark:bg-surface-800 px-4 py-3 border-b border-surface-200 dark:border-surface-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-medium text-surface-900 dark:text-white">
-                  Claude Code Templates
-                </h3>
-                <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5">
-                  {templateStatuses.length > 0 ? (
-                    <>
-                      {templateStatuses.filter((t) => t.exists).length}/
-                      {templateStatuses.length} templates synced
-                    </>
-                  ) : (
-                    "Loading..."
-                  )}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowTemplates(!showTemplates)}
-                  className="px-3 py-1.5 text-xs font-medium text-surface-600 dark:text-surface-300 hover:text-surface-900 dark:hover:text-white"
-                >
-                  {showTemplates ? "Hide" : "Show"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSyncTemplates(true)}
-                  disabled={syncing}
-                  className="px-3 py-1.5 bg-accent-600 hover:bg-accent-700 disabled:opacity-50 text-white text-xs font-medium rounded-lg"
-                >
-                  {syncing ? "Syncing..." : "Re-sync All"}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Sync result message */}
-          {syncResult && (
-            <div className="px-4 py-2 bg-semantic-success/10 border-b border-semantic-success/30 text-xs text-semantic-success">
-              {syncResult.created.length > 0 && (
-                <span>Created: {syncResult.created.join(", ")}. </span>
-              )}
-              {syncResult.updated.length > 0 && (
-                <span>Updated: {syncResult.updated.join(", ")}. </span>
-              )}
-              {syncResult.skipped.length > 0 && (
-                <span>
-                  Skipped (already exist): {syncResult.skipped.join(", ")}.
-                </span>
-              )}
-              {syncResult.errors.length > 0 && (
-                <span className="text-semantic-error">
-                  {" "}
-                  Errors: {syncResult.errors.map((e) => e.id).join(", ")}.
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Template list */}
-          {showTemplates && templateStatuses.length > 0 && (
-            <div className="divide-y divide-surface-100 dark:divide-surface-700">
-              {templateStatuses.map((template) => (
-                <div
-                  key={template.id}
-                  className="px-4 py-2 flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-2">
-                    {template.exists ? (
-                      <svg
-                        className="w-4 h-4 text-semantic-success"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                    ) : (
-                      <svg
-                        className="w-4 h-4 text-surface-300 dark:text-surface-600"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    )}
-                    <span
-                      className={`text-sm ${template.exists ? "text-surface-700 dark:text-surface-300" : "text-surface-400 dark:text-surface-500"}`}
-                    >
-                      {template.description}
-                    </span>
-                  </div>
-                  {!template.exists && (
-                    <span className="text-xs text-surface-400 dark:text-surface-500">
-                      missing
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-        </div>
-      )}
 
       {/* Error message */}
       {error && (
