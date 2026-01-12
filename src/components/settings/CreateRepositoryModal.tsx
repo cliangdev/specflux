@@ -1,8 +1,5 @@
 import { useState } from "react";
-import {
-  createRepository,
-  addToGitignore,
-} from "../../services/git";
+import { createRepository } from "../../services/git";
 
 interface CreateRepositoryModalProps {
   localPath: string;
@@ -31,7 +28,6 @@ export function CreateRepositoryModal({
     try {
       const result = await createRepository(localPath, repoName);
       if (result.success) {
-        await addToGitignore(localPath, repoName);
         onCreated(repoName, result.path);
         onClose();
       } else {
