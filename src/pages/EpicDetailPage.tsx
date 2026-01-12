@@ -16,7 +16,6 @@ import { AIActionButton } from "../components/ui/AIActionButton";
 import { AcceptanceCriteriaList } from "../components/ui/AcceptanceCriteriaList";
 import MarkdownRenderer from "../components/ui/MarkdownRenderer";
 import PrdSelector from "../components/epics/PrdSelector";
-import ReleaseSelector from "../components/epics/ReleaseSelector";
 import { usePageContext } from "../hooks/usePageContext";
 import { useHasClaudeSession } from "../hooks/useHasClaudeSession";
 import { useTerminal } from "../contexts/TerminalContext";
@@ -278,29 +277,6 @@ export default function EpicDetailPage() {
     }
   };
 
-  const handleReleaseChange = async (releaseId: string | null) => {
-    if (!epic) return;
-    const projectRef = getProjectRef();
-    if (!projectRef || !epic.v2Id) return;
-
-    // Optimistically update local state
-    const previousReleaseId = epic.releaseId;
-    setEpic({ ...epic, releaseId: releaseId ?? undefined });
-
-    try {
-      await api.epics.updateEpic({
-        projectRef,
-        epicRef: epic.v2Id,
-        updateEpicRequest: { releaseRef: releaseId === null ? "" : releaseId },
-      });
-    } catch (err) {
-      // Revert on error
-      setEpic({ ...epic, releaseId: previousReleaseId });
-      console.error("Failed to update release:", err);
-      setError(err instanceof Error ? err.message : "Failed to update release");
-    }
-  };
-
   const handlePrdChange = async (prdId: string | null) => {
     if (!epic) return;
     const projectRef = getProjectRef();
@@ -523,18 +499,11 @@ export default function EpicDetailPage() {
         onStatusChange={handleStatusChange}
         onTitleChange={handleTitleChange}
         selectors={
-          <>
-            <PrdSelector
-              projectRef={getProjectRef() ?? undefined}
-              selectedPrdId={epic.prdId}
-              onChange={handlePrdChange}
-            />
-            <ReleaseSelector
-              projectRef={getProjectRef() ?? undefined}
-              selectedReleaseId={epic.releaseId}
-              onChange={handleReleaseChange}
-            />
-          </>
+          <PrdSelector
+            projectRef={getProjectRef() ?? undefined}
+            selectedPrdId={epic.prdId}
+            onChange={handlePrdChange}
+          />
         }
         badges={[{ label: "Phase", value: `P${phase}` }]}
         createdAt={epic.createdAt}

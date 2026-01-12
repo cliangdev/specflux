@@ -240,21 +240,7 @@ export function GeneralSettings() {
         }
       }
 
-      // 4. Delete all releases (paginate through all)
-      let hasMoreReleases = true;
-      while (hasMoreReleases) {
-        const releasesResponse = await api.releases.listReleases({ projectRef, limit: 100 });
-        const releases = releasesResponse.data ?? [];
-        if (releases.length === 0) {
-          hasMoreReleases = false;
-        } else {
-          for (const release of releases) {
-            await api.releases.deleteRelease({ projectRef, releaseRef: release.id });
-          }
-        }
-      }
-
-      // 5. Delete all repositories
+      // 4. Delete all repositories
       const reposResponse = await api.repositories.listRepositories({ projectRef });
       for (const repo of reposResponse.data ?? []) {
         await api.repositories.deleteRepository({ projectRef, repoRef: repo.id });

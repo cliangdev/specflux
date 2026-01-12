@@ -3,8 +3,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import EpicsPage from "./EpicsPage";
 import { ProjectProvider } from "../contexts";
-import type { Epic, Project, Prd, Release } from "../api";
-import { EpicStatus, PrdStatus, ReleaseStatus } from "../api";
+import type { Epic, Project, Prd } from "../api";
+import { EpicStatus, PrdStatus } from "../api";
 
 // Mock AuthContext to simulate signed-in user
 vi.mock("../contexts/AuthContext", () => ({
@@ -103,16 +103,6 @@ const mockPrd1: Prd = {
   updatedAt: new Date(),
 };
 
-const mockRelease1: Release = {
-  id: "rel_123",
-  displayKey: "REL-1",
-  name: "v1.0",
-  projectId: "proj_123",
-  status: ReleaseStatus.Planned,
-  createdAt: new Date(),
-  updatedAt: new Date(),
-};
-
 const mockEpics: Epic[] = [
   {
     id: "epic_123",
@@ -152,10 +142,6 @@ describe("EpicsPage", () => {
     localStorage.clear();
 
     // Default mocks
-    vi.mocked(api.releases.listReleases).mockResolvedValue({
-      data: [],
-      pagination: { hasMore: false },
-    });
     vi.mocked(api.prds.listPrds).mockResolvedValue({
       data: [],
       pagination: { hasMore: false },
@@ -279,16 +265,12 @@ describe("EpicsPage", () => {
         data: [mockPrd1],
         pagination: { hasMore: false },
       });
-      vi.mocked(api.releases.listReleases).mockResolvedValue({
-        data: [mockRelease1],
-        pagination: { hasMore: false },
-      });
 
       renderWithProvider();
 
       await waitFor(() => {
         const comboboxes = screen.getAllByRole("combobox");
-        expect(comboboxes.length).toBe(3); // Status, Release, PRD
+        expect(comboboxes.length).toBe(2); // Status, PRD
       });
     });
   });
@@ -379,10 +361,6 @@ describe("EpicsPage", () => {
       });
       vi.mocked(api.epics.listEpics).mockResolvedValue({
         data: mockEpics,
-        pagination: { hasMore: false },
-      });
-      vi.mocked(api.releases.listReleases).mockResolvedValue({
-        data: [], // No releases in this project
         pagination: { hasMore: false },
       });
 

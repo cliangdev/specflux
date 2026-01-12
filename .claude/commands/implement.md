@@ -40,18 +40,11 @@ Based on `SPECFLUX_CONTEXT_TYPE` or provided ref:
 
 | Context Type | Implementation Scope |
 |--------------|---------------------|
-| `release` | All epics in the release |
 | `prd` / `prd-workshop` | All epics linked to the PRD |
 | `epic` | The epic and its tasks |
 | `task` | Single task only |
 
 ### 1.2 Fetch Full Context via API
-
-**For Release:**
-```bash
-GET /api/projects/{projectRef}/releases/{releaseRef}
-GET /api/projects/{projectRef}/epics?releaseRef={releaseRef}
-```
 
 **For PRD:**
 ```bash

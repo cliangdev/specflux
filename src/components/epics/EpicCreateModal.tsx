@@ -8,14 +8,12 @@ interface CriterionInput {
 
 interface EpicCreateModalProps {
   projectId: string;
-  releaseId?: string;
   onClose: () => void;
   onCreated: () => void;
 }
 
 export default function EpicCreateModal({
   projectId,
-  releaseId,
   onClose,
   onCreated,
 }: EpicCreateModalProps) {
@@ -51,7 +49,6 @@ export default function EpicCreateModal({
         title: title.trim(),
         description: description.trim() || undefined,
         prdFilePath: prdFilePath.trim() || undefined,
-        releaseRef: releaseId ?? undefined,
         acceptanceCriteria: validCriteria.map((c) => ({
           criteria: c.text.trim(),
         })),

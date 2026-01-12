@@ -77,7 +77,6 @@ POST /api/projects/{projectRef}/epics
   "title": "User Authentication",
   "description": "...",
   "prdRef": "PROJ-P1",           // REQUIRED - links epic to source PRD
-  "releaseRef": "rel_xxx",       // Optional - assigns to a release
   "acceptanceCriteria": [        // REQUIRED - array of criteria objects
     {"criteria": "Users can sign up with email/password"},
     {"criteria": "Users can log in with existing credentials"}

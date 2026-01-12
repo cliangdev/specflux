@@ -1,9 +1,8 @@
-import { useState, useEffect, useMemo, type FormEvent } from "react";
+import { useState, useMemo, type FormEvent } from "react";
 import {
   api,
   type Epic,
   type UpdateEpicRequest,
-  type Release,
 } from "../../api";
 import { calculatePhase } from "../../utils/phaseCalculation";
 
@@ -26,25 +25,9 @@ export default function EpicEditModal({
   const [description, setDescription] = useState(epic.description ?? "");
   const [prdFilePath, setPrdFilePath] = useState(epic.prdFilePath ?? "");
   const [status, setStatus] = useState(epic.status);
-  const [releaseId, setReleaseId] = useState<string | null>(
-    epic.releaseId ?? null,
-  );
   const [dependsOn, setDependsOn] = useState<string[]>(epic.dependsOn ?? []);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [releases, setReleases] = useState<Release[]>([]);
-
-  // Fetch releases for the project
-  useEffect(() => {
-    api.releases
-      .listReleases({ projectRef: projectId })
-      .then((response) => {
-        setReleases(response.data ?? []);
-      })
-      .catch((err) => {
-        console.error("Failed to fetch releases:", err);
-      });
-  }, [projectId]);
 
   // Available epics for dependency selection (exclude current epic)
   const availableEpics = useMemo(() => {
@@ -126,7 +109,6 @@ export default function EpicEditModal({
         description: (description.trim() || null) as string | undefined,
         prdFilePath: (prdFilePath.trim() || null) as string | undefined,
         status: status as UpdateEpicRequest["status"],
-        releaseRef: releaseId as string | undefined,
       };
 
       await api.epics.updateEpic({
@@ -245,31 +227,6 @@ export default function EpicEditModal({
                 <option value="IN_PROGRESS">In Progress</option>
                 <option value="COMPLETED">Completed</option>
               </select>
-            </div>
-
-            <div>
-              <label
-                htmlFor="release"
-                className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1"
-              >
-                Release
-              </label>
-              <select
-                id="release"
-                value={releaseId ?? ""}
-                onChange={(e) => setReleaseId(e.target.value || null)}
-                className="select w-full"
-              >
-                <option value="">No Release (Unscheduled)</option>
-                {releases.map((release) => (
-                  <option key={release.id} value={release.id}>
-                    {release.name}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1 text-xs text-surface-500 dark:text-surface-400">
-                Assign to a release to show this epic in the Roadmap
-              </p>
             </div>
 
             <div>

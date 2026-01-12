@@ -189,7 +189,6 @@ describe("EpicDetailPage", () => {
     vi.mocked(api.epics.listEpicAcceptanceCriteria).mockResolvedValue({
       data: [],
     } as any);
-    vi.mocked(api.releases.listReleases).mockResolvedValue({ data: [] } as any);
     vi.mocked(api.prds.listPrds).mockResolvedValue({ data: [] } as any);
     vi.mocked(api.epics.updateEpic).mockResolvedValue(mockEpic as any);
   });
@@ -212,9 +211,6 @@ describe("EpicDetailPage", () => {
         () => new Promise(() => {}),
       );
       vi.mocked(api.epics.listEpicAcceptanceCriteria).mockImplementation(
-        () => new Promise(() => {}),
-      );
-      vi.mocked(api.releases.listReleases).mockImplementation(
         () => new Promise(() => {}),
       );
 

@@ -1,25 +1,20 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useProject } from "../contexts";
-import { api, type Epic, type Release, type Prd, EpicStatus } from "../api";
+import { api, type Epic, type Prd, EpicStatus } from "../api";
 import { EpicCard, EpicCreateModal } from "../components/epics";
-import { EpicGraph } from "../components/roadmap";
 import { usePageContext } from "../hooks/usePageContext";
 
-type ViewMode = "cards" | "graph";
-
-const VIEW_STORAGE_KEY = "specflux-epics-view";
 const FILTERS_STORAGE_KEY = "specflux-epics-filters";
 
 interface EpicsFilters {
   status: string;
-  release: string;
   prd: string;
   projectId?: string; // Track which project these filters are for
 }
 
 function loadFilters(): EpicsFilters & { projectId?: string } {
-  const defaults = { status: "", release: "", prd: "" };
+  const defaults = { status: "", prd: "" };
   try {
     const stored = localStorage.getItem(FILTERS_STORAGE_KEY);
     if (stored) {
@@ -29,7 +24,6 @@ function loadFilters(): EpicsFilters & { projectId?: string } {
       if (parsed.projectId) {
         return {
           status: parsed.status ?? "",
-          release: parsed.release ?? "",
           prd: parsed.prd ?? "",
           projectId: parsed.projectId,
         };
@@ -37,7 +31,6 @@ function loadFilters(): EpicsFilters & { projectId?: string } {
         // No projectId stored - only restore status (project-agnostic)
         return {
           status: parsed.status ?? "",
-          release: "",
           prd: "",
           projectId: undefined,
         };
@@ -67,7 +60,6 @@ export default function EpicsPage() {
   const { currentProject, getProjectRef } = useProject();
   const [searchParams, setSearchParams] = useSearchParams();
   const [epics, setEpics] = useState<Epic[]>([]);
-  const [releases, setReleases] = useState<Release[]>([]);
   const [prds, setPrds] = useState<Prd[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -75,10 +67,6 @@ export default function EpicsPage() {
   usePageContext({ type: "epics" });
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    const saved = localStorage.getItem(VIEW_STORAGE_KEY);
-    return saved === "cards" || saved === "graph" ? saved : "graph";
-  });
 
   // Load initial filters from localStorage
   const [initialFilters] = useState(loadFilters);
@@ -86,9 +74,6 @@ export default function EpicsPage() {
   // Filters - initialize from URL params first, then localStorage
   const [statusFilter, setStatusFilter] = useState(
     () => searchParams.get("status") || initialFilters.status,
-  );
-  const [releaseFilter, setReleaseFilter] = useState(
-    () => searchParams.get("release") || initialFilters.release,
   );
   const [prdFilter, setPrdFilter] = useState(
     () => searchParams.get("prd") || initialFilters.prd,
@@ -102,63 +87,29 @@ export default function EpicsPage() {
       if (initialFilters.projectId && initialFilters.projectId !== currentProject.id) {
         // Filters are from a different project - clear them
         setPrdFilter("");
-        setReleaseFilter("");
       }
       staleFiltersCleared.current = true;
     }
   }, [currentProject?.id, initialFilters.projectId]);
-
-  // Persist view mode to localStorage
-  useEffect(() => {
-    localStorage.setItem(VIEW_STORAGE_KEY, viewMode);
-  }, [viewMode]);
 
   // Persist filters to localStorage (include project ID to detect stale filters later)
   useEffect(() => {
     saveFilters(
       {
         status: statusFilter,
-        release: releaseFilter,
         prd: prdFilter,
       },
       currentProject?.id
     );
-  }, [statusFilter, releaseFilter, prdFilter, currentProject?.id]);
+  }, [statusFilter, prdFilter, currentProject?.id]);
 
   // Sync URL params with filter state (for shareability)
   useEffect(() => {
     const newParams = new URLSearchParams();
     if (statusFilter) newParams.set("status", statusFilter);
-    if (releaseFilter) newParams.set("release", releaseFilter);
     if (prdFilter) newParams.set("prd", prdFilter);
     setSearchParams(newParams, { replace: true });
-  }, [statusFilter, releaseFilter, prdFilter, setSearchParams]);
-
-  const fetchReleases = useCallback(async () => {
-    if (!currentProject) return;
-    const projectRef = getProjectRef();
-    if (!projectRef) return;
-
-    try {
-      const response = await api.releases.listReleases({ projectRef });
-      // Convert v2 releases to v1 format
-      const v2Releases = response.data ?? [];
-      const convertedReleases: Release[] = v2Releases.map((r) => ({
-        id: r.id,
-        displayKey: r.displayKey,
-        name: r.name,
-        description: r.description,
-        status: r.status,
-        targetDate: r.targetDate,
-        projectId: r.projectId,
-        createdAt: new Date(r.createdAt),
-        updatedAt: new Date(r.updatedAt),
-      })) as unknown as Release[];
-      setReleases(convertedReleases);
-    } catch (err) {
-      console.error("Failed to fetch releases:", err);
-    }
-  }, [currentProject, getProjectRef]);
+  }, [statusFilter, prdFilter, setSearchParams]);
 
   const fetchPrds = useCallback(async () => {
     if (!currentProject) return;
@@ -249,39 +200,20 @@ export default function EpicsPage() {
       prevProjectId !== currentProjectId
     ) {
       setPrdFilter("");
-      setReleaseFilter("");
     }
 
     prevProjectIdRef.current = currentProjectId;
   }, [currentProject?.id]);
 
   useEffect(() => {
-    fetchReleases();
     fetchPrds();
     fetchEpics();
-  }, [fetchReleases, fetchPrds, fetchEpics]);
+  }, [fetchPrds, fetchEpics]);
 
-  // Filter epics by release (client-side, status and prd are server-side)
-  const filteredEpics = epics.filter((epic) => {
-    // Release filter - handle both v1 (numeric) and v2 (publicId)
-    if (releaseFilter) {
-      const epicWithPublicId = epic as Epic & { releasePublicId?: string };
-      if (releaseFilter === "unassigned") {
-        // For unassigned filter, check both releaseId and releasePublicId
-        if (epic.releaseId || epicWithPublicId.releasePublicId) return false;
-      } else {
-        // For v2, compare releasePublicId or releaseId (both strings)
-        const matchesV2 = epicWithPublicId.releasePublicId === releaseFilter;
-        const matchesV1 = epic.releaseId === releaseFilter;
-        if (!matchesV2 && !matchesV1) return false;
-      }
-    }
-
-    return true;
-  });
+  const filteredEpics = epics;
 
   const hasActiveFilters =
-    statusFilter !== "" || releaseFilter !== "" || prdFilter !== "";
+    statusFilter !== "" || prdFilter !== "";
 
   if (!currentProject) {
     return (
@@ -303,36 +235,6 @@ export default function EpicsPage() {
           Epics
         </h1>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* View toggle */}
-          <div className="flex items-center bg-surface-100 dark:bg-surface-800 rounded-lg p-0.5">
-            <button
-              onClick={() => setViewMode("cards")}
-              className={`p-1.5 rounded-md transition-colors ${
-                viewMode === "cards"
-                  ? "bg-white dark:bg-surface-700 text-surface-900 dark:text-white shadow-sm"
-                  : "text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-white"
-              }`}
-              title="Card view"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-              </svg>
-            </button>
-            <button
-              onClick={() => setViewMode("graph")}
-              className={`p-1.5 rounded-md transition-colors ${
-                viewMode === "graph"
-                  ? "bg-white dark:bg-surface-700 text-surface-900 dark:text-white shadow-sm"
-                  : "text-surface-500 dark:text-surface-400 hover:text-surface-700 dark:hover:text-white"
-              }`}
-              title="Dependency graph view"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </button>
-          </div>
-
           {/* Status filter */}
           <select
             value={statusFilter}
@@ -342,24 +244,6 @@ export default function EpicsPage() {
             {STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
-              </option>
-            ))}
-          </select>
-
-          {/* Release filter */}
-          <select
-            value={releaseFilter}
-            onChange={(e) => setReleaseFilter(e.target.value)}
-            className="select"
-          >
-            <option value="">All Releases</option>
-            <option value="unassigned">Unassigned</option>
-            {releases.map((release) => (
-              <option
-                key={(release as Release & { publicId?: string }).publicId || release.id}
-                value={(release as Release & { publicId?: string }).publicId || release.id}
-              >
-                {release.name}
               </option>
             ))}
           </select>
@@ -450,12 +334,6 @@ export default function EpicsPage() {
               : "Get started by creating your first epic."}
           </p>
         </div>
-      ) : viewMode === "graph" ? (
-        <EpicGraph
-          key={`${releaseFilter}-${prdFilter}-${statusFilter}`}
-          epics={filteredEpics}
-          className="flex-1 min-h-0"
-        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-auto">
           {filteredEpics.map((epic) => (
