@@ -4,6 +4,17 @@ Start implementation work on epics or tasks. Loads context and kicks off the cod
 
 **Skills**: Use `specflux-api` for API operations. The `specflux-coding` skill automatically activates to guide the implementation workflow.
 
+## Prerequisites Check (REQUIRED)
+
+**Before making any API calls, verify the SpecFlux API environment is configured.**
+
+```bash
+echo "SPECFLUX_API_URL: ${SPECFLUX_API_URL:-NOT SET}"
+echo "SPECFLUX_API_KEY: ${SPECFLUX_API_KEY:+SET (hidden)}"
+```
+
+If either variable is NOT SET, see the `specflux-api` skill for setup instructions. Do not proceed with API calls until both are configured.
+
 ## Context from Environment
 
 The terminal session provides context via environment variables:
