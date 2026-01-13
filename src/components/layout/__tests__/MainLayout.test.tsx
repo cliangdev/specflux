@@ -77,6 +77,20 @@ vi.mock("../../../contexts", () => ({
   }),
 }));
 
+// Mock AutoSyncContext
+vi.mock("../../../contexts/AutoSyncContext", () => ({
+  AutoSyncProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useAutoSyncContext: () => ({
+    status: "disabled",
+    pendingChanges: 0,
+    isOnline: true,
+    lastSyncedAt: null,
+    triggerSync: vi.fn(),
+    triggerPull: vi.fn(),
+  }),
+  useAutoSyncContextSafe: () => null,
+}));
+
 // Import after mocks
 import MainLayout from "../MainLayout";
 
