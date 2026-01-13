@@ -4,6 +4,7 @@ import TopBar from "./TopBar";
 import Sidebar from "./Sidebar";
 import { ThemeProvider, useProject } from "../../contexts";
 import { TerminalProvider, useTerminal } from "../../contexts/TerminalContext";
+import { AutoSyncProvider } from "../../contexts/AutoSyncContext";
 import TerminalPanel from "../terminal/TerminalPanel";
 import ClaudePill from "../terminal/ClaudePill";
 
@@ -123,7 +124,9 @@ export default function MainLayout() {
   return (
     <ThemeProvider>
       <TerminalProvider>
-        <MainLayoutContent />
+        <AutoSyncProvider>
+          <MainLayoutContent />
+        </AutoSyncProvider>
       </TerminalProvider>
     </ThemeProvider>
   );

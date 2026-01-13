@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { ProjectSelector, EnvironmentIndicator } from "../ui";
 import { useTheme, useAuth } from "../../contexts";
+import { useAutoSyncContextSafe } from "../../contexts/AutoSyncContext";
 import { UserProfileModal } from "../ui/UserProfileModal";
+import { AutoSyncIndicator } from "../sync/AutoSyncIndicator";
 
 function SunIcon({ className }: { className?: string }) {
   return (
@@ -42,6 +44,7 @@ function MoonIcon({ className }: { className?: string }) {
 export default function TopBar() {
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
+  const autoSync = useAutoSyncContextSafe();
   const [showProfileModal, setShowProfileModal] = useState(false);
 
   // Get user initial for avatar
@@ -69,7 +72,15 @@ export default function TopBar() {
         </div>
 
         <div className="flex items-center gap-3">
-          <EnvironmentIndicator />
+          <div className="flex items-center gap-2">
+            <EnvironmentIndicator />
+            {autoSync && autoSync.status !== "disabled" && (
+              <AutoSyncIndicator
+                status={autoSync.status}
+                isOnline={autoSync.isOnline}
+              />
+            )}
+          </div>
           <div className="h-6 w-px bg-surface-200 dark:bg-surface-700" />
           <button
             onClick={toggleTheme}
