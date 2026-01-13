@@ -57,9 +57,10 @@ describe("useAutoSync", () => {
     // Mock git operations
     vi.mocked(getGitStatus).mockResolvedValue({
       hasChanges: false,
-      staged: [],
-      unstaged: [],
-      untracked: [],
+      branch: "main",
+      stagedFiles: [],
+      unstagedFiles: [],
+      untrackedFiles: [],
     });
     vi.mocked(autoCommit).mockResolvedValue(undefined);
     vi.mocked(pushChanges).mockResolvedValue(undefined);
