@@ -95,8 +95,11 @@ export async function initProjectStructure(projectPath: string): Promise<void> {
     }
   }
 
-  // Sync all templates (without forcing overwrites)
+  // Sync all templates first (creates settings.json from template)
   await syncTemplates(projectPath);
+
+  // Note: SpecFlux plugin is installed globally on app startup via pluginManager.ts
+  // No per-project plugin installation needed - the global plugin is available for all projects
 }
 
 /**

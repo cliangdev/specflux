@@ -1,8 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { MainLayout } from "./components/layout";
 import { ProjectProvider, ThemeProvider } from "./contexts";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { ensurePluginInstalled } from "./services/pluginManager";
 import {
   BoardPage,
   TasksPage,
@@ -75,6 +76,23 @@ function AppRoutes() {
 }
 
 function App() {
+  // Ensure SpecFlux plugin is installed on app startup
+  useEffect(() => {
+    ensurePluginInstalled()
+      .then((result) => {
+        if (result.wasInstalled) {
+          console.log("[App] SpecFlux plugin was installed");
+        } else if (result.installed) {
+          console.log("[App] SpecFlux plugin already installed");
+        } else {
+          console.warn("[App] Plugin installation failed:", result.error);
+        }
+      })
+      .catch((error) => {
+        console.error("[App] Failed to ensure plugin:", error);
+      });
+  }, []);
+
   return (
     <ThemeProvider>
       <AuthProvider>
