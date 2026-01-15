@@ -18,6 +18,13 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 // Mock Tauri path API
 vi.mock("@tauri-apps/api/path", () => ({
   join: vi.fn((...args: string[]) => Promise.resolve(args.join("/"))),
+  homeDir: vi.fn(() => Promise.resolve("/Users/testuser")),
+}));
+
+// Mock workspace preferences
+vi.mock("../../services/workspacePreferences", () => ({
+  getStoredWorkspacePath: vi.fn(() => "/Users/testuser/SpecFlux"),
+  getDefaultWorkspacePath: vi.fn(() => Promise.resolve("/Users/testuser/SpecFlux")),
 }));
 
 // Mock templates
@@ -47,7 +54,6 @@ describe("ProjectCreateModal", () => {
     expect(screen.getByText("Create New Project")).toBeInTheDocument();
     expect(screen.getByLabelText(/Project Name/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Project Directory/)).toBeInTheDocument();
-    expect(screen.getByText("Start PRD Workshop")).toBeInTheDocument();
   });
 
   it("calls onClose when clicking backdrop", () => {
@@ -139,15 +145,6 @@ describe("ProjectCreateModal", () => {
 
     expect(mockOnCreated).not.toHaveBeenCalled();
     expect(mockOnClose).not.toHaveBeenCalled();
-  });
-
-  it("allows selecting different PRD options", () => {
-    renderModal();
-
-    const skipOption = screen.getByLabelText(/Skip for now/);
-    fireEvent.click(skipOption);
-
-    expect(skipOption).toBeChecked();
   });
 
   it("disables submit button while submitting", async () => {

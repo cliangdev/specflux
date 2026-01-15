@@ -18,6 +18,16 @@ vi.mock("../../../contexts", () => ({
   }),
 }));
 
+// Mock useLocalProjectPath hook
+vi.mock("../../../hooks/useLocalProjectPath", () => ({
+  useLocalProjectPath: () => ({
+    localPath: "/test/project/path",
+    isConfigured: true,
+    setLocalPath: vi.fn(),
+    getRepoFullPath: vi.fn(),
+  }),
+}));
+
 // Mock GitHubConnectCard component
 vi.mock("../../sync/GitHubConnectCard", () => ({
   GitHubConnectCard: ({

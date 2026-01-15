@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProject } from "../contexts/ProjectContext";
 import { usePageContext } from "../hooks/usePageContext";
+import { useLocalProjectPath } from "../hooks/useLocalProjectPath";
 import { api, type Prd, PrdStatus } from "../api";
 import PrdImportModal from "../components/ui/PrdImportModal";
 import { CreatePrdModal } from "../components/prds/CreatePrdModal";
@@ -19,6 +20,7 @@ const STATUS_OPTIONS = [
 export default function PRDsPage() {
   const navigate = useNavigate();
   const { currentProject, getProjectRef } = useProject();
+  const { localPath } = useLocalProjectPath();
   const [prds, setPrds] = useState<Prd[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -101,7 +103,7 @@ export default function PRDsPage() {
   }
 
   // No local path configured
-  if (!currentProject.localPath) {
+  if (!localPath) {
     return (
       <div className="text-center py-12 card">
         <svg
@@ -362,9 +364,9 @@ export default function PRDsPage() {
       )}
 
       {/* Import PRD Modal (legacy) */}
-      {showImportModal && currentProject?.localPath && getProjectRef() && (
+      {showImportModal && localPath && getProjectRef() && (
         <PrdImportModal
-          projectPath={currentProject.localPath}
+          projectPath={localPath}
           projectRef={getProjectRef()!}
           onClose={() => setShowImportModal(false)}
           onImported={loadPrds}
@@ -372,9 +374,9 @@ export default function PRDsPage() {
       )}
 
       {/* Create PRD Modal */}
-      {showCreateModal && currentProject?.localPath && getProjectRef() && (
+      {showCreateModal && localPath && getProjectRef() && (
         <CreatePrdModal
-          projectPath={currentProject.localPath}
+          projectPath={localPath}
           projectRef={getProjectRef()!}
           onClose={() => setShowCreateModal(false)}
           onCreated={(prdId, hasDocument) => {

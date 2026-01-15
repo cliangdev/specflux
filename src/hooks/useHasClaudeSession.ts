@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useProject } from "../contexts/ProjectContext";
+import { useLocalProjectPath } from "./useLocalProjectPath";
 import {
   getClaudeSessionId,
   buildContextKey,
@@ -19,13 +20,14 @@ export function useHasClaudeSession(
   contextId: string | undefined
 ): boolean {
   const { currentProject } = useProject();
+  const { localPath } = useLocalProjectPath();
   const [hasSession, setHasSession] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
     async function checkSession() {
-      if (!currentProject?.localPath || !contextId) {
+      if (!localPath || !contextId) {
         setHasSession(false);
         return;
       }
@@ -33,12 +35,12 @@ export function useHasClaudeSession(
       try {
         const contextKey = buildContextKey(contextType, contextId);
         const sessionId = await getClaudeSessionId(
-          currentProject.localPath,
+          localPath,
           contextKey
         );
 
         if (sessionId && !cancelled) {
-          const exists = await sessionExists(currentProject.localPath, sessionId);
+          const exists = await sessionExists(localPath, sessionId);
           if (!cancelled) {
             setHasSession(exists);
           }
@@ -58,7 +60,7 @@ export function useHasClaudeSession(
     return () => {
       cancelled = true;
     };
-  }, [currentProject?.localPath, contextType, contextId]);
+  }, [localPath, contextType, contextId]);
 
   return hasSession;
 }

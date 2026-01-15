@@ -1,4 +1,7 @@
+import { useState, useEffect } from "react";
 import { useAuth } from "../../contexts";
+import { WorkspaceSetup } from "../settings/WorkspaceSetup";
+import { getStoredWorkspacePath } from "../../services/workspacePreferences";
 
 interface UserProfileModalProps {
   onClose: () => void;
@@ -6,6 +9,12 @@ interface UserProfileModalProps {
 
 export function UserProfileModal({ onClose }: UserProfileModalProps) {
   const { user, signOut } = useAuth();
+  const [showWorkspaceSetup, setShowWorkspaceSetup] = useState(false);
+  const [workspacePath, setWorkspacePath] = useState<string | null>(null);
+
+  useEffect(() => {
+    setWorkspacePath(getStoredWorkspacePath());
+  }, []);
 
   const handleSignOut = async () => {
     try {
@@ -16,7 +25,6 @@ export function UserProfileModal({ onClose }: UserProfileModalProps) {
     }
   };
 
-  // Get user initial for avatar
   const userInitial = user?.displayName?.[0] || user?.email?.[0]?.toUpperCase() || "U";
 
   return (
@@ -58,6 +66,24 @@ export function UserProfileModal({ onClose }: UserProfileModalProps) {
             </div>
           </div>
 
+          {/* Workspace settings */}
+          <div className="mb-4 p-3 bg-surface-50 dark:bg-surface-900 rounded-lg">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium text-surface-500 dark:text-surface-400">
+                SpecFlux Home
+              </span>
+              <button
+                onClick={() => setShowWorkspaceSetup(true)}
+                className="text-xs text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300"
+              >
+                Change
+              </button>
+            </div>
+            <div className="text-sm font-mono text-surface-700 dark:text-surface-300 truncate">
+              {workspacePath || "Not configured"}
+            </div>
+          </div>
+
           {/* Sign out button */}
           <button
             onClick={handleSignOut}
@@ -70,6 +96,17 @@ export function UserProfileModal({ onClose }: UserProfileModalProps) {
           </button>
         </div>
       </div>
+
+      {/* Workspace Setup Modal */}
+      <WorkspaceSetup
+        isOpen={showWorkspaceSetup}
+        onConfigured={(path) => {
+          setWorkspacePath(path);
+          setShowWorkspaceSetup(false);
+        }}
+        onClose={() => setShowWorkspaceSetup(false)}
+        isFirstTime={false}
+      />
     </div>
   );
 }

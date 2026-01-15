@@ -20,6 +20,7 @@ import {
   type HealthStatus,
   type HealthCheckItem,
 } from "../services/systemDeps";
+import { getLocalProjectPath } from "../services/localProjectSettings";
 import { type Project } from "../api";
 
 export interface UseProjectHealthResult {
@@ -54,7 +55,9 @@ export function useProjectHealth(
     setError(null);
 
     try {
-      const hasLocalPath = Boolean(project?.localPath);
+      // Check localStorage first (preferred), then fall back to backend localPath
+      const localStoragePath = project?.id ? getLocalProjectPath(project.id) : null;
+      const hasLocalPath = Boolean(localStoragePath || project?.localPath);
       const result: ProjectHealthResult = await getProjectHealth(hasLocalPath);
 
       setStatus(result.status);
@@ -68,7 +71,7 @@ export function useProjectHealth(
     } finally {
       setLoading(false);
     }
-  }, [project?.localPath]);
+  }, [project?.id, project?.localPath]);
 
   // Check health on mount and when project changes
   useEffect(() => {

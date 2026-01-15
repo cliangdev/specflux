@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useProject } from "../contexts/ProjectContext";
+import { useLocalProjectPath } from "../hooks/useLocalProjectPath";
 import { readDir, stat } from "@tauri-apps/plugin-fs";
 import { FileTree } from "../components/files/FileTree";
 import { FilePreview } from "../components/files/FilePreview";
@@ -15,6 +16,7 @@ interface FileEntry {
 
 export default function FilesPage() {
   const { currentProject } = useProject();
+  const { localPath } = useLocalProjectPath();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [files, setFiles] = useState<FileEntry[]>([]);
@@ -37,7 +39,7 @@ export default function FilesPage() {
     setError(null);
 
     try {
-      const specfluxDir = `${currentProject.localPath}/.specflux`;
+      const specfluxDir = `${localPath}/.specflux`;
       const fileList = await loadDirectory(specfluxDir, "");
 
       setFiles(fileList);
@@ -109,7 +111,7 @@ export default function FilesPage() {
 
       if (!dirContents.has(dirPath) && currentProject) {
         try {
-          const fullPath = `${currentProject.localPath}/.specflux/${dirPath}`;
+          const fullPath = `${localPath}/.specflux/${dirPath}`;
           const contents = await loadDirectory(fullPath, dirPath);
 
           setDirContents((prev) => new Map(prev).set(dirPath, contents));
@@ -164,7 +166,7 @@ export default function FilesPage() {
           Files
         </h1>
         <div className="ml-auto text-sm text-gray-500 dark:text-gray-400">
-          {currentProject.localPath}/.specflux
+          {localPath}/.specflux
         </div>
       </div>
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useProject } from "../../contexts/ProjectContext";
+import { useLocalProjectPath } from "../../hooks/useLocalProjectPath";
 import { readTextFile, writeTextFile, exists, mkdir } from "@tauri-apps/plugin-fs";
 import { join } from "@tauri-apps/api/path";
 import { TEMPLATE_REGISTRY, type TemplateDefinition } from "../../templates/registry";
@@ -90,6 +91,7 @@ function StatusBadge({ status }: { status: SyncStatus }) {
 
 export function ClaudeItemsPage({ category }: ClaudeItemsPageProps) {
   const { currentProject } = useProject();
+  const { localPath } = useLocalProjectPath();
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
@@ -97,7 +99,7 @@ export function ClaudeItemsPage({ category }: ClaudeItemsPageProps) {
 
   // Load templates and check their status
   const loadTemplates = useCallback(async () => {
-    if (!currentProject?.localPath) {
+    if (!localPath) {
       setLoading(false);
       return;
     }
@@ -112,7 +114,7 @@ export function ClaudeItemsPage({ category }: ClaudeItemsPageProps) {
       if (!templateContent) continue;
 
       try {
-        const fullPath = await join(currentProject.localPath, def.destPath);
+        const fullPath = await join(localPath, def.destPath);
         const fileExists = await exists(fullPath);
 
         if (!fileExists) {
@@ -150,14 +152,14 @@ export function ClaudeItemsPage({ category }: ClaudeItemsPageProps) {
 
   // Sync a single template
   const syncTemplate = async (templateId: string) => {
-    if (!currentProject?.localPath) return;
+    if (!localPath) return;
 
     const item = templates.find(t => t.definition.id === templateId);
     if (!item) return;
 
     setSyncing(true);
     try {
-      const fullPath = await join(currentProject.localPath, item.definition.destPath);
+      const fullPath = await join(localPath, item.definition.destPath);
 
       // Ensure parent directory exists
       const parentDir = fullPath.substring(0, fullPath.lastIndexOf("/"));
@@ -177,13 +179,13 @@ export function ClaudeItemsPage({ category }: ClaudeItemsPageProps) {
 
   // Sync all templates in this category
   const syncAllTemplates = async () => {
-    if (!currentProject?.localPath) return;
+    if (!localPath) return;
 
     setSyncing(true);
     try {
       for (const item of templates) {
         if (item.status !== "synced") {
-          const fullPath = await join(currentProject.localPath, item.definition.destPath);
+          const fullPath = await join(localPath, item.definition.destPath);
 
           // Ensure parent directory exists
           const parentDir = fullPath.substring(0, fullPath.lastIndexOf("/"));
