@@ -6,6 +6,7 @@ import { PromptsSettings } from "../components/settings/PromptsSettings";
 import { ClaudeItemsPage } from "../components/settings/ClaudeItemsPage";
 import { ApiKeysSettings } from "../components/settings/ApiKeysSettings";
 import { SyncSettings } from "../components/settings/SyncSettings";
+import { PluginSettings } from "../components/settings/PluginSettings";
 
 type SettingsTab =
   | "general"
@@ -15,9 +16,10 @@ type SettingsTab =
   | "commands"
   | "skills"
   | "mcp"
+  | "plugin"
   | "api-keys";
 
-const VALID_TABS: SettingsTab[] = ["general", "repositories", "sync", "prompts", "commands", "skills", "mcp", "api-keys"];
+const VALID_TABS: SettingsTab[] = ["general", "repositories", "sync", "prompts", "commands", "skills", "mcp", "plugin", "api-keys"];
 
 interface TabGroup {
   label: string;
@@ -40,6 +42,7 @@ const tabGroups: TabGroup[] = [
       { id: "commands", label: "Commands" },
       { id: "skills", label: "Skills" },
       { id: "mcp", label: "MCP Servers" },
+      { id: "plugin", label: "Plugin" },
     ],
   },
   {
@@ -121,6 +124,7 @@ export default function SettingsPage() {
             {activeTab === "commands" && <ClaudeItemsPage category="command" />}
             {activeTab === "skills" && <ClaudeItemsPage category="skill" />}
             {activeTab === "mcp" && <ClaudeItemsPage category="mcp" />}
+            {activeTab === "plugin" && <PluginSettings />}
             {activeTab === "api-keys" && <ApiKeysSettings />}
           </div>
         </div>

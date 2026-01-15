@@ -411,3 +411,124 @@ export async function isClaudeCliAvailable(): Promise<boolean> {
   const result = await runClaudePluginCommand(["--help"]);
   return result.success;
 }
+
+/**
+ * Compare versions (semver-like)
+ * Returns: 1 if v1 > v2, -1 if v1 < v2, 0 if equal
+ */
+function compareVersions(v1: string, v2: string): number {
+  const parts1 = v1.split(".").map(Number);
+  const parts2 = v2.split(".").map(Number);
+
+  for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+    const p1 = parts1[i] || 0;
+    const p2 = parts2[i] || 0;
+    if (p1 > p2) return 1;
+    if (p1 < p2) return -1;
+  }
+  return 0;
+}
+
+/**
+ * Get the version of the bundled/source plugin.
+ * Tries bundled resources first (production), falls back to marketplace directory (development).
+ */
+export async function getBundledPluginVersion(): Promise<string | null> {
+  try {
+    const resourcePath = await resolveResource(
+      "specflux-marketplace/plugins/specflux/.claude-plugin/plugin.json"
+    );
+    const content = await readTextFile(resourcePath);
+    const data = JSON.parse(content);
+    return data.version || null;
+  } catch {
+    try {
+      const marketplacePath = await getMarketplacePath();
+      const sourcePath = await join(
+        marketplacePath,
+        "plugins",
+        "specflux",
+        ".claude-plugin",
+        "plugin.json"
+      );
+      const content = await readTextFile(sourcePath);
+      const data = JSON.parse(content);
+      return data.version || null;
+    } catch {
+      return null;
+    }
+  }
+}
+
+/**
+ * Check if an update is available
+ */
+export async function checkPluginUpdateAvailable(): Promise<{
+  updateAvailable: boolean;
+  installedVersion: string | null;
+  bundledVersion: string | null;
+}> {
+  const status = await checkPluginInstalled();
+  const bundledVersion = await getBundledPluginVersion();
+
+  if (!status.installed || !bundledVersion) {
+    return {
+      updateAvailable: !status.installed,
+      installedVersion: status.version || null,
+      bundledVersion,
+    };
+  }
+
+  const updateAvailable = compareVersions(bundledVersion, status.version!) > 0;
+
+  return {
+    updateAvailable,
+    installedVersion: status.version!,
+    bundledVersion,
+  };
+}
+
+/**
+ * Update the plugin to the bundled version
+ */
+export async function updatePlugin(): Promise<{
+  success: boolean;
+  error?: string;
+  newVersion?: string;
+}> {
+  try {
+    const uninstallResult = await runClaudePluginCommand([
+      "uninstall",
+      PLUGIN_FULL_NAME,
+      "--scope",
+      "user",
+    ]);
+    console.log("[PluginManager] Uninstall result:", uninstallResult);
+
+    const marketplacePath = await getMarketplacePath();
+    try {
+      const resourcePath = await resolveResource("specflux-marketplace");
+      await copyDirectory(resourcePath, marketplacePath);
+      console.log("[PluginManager] Copied updated marketplace from resources");
+    } catch {
+      await createMarketplaceFromExistingPlugin(marketplacePath);
+    }
+
+    const installResult = await installPlugin();
+    if (!installResult) {
+      return { success: false, error: "Failed to reinstall plugin" };
+    }
+
+    const verifyStatus = await checkPluginInstalled();
+    if (verifyStatus.installed) {
+      return { success: true, newVersion: verifyStatus.version };
+    }
+
+    return { success: false, error: "Update completed but verification failed" };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}

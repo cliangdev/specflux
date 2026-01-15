@@ -39,12 +39,29 @@ Check Context ($SPECFLUX_CONTEXT_TYPE, $SPECFLUX_CONTEXT_ID)
     │
     ├─► No context → Start PRD creation interview (Phase 1)
     │
+    ├─► PRD context, is Vision PRD (has "## Roadmap" section with child PRD links)
+    │       → Inform user: "This is a Vision PRD containing the project roadmap.
+    │          To continue planning, navigate to a child PRD in the UI.
+    │          Vision PRDs don't have epics - the child PRDs do."
+    │
+    ├─► PRD context, is Stub PRD (contains "This PRD is a stub")
+    │       → Continue interview to flesh out the stub into a full PRD
+    │
     ├─► PRD context, no epics → Offer: refine PRD or breakdown
     │
     ├─► PRD context, has epics → Offer: add epics or break into tasks
     │
     └─► Direct argument → Jump to that action
 ```
+
+### Detecting PRD Types
+
+**Vision PRD**: Read the PRD document and check for:
+- Has `## Roadmap` section
+- Roadmap contains links to other PRDs (pattern: `→ **[SPEC-P`)
+
+**Stub PRD**: Read the PRD document and check for:
+- Contains text "This PRD is a stub"
 
 ## Phase 1: PRD Creation
 
@@ -60,6 +77,98 @@ Ask conversationally, one question per turn:
 3. What's the simplest version that would be useful?
 4. List 3-5 core features for MVP
 5. Any technical constraints or preferences?
+
+### Analyze Complexity
+
+After gathering interview answers, analyze for multi-PRD indicators:
+
+**Signals that suggest multiple PRDs needed:**
+- User describes >5-7 core features
+- User explicitly mentions phases/versions ("v2", "later", "eventually", "future")
+- Features span distinct domains (auth, payments, analytics, admin)
+- User mentions "starting from scratch" or no existing infrastructure
+- Clear separation between "must have now" vs "nice to have later"
+- Project sounds like it will take months, not weeks
+
+**If signals detected:**
+1. Propose PRD breakdown to user:
+   > "Based on what you've described, this sounds like a multi-phase project. I'd suggest breaking it into separate PRDs:
+   >
+   > - **Phase 0: Infrastructure** - repo setup, CI/CD, cloud hosting *(if starting from scratch)*
+   > - **Phase 1: MVP** - {core features you identified}
+   > - **Phase 2: {name}** - {features mentioned for later}
+   >
+   > Does this breakdown make sense? (yes/adjust/single-prd)"
+
+2. `yes` → Continue to Vision PRD Flow (below)
+3. `single-prd` → Continue with normal PRD creation
+4. `adjust` → Refine breakdown with user, then create
+
+**If simple idea (no signals):**
+Continue with normal PRD creation flow.
+
+---
+
+### Vision PRD Flow (when multiple PRDs confirmed)
+
+Use this flow when the user confirms a multi-PRD breakdown.
+
+**Step 1: Create Vision PRD via API**
+```
+POST /api/projects/{projectRef}/prds
+{"title": "{Project Name}", "description": "Vision and roadmap for {project}"}
+```
+
+**Step 2: Generate Vision PRD document**
+
+Use the Vision PRD template from `prd-template` skill. Include:
+- The Idea (from Q1, Q2 answers)
+- Problem & Users (from Q2 answers)
+- Roadmap with phases (from complexity analysis)
+- Constraints (from Q5 answers)
+
+**Step 3: Save and register Vision PRD**
+- Save to `{folderPath}/prd.md`
+- Register via API: `{"fileName": "prd.md", "documentType": "PRD", "isPrimary": true}`
+
+**Step 4: Create child PRD stubs**
+
+For each phase identified, create a stub PRD via API:
+```
+POST /api/projects/{projectRef}/prds
+{"title": "Phase 0: Infrastructure Setup", "description": "Repository, CI/CD, and cloud setup"}
+
+POST /api/projects/{projectRef}/prds
+{"title": "Phase 1: {MVP Name}", "description": "{brief MVP description}"}
+
+POST /api/projects/{projectRef}/prds
+{"title": "Phase 2: {Phase Name}", "description": "{brief phase description}"}
+```
+
+For each stub, create a minimal prd.md using the Stub PRD template from `prd-template` skill, then register via API.
+
+**Step 5: Update Vision PRD with links**
+
+After child PRDs are created (you now have their displayKeys and folderPaths), update the Vision PRD's Roadmap section:
+```markdown
+### Phase 0: Infrastructure
+→ **[SPEC-P2: Infrastructure Setup]({folderPath}/prd.md)**
+
+### Phase 1: MVP
+→ **[SPEC-P3: {MVP Name}]({folderPath}/prd.md)**
+```
+
+**Step 6: Inform user and end**
+> "Vision PRD created with {n} child PRDs:
+> - SPEC-P2: Infrastructure Setup (stub)
+> - SPEC-P3: {MVP Name} (stub)
+> - SPEC-P4: {Phase 2 Name} (stub)
+>
+> Navigate to a child PRD in the UI to refine it and break into epics."
+
+**Do not proceed to epic breakdown for Vision PRDs.** Vision PRDs only contain the roadmap - child PRDs contain the implementable features.
+
+---
 
 ### Generate PRD
 

@@ -255,6 +255,175 @@ stateDiagram-v2
 - **Humans**: Scannable, no jargon, clear business value
 - **AI Agents**: Specific requirements, clear acceptance criteria, implementation hints
 
+---
+
+## Vision PRD Template
+
+Use this template when a project requires multiple PRDs (infrastructure + product phases). Vision PRDs do NOT have epics - they only link to child PRDs that contain the implementable features.
+
+### When to Use
+- User's idea is complex enough for multiple phases
+- Project needs infrastructure setup before product work
+- Clear separation between MVP and future features
+
+### Template
+
+```markdown
+# {Project Name}
+
+## The Idea
+{1-2 paragraphs: What we're building and why. High-level vision that spans all phases.}
+
+## Problem & Users
+{Who has this problem? How does it affect them? What's the opportunity?}
+
+## Success Looks Like
+{What does success mean for this project? Key outcomes across all phases.}
+
+## Roadmap
+
+### Phase 0: Infrastructure
+→ **[{displayKey}: Infrastructure Setup]({folderPath}/prd.md)**
+- Repository structure and CI/CD
+- Cloud hosting and deployment
+- Development environment setup
+
+### Phase 1: MVP
+→ **[{displayKey}: {MVP Name}]({folderPath}/prd.md)**
+- {Core feature 1}
+- {Core feature 2}
+- {Core feature 3}
+
+### Phase 2: {Phase Name}
+→ **[{displayKey}: {Phase Name}]({folderPath}/prd.md)**
+- {Future feature 1}
+- {Future feature 2}
+
+### Future Ideas
+- {Idea not yet assigned to a phase}
+- {Another idea for later}
+
+## Constraints
+{Technical, timeline, budget constraints that apply across all phases}
+
+## Notes
+{Any other context, decisions made, trade-offs considered}
+```
+
+### Detecting Vision PRDs
+
+A PRD is a Vision PRD if:
+- It has a `## Roadmap` section
+- The Roadmap contains links to other PRDs (pattern: `→ **[SPEC-P`)
+- It does NOT have epics (epic breakdown happens in child PRDs)
+
+---
+
+## Infrastructure PRD Template
+
+Use for Phase 0 infrastructure setup when the user is starting from scratch. This PRD covers all the technical foundation needed before product development begins.
+
+### When to Use
+- User mentions "starting from scratch"
+- No existing repos, CI/CD, or cloud setup
+- Need to make foundational technical decisions
+
+### Template
+
+```markdown
+# Infrastructure Setup
+
+## Objective
+{What infrastructure needs to be in place before product development begins}
+
+## Scope
+
+### Repository & Code Structure
+- Monorepo vs multi-repo decision
+- Frontend/backend organization
+- Shared code/types strategy
+
+### CI/CD Pipeline
+- Build automation (GitHub Actions, etc.)
+- Test automation
+- Deployment automation
+- Branch protection rules
+
+### Cloud Infrastructure
+- Hosting provider and rationale
+- Database setup and configuration
+- Environment configuration (dev/staging/prod)
+- Domain and SSL setup
+
+### Development Environment
+- Local setup requirements
+- Docker configuration (if any)
+- Environment variables management
+- IDE/editor configuration
+
+## Technical Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Hosting | {choice} | {why} |
+| Database | {choice} | {why} |
+| CI/CD | {choice} | {why} |
+| Package Manager | {choice} | {why} |
+
+## Out of Scope
+- Product features (handled by MVP PRD)
+- Scaling/optimization (future phase)
+- Advanced monitoring (can be added later)
+
+## Success Criteria
+- Developers can clone and run locally in < 15 minutes
+- CI pipeline runs on every PR
+- Automated deployment to staging on merge to main
+- All environments documented in README
+- Secrets properly managed (not in code)
+```
+
+---
+
+## Stub PRD Template
+
+Use when creating placeholder PRDs for future phases. Stubs are minimal documents that will be fleshed out when the user navigates to them and runs `/specflux:planning`.
+
+### When to Use
+- Creating child PRDs during Vision PRD flow
+- Placeholder for Phase 2+ features
+- User wants to note future work without detailing it now
+
+### Template
+
+```markdown
+# {PRD Title}
+
+*This PRD is a stub. Run `/specflux:planning` to complete the interview and flesh out details.*
+
+## Overview
+{One-line description from the Vision PRD}
+
+## Planned Scope
+- {Feature 1 from Vision PRD}
+- {Feature 2 from Vision PRD}
+- {Feature 3 from Vision PRD}
+
+## Status
+**Stub** - awaiting refinement
+
+## Parent Vision
+See: [{Vision PRD displayKey}: {Vision PRD Title}]({vision folderPath}/prd.md)
+```
+
+### Detecting Stub PRDs
+
+A PRD is a Stub if it contains the text: `This PRD is a stub`
+
+When a stub is detected, the planning workflow should continue the interview to flesh it out into a full PRD.
+
+---
+
 ## Document Types for API
 
 When registering documents via API:
