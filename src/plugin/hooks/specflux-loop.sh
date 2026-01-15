@@ -186,20 +186,35 @@ main() {
     fi
 
     # Extract task details
-    local task_ref task_title task_description task_prd_ref
+    local task_ref task_title task_description
     task_ref=$(extract_task_field "$task_json" "displayKey")
     task_title=$(extract_task_field "$task_json" "title")
     task_description=$(extract_task_field "$task_json" "description")
 
-    # Get PRD ref from epic (for context switching - will be enhanced in task 329)
+    # Get epic ref to determine PRD (use epic as proxy for PRD context)
     local epic_display_key
     epic_display_key=$(extract_task_field "$task_json" "epicDisplayKey")
 
-    # Step 7: Generate implementation prompt
+    # Step 7: Check for PRD/Epic context switch
+    local is_context_switch=false
+    if [[ -n "$current_prd_ref" ]] && [[ "$current_prd_ref" != "null" ]] && [[ "$current_prd_ref" != "$epic_display_key" ]]; then
+        is_context_switch=true
+    fi
+
+    # Update current_prd_ref in state file (using epic ref as context identifier)
+    if [[ -n "$epic_display_key" ]] && [[ "$epic_display_key" != "null" ]]; then
+        update_frontmatter_field "$state_file" "current_prd_ref" "\"$epic_display_key\""
+    fi
+
+    # Step 8: Generate implementation prompt based on context
     local system_msg="SpecFlux loop iteration ${next_iteration}/${max_iterations} | Tag: ${tag} | To cancel: /specflux:cancel-loop --tag ${tag}"
 
     local prompt
-    prompt=$(generate_task_prompt "$task_ref" "$task_title" "$task_description")
+    if [[ "$is_context_switch" == "true" ]]; then
+        prompt=$(generate_fresh_context_prompt "$task_ref" "$task_title" "$task_description" "$epic_display_key")
+    else
+        prompt=$(generate_continue_prompt "$task_ref" "$task_title" "$task_description")
+    fi
 
     output_block "$prompt" "$system_msg"
 }
@@ -208,12 +223,44 @@ main() {
 # Prompt Generation
 # =============================================================================
 
-generate_task_prompt() {
+# Continue prompt - used when staying within same PRD/epic context
+generate_continue_prompt() {
     local task_ref="$1"
     local task_title="$2"
     local task_description="$3"
 
     cat <<EOF
+## Next Task
+Implement task ${task_ref}: ${task_title}
+
+## Task Details
+${task_description}
+
+## Rules
+- Follow specflux-coding skill (tests first, one commit per task)
+- Mark each criterion complete via API when done
+- Update task status to COMPLETED when all criteria pass
+- If blocked, mark task BLOCKED with reason, then exit to continue to next task
+- Do NOT ask questions - if unclear, mark BLOCKED and move on
+EOF
+}
+
+# Fresh context prompt - used when switching to a different PRD/epic
+generate_fresh_context_prompt() {
+    local task_ref="$1"
+    local task_title="$2"
+    local task_description="$3"
+    local epic_ref="$4"
+
+    cat <<EOF
+START FRESH - New epic context.
+
+## Switching to Epic: ${epic_ref}
+Ignore previous epic context. Get fresh context from:
+- API: Task details and acceptance criteria below
+- Git: \`git log --oneline -20\` shows recent commits
+- Files: Read relevant source files as needed
+
 ## Your Task
 Implement task ${task_ref}: ${task_title}
 
