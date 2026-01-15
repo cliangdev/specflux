@@ -277,7 +277,7 @@ EOF
 }
 
 # =============================================================================
-# Completion Report (placeholder - will be enhanced in task 330)
+# Completion Report
 # =============================================================================
 
 generate_completion_report() {
@@ -285,16 +285,148 @@ generate_completion_report() {
     local iterations="$2"
     local started_at="$3"
 
+    # Calculate duration
+    local duration
+    duration=$(calculate_duration "$started_at")
+
+    # Query API for task stats
+    local completed_count blocked_count remaining_count
+    local blocked_tasks
+
+    # Get completed tasks
+    completed_count=$(query_task_count "$tag" "COMPLETED")
+
+    # Get blocked tasks
+    blocked_count=$(query_task_count "$tag" "BLOCKED")
+    blocked_tasks=$(query_blocked_tasks "$tag")
+
+    # Get remaining (not completed, not cancelled, not blocked)
+    remaining_count=$(query_remaining_count "$tag")
+
     echo ""
     echo "========================================"
     echo "SpecFlux Implementation Loop Complete"
     echo "========================================"
     echo "Tag: $tag"
     echo "Iterations: $iterations"
+    echo "Duration: $duration"
     echo ""
-    echo "Max iterations reached."
+    echo "Results:"
+    echo "  Completed:  $completed_count tasks"
+    echo "  Blocked:    $blocked_count tasks"
+    echo "  Remaining:  $remaining_count tasks (not attempted)"
+    echo ""
+
+    if [[ -n "$blocked_tasks" ]] && [[ "$blocked_tasks" != "null" ]]; then
+        echo "Blocked Tasks:"
+        echo "$blocked_tasks"
+        echo ""
+    fi
+
     echo "To continue: /specflux:implement-loop --tag $tag"
     echo ""
+}
+
+# Calculate human-readable duration from ISO timestamp to now
+calculate_duration() {
+    local started_at="$1"
+
+    # Parse started_at and calculate difference in seconds
+    local start_epoch now_epoch diff_seconds
+    start_epoch=$(date -j -f "%Y-%m-%dT%H:%M:%S" "${started_at%%.*}" "+%s" 2>/dev/null || echo "0")
+    now_epoch=$(date "+%s")
+
+    if [[ "$start_epoch" == "0" ]]; then
+        echo "unknown"
+        return
+    fi
+
+    diff_seconds=$((now_epoch - start_epoch))
+
+    # Convert to human-readable
+    local hours minutes
+    hours=$((diff_seconds / 3600))
+    minutes=$(((diff_seconds % 3600) / 60))
+
+    if [[ "$hours" -gt 0 ]]; then
+        echo "${hours}h ${minutes}m"
+    else
+        echo "${minutes}m"
+    fi
+}
+
+# Query task count by status
+query_task_count() {
+    local tag="$1"
+    local status="$2"
+    local project_ref="${SPECFLUX_PROJECT_REF:-}"
+
+    if [[ -z "${SPECFLUX_API_URL:-}" ]] || [[ -z "${SPECFLUX_API_KEY:-}" ]]; then
+        echo "0"
+        return
+    fi
+
+    local api_url="${SPECFLUX_API_URL}/api/projects/${project_ref}/tasks"
+    api_url="${api_url}?prdTag=${tag}&status=${status}"
+
+    local response
+    response=$(curl -s -H "Authorization: Bearer ${SPECFLUX_API_KEY}" "$api_url" 2>/dev/null || echo "")
+
+    if [[ -z "$response" ]]; then
+        echo "0"
+        return
+    fi
+
+    echo "$response" | jq -r '.pagination.total // 0' 2>/dev/null || echo "0"
+}
+
+# Query remaining tasks (not completed, cancelled, or blocked)
+query_remaining_count() {
+    local tag="$1"
+    local project_ref="${SPECFLUX_PROJECT_REF:-}"
+
+    if [[ -z "${SPECFLUX_API_URL:-}" ]] || [[ -z "${SPECFLUX_API_KEY:-}" ]]; then
+        echo "0"
+        return
+    fi
+
+    local api_url="${SPECFLUX_API_URL}/api/projects/${project_ref}/tasks"
+    api_url="${api_url}?prdTag=${tag}&statusNot=COMPLETED,CANCELLED,BLOCKED"
+
+    local response
+    response=$(curl -s -H "Authorization: Bearer ${SPECFLUX_API_KEY}" "$api_url" 2>/dev/null || echo "")
+
+    if [[ -z "$response" ]]; then
+        echo "0"
+        return
+    fi
+
+    echo "$response" | jq -r '.pagination.total // 0' 2>/dev/null || echo "0"
+}
+
+# Query blocked tasks with reasons
+query_blocked_tasks() {
+    local tag="$1"
+    local project_ref="${SPECFLUX_PROJECT_REF:-}"
+
+    if [[ -z "${SPECFLUX_API_URL:-}" ]] || [[ -z "${SPECFLUX_API_KEY:-}" ]]; then
+        echo ""
+        return
+    fi
+
+    local api_url="${SPECFLUX_API_URL}/api/projects/${project_ref}/tasks"
+    api_url="${api_url}?prdTag=${tag}&status=BLOCKED"
+
+    local response
+    response=$(curl -s -H "Authorization: Bearer ${SPECFLUX_API_KEY}" "$api_url" 2>/dev/null || echo "")
+
+    if [[ -z "$response" ]]; then
+        echo ""
+        return
+    fi
+
+    # Extract blocked tasks and format as list
+    echo "$response" | jq -r '.data[] | "  - \(.displayKey): \(.title)"' 2>/dev/null || echo ""
 }
 
 # Run main function
