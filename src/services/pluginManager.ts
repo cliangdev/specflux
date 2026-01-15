@@ -23,11 +23,15 @@ import {
   readDir,
 } from "@tauri-apps/plugin-fs";
 import { join, homeDir, resolveResource } from "@tauri-apps/api/path";
+import pluginJson from "../plugin/.claude-plugin/plugin.json";
 
 /** Plugin and marketplace identifiers */
 const PLUGIN_NAME = "specflux";
 const MARKETPLACE_NAME = "specflux-local";
 const PLUGIN_FULL_NAME = `${PLUGIN_NAME}@${MARKETPLACE_NAME}`;
+
+/** Bundled plugin version - imported directly from source */
+const BUNDLED_PLUGIN_VERSION = pluginJson.version;
 
 /** Marketplace directory name (relative to ~/.claude/plugins/) */
 const MARKETPLACE_DIR = "specflux-marketplace";
@@ -410,4 +414,118 @@ export async function ensurePluginInstalled(): Promise<{
 export async function isClaudeCliAvailable(): Promise<boolean> {
   const result = await runClaudePluginCommand(["--help"]);
   return result.success;
+}
+
+/**
+ * Compare versions (semver-like)
+ * Returns: 1 if v1 > v2, -1 if v1 < v2, 0 if equal
+ */
+function compareVersions(v1: string, v2: string): number {
+  const parts1 = v1.split(".").map(Number);
+  const parts2 = v2.split(".").map(Number);
+
+  for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+    const p1 = parts1[i] || 0;
+    const p2 = parts2[i] || 0;
+    if (p1 > p2) return 1;
+    if (p1 < p2) return -1;
+  }
+  return 0;
+}
+
+/**
+ * Get the version of the plugin bundled with the app.
+ * This is imported directly from the source plugin.
+ */
+export async function getBundledPluginVersion(): Promise<string | null> {
+  return BUNDLED_PLUGIN_VERSION;
+}
+
+/**
+ * Check if an update is available
+ */
+export async function checkPluginUpdateAvailable(): Promise<{
+  updateAvailable: boolean;
+  installedVersion: string | null;
+  bundledVersion: string | null;
+}> {
+  const status = await checkPluginInstalled();
+  const bundledVersion = await getBundledPluginVersion();
+
+  if (!status.installed || !bundledVersion) {
+    return {
+      updateAvailable: !status.installed,
+      installedVersion: status.version || null,
+      bundledVersion,
+    };
+  }
+
+  const updateAvailable = compareVersions(bundledVersion, status.version!) > 0;
+
+  return {
+    updateAvailable,
+    installedVersion: status.version!,
+    bundledVersion,
+  };
+}
+
+/**
+ * Update the plugin to the bundled version
+ */
+export async function updatePlugin(): Promise<{
+  success: boolean;
+  error?: string;
+  newVersion?: string;
+}> {
+  try {
+    const uninstallResult = await runClaudePluginCommand([
+      "uninstall",
+      PLUGIN_FULL_NAME,
+      "--scope",
+      "user",
+    ]);
+    console.log("[PluginManager] Uninstall result:", uninstallResult);
+
+    const marketplacePath = await getMarketplacePath();
+    try {
+      const resourcePath = await resolveResource("specflux-marketplace");
+      await copyDirectory(resourcePath, marketplacePath);
+      console.log("[PluginManager] Copied updated marketplace from resources");
+    } catch {
+      // Dev mode: try workspace marketplace
+      const home = await homeDir();
+      const workspaceMarketplace = await join(
+        home,
+        "workspace",
+        "specflux_workspace",
+        ".claude",
+        "plugins",
+        "specflux-marketplace"
+      );
+      const workspaceExists = await exists(workspaceMarketplace);
+      if (workspaceExists) {
+        await copyDirectory(workspaceMarketplace, marketplacePath);
+        console.log("[PluginManager] Copied marketplace from workspace");
+      } else {
+        await createMarketplaceFromExistingPlugin(marketplacePath);
+      }
+    }
+
+    const installResult = await installPlugin();
+    if (!installResult) {
+      return { success: false, error: "Failed to reinstall plugin" };
+    }
+
+    const verifyStatus = await checkPluginInstalled();
+    if (verifyStatus.installed) {
+      return { success: true, newVersion: verifyStatus.version };
+    }
+
+    return { success: false, error: "Update completed but verification failed" };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
