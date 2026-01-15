@@ -108,7 +108,7 @@ describe("pluginManager", () => {
     it("returns version from bundled plugin.json", async () => {
       const result = await getBundledPluginVersion();
 
-      expect(result).toBe("1.0.1");
+      expect(result).toBe("1.0.2");
     });
   });
 
@@ -128,7 +128,7 @@ describe("pluginManager", () => {
 
       expect(result.updateAvailable).toBe(true);
       expect(result.installedVersion).toBe("1.0.0");
-      expect(result.bundledVersion).toBe("1.0.1");
+      expect(result.bundledVersion).toBe("1.0.2");
     });
 
     it("returns updateAvailable: false when versions are equal", async () => {
@@ -137,7 +137,7 @@ describe("pluginManager", () => {
         JSON.stringify({
           version: 2,
           plugins: {
-            "specflux@specflux-local": [{ version: "1.0.1" }],
+            "specflux@specflux-local": [{ version: "1.0.2" }],
           },
         })
       );
@@ -145,8 +145,8 @@ describe("pluginManager", () => {
       const result = await checkPluginUpdateAvailable();
 
       expect(result.updateAvailable).toBe(false);
-      expect(result.installedVersion).toBe("1.0.1");
-      expect(result.bundledVersion).toBe("1.0.1");
+      expect(result.installedVersion).toBe("1.0.2");
+      expect(result.bundledVersion).toBe("1.0.2");
     });
 
     it("returns updateAvailable: true when plugin is not installed", async () => {
@@ -156,7 +156,7 @@ describe("pluginManager", () => {
 
       expect(result.updateAvailable).toBe(true);
       expect(result.installedVersion).toBe(null);
-      expect(result.bundledVersion).toBe("1.0.1");
+      expect(result.bundledVersion).toBe("1.0.2");
     });
   });
 
