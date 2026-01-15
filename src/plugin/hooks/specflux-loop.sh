@@ -67,6 +67,55 @@ update_frontmatter_field() {
 }
 
 # =============================================================================
+# API Functions
+# =============================================================================
+
+# Query API for next implementable task
+# Returns JSON with task details or empty if no tasks
+query_next_task() {
+    local tag="$1"
+    local project_ref="${SPECFLUX_PROJECT_REF:-}"
+
+    # Validate environment variables
+    if [[ -z "${SPECFLUX_API_URL:-}" ]] || [[ -z "${SPECFLUX_API_KEY:-}" ]]; then
+        echo "" # Return empty to signal error
+        return 1
+    fi
+
+    # Build API URL with query params
+    local api_url="${SPECFLUX_API_URL}/api/projects/${project_ref}/tasks"
+    api_url="${api_url}?prdTag=${tag}&statusNot=COMPLETED,CANCELLED"
+
+    # Query API
+    local response
+    response=$(curl -s -H "Authorization: Bearer ${SPECFLUX_API_KEY}" "$api_url" 2>/dev/null || echo "")
+
+    if [[ -z "$response" ]]; then
+        echo ""
+        return 1
+    fi
+
+    # Extract first task from response
+    local task_count
+    task_count=$(echo "$response" | jq -r '.data | length' 2>/dev/null || echo "0")
+
+    if [[ "$task_count" == "0" ]] || [[ "$task_count" == "null" ]]; then
+        echo ""
+        return 0
+    fi
+
+    # Return first task
+    echo "$response" | jq -c '.data[0]' 2>/dev/null || echo ""
+}
+
+# Extract fields from task JSON
+extract_task_field() {
+    local task_json="$1"
+    local field="$2"
+    echo "$task_json" | jq -r ".$field // empty" 2>/dev/null || echo ""
+}
+
+# =============================================================================
 # Main Logic
 # =============================================================================
 
@@ -125,14 +174,59 @@ main() {
     # Step 5: Update state file atomically
     update_frontmatter_field "$state_file" "iteration" "$next_iteration"
 
-    # Step 6: Query API for next task and decide
-    # This will be implemented in subsequent tasks (328, 329, 330)
-    # For now, output a placeholder that will be replaced
+    # Step 6: Query API for next task
+    local task_json
+    task_json=$(query_next_task "$tag")
 
+    if [[ -z "$task_json" ]]; then
+        # No more tasks - loop complete
+        rm -f "$state_file"
+        generate_completion_report "$tag" "$iteration" "$started_at" >&2
+        output_allow
+    fi
+
+    # Extract task details
+    local task_ref task_title task_description task_prd_ref
+    task_ref=$(extract_task_field "$task_json" "displayKey")
+    task_title=$(extract_task_field "$task_json" "title")
+    task_description=$(extract_task_field "$task_json" "description")
+
+    # Get PRD ref from epic (for context switching - will be enhanced in task 329)
+    local epic_display_key
+    epic_display_key=$(extract_task_field "$task_json" "epicDisplayKey")
+
+    # Step 7: Generate implementation prompt
     local system_msg="SpecFlux loop iteration ${next_iteration}/${max_iterations} | Tag: ${tag} | To cancel: /specflux:cancel-loop --tag ${tag}"
 
-    # Placeholder - will be replaced by API query logic in task 328
-    output_block "Continue implementing tasks for tag: ${tag}" "$system_msg"
+    local prompt
+    prompt=$(generate_task_prompt "$task_ref" "$task_title" "$task_description")
+
+    output_block "$prompt" "$system_msg"
+}
+
+# =============================================================================
+# Prompt Generation
+# =============================================================================
+
+generate_task_prompt() {
+    local task_ref="$1"
+    local task_title="$2"
+    local task_description="$3"
+
+    cat <<EOF
+## Your Task
+Implement task ${task_ref}: ${task_title}
+
+## Task Details
+${task_description}
+
+## Rules
+- Follow specflux-coding skill (tests first, one commit per task)
+- Mark each criterion complete via API when done
+- Update task status to COMPLETED when all criteria pass
+- If blocked, mark task BLOCKED with reason, then exit to continue to next task
+- Do NOT ask questions - if unclear, mark BLOCKED and move on
+EOF
 }
 
 # =============================================================================
