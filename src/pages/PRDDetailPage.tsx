@@ -10,6 +10,7 @@ import { EpicsSection } from "../components/prd/EpicsSection";
 import { EpicCreateModal } from "../components/epics";
 import { GettingStartedBanner } from "../components/prds/GettingStartedBanner";
 import { useProject } from "../contexts/ProjectContext";
+import { useLocalProjectPath } from "../hooks/useLocalProjectPath";
 import { usePageContext } from "../hooks/usePageContext";
 import { useHasClaudeSession } from "../hooks/useHasClaudeSession";
 import { useTerminal } from "../contexts/TerminalContext";
@@ -124,6 +125,7 @@ export default function PRDDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentProject, getProjectRef } = useProject();
+  const { localPath } = useLocalProjectPath();
 
   const prdRef = prdName ? decodeURIComponent(prdName) : "";
 
@@ -212,7 +214,7 @@ export default function PRDDetailPage() {
 
   // Load file content when selection changes
   const loadContent = useCallback(async () => {
-    if (!currentProject?.localPath || !selectedDoc) {
+    if (!localPath || !selectedDoc) {
       setContent("");
       return;
     }
@@ -222,7 +224,7 @@ export default function PRDDetailPage() {
     try {
       // Construct full path from project root
       const filePath = await join(
-        currentProject.localPath,
+        localPath,
         selectedDoc.filePath,
       );
 
@@ -893,13 +895,15 @@ export default function PRDDetailPage() {
       </div>
 
       {/* Import Document Modal */}
-      <ImportDocumentModal
-        isOpen={showAddDocModal}
-        onClose={() => setShowAddDocModal(false)}
-        onImport={handleAddDocument}
-        prdFolderPath={prd.folderPath}
-        projectPath={currentProject.localPath}
-      />
+      {localPath && (
+        <ImportDocumentModal
+          isOpen={showAddDocModal}
+          onClose={() => setShowAddDocModal(false)}
+          onImport={handleAddDocument}
+          prdFolderPath={prd.folderPath}
+          projectPath={localPath}
+        />
+      )}
 
       {/* Create Epic Modal */}
       {showCreateEpicModal && (

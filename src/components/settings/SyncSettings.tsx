@@ -11,6 +11,7 @@ import { LinkRepositoryModal } from "../sync/LinkRepositoryModal";
 import { UnlinkRepositoryModal } from "../sync/UnlinkRepositoryModal";
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { useProject } from "../../contexts";
+import { useLocalProjectPath } from "../../hooks/useLocalProjectPath";
 import { api } from "../../api/client";
 
 interface SyncSettingsProps {
@@ -116,6 +117,7 @@ const UnlinkIcon = ({ className }: { className?: string }) => (
 
 export function SyncSettings({ className = "" }: SyncSettingsProps) {
   const { currentProject } = useProject();
+  const { localPath } = useLocalProjectPath();
   const [githubStatus, setGithubStatus] = useState<GitHubConnectionStatus>({
     isConnected: false,
   });
@@ -151,7 +153,7 @@ export function SyncSettings({ className = "" }: SyncSettingsProps) {
 
   // Function to load linked repository
   const loadLinkedRepo = useCallback(async () => {
-    if (!currentProject?.localPath) {
+    if (!localPath) {
       setLinkedRepo(null);
       setRepoExists(null);
       return;
@@ -159,7 +161,7 @@ export function SyncSettings({ className = "" }: SyncSettingsProps) {
 
     setLoadingRepo(true);
     try {
-      const remoteInfo = await getRemoteInfo(currentProject.localPath);
+      const remoteInfo = await getRemoteInfo(localPath);
       setLinkedRepo(remoteInfo || null);
 
       // Check if the repo exists on GitHub
@@ -174,7 +176,7 @@ export function SyncSettings({ className = "" }: SyncSettingsProps) {
     } finally {
       setLoadingRepo(false);
     }
-  }, [currentProject?.localPath, checkRepoExists]);
+  }, [localPath, checkRepoExists]);
 
   // Load linked repository when project changes
   useEffect(() => {
@@ -296,7 +298,7 @@ export function SyncSettings({ className = "" }: SyncSettingsProps) {
         ) : (
           <GitHubConnectCard
             onConnect={handleConnect}
-            projectPath={currentProject?.localPath}
+            projectPath={localPath || undefined}
           />
         )}
       </div>
@@ -453,18 +455,18 @@ export function SyncSettings({ className = "" }: SyncSettingsProps) {
       )}
 
       {/* Link Repository Modal */}
-      {showLinkModal && currentProject?.localPath && (
+      {showLinkModal && localPath && (
         <LinkRepositoryModal
-          repoDir={currentProject.localPath}
+          repoDir={localPath}
           onSuccess={handleLinkSuccess}
           onCancel={() => setShowLinkModal(false)}
         />
       )}
 
       {/* Unlink Repository Modal */}
-      {showUnlinkModal && currentProject?.localPath && linkedRepo && (
+      {showUnlinkModal && localPath && linkedRepo && (
         <UnlinkRepositoryModal
-          repoDir={currentProject.localPath}
+          repoDir={localPath}
           repoFullName={`${linkedRepo.owner}/${linkedRepo.repo}`}
           onSuccess={handleUnlinkSuccess}
           onCancel={() => setShowUnlinkModal(false)}

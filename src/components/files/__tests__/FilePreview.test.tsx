@@ -12,6 +12,11 @@ vi.mock("../../../contexts/ProjectContext", () => ({
   useProject: vi.fn(),
 }));
 
+// Mock useLocalProjectPath hook
+vi.mock("../../../hooks/useLocalProjectPath", () => ({
+  useLocalProjectPath: vi.fn(),
+}));
+
 // Mock ThemeContext
 vi.mock("../../../contexts", () => ({
   useTheme: () => ({ theme: "light" }),
@@ -19,9 +24,11 @@ vi.mock("../../../contexts", () => ({
 
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { useProject } from "../../../contexts/ProjectContext";
+import { useLocalProjectPath } from "../../../hooks/useLocalProjectPath";
 
 const mockReadTextFile = readTextFile as ReturnType<typeof vi.fn>;
 const mockUseProject = useProject as ReturnType<typeof vi.fn>;
+const mockUseLocalProjectPath = useLocalProjectPath as ReturnType<typeof vi.fn>;
 
 describe("FilePreview", () => {
   beforeEach(() => {
@@ -32,6 +39,12 @@ describe("FilePreview", () => {
         name: "Test Project",
         localPath: "/home/user/projects/test",
       },
+    });
+    mockUseLocalProjectPath.mockReturnValue({
+      localPath: "/home/user/projects/test",
+      isConfigured: true,
+      setLocalPath: vi.fn(),
+      getRepoFullPath: vi.fn(),
     });
   });
 
@@ -103,6 +116,12 @@ describe("FilePreview", () => {
 
   it("does not load file when no project is selected", () => {
     mockUseProject.mockReturnValue({ currentProject: null });
+    mockUseLocalProjectPath.mockReturnValue({
+      localPath: null,
+      isConfigured: false,
+      setLocalPath: vi.fn(),
+      getRepoFullPath: vi.fn(),
+    });
     mockReadTextFile.mockResolvedValue("content");
 
     render(<FilePreview filePath="README.md" />);

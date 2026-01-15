@@ -1,30 +1,18 @@
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { api, type CreateProjectRequest } from "../../api";
 import { open } from "@tauri-apps/plugin-dialog";
+import { join } from "@tauri-apps/api/path";
 import { initProjectStructure } from "../../templates";
 import { setLocalProjectPath } from "../../services/localProjectSettings";
+import {
+  getStoredWorkspacePath,
+  getDefaultWorkspacePath,
+} from "../../services/workspacePreferences";
 
 interface ProjectCreateModalProps {
   onClose: () => void;
   onCreated: () => void;
 }
-
-type PrdOption = "workshop" | "skip";
-
-const PRD_OPTIONS = [
-  {
-    value: "workshop" as PrdOption,
-    label: "Start PRD Workshop",
-    description: "Claude will guide you through creating a product spec.",
-    recommended: true,
-  },
-  {
-    value: "skip" as PrdOption,
-    label: "Skip for now",
-    description: "I'll add PRDs later from the PRDs page.",
-    recommended: false,
-  },
-];
 
 /**
  * Generate a project key from the name
@@ -46,9 +34,35 @@ export default function ProjectCreateModal({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [localPath, setLocalPath] = useState("");
-  const [prdOption, setPrdOption] = useState<PrdOption>("workshop");
+  const [workspacePath, setWorkspacePath] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Load workspace path on mount
+  useEffect(() => {
+    const loadWorkspacePath = async () => {
+      let path = getStoredWorkspacePath();
+      if (!path) {
+        path = await getDefaultWorkspacePath();
+      }
+      setWorkspacePath(path);
+    };
+    loadWorkspacePath();
+  }, []);
+
+  // Auto-populate project directory when name changes
+  useEffect(() => {
+    const computePath = async () => {
+      if (workspacePath && name.trim()) {
+        const dirName = name.trim().replace(/[^a-zA-Z0-9-_]/g, "-");
+        const computedPath = await join(workspacePath, dirName);
+        setLocalPath(computedPath);
+      } else if (!name.trim()) {
+        setLocalPath("");
+      }
+    };
+    computePath();
+  }, [workspacePath, name]);
 
   const handleBrowse = async () => {
     try {
@@ -91,18 +105,9 @@ export default function ProjectCreateModal({
         createProjectRequest: request,
       });
 
-      // Save localPath to local storage (per-user setting)
       if (localPath.trim() && createdProject.id) {
         setLocalProjectPath(createdProject.id, localPath.trim());
-
-        // Initialize project structure
         await initProjectStructure(localPath.trim());
-      }
-
-      // Handle post-creation flow based on PRD option
-      if (prdOption === "workshop") {
-        // TODO (Phase 1C): Navigate to PRD workshop or open terminal with /prd
-        console.log("PRD Workshop selected - will be implemented in Phase 1C");
       }
 
       onCreated();
@@ -209,8 +214,7 @@ export default function ProjectCreateModal({
                 htmlFor="localPath"
                 className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1"
               >
-                Project Directory{" "}
-                <span className="text-surface-400">(optional)</span>
+                Project Directory
               </label>
               <div className="flex gap-2">
                 <input
@@ -218,7 +222,7 @@ export default function ProjectCreateModal({
                   type="text"
                   value={localPath}
                   onChange={(e) => setLocalPath(e.target.value)}
-                  placeholder="/path/to/your/project"
+                  placeholder={workspacePath ? `${workspacePath}/PROJECTKEY` : "/path/to/your/project"}
                   className="input flex-1"
                 />
                 <button
@@ -230,53 +234,10 @@ export default function ProjectCreateModal({
                 </button>
               </div>
               <p className="mt-1 text-xs text-surface-500">
-                Sets up .specflux/ and .claude/ directories with templates
+                {localPath
+                  ? "Sets up .specflux/ and .claude/ directories with templates"
+                  : "Enter a project name to auto-generate the directory path"}
               </p>
-            </div>
-
-            {/* PRD Options */}
-            <div>
-              <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">
-                After creation
-              </label>
-              <div className="space-y-2">
-                {PRD_OPTIONS.map((option) => (
-                  <label
-                    key={option.value}
-                    className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                      prdOption === option.value
-                        ? "border-accent-500 bg-accent-50 dark:bg-accent-900/20"
-                        : "border-surface-200 dark:border-surface-700 hover:border-surface-300 dark:hover:border-surface-600"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="prdOption"
-                      value={option.value}
-                      checked={prdOption === option.value}
-                      onChange={(e) =>
-                        setPrdOption(e.target.value as PrdOption)
-                      }
-                      className="mt-1 w-4 h-4 text-accent-600 border-surface-300 dark:border-surface-600 bg-white dark:bg-surface-900 focus:ring-accent-500 focus:ring-offset-white dark:focus:ring-offset-surface-800"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-surface-900 dark:text-white">
-                          {option.label}
-                        </span>
-                        {option.recommended && (
-                          <span className="px-1.5 py-0.5 text-xs font-medium bg-accent-100 text-accent-700 dark:bg-accent-900/30 dark:text-accent-300 rounded">
-                            Recommended
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-surface-500 dark:text-surface-400">
-                        {option.description}
-                      </div>
-                    </div>
-                  </label>
-                ))}
-              </div>
             </div>
           </div>
 

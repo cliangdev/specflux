@@ -20,6 +20,11 @@ vi.mock("../../../contexts/ProjectContext", () => ({
   useProject: vi.fn(),
 }));
 
+// Mock useLocalProjectPath hook
+vi.mock("../../../hooks/useLocalProjectPath", () => ({
+  useLocalProjectPath: vi.fn(),
+}));
+
 // Mock template registry and content
 vi.mock("../../../templates/registry", () => ({
   TEMPLATE_REGISTRY: [
@@ -75,12 +80,14 @@ vi.mock("../../ui/MarkdownRenderer", () => ({
 
 import { readTextFile, writeTextFile, exists, mkdir } from "@tauri-apps/plugin-fs";
 import { useProject } from "../../../contexts/ProjectContext";
+import { useLocalProjectPath } from "../../../hooks/useLocalProjectPath";
 
 const mockReadTextFile = readTextFile as ReturnType<typeof vi.fn>;
 const mockWriteTextFile = writeTextFile as ReturnType<typeof vi.fn>;
 const mockExists = exists as ReturnType<typeof vi.fn>;
 const mockMkdir = mkdir as ReturnType<typeof vi.fn>;
 const mockUseProject = useProject as ReturnType<typeof vi.fn>;
+const mockUseLocalProjectPath = useLocalProjectPath as ReturnType<typeof vi.fn>;
 
 describe("ClaudeItemsPage", () => {
   beforeEach(() => {
@@ -91,6 +98,12 @@ describe("ClaudeItemsPage", () => {
         name: "Test Project",
         localPath: "/home/user/projects/test",
       },
+    });
+    mockUseLocalProjectPath.mockReturnValue({
+      localPath: "/home/user/projects/test",
+      isConfigured: true,
+      setLocalPath: vi.fn(),
+      getRepoFullPath: vi.fn(),
     });
     mockWriteTextFile.mockResolvedValue(undefined);
     mockMkdir.mockResolvedValue(undefined);

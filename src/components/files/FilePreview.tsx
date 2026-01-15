@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import MarkdownRenderer from "../ui/MarkdownRenderer";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { useProject } from "../../contexts/ProjectContext";
+import { useLocalProjectPath } from "../../hooks/useLocalProjectPath";
 
 interface FilePreviewProps {
   filePath: string;
@@ -9,18 +10,19 @@ interface FilePreviewProps {
 
 export function FilePreview({ filePath }: FilePreviewProps) {
   const { currentProject } = useProject();
+  const { localPath } = useLocalProjectPath();
   const [content, setContent] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadFileContent = useCallback(async () => {
-    if (!currentProject) return;
+    if (!currentProject || !localPath) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      const fullPath = `${currentProject.localPath}/.specflux/${filePath}`;
+      const fullPath = `${localPath}/.specflux/${filePath}`;
       const fileContent = await readTextFile(fullPath);
       setContent(fileContent);
     } catch (err) {
