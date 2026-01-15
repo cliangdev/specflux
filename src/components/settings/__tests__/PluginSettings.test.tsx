@@ -28,7 +28,7 @@ describe("PluginSettings", () => {
 
       await waitFor(() => {
         expect(screen.getByText("Plugin Installed")).toBeInTheDocument();
-        expect(screen.getByText("Version 1.0.0")).toBeInTheDocument();
+        expect(screen.getByText("Version 1.0.0 (latest)")).toBeInTheDocument();
       });
     });
 
@@ -75,24 +75,15 @@ describe("PluginSettings", () => {
       });
     });
 
-    it("should show update available banner", async () => {
+    it("should show update button with target version", async () => {
       render(<PluginSettings />);
 
       await waitFor(() => {
-        expect(screen.getByText("Update Available")).toBeInTheDocument();
-        expect(screen.getByText("1.0.0 → 1.1.0")).toBeInTheDocument();
+        expect(screen.getByText("Update to 1.1.0")).toBeInTheDocument();
       });
     });
 
-    it("should show Update Now button", async () => {
-      render(<PluginSettings />);
-
-      await waitFor(() => {
-        expect(screen.getByText("Update Now")).toBeInTheDocument();
-      });
-    });
-
-    it("should call updatePlugin when Update Now is clicked", async () => {
+    it("should call updatePlugin when update button is clicked", async () => {
       vi.mocked(pluginManager.updatePlugin).mockResolvedValue({
         success: true,
         newVersion: "1.1.0",
@@ -101,10 +92,10 @@ describe("PluginSettings", () => {
       render(<PluginSettings />);
 
       await waitFor(() => {
-        expect(screen.getByText("Update Now")).toBeInTheDocument();
+        expect(screen.getByText("Update to 1.1.0")).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByText("Update Now"));
+      fireEvent.click(screen.getByText("Update to 1.1.0"));
 
       await waitFor(() => {
         expect(pluginManager.updatePlugin).toHaveBeenCalled();
@@ -120,10 +111,10 @@ describe("PluginSettings", () => {
       render(<PluginSettings />);
 
       await waitFor(() => {
-        expect(screen.getByText("Update Now")).toBeInTheDocument();
+        expect(screen.getByText("Update to 1.1.0")).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByText("Update Now"));
+      fireEvent.click(screen.getByText("Update to 1.1.0"));
 
       await waitFor(() => {
         expect(screen.getByText("Updated to version 1.1.0")).toBeInTheDocument();
@@ -139,10 +130,10 @@ describe("PluginSettings", () => {
       render(<PluginSettings />);
 
       await waitFor(() => {
-        expect(screen.getByText("Update Now")).toBeInTheDocument();
+        expect(screen.getByText("Update to 1.1.0")).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByText("Update Now"));
+      fireEvent.click(screen.getByText("Update to 1.1.0"));
 
       await waitFor(() => {
         expect(screen.getByText("Installation failed")).toBeInTheDocument();

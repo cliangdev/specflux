@@ -129,58 +129,44 @@ export function PluginSettings() {
 
       {/* Status Card */}
       <div className="bg-surface-50 dark:bg-surface-800 rounded-lg p-4 border border-surface-200 dark:border-surface-700">
-        <div className="flex items-center gap-3">
-          {status?.installed ? (
-            <CheckCircleIcon className="w-5 h-5 text-emerald-500" />
-          ) : (
-            <ExclamationCircleIcon className="w-5 h-5 text-amber-500" />
-          )}
-          <div>
-            <div className="font-medium text-surface-900 dark:text-surface-100">
-              {status?.installed ? "Plugin Installed" : "Plugin Not Installed"}
-            </div>
-            {status?.version && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {status?.installed ? (
+              <CheckCircleIcon className="w-5 h-5 text-emerald-500" />
+            ) : (
+              <ExclamationCircleIcon className="w-5 h-5 text-amber-500" />
+            )}
+            <div>
+              <div className="font-medium text-surface-900 dark:text-surface-100">
+                {status?.installed ? "Plugin Installed" : "Plugin Not Installed"}
+              </div>
               <div className="text-sm text-surface-600 dark:text-surface-400">
-                Version {status.version}
+                {status?.version
+                  ? updateInfo?.updateAvailable
+                    ? `Version ${status.version}`
+                    : `Version ${status.version} (latest)`
+                  : null}
               </div>
-            )}
-            {updateInfo?.bundledVersion && (
-              <div className="text-sm text-surface-500 dark:text-surface-500">
-                Latest: {updateInfo.bundledVersion}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Update Available Banner */}
-        {updateInfo?.updateAvailable && (
-          <div className="mt-4 pt-4 border-t border-surface-200 dark:border-surface-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-medium text-amber-600 dark:text-amber-400">
-                  Update Available
-                </div>
-                <div className="text-sm text-surface-600 dark:text-surface-400">
-                  {updateInfo.installedVersion} → {updateInfo.bundledVersion}
-                </div>
-              </div>
-              <button
-                onClick={handleUpdate}
-                disabled={updating}
-                className="btn btn-primary text-sm flex items-center gap-2"
-              >
-                {updating ? (
-                  <>
-                    <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  "Update Now"
-                )}
-              </button>
             </div>
           </div>
-        )}
+
+          {updateInfo?.updateAvailable && (
+            <button
+              onClick={handleUpdate}
+              disabled={updating}
+              className="btn btn-primary text-sm flex items-center gap-2"
+            >
+              {updating ? (
+                <>
+                  <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                `Update to ${updateInfo.bundledVersion}`
+              )}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Messages */}
