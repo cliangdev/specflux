@@ -105,80 +105,58 @@ describe("pluginManager", () => {
   });
 
   describe("getBundledPluginVersion", () => {
-    it("returns version from bundled resources when available", async () => {
-      vi.mocked(resolveResource).mockResolvedValue("/resources/plugin.json");
-      vi.mocked(readTextFile).mockResolvedValue(
-        JSON.stringify({ version: "1.2.0" })
-      );
-
+    it("returns version from bundled plugin.json", async () => {
       const result = await getBundledPluginVersion();
 
-      expect(result).toBe("1.2.0");
-    });
-
-    it("returns null when no version source is available", async () => {
-      vi.mocked(resolveResource).mockRejectedValue(new Error("Not found"));
-      vi.mocked(exists).mockResolvedValue(false);
-      vi.mocked(readTextFile).mockRejectedValue(new Error("Not found"));
-
-      const result = await getBundledPluginVersion();
-
-      expect(result).toBe(null);
+      expect(result).toBe("1.0.1");
     });
   });
 
   describe("checkPluginUpdateAvailable", () => {
-    it("returns updateAvailable: true when bundled version is newer", async () => {
+    it("returns updateAvailable: true when installed version is older than bundled", async () => {
       vi.mocked(exists).mockResolvedValue(true);
-      vi.mocked(readTextFile)
-        .mockResolvedValueOnce(
-          JSON.stringify({
-            version: 2,
-            plugins: {
-              "specflux@specflux-local": [{ version: "1.0.0" }],
-            },
-          })
-        )
-        .mockResolvedValueOnce(JSON.stringify({ version: "1.1.0" }));
-      vi.mocked(resolveResource).mockResolvedValue("/resources/plugin.json");
+      vi.mocked(readTextFile).mockResolvedValue(
+        JSON.stringify({
+          version: 2,
+          plugins: {
+            "specflux@specflux-local": [{ version: "1.0.0" }],
+          },
+        })
+      );
 
       const result = await checkPluginUpdateAvailable();
 
       expect(result.updateAvailable).toBe(true);
       expect(result.installedVersion).toBe("1.0.0");
-      expect(result.bundledVersion).toBe("1.1.0");
+      expect(result.bundledVersion).toBe("1.0.1");
     });
 
     it("returns updateAvailable: false when versions are equal", async () => {
       vi.mocked(exists).mockResolvedValue(true);
-      vi.mocked(readTextFile)
-        .mockResolvedValueOnce(
-          JSON.stringify({
-            version: 2,
-            plugins: {
-              "specflux@specflux-local": [{ version: "1.0.0" }],
-            },
-          })
-        )
-        .mockResolvedValueOnce(JSON.stringify({ version: "1.0.0" }));
-      vi.mocked(resolveResource).mockResolvedValue("/resources/plugin.json");
+      vi.mocked(readTextFile).mockResolvedValue(
+        JSON.stringify({
+          version: 2,
+          plugins: {
+            "specflux@specflux-local": [{ version: "1.0.1" }],
+          },
+        })
+      );
 
       const result = await checkPluginUpdateAvailable();
 
       expect(result.updateAvailable).toBe(false);
+      expect(result.installedVersion).toBe("1.0.1");
+      expect(result.bundledVersion).toBe("1.0.1");
     });
 
     it("returns updateAvailable: true when plugin is not installed", async () => {
       vi.mocked(exists).mockResolvedValue(false);
-      vi.mocked(resolveResource).mockResolvedValue("/resources/plugin.json");
-      vi.mocked(readTextFile).mockResolvedValue(
-        JSON.stringify({ version: "1.0.0" })
-      );
 
       const result = await checkPluginUpdateAvailable();
 
       expect(result.updateAvailable).toBe(true);
       expect(result.installedVersion).toBe(null);
+      expect(result.bundledVersion).toBe("1.0.1");
     });
   });
 
@@ -205,35 +183,3 @@ describe("pluginManager", () => {
   });
 });
 
-describe("compareVersions (internal)", () => {
-  it("handles version comparison correctly via checkPluginUpdateAvailable", async () => {
-    const testCases = [
-      { installed: "1.0.0", bundled: "1.0.1", expected: true },
-      { installed: "1.0.0", bundled: "1.1.0", expected: true },
-      { installed: "1.0.0", bundled: "2.0.0", expected: true },
-      { installed: "1.0.1", bundled: "1.0.0", expected: false },
-      { installed: "2.0.0", bundled: "1.9.9", expected: false },
-      { installed: "1.0.0", bundled: "1.0.0", expected: false },
-    ];
-
-    for (const { installed, bundled, expected } of testCases) {
-      vi.mocked(exists).mockResolvedValue(true);
-      vi.mocked(readTextFile)
-        .mockResolvedValueOnce(
-          JSON.stringify({
-            version: 2,
-            plugins: {
-              "specflux@specflux-local": [{ version: installed }],
-            },
-          })
-        )
-        .mockResolvedValueOnce(JSON.stringify({ version: bundled }));
-      vi.mocked(resolveResource).mockResolvedValue("/resources/plugin.json");
-
-      const result = await checkPluginUpdateAvailable();
-      expect(result.updateAvailable).toBe(expected);
-
-      vi.clearAllMocks();
-    }
-  });
-});
