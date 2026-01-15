@@ -188,8 +188,104 @@ async function copyDirectory(src: string, dest: string): Promise<void> {
 }
 
 /**
+ * Get the plugin source path (bundled resource or dev path)
+ */
+async function getPluginSourcePath(): Promise<string> {
+  // Try bundled resource first (production)
+  try {
+    const resourcePath = await resolveResource("specflux-plugin");
+    const pluginJsonPath = await join(resourcePath, ".claude-plugin", "plugin.json");
+    const resourceExists = await exists(pluginJsonPath);
+    if (resourceExists) {
+      console.log("[PluginManager] Using bundled plugin resource");
+      return resourcePath;
+    }
+  } catch {
+    // Resource not available, try dev path
+  }
+
+  // Dev mode: use src/plugin relative to the app
+  // In dev, the app runs from the project root
+  const devPaths = [
+    // When running from project root
+    "./src/plugin",
+    // Absolute fallback
+    "/Users/cliang/workspace/specflux_workspace/specflux/specflux/src/plugin",
+  ];
+
+  for (const devPath of devPaths) {
+    try {
+      const pluginJsonPath = await join(devPath, ".claude-plugin", "plugin.json");
+      const devExists = await exists(pluginJsonPath);
+      if (devExists) {
+        console.log(`[PluginManager] Using dev plugin path: ${devPath}`);
+        return devPath;
+      }
+    } catch {
+      // Try next path
+    }
+  }
+
+  throw new Error("Plugin source not found");
+}
+
+/**
+ * Build marketplace structure from plugin source
+ */
+async function buildMarketplaceFromPlugin(
+  pluginSourcePath: string,
+  marketplacePath: string
+): Promise<void> {
+  // Read plugin version
+  const pluginJsonPath = await join(pluginSourcePath, ".claude-plugin", "plugin.json");
+  const pluginJsonContent = await readTextFile(pluginJsonPath);
+  const pluginData = JSON.parse(pluginJsonContent);
+
+  // Create marketplace structure
+  const marketplacePluginDir = await join(marketplacePath, ".claude-plugin");
+  const pluginsSubdir = await join(marketplacePath, "plugins", "specflux");
+
+  await mkdir(marketplacePluginDir, { recursive: true });
+  await mkdir(pluginsSubdir, { recursive: true });
+
+  // Copy plugin files to marketplace/plugins/specflux/
+  await copyDirectory(pluginSourcePath, pluginsSubdir);
+
+  // Create marketplace.json with correct version
+  const marketplaceJson = {
+    $schema: "https://anthropic.com/claude-code/marketplace.schema.json",
+    name: MARKETPLACE_NAME,
+    description: "SpecFlux planning and implementation workflows",
+    owner: {
+      name: "SpecFlux",
+      email: "support@specflux.dev",
+    },
+    plugins: [
+      {
+        name: PLUGIN_NAME,
+        description: "SpecFlux planning and implementation workflows",
+        version: pluginData.version,
+        author: {
+          name: "SpecFlux",
+          email: "support@specflux.dev",
+        },
+        source: "./plugins/specflux",
+        category: "development",
+      },
+    ],
+  };
+
+  await writeTextFile(
+    await join(marketplacePluginDir, "marketplace.json"),
+    JSON.stringify(marketplaceJson, null, 2)
+  );
+
+  console.log(`[PluginManager] Built marketplace with plugin v${pluginData.version}`);
+}
+
+/**
  * Ensure the marketplace exists in ~/.claude/plugins/
- * Copies from bundled resources if needed
+ * Builds from plugin source (bundled or dev)
  */
 async function ensureMarketplaceFiles(): Promise<string> {
   const marketplacePath = await getMarketplacePath();
@@ -206,82 +302,11 @@ async function ensureMarketplaceFiles(): Promise<string> {
     return marketplacePath;
   }
 
-  // Copy from bundled resources
-  try {
-    const resourcePath = await resolveResource("specflux-marketplace");
-    await copyDirectory(resourcePath, marketplacePath);
-    console.log("[PluginManager] Copied marketplace from resources");
-  } catch (resourceError) {
-    // Fallback: Create marketplace from existing plugin (development mode)
-    console.log(
-      "[PluginManager] Resource not found, trying development fallback"
-    );
-    await createMarketplaceFromExistingPlugin(marketplacePath);
-  }
+  // Build marketplace from plugin source
+  const pluginSourcePath = await getPluginSourcePath();
+  await buildMarketplaceFromPlugin(pluginSourcePath, marketplacePath);
 
   return marketplacePath;
-}
-
-/**
- * Development fallback: Create marketplace from existing plugin at ~/.claude/plugins/specflux
- */
-async function createMarketplaceFromExistingPlugin(
-  marketplacePath: string
-): Promise<void> {
-  const pluginsDir = await getPluginsDir();
-  const existingPluginPath = await join(pluginsDir, "specflux");
-
-  // Check if existing plugin exists
-  const pluginExists = await exists(
-    await join(existingPluginPath, ".claude-plugin", "plugin.json")
-  );
-  if (!pluginExists) {
-    throw new Error(
-      "No plugin source available. Please install the SpecFlux plugin manually."
-    );
-  }
-
-  // Create marketplace structure
-  const marketplacePluginDir = await join(marketplacePath, ".claude-plugin");
-  const pluginsSubdir = await join(marketplacePath, "plugins");
-
-  await mkdir(marketplacePluginDir, { recursive: true });
-  await mkdir(pluginsSubdir, { recursive: true });
-
-  // Copy plugin to marketplace/plugins/specflux/
-  const destPluginPath = await join(pluginsSubdir, "specflux");
-  await copyDirectory(existingPluginPath, destPluginPath);
-
-  // Create marketplace.json
-  const marketplaceJson = {
-    $schema: "https://anthropic.com/claude-code/marketplace.schema.json",
-    name: MARKETPLACE_NAME,
-    description: "SpecFlux planning and implementation workflows",
-    owner: {
-      name: "SpecFlux",
-      email: "support@specflux.dev",
-    },
-    plugins: [
-      {
-        name: PLUGIN_NAME,
-        description: "SpecFlux planning and implementation workflows",
-        version: "1.0.0",
-        author: {
-          name: "SpecFlux",
-          email: "support@specflux.dev",
-        },
-        source: "./plugins/specflux",
-        category: "development",
-      },
-    ],
-  };
-
-  await writeTextFile(
-    await join(marketplacePluginDir, "marketplace.json"),
-    JSON.stringify(marketplaceJson, null, 2)
-  );
-
-  console.log("[PluginManager] Created marketplace from existing plugin");
 }
 
 /**
@@ -478,6 +503,7 @@ export async function updatePlugin(): Promise<{
   newVersion?: string;
 }> {
   try {
+    // Step 1: Uninstall current version
     const uninstallResult = await runClaudePluginCommand([
       "uninstall",
       PLUGIN_FULL_NAME,
@@ -486,36 +512,18 @@ export async function updatePlugin(): Promise<{
     ]);
     console.log("[PluginManager] Uninstall result:", uninstallResult);
 
+    // Step 2: Rebuild marketplace from plugin source
     const marketplacePath = await getMarketplacePath();
-    try {
-      const resourcePath = await resolveResource("specflux-marketplace");
-      await copyDirectory(resourcePath, marketplacePath);
-      console.log("[PluginManager] Copied updated marketplace from resources");
-    } catch {
-      // Dev mode: try workspace marketplace
-      const home = await homeDir();
-      const workspaceMarketplace = await join(
-        home,
-        "workspace",
-        "specflux_workspace",
-        ".claude",
-        "plugins",
-        "specflux-marketplace"
-      );
-      const workspaceExists = await exists(workspaceMarketplace);
-      if (workspaceExists) {
-        await copyDirectory(workspaceMarketplace, marketplacePath);
-        console.log("[PluginManager] Copied marketplace from workspace");
-      } else {
-        await createMarketplaceFromExistingPlugin(marketplacePath);
-      }
-    }
+    const pluginSourcePath = await getPluginSourcePath();
+    await buildMarketplaceFromPlugin(pluginSourcePath, marketplacePath);
 
+    // Step 3: Reinstall plugin
     const installResult = await installPlugin();
     if (!installResult) {
       return { success: false, error: "Failed to reinstall plugin" };
     }
 
+    // Step 4: Verify installation
     const verifyStatus = await checkPluginInstalled();
     if (verifyStatus.installed) {
       return { success: true, newVersion: verifyStatus.version };
