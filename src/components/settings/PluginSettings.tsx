@@ -61,7 +61,6 @@ export function PluginSettings() {
     installedVersion: string | null;
     bundledVersion: string | null;
   } | null>(null);
-  const [checking, setChecking] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
@@ -69,7 +68,6 @@ export function PluginSettings() {
   } | null>(null);
 
   const checkStatus = async () => {
-    setChecking(true);
     try {
       const [pluginStatus, updateStatus] = await Promise.all([
         checkPluginInstalled(),
@@ -79,8 +77,6 @@ export function PluginSettings() {
       setUpdateInfo(updateStatus);
     } catch (error) {
       console.error("Failed to check plugin status:", error);
-    } finally {
-      setChecking(false);
     }
   };
 
@@ -133,40 +129,27 @@ export function PluginSettings() {
 
       {/* Status Card */}
       <div className="bg-surface-50 dark:bg-surface-800 rounded-lg p-4 border border-surface-200 dark:border-surface-700">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {status?.installed ? (
-              <CheckCircleIcon className="w-5 h-5 text-emerald-500" />
-            ) : (
-              <ExclamationCircleIcon className="w-5 h-5 text-amber-500" />
-            )}
-            <div>
-              <div className="font-medium text-surface-900 dark:text-surface-100">
-                {status?.installed ? "Plugin Installed" : "Plugin Not Installed"}
-              </div>
-              {status?.version && (
-                <div className="text-sm text-surface-600 dark:text-surface-400">
-                  Version {status.version}
-                </div>
-              )}
-              {updateInfo?.bundledVersion && (
-                <div className="text-sm text-surface-500 dark:text-surface-500">
-                  Latest: {updateInfo.bundledVersion}
-                </div>
-              )}
+        <div className="flex items-center gap-3">
+          {status?.installed ? (
+            <CheckCircleIcon className="w-5 h-5 text-emerald-500" />
+          ) : (
+            <ExclamationCircleIcon className="w-5 h-5 text-amber-500" />
+          )}
+          <div>
+            <div className="font-medium text-surface-900 dark:text-surface-100">
+              {status?.installed ? "Plugin Installed" : "Plugin Not Installed"}
             </div>
+            {status?.version && (
+              <div className="text-sm text-surface-600 dark:text-surface-400">
+                Version {status.version}
+              </div>
+            )}
+            {updateInfo?.bundledVersion && (
+              <div className="text-sm text-surface-500 dark:text-surface-500">
+                Latest: {updateInfo.bundledVersion}
+              </div>
+            )}
           </div>
-
-          <button
-            onClick={checkStatus}
-            disabled={checking}
-            className="btn btn-secondary text-sm flex items-center gap-2"
-          >
-            <ArrowPathIcon
-              className={`w-4 h-4 ${checking ? "animate-spin" : ""}`}
-            />
-            Check
-          </button>
         </div>
 
         {/* Update Available Banner */}

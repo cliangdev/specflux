@@ -32,14 +32,6 @@ describe("PluginSettings", () => {
       });
     });
 
-    it("should render Check button", async () => {
-      render(<PluginSettings />);
-
-      await waitFor(() => {
-        expect(screen.getByText("Check")).toBeInTheDocument();
-      });
-    });
-
     it("should not show update banner when no update available", async () => {
       render(<PluginSettings />);
 
@@ -154,37 +146,6 @@ describe("PluginSettings", () => {
 
       await waitFor(() => {
         expect(screen.getByText("Installation failed")).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe("Check button", () => {
-    beforeEach(() => {
-      vi.mocked(pluginManager.checkPluginInstalled).mockResolvedValue({
-        installed: true,
-        version: "1.0.0",
-      });
-      vi.mocked(pluginManager.checkPluginUpdateAvailable).mockResolvedValue({
-        updateAvailable: false,
-        installedVersion: "1.0.0",
-        bundledVersion: "1.0.0",
-      });
-    });
-
-    it("should refresh status when Check button is clicked", async () => {
-      render(<PluginSettings />);
-
-      await waitFor(() => {
-        expect(screen.getByText("Check")).toBeInTheDocument();
-      });
-
-      vi.clearAllMocks();
-
-      fireEvent.click(screen.getByText("Check"));
-
-      await waitFor(() => {
-        expect(pluginManager.checkPluginInstalled).toHaveBeenCalled();
-        expect(pluginManager.checkPluginUpdateAvailable).toHaveBeenCalled();
       });
     });
   });
