@@ -565,8 +565,8 @@ export default function PRDDetailPage() {
   // Check if terminal is showing this PRD
   const isTerminalShowingThisPrd = activeSession?.contextId === prd?.id;
 
-  // No project
-  if (!currentProject?.localPath) {
+  // No project path configured
+  if (!localPath) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
