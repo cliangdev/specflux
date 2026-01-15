@@ -379,7 +379,34 @@ POST /api/projects/{projectRef}/epics
 }
 ```
 
-**IMPORTANT**: `acceptanceCriteria` format is `[{"criteria": "..."}, ...]` NOT `["...", ...]`
+**CRITICAL**:
+- `prdRef` is REQUIRED - always link epics to their source PRD
+- `acceptanceCriteria` format is `[{"criteria": "..."}, ...]` NOT `["...", ...]`
+
+Without `prdRef`, epics will be orphaned and not visible under the PRD in the UI.
+
+### Add Epic Dependencies
+
+After creating all epics, add dependencies between them:
+
+```
+POST /api/projects/{projectRef}/epics/{epicRef}/dependencies
+{"dependsOnEpicRef": "SPEC-E1"}
+```
+
+**Dependency Guidelines:**
+- API/infrastructure epics should have no dependencies (do first)
+- UI/frontend epics typically depend on API epics
+- Integration epics depend on both API and UI epics
+- Independent epics (docs, config) can run in parallel
+
+**Example dependency chain:**
+```
+E1: API Changes       → No dependencies (first)
+E2: Plugin Commands   → Depends on E1
+E3: Hook Integration  → Depends on E1, E2
+E4: Skill Updates     → No dependencies (parallel with E1)
+```
 
 ---
 

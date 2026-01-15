@@ -4,6 +4,38 @@
 
 This project is managed by SpecFlux. The SpecFlux plugin provides commands for planning and implementation workflows.
 
+## CRITICAL: Implementation Workflow
+
+**When implementing tasks, you MUST follow this workflow exactly. No exceptions.**
+
+### Before Starting ANY Task
+1. **Verify API access** - Check `$SPECFLUX_API_URL` is set and accessible
+2. **Fetch task details** - `GET /api/projects/{projectRef}/tasks/{taskRef}`
+3. **Mark task IN_PROGRESS** - `PATCH {"status": "IN_PROGRESS"}`
+4. **Read acceptance criteria** - `GET .../tasks/{taskRef}/acceptance-criteria`
+
+**If API is unavailable, STOP and inform the user. Do NOT proceed.**
+
+### During Implementation
+5. Write tests for each acceptance criterion
+6. Implement until ALL tests pass
+7. Run full test suite
+
+### After Completing Task
+8. **Mark criteria met** - `PUT {"isMet": true}` for each criterion
+9. **Commit** with task reference: `TASK-REF: description`
+10. **Mark task COMPLETED** - `PATCH {"status": "COMPLETED"}`
+
+### After All Tasks in Epic
+11. **Mark epic COMPLETED** - `PATCH {"status": "COMPLETED"}`
+12. **Create PR** with epic reference
+
+### MUST NOT
+- Start coding without marking task IN_PROGRESS via API
+- Skip API status updates
+- Leave task in IN_PROGRESS after completion
+- Create PR without marking epic COMPLETED
+
 ## Available Commands
 
 | Command | Description |
@@ -32,12 +64,12 @@ The SpecFlux plugin provides these skills (always active):
 - PRD documents: `.specflux/prds/{name}/prd.md`
 - Supporting docs: `.specflux/prds/{name}/architecture.md`, `user-flows.md`, etc.
 
-## Workflow
+## Workflow Summary
 
 1. **Planning**: `/specflux:planning` to create PRD → break into epics → break into tasks
 2. **Implementation**: `/specflux:implement` to work through tasks
-3. **Each task**: Tests first → implement → one commit when all pass
-4. **PR**: Create PR when epic complete
+3. **Each task**: Mark IN_PROGRESS → Tests first → implement → commit → Mark COMPLETED
+4. **Each epic**: After all tasks done → Mark epic COMPLETED → Create PR
 
 ## API Reference
 
