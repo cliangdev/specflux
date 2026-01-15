@@ -20,8 +20,10 @@ vi.mock("../api", () => ({
   api: {
     prds: {
       getPrd: vi.fn(),
-      listPrdDocuments: vi.fn(),
       updatePrd: vi.fn(),
+      deletePrd: vi.fn(),
+      addPrdDocument: vi.fn(),
+      deletePrdDocument: vi.fn(),
     },
     epics: {
       listEpics: vi.fn(),
@@ -159,9 +161,6 @@ describe("PRDDetailPage", () => {
     mockLocalProjectPathState.localPath = null;
     // Set up default successful responses
     vi.mocked(api.prds.getPrd).mockResolvedValue(mockPrd as never);
-    vi.mocked(api.prds.listPrdDocuments).mockResolvedValue({
-      data: [],
-    } as never);
     vi.mocked(api.epics.listEpics).mockResolvedValue({
       data: [],
       pagination: { hasMore: false },
