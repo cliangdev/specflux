@@ -492,7 +492,23 @@ export async function updatePlugin(): Promise<{
       await copyDirectory(resourcePath, marketplacePath);
       console.log("[PluginManager] Copied updated marketplace from resources");
     } catch {
-      await createMarketplaceFromExistingPlugin(marketplacePath);
+      // Dev mode: try workspace marketplace
+      const home = await homeDir();
+      const workspaceMarketplace = await join(
+        home,
+        "workspace",
+        "specflux_workspace",
+        ".claude",
+        "plugins",
+        "specflux-marketplace"
+      );
+      const workspaceExists = await exists(workspaceMarketplace);
+      if (workspaceExists) {
+        await copyDirectory(workspaceMarketplace, marketplacePath);
+        console.log("[PluginManager] Copied marketplace from workspace");
+      } else {
+        await createMarketplaceFromExistingPlugin(marketplacePath);
+      }
     }
 
     const installResult = await installPlugin();
