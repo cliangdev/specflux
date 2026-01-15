@@ -124,6 +124,73 @@ curl -s -H "Authorization: Bearer $SPECFLUX_API_KEY" \
 3. **Implement until ALL tests pass**
 4. **Run full test suite** - Ensure no regressions
 
+## Test Requirements
+
+### 1. Acceptance Criteria Tests (REQUIRED)
+
+Every acceptance criterion MUST have at least one corresponding test that verifies it.
+
+```
+Criterion: "Users can log in with email/password"
+    → Test: testLoginWithValidCredentialsReturnsToken()
+    → Test: testLoginWithInvalidPasswordReturns401()
+
+Criterion: "API returns paginated results"
+    → Test: testGetUsersReturnsPaginatedResponse()
+    → Test: testPaginationCursorNavigatesCorrectly()
+```
+
+**Rules:**
+- Test must **fail** before implementation, **pass** after
+- Mark criterion complete via API **only** when test passes
+- One criterion may require multiple tests for complete coverage
+
+### 2. Proactive Testing for Critical Components
+
+Beyond acceptance criteria, add tests for:
+
+| Component Type | What to Test |
+|----------------|--------------|
+| **Core business logic** | All code paths, transformations, calculations |
+| **Security-sensitive code** | Auth, permissions, input validation |
+| **Data transformations** | Serialization, parsing, conversions |
+| **Integration points** | API calls, database operations, external services |
+| **Error paths** | Exception handling, error messages, fallback behavior |
+| **Edge cases** | Null handling, empty states, boundary conditions |
+
+**Guideline:** More tests for risky/complex code. Use judgment - three lines of trivial code don't need three tests.
+
+### 3. Manual Review Criteria
+
+Criteria tagged with `[manual]` are **skipped** during automated verification:
+
+```
+Acceptance Criteria:
+- User can log in with email/password          → test required, auto-verified
+- Login form shows validation errors           → test required, auto-verified
+- [manual] UI matches design mockup            → skipped, flagged for review
+- [manual] Copy is reviewed by legal           → skipped, flagged for review
+```
+
+**Handling [manual] criteria:**
+- Do NOT write automated tests for these
+- Do NOT block task completion on these
+- DO report them in task completion summary
+- DO flag them for human review before release
+
+**Example completion summary:**
+```
+✅ Task SPEC-42 Complete
+
+Automated Criteria (verified):
+- [✓] Users can log in with email/password
+- [✓] Login form shows validation errors
+
+Manual Review Required:
+- [ ] UI matches design mockup
+- [ ] Copy is reviewed by legal
+```
+
 ### Step 8: Mark Criteria Met
 
 For EACH acceptance criterion:
