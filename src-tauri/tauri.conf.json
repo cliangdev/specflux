@@ -30,7 +30,7 @@
     "active": true,
     "targets": "all",
     "resources": {
-      "../../.claude/plugins/specflux-marketplace": "specflux-marketplace"
+      "../src/plugin": "specflux-plugin"
     },
     "icon": [
       "icons/32x32.png",
