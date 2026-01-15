@@ -33,28 +33,35 @@ When breaking down PRDs into epics and tasks, follow these patterns.
 
 **CRITICAL**: `acceptanceCriteria` must be `[{"criteria": "..."}, ...]` NOT `["...", ...]`
 
-### Description Template
+### Description Template (Agent-Optimized)
+
+Use structured format for efficient agent consumption. Every word costs context window tokens.
 
 ```markdown
-## Overview
-{What this epic delivers, user stories, context}
+## Context
+- Tech stack: {relevant technologies}
+- Database: {relevant tables/schemas with file:line refs}
+- Related code: {directory or file paths}
 
 ## Scope
-**IN:** {what's included}
-**OUT:** {what's excluded - important for boundaries}
+- {What's included - bullet points}
+- {Another inclusion}
 
-## Technical Approach
-{Data model, API contracts, key implementation decisions}
-
-## Reference Documents
-- `.specflux/prds/{name}/prd.md` - Full requirements
-- `.specflux/prds/{name}/wireframes.md` - UI layouts
-- `.specflux/prds/{name}/data-model.md` - Schema details
-
-## Edge Cases
-- {edge case 1 and how to handle}
-- {edge case 2 and how to handle}
+## NOT in scope
+- {Explicit exclusion to prevent scope creep}
+- {Another exclusion}
 ```
+
+**Format Principles:**
+
+| Principle | Rationale |
+|-----------|-----------|
+| Bullet points over paragraphs | Faster to parse, less ambiguity |
+| File:line references | Agent can jump directly to code (e.g., `src/auth/User.java:42`) |
+| Explicit NOT in scope | Prevents scope creep, saves iterations |
+| No redundant context | PRD is linked, don't repeat it |
+
+**Validation:** If description exceeds 500 characters without structured sections, it's likely too verbose.
 
 ### Acceptance Criteria Guidelines
 
@@ -95,26 +102,39 @@ Create independent epics FIRST, then dependent ones.
 }
 ```
 
-### Description Template
+### Description Template (Agent-Optimized)
+
+Use structured format for agent efficiency. Include specific file paths.
 
 ```markdown
-## Objective
-{One sentence: what this task accomplishes}
+## Files
+- Modify: {existing file paths}
+- Create: {new file paths}
+- Reference: {files to read for context}
 
-## Files to Create/Modify
-- `src/migrations/001_create_users.sql`
-- `src/models/User.kt`
-- `src/repositories/UserRepository.kt`
-
-## Implementation Details
-{Specific requirements: endpoints, schemas, validation rules}
-
-## Error Handling
-{How to handle failures, edge cases}
-
-## Testing Requirements
-{What tests to write - maps to acceptance criteria}
+## Implementation
+- {Step 1}
+- {Step 2}
 ```
+
+**Example:**
+```markdown
+## Files
+- Modify: src/controllers/AuthController.java:85
+- Modify: src/services/AuthService.java
+- Create: src/dto/LoginRequest.java
+- Reference: src/config/SecurityConfig.java
+
+## Implementation
+- Add POST /auth/login endpoint
+- Validate email/password format
+- Return JWT on success, 401 on failure
+```
+
+**File Reference Conventions:**
+- Use `file:line` for specific locations (e.g., `AuthController.java:85`)
+- Use `file` for general references (e.g., `AuthService.java`)
+- Use directories for broader scope (e.g., `src/auth/`)
 
 ### Acceptance Criteria for Tasks
 

@@ -77,6 +77,9 @@ Ask conversationally, one question per turn:
 3. What's the simplest version that would be useful?
 4. List 3-5 core features for MVP
 5. Any technical constraints or preferences?
+6. (Optional) Tag for this PRD? Tags group related PRDs for batch implementation.
+   - Example: "mvp-phase1", "auth-features", "q1-2026"
+   - User can skip by saying "skip" or "none"
 
 ### Analyze Complexity
 
@@ -113,10 +116,18 @@ Continue with normal PRD creation flow.
 
 Use this flow when the user confirms a multi-PRD breakdown.
 
+**Step 0: Prompt for shared tag (once)**
+
+Before creating any PRDs, ask:
+> "Would you like to tag these PRDs for batch implementation later?
+> (e.g., 'mvp-launch', 'q1-2026') or skip"
+
+Store the tag (or null if skipped) for use in all child PRD creations.
+
 **Step 1: Create Vision PRD via API**
 ```
 POST /api/projects/{projectRef}/prds
-{"title": "{Project Name}", "description": "Vision and roadmap for {project}"}
+{"title": "{Project Name}", "description": "Vision and roadmap for {project}", "tag": "{shared-tag}"}
 ```
 
 **Step 2: Generate Vision PRD document**
@@ -133,16 +144,16 @@ Use the Vision PRD template from `prd-template` skill. Include:
 
 **Step 4: Create child PRD stubs**
 
-For each phase identified, create a stub PRD via API:
+For each phase identified, create a stub PRD via API with the shared tag:
 ```
 POST /api/projects/{projectRef}/prds
-{"title": "Phase 0: Infrastructure Setup", "description": "Repository, CI/CD, and cloud setup"}
+{"title": "Phase 0: Infrastructure Setup", "description": "Repository, CI/CD, and cloud setup", "tag": "{shared-tag}"}
 
 POST /api/projects/{projectRef}/prds
-{"title": "Phase 1: {MVP Name}", "description": "{brief MVP description}"}
+{"title": "Phase 1: {MVP Name}", "description": "{brief MVP description}", "tag": "{shared-tag}"}
 
 POST /api/projects/{projectRef}/prds
-{"title": "Phase 2: {Phase Name}", "description": "{brief phase description}"}
+{"title": "Phase 2: {Phase Name}", "description": "{brief phase description}", "tag": "{shared-tag}"}
 ```
 
 For each stub, create a minimal prd.md using the Stub PRD template from `prd-template` skill, then register via API.
@@ -283,8 +294,13 @@ erDiagram
 1. Create PRD:
    ```
    POST /api/projects/{projectRef}/prds
-   {"title": "{prd-name}", "description": "{brief summary}"}
+   {"title": "{prd-name}", "description": "{brief summary}", "tag": "{tag or null}"}
    ```
+
+   **Tag handling:**
+   - If user provided a tag → include it in the request
+   - If user skipped → omit `tag` field or set to `null`
+   - For multiple PRDs → prompt for shared tag once, apply to all
 
 2. Save markdown to `{folderPath}/prd.md`
 
