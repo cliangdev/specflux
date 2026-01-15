@@ -13,13 +13,19 @@ When implementing code in a SpecFlux project, you MUST follow this workflow exac
 
 ### 1. Verify API Access
 ```bash
-# Test API connectivity
-curl -s -w "%{http_code}" -o /dev/null "$SPECFLUX_API_URL/api/health"
+# Check environment variables are set
+echo $SPECFLUX_API_URL   # Must not be empty
+echo $SPECFLUX_API_KEY   # Must not be empty, should start with "sfx_"
+
+# Test API connectivity with authentication
+curl -s -w "%{http_code}" -o /dev/null \
+  -H "Authorization: Bearer $SPECFLUX_API_KEY" \
+  "$SPECFLUX_API_URL/api/projects"
 ```
 
-**If SPECFLUX_API_URL is not set or API is unreachable:**
+**If SPECFLUX_API_URL or SPECFLUX_API_KEY is not set, or API is unreachable:**
 - STOP immediately
-- Inform user: "Cannot proceed - SpecFlux API is not accessible. Please ensure SPECFLUX_API_URL is set and the API is running."
+- Inform user: "Cannot proceed - SpecFlux API is not accessible. Please ensure SPECFLUX_API_URL and SPECFLUX_API_KEY are set and the API is running."
 - Do NOT proceed with implementation
 
 ### 2. Verify Task Exists
@@ -89,22 +95,26 @@ You MUST follow these steps IN ORDER. Skipping steps is NOT allowed.
 ### Step 1-3: Pre-Flight (MANDATORY)
 
 ```bash
-# 1. Check API URL is set
+# 1. Check environment variables are set
 echo $SPECFLUX_API_URL  # Must not be empty
+echo $SPECFLUX_API_KEY  # Must not be empty, should start with "sfx_"
 
 # 2. Fetch task
-curl -s "$SPECFLUX_API_URL/api/projects/{projectRef}/tasks/{taskRef}"
+curl -s -H "Authorization: Bearer $SPECFLUX_API_KEY" \
+  "$SPECFLUX_API_URL/api/projects/{projectRef}/tasks/{taskRef}"
 
 # 3. Mark IN_PROGRESS
-curl -s -X PATCH "$SPECFLUX_API_URL/api/projects/{projectRef}/tasks/{taskRef}" \
+curl -s -X PATCH -H "Authorization: Bearer $SPECFLUX_API_KEY" \
   -H "Content-Type: application/json" \
+  "$SPECFLUX_API_URL/api/projects/{projectRef}/tasks/{taskRef}" \
   -d '{"status": "IN_PROGRESS"}'
 ```
 
 ### Step 4: Read Acceptance Criteria
 
 ```bash
-curl -s "$SPECFLUX_API_URL/api/projects/{projectRef}/tasks/{taskRef}/acceptance-criteria"
+curl -s -H "Authorization: Bearer $SPECFLUX_API_KEY" \
+  "$SPECFLUX_API_URL/api/projects/{projectRef}/tasks/{taskRef}/acceptance-criteria"
 ```
 
 ### Steps 5-7: Test-First Development
@@ -118,8 +128,9 @@ curl -s "$SPECFLUX_API_URL/api/projects/{projectRef}/tasks/{taskRef}/acceptance-
 
 For EACH acceptance criterion:
 ```bash
-curl -s -X PUT "$SPECFLUX_API_URL/api/projects/{projectRef}/tasks/{taskRef}/acceptance-criteria/{id}" \
+curl -s -X PUT -H "Authorization: Bearer $SPECFLUX_API_KEY" \
   -H "Content-Type: application/json" \
+  "$SPECFLUX_API_URL/api/projects/{projectRef}/tasks/{taskRef}/acceptance-criteria/{id}" \
   -d '{"isMet": true}'
 ```
 
@@ -135,8 +146,9 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 ### Step 10: Mark Task COMPLETED
 
 ```bash
-curl -s -X PATCH "$SPECFLUX_API_URL/api/projects/{projectRef}/tasks/{taskRef}" \
+curl -s -X PATCH -H "Authorization: Bearer $SPECFLUX_API_KEY" \
   -H "Content-Type: application/json" \
+  "$SPECFLUX_API_URL/api/projects/{projectRef}/tasks/{taskRef}" \
   -d '{"status": "COMPLETED"}'
 ```
 
@@ -148,8 +160,9 @@ After ALL tasks in an epic are done:
 
 ```bash
 # Mark epic completed
-curl -s -X PATCH "$SPECFLUX_API_URL/api/projects/{projectRef}/epics/{epicRef}" \
+curl -s -X PATCH -H "Authorization: Bearer $SPECFLUX_API_KEY" \
   -H "Content-Type: application/json" \
+  "$SPECFLUX_API_URL/api/projects/{projectRef}/epics/{epicRef}" \
   -d '{"status": "COMPLETED"}'
 
 # Create PR
@@ -174,8 +187,9 @@ You MUST NOT:
 STOP. Inform user:
 "SpecFlux API is not accessible. Please ensure:
 1. SPECFLUX_API_URL environment variable is set
-2. API server is running
-3. Network connectivity is available"
+2. SPECFLUX_API_KEY environment variable is set (should start with 'sfx_')
+3. API server is running
+4. Network connectivity is available"
 ```
 
 ### Status Update Fails
