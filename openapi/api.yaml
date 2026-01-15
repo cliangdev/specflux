@@ -579,6 +579,16 @@ paths:
           description: Search in title and description
           schema:
             type: string
+        - name: prdTag
+          in: query
+          description: Filter tasks by PRD tag (tasks whose epic belongs to a PRD with this tag)
+          schema:
+            type: string
+        - name: statusNot
+          in: query
+          description: Exclude tasks with these statuses (comma-separated, e.g., COMPLETED,CANCELLED)
+          schema:
+            type: string
       responses:
         '200':
           description: List of tasks
@@ -2323,6 +2333,11 @@ components:
         description:
           type: string
           nullable: true
+        tag:
+          type: string
+          nullable: true
+          maxLength: 100
+          description: Optional tag for grouping PRDs (e.g., mvp-phase1)
         folderPath:
           type: string
           description: Path to PRD folder (e.g., .specflux/prds/auth-system)
@@ -2355,6 +2370,11 @@ components:
         description:
           type: string
           nullable: true
+        tag:
+          type: string
+          nullable: true
+          maxLength: 100
+          description: Optional tag for grouping PRDs (e.g., mvp-phase1)
         folderPath:
           type: string
           nullable: true
@@ -2370,6 +2390,11 @@ components:
         description:
           type: string
           nullable: true
+        tag:
+          type: string
+          nullable: true
+          maxLength: 100
+          description: Optional tag for grouping PRDs (e.g., mvp-phase1)
         status:
           $ref: '#/components/schemas/PrdStatus'
 
