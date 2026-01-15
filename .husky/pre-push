@@ -1,0 +1,17 @@
+# Prevent pushing directly to main branch
+branch="$(git rev-parse --abbrev-ref HEAD)"
+
+if [ "$branch" = "main" ] || [ "$branch" = "master" ]; then
+  echo ""
+  echo "⛔ ERROR: Direct push to '$branch' branch is not allowed."
+  echo ""
+  echo "Please create a feature branch and open a PR:"
+  echo "  git checkout -b feature/your-feature-name"
+  echo "  git push -u origin feature/your-feature-name"
+  echo "  gh pr create"
+  echo ""
+  echo "To bypass this check (emergency only):"
+  echo "  git push --no-verify"
+  echo ""
+  exit 1
+fi
