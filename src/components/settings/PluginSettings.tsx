@@ -149,6 +149,11 @@ export function PluginSettings() {
                   Version {status.version}
                 </div>
               )}
+              {updateInfo?.bundledVersion && (
+                <div className="text-sm text-surface-500 dark:text-surface-500">
+                  Latest: {updateInfo.bundledVersion}
+                </div>
+              )}
             </div>
           </div>
 

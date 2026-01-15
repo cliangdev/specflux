@@ -118,6 +118,7 @@ describe("pluginManager", () => {
 
     it("returns null when no version source is available", async () => {
       vi.mocked(resolveResource).mockRejectedValue(new Error("Not found"));
+      vi.mocked(exists).mockResolvedValue(false);
       vi.mocked(readTextFile).mockRejectedValue(new Error("Not found"));
 
       const result = await getBundledPluginVersion();

@@ -431,33 +431,72 @@ function compareVersions(v1: string, v2: string): number {
 
 /**
  * Get the version of the bundled/source plugin.
- * Tries bundled resources first (production), falls back to marketplace directory (development).
+ * Tries multiple locations in order of preference:
+ * 1. Bundled resources (production)
+ * 2. Workspace .claude directory (development - matches tauri.conf.json resources)
+ * 3. User's installed marketplace (fallback)
  */
 export async function getBundledPluginVersion(): Promise<string | null> {
+  // Try 1: Bundled resources (production)
   try {
     const resourcePath = await resolveResource(
       "specflux-marketplace/plugins/specflux/.claude-plugin/plugin.json"
     );
     const content = await readTextFile(resourcePath);
     const data = JSON.parse(content);
+    console.log("[PluginManager] Got bundled version from resources:", data.version);
     return data.version || null;
-  } catch {
-    try {
-      const marketplacePath = await getMarketplacePath();
-      const sourcePath = await join(
-        marketplacePath,
-        "plugins",
-        "specflux",
-        ".claude-plugin",
-        "plugin.json"
-      );
-      const content = await readTextFile(sourcePath);
-      const data = JSON.parse(content);
-      return data.version || null;
-    } catch {
-      return null;
-    }
+  } catch (e) {
+    console.log("[PluginManager] resolveResource failed:", e);
   }
+
+  // Try 2: Workspace .claude directory (development)
+  // This matches tauri.conf.json resources: "../../.claude/plugins/specflux-marketplace"
+  try {
+    const home = await homeDir();
+    const workspacePath = await join(
+      home,
+      "workspace",
+      "specflux_workspace",
+      ".claude",
+      "plugins",
+      "specflux-marketplace",
+      "plugins",
+      "specflux",
+      ".claude-plugin",
+      "plugin.json"
+    );
+    const fileExists = await exists(workspacePath);
+    if (fileExists) {
+      const content = await readTextFile(workspacePath);
+      const data = JSON.parse(content);
+      console.log("[PluginManager] Got bundled version from workspace:", data.version);
+      return data.version || null;
+    }
+  } catch (e) {
+    console.log("[PluginManager] Workspace path failed:", e);
+  }
+
+  // Try 3: User's installed marketplace (fallback)
+  try {
+    const marketplacePath = await getMarketplacePath();
+    const sourcePath = await join(
+      marketplacePath,
+      "plugins",
+      "specflux",
+      ".claude-plugin",
+      "plugin.json"
+    );
+    const content = await readTextFile(sourcePath);
+    const data = JSON.parse(content);
+    console.log("[PluginManager] Got bundled version from user marketplace:", data.version);
+    return data.version || null;
+  } catch (e) {
+    console.log("[PluginManager] User marketplace path failed:", e);
+  }
+
+  console.log("[PluginManager] Could not determine bundled version");
+  return null;
 }
 
 /**
