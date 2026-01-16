@@ -85,6 +85,16 @@ vi.mock("../hooks/useHasClaudeSession", () => ({
   useHasClaudeSession: vi.fn(() => false),
 }));
 
+// Mock useLocalProjectPath hook
+vi.mock("../hooks/useLocalProjectPath", () => ({
+  useLocalProjectPath: () => ({
+    localPath: "/test/project/path",
+    isConfigured: true,
+    setLocalPath: vi.fn(),
+    getRepoFullPath: vi.fn(),
+  }),
+}));
+
 const mockNavigate = vi.fn();
 
 // Mock react-router-dom partially

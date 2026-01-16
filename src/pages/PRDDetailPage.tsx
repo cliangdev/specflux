@@ -391,11 +391,11 @@ export default function PRDDetailPage() {
       title: prd.title,
       displayKey: prd.displayKey,
       projectRef: getProjectRef() ?? undefined,
-      workingDirectory: currentProject?.localPath,
+      workingDirectory: localPath ?? undefined,
       initialCommand: "claude",
       initialPrompt,
     };
-  }, [prd, getProjectRef, currentProject?.localPath]);
+  }, [prd, getProjectRef, localPath]);
 
   // Force launch a new agent (close existing session first)
   const handleStartWork = () => {
@@ -433,7 +433,7 @@ export default function PRDDetailPage() {
         title: prd.title,
         displayKey: prd.displayKey,
         projectRef: getProjectRef() ?? undefined,
-        workingDirectory: currentProject?.localPath,
+        workingDirectory: localPath ?? undefined,
         initialCommand: `claude "/prd draft"`,
       });
     }
@@ -447,7 +447,7 @@ export default function PRDDetailPage() {
         title: prd.title,
         displayKey: prd.displayKey,
         projectRef: getProjectRef() ?? undefined,
-        workingDirectory: currentProject?.localPath,
+        workingDirectory: localPath ?? undefined,
         initialCommand: `claude "/prd refine"`,
       });
     }
@@ -461,7 +461,7 @@ export default function PRDDetailPage() {
         title: prd.title,
         displayKey: prd.displayKey,
         projectRef: getProjectRef() ?? undefined,
-        workingDirectory: currentProject?.localPath,
+        workingDirectory: localPath ?? undefined,
         initialCommand: `claude "/epic"`,
       });
     }
