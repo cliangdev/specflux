@@ -37,13 +37,8 @@ export const TEMPLATE_REGISTRY: TemplateDefinition[] = [
     description: "Project CLAUDE.md with SpecFlux plugin reference",
     category: "config",
   },
-  {
-    id: "claude-settings",
-    sourceFile: ".claude/settings.json",
-    destPath: ".claude/settings.json",
-    description: "Claude Code permissions and security settings",
-    category: "config",
-  },
+  // NOTE: settings.json is NOT copied to projects - permissions should be
+  // configured intentionally per-project, not inherited from templates
   // MCP config template
   {
     id: "mcp-config",

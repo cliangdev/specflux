@@ -18,6 +18,7 @@ import MarkdownRenderer from "../components/ui/MarkdownRenderer";
 import PrdSelector from "../components/epics/PrdSelector";
 import { usePageContext } from "../hooks/usePageContext";
 import { useHasClaudeSession } from "../hooks/useHasClaudeSession";
+import { useLocalProjectPath } from "../hooks/useLocalProjectPath";
 import { useTerminal } from "../contexts/TerminalContext";
 import { generateEpicPrompt } from "../services/promptGenerator";
 
@@ -62,6 +63,7 @@ export default function EpicDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentProject, getProjectRef } = useProject();
+  const { localPath } = useLocalProjectPath();
   const { openTerminalForContext, getExistingSession, switchToSession, closeSession, activeSession, isRunning } = useTerminal();
 
   const [epic, setEpic] = useState<EpicWithV2Fields | null>(null);
@@ -369,11 +371,11 @@ export default function EpicDetailPage() {
       title: epic.title,
       displayKey: epic.displayKey,
       projectRef: getProjectRef() ?? undefined,
-      workingDirectory: currentProject?.localPath,
+      workingDirectory: localPath ?? undefined,
       initialCommand: "claude",
       initialPrompt,
     };
-  }, [epic, getProjectRef, currentProject?.localPath]);
+  }, [epic, getProjectRef, localPath]);
 
   // Force launch a new agent (close existing session first)
   const handleStartWork = () => {

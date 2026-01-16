@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useProject } from "../contexts";
 import { useTerminal } from "../contexts/TerminalContext";
+import { useLocalProjectPath } from "../hooks/useLocalProjectPath";
 import { type Task } from "../api";
 import { KanbanBoard, WorkflowTemplate } from "../components/kanban";
 import TaskCreateModal from "../components/ui/TaskCreateModal";
 
 export default function BoardPage() {
   const { currentProject, getProjectRef } = useProject();
+  const { localPath } = useLocalProjectPath();
   const navigate = useNavigate();
   const { openTerminalForContext } = useTerminal();
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -47,7 +49,7 @@ export default function BoardPage() {
       title: task.title,
       displayKey: task.displayKey,
       projectRef: getProjectRef() ?? undefined,
-      workingDirectory: currentProject?.localPath,
+      workingDirectory: localPath ?? undefined,
       initialCommand: "claude",
     });
   };
