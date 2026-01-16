@@ -1,3 +1,8 @@
+---
+description: Start autonomous implementation loop for all tasks matching a PRD tag
+argument-hint: --tag <tag> [--max-iterations <n>]
+---
+
 # /specflux:implement-loop - Autonomous Implementation Loop
 
 Start an autonomous implementation loop for all tasks matching a PRD tag. Claude implements tasks continuously without user interaction until complete or max iterations reached.

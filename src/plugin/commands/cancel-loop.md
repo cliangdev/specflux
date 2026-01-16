@@ -1,3 +1,8 @@
+---
+description: Stop a running implementation loop
+argument-hint: [--tag <tag>]
+---
+
 # /specflux:cancel-loop - Cancel Implementation Loop
 
 Stop a running implementation loop by deleting its state file. The next time Claude tries to exit, the Stop Hook will allow it.
