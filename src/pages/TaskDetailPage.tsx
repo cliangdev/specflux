@@ -17,6 +17,7 @@ import MarkdownRenderer from "../components/ui/MarkdownRenderer";
 import { useTerminal } from "../contexts/TerminalContext";
 import { usePageContext } from "../hooks/usePageContext";
 import { useHasClaudeSession } from "../hooks/useHasClaudeSession";
+import { useLocalProjectPath } from "../hooks/useLocalProjectPath";
 import { generateTaskPrompt } from "../services/promptGenerator";
 
 // Task status options for DetailPageHeader
@@ -52,6 +53,7 @@ export default function TaskDetailPage() {
   const { taskId } = useParams<{ taskId: string }>();
   const navigate = useNavigate();
   const { currentProject, getProjectRef } = useProject();
+  const { localPath } = useLocalProjectPath();
   const {
     openTerminalForContext,
     getExistingSession,
@@ -368,11 +370,11 @@ export default function TaskDetailPage() {
       title: task.title,
       displayKey: task.displayKey,
       projectRef: getProjectRef() ?? undefined,
-      workingDirectory: currentProject?.localPath,
+      workingDirectory: localPath ?? undefined,
       initialCommand: "claude",
       initialPrompt,
     };
-  }, [task, getProjectRef, currentProject?.localPath]);
+  }, [task, getProjectRef, localPath]);
 
   // Resume existing session or create new one
   const handleOpenInTerminal = () => {
