@@ -11,7 +11,6 @@
 
 // Config templates
 import claudeMdTemplate from "./files/CLAUDE.md?raw";
-import claudeSettings from "./files/.claude/settings.json?raw";
 import mcpConfig from "./files/.mcp.json?raw";
 
 // Project-specific skill templates (tech patterns)
@@ -27,7 +26,6 @@ import uiPatternsSkill from "./files/skills/ui-patterns/SKILL.md?raw";
 export const TEMPLATE_CONTENT: Record<string, string> = {
   // Config
   "CLAUDE.md": claudeMdTemplate,
-  ".claude/settings.json": claudeSettings,
   ".mcp.json": mcpConfig,
   // Project-specific skills (tech patterns)
   "skills/frontend-design/SKILL.md": frontendDesignSkill,
